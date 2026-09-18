@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Administradores\EmpresaController;
 use App\Http\Controllers\Empresa\ClienteController;
 use App\Http\Controllers\Empresa\MetodoPagoController;
 use App\Http\Controllers\Empresa\ProveedorController;
@@ -11,6 +12,15 @@ Route::middleware('auth')->group(function () {
 
     Route::controller(PanelPrincipalController::class)->group(function () {
         Route::get('/panel-principal', 'index')->name('dashboard');
+    });
+
+    Route::controller(EmpresaController::class)->group(function () {
+        Route::get('/empresas', 'index')->name('empresa');
+        Route::get('/empresas/lista', 'lista');
+        Route::get('/empresas/{id}', 'detalle');
+        Route::post('/empresas', 'guardar');
+        Route::put('/empresas/actualizar/{id}', 'actualizar');
+        Route::delete('/empresas/{id}', 'eliminar');
     });
 
     Route::controller(ClienteController::class)->group(function () {

@@ -332,3 +332,119 @@ All module JS files consume standard components from `public/estilos/jsPropios/c
 - `fas fa-hand-holding-usd` (CXP / CXC)
 - `fas fa-chart-line` / `fas fa-chart-pie` (Reportes)
 - `fas fa-sliders-h` / `fas fa-gear` (Configuración)
+
+---
+
+## 9. Multi-Tenant, Multi-Almacén & User Role Hierarchy
+
+The POS system supports both **a single holding company with multiple child branches/companies** and **an independent single company**.
+
+```
+                           ┌───────────────────────────┐
+                           │   SUPERADMINISTRADOR      │
+                           │ (Plataforma Global, Logs) │
+                           └─────────────┬─────────────┘
+                                         │ Crea / Administra
+                    ┌────────────────────┴────────────────────┐
+                    ▼                                         ▼
+         ┌─────────────────────┐                   ┌─────────────────────┐
+         │  EMPRESA 1 (Matriz) │                   │  EMPRESA 2 (Filial) │
+         └──────────┬──────────┘                   └──────────┬──────────┘
+                    │                                         │
+       ┌────────────┴────────────┐               ┌────────────┴────────────┐
+       ▼                         ▼               ▼                         ▼
+┌──────────────┐          ┌──────────────┐┌──────────────┐          ┌──────────────┐
+│  ALMACÉN A   │          │  ALMACÉN B   ││  ALMACÉN C   │          │  ALMACÉN D   │
+└──────────────┘          └──────────────┘└──────────────┘          └──────────────┘
+       │                         │               │                         │
+       ▼                         ▼               ▼                         ▼
+┌──────────────┐          ┌──────────────┐┌──────────────┐          ┌──────────────┐
+│ CAJA / POS 1 │          │ CAJA / POS 2 ││ CAJA / POS 3 │          │ CAJA / POS 4 │
+└──────────────┘          └──────────────┘└──────────────┘          └──────────────┘
+```
+
+### 9.1 Role Hierarchy & Multi-Company Authorization Rules
+
+1. **Superadministrador (Global Root)**:
+   - Único facultado para dar de alta y configurar **Empresas** y **Almacenes**.
+   - **Autorización de Empresas a Administradores**: Es el único que puede asignar o conceder acceso a un usuario Administrador a una o varias empresas (`empresa_user`).
+   - Acceso global a todas las empresas del sistema mediante el selector de empresa activa en el Navbar.
+   - Acceso a logs globales de auditoría de la plataforma, estadísticas consolidadas y configuración general del sistema.
+2. **Administrador (Nivel Empresa)**:
+   - Pertenece a una empresa inicial y solo puede acceder a otras empresas **si el Superadministrador le ha otorgado los permisos explícitos**.
+   - No puede auto-asignarse a otras empresas sin autorización del Superadministrador.
+   - Administra los **Usuarios** de su empresa y gestiona la **Matriz Granular de Roles y Permisos**.
+   - Gestiona sus propios **Proveedores** (`proveedores` con `empresa_id`), productos, precios, compras, inventario, reportes, CXC y CXP de su empresa activa.
+3. **Usuarios / Operadores (Cajeros, Vendedores, Almacenistas, Despachadores)**:
+   - Pertenecen estrictamente a **1 sola Empresa** y se les asigna uno o más `Almacenes` y `Cajas`.
+   - No pueden cambiar de empresa ni ver el selector en el Navbar.
+   - Permisos estrictos por módulo y por acción (`ver`, `crear`, `editar`, `eliminar`, `anular_factura`, `aplicar_descuento`, `hacer_traslado`, `aperturar_caja`, etc.).
+
+---
+
+## 10. Core Functional Domains & Database Architecture
+
+### A. Catálogos & Multi-Empresa
+- `empresas`: `id`, `rif`, `nombre`, `razon_social`, `logo`, `telefono`, `correo`, `direccion`, `configuracion_json`, `estado`.
+- `almacenes`: `id`, `empresa_id`, `codigo`, `nombre`, `ubicacion`, `es_principal`, `estado`.
+- `clientes`: `id`, `empresa_id` (opcional/global o por empresa), `cedula`, `nombre`, `apellido`, `telefono`, `correo`, `direccion`, `tipo_cliente`, `estado`.
+- `proveedores`: `id`, `empresa_id`, `rif`, `nombre`, `razon_social`, `nombre_contacto`, `telefono`, `correo`, `direccion`, `estado`.
+- `metodos_pago`: `id`, `nombre`, `descripcion`, `estado`.
+- `categorias` & `marcas`: Clasificación organizada de artículos.
+
+### B. Inventario, Productos & Kardex
+- `productos`: `id`, `empresa_id`, `codigo_barra`, `codigo_interno`, `nombre`, `descripcion`, `tipo` (`producto`, `servicio`, `repuesto`, `vehiculo`), `categoria_id`, `marca_id`, `precio_costo`, `precio_venta_detal`, `precio_venta_mayorista`, `maneja_inventario`, `estado`.
+- `inventario_almacen`: `id`, `empresa_id`, `almacen_id`, `producto_id`, `stock_actual`, `stock_minimo`, `stock_maximo`, `ubicacion_pasillo`.
+- `kardex_movimientos`: `id`, `empresa_id`, `almacen_id`, `producto_id`, `tipo_movimiento` (`entrada_compra`, `salida_venta`, `traslado_origen`, `traslado_destino`, `ajuste_positivo`, `ajuste_negativo`, `anulacion`), `cantidad`, `costo_unitario`, `stock_anterior`, `stock_nuevo`, `referencia_tipo`, `referencia_id`, `usuario_id`, `created_at`.
+- `traslados` & `traslado_detalles`: Movimientos controlados de mercancía entre almacenes (origen -> destino con estados `pendiente`, `en_transito`, `completado`, `cancelado`).
+- `compras` / `recepcion_mercancia`: Registro de órdenes de entrada con proveedor, almacén receptor, factura fiscal y actualización directa de stock + Kardex.
+
+### C. Punto de Venta (POS), Cajas & Facturación
+- `cajas`: `id`, `empresa_id`, `almacen_id`, `nombre`, `codigo`, `estado`.
+- `caja_sesiones`: `id`, `caja_id`, `usuario_id`, `fecha_apertura`, `monto_inicial_efectivo`, `fecha_cierre`, `monto_cierre_declarado`, `monto_cierre_sistema`, `diferencia`, `estado` (`abierta`, `cerrada`).
+- `caja_movimientos`: `id`, `caja_sesion_id`, `tipo` (`ingreso`, `egreso`, `gasto_menor`), `monto`, `motivo`, `usuario_id`.
+- `ventas`: `id`, `empresa_id`, `almacen_id`, `caja_sesion_id`, `cliente_id`, `usuario_id`, `numero_factura`, `tipo_documento` (`ticket`, `factura`, `nota_entrega`), `subtotal`, `descuento`, `iva`, `total`, `tipo_pago` (`contado`, `credito`), `estado` (`completada`, `anulada`).
+- `venta_detalles`: `id`, `venta_id`, `producto_id`, `cantidad`, `precio_unitario`, `descuento`, `subtotal`, `total`.
+- `venta_pagos`: `id`, `venta_id`, `metodo_pago_id`, `monto`, `moneda`, `tasa_cambio`, `referencia`.
+
+### D. Créditos & Finanzas (CXC & CXP)
+- `cxc_cuentas`: Registro de cuentas por cobrar originadas por ventas a crédito (`saldo_total`, `saldo_pendiente`, `fecha_vencimiento`, `estado`: `pendiente`, `parcial`, `pagada`).
+- `cxc_abonos`: Historial de pagos y abonos realizados por el cliente con recibo y método de pago.
+- `cxp_cuentas`: Registro de cuentas por pagar a proveedores por compras a crédito.
+- `cxp_abonos`: Historial de pagos emitidos al proveedor.
+
+### E. Seguridad, Roles, Permisos Granulares & Logs
+- Matriz RBAC de permisos por módulo y por acción (`modulo.accion`):
+  - Ej: `ventas.ver`, `ventas.crear`, `ventas.anular`, `ventas.descuento`, `cajas.aperturar`, `cajas.cerrar`, `inventario.ajustar`, `traslados.autorizar`.
+- `logs_actividad`: `id`, `empresa_id`, `usuario_id`, `modulo`, `accion`, `ip`, `dispositivo`, `datos_antes_json`, `datos_despues_json`, `created_at`.
+
+---
+
+## 11. Step-by-Step Implementation Roadmap
+
+1. **Fase 1 - Fundaciones Multi-Empresa & Almacenes**:
+   - Módulo de Empresas (Superadmin).
+   - Módulo de Almacenes (Superadmin / Asignación a Empresas).
+2. **Fase 2 - Seguridad, Roles & Permisos Granulares**:
+   - Módulo de Usuarios y Administradores.
+   - Matriz de Roles y Permisos por módulo y acción.
+   - Módulo de Auditoría y Logs de Actividad.
+3. **Fase 3 - Catálogos de Artículos & Configuración de Stock**:
+   - Categorías y Marcas.
+   - Productos y Servicios (con selector de tipo: repuesto, moto/vehículo, producto estándar, servicio).
+   - Stock por Almacén y Control de Precios (Detal / Mayorista).
+4. **Fase 4 - Compras, Recepción de Mercancía, Kardex & Traslados**:
+   - Recepción de Mercancía / Compras con Proveedores.
+   - Motor de Kardex multi-almacén (entradas, salidas, ajustes).
+   - Módulo de Traslados entre almacenes.
+5. **Fase 5 - Cajas & Turnos**:
+   - Cajas físicas por almacén.
+   - Apertura, Arqueo en vivo, Cierre de Caja y Movimientos de Caja menor.
+6. **Fase 6 - Punto de Venta (POS) & Facturación**:
+   - Interfaz POS rápida y táctil.
+   - Pagos mixtos / multimoneda con Métodos de Pago.
+   - Historial de Facturas y Anulaciones con reversión a Kardex/Caja.
+7. **Fase 7 - Créditos & Finanzas (CXC & CXP)**:
+   - Gestión de Cuentas por Cobrar (CXC) y Abonos de Clientes.
+   - Gestión de Cuentas por Pagar (CXP) y Pagos a Proveedores.
+

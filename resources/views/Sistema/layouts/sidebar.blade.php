@@ -142,6 +142,13 @@
                 <li class="list-divider"></li>
                 <li class="nav-small-cap"><span class="hide-menu">Sistema & Accesos</span></li>
 
+                <li class="sidebar-item @if (request()->routeIs('empresa*')) selected @endif">
+                    <a class="sidebar-link" href="{{ route('empresa') }}" aria-expanded="false">
+                        <i class="fas fa-building"></i>
+                        <span class="hide-menu">Empresas / Sedes</span>
+                    </a>
+                </li>
+
                 <li class="sidebar-item">
                     <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
                         <i class="fas fa-user-tie"></i>
