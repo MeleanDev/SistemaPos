@@ -413,9 +413,27 @@ The POS system supports both **a single holding company with multiple child bran
 - `cxp_cuentas`: Registro de cuentas por pagar a proveedores por compras a crédito.
 - `cxp_abonos`: Historial de pagos emitidos al proveedor.
 
-### E. Seguridad, Roles, Permisos Granulares & Logs
-- Matriz RBAC de permisos por módulo y por acción (`modulo.accion`):
-  - Ej: `ventas.ver`, `ventas.crear`, `ventas.anular`, `ventas.descuento`, `cajas.aperturar`, `cajas.cerrar`, `inventario.ajustar`, `traslados.autorizar`.
+### E. Seguridad, Roles, Permisos Granulares & Logs (Spatie Laravel Permission)
+- **Roles del Sistema**:
+  - `SuperAdmin`: Control global total (empresas, almacenes, asignación de empresas a administradores).
+  - `Admin`: Gestión integral de su empresa asignada (usuarios, clientes, proveedores, inventario, precios, cajas, POS, facturación, CXC, CXP, reportes y logs).
+  - `Operador`: Operación de Punto de Venta (POS), turnos de caja, cobros, facturación, clientes y abonos CXC.
+- **Relación Multi-Empresa (`empresa_user`)**:
+  - Tabla pivote con `user_id`, `empresa_id`, `es_predeterminada`, `estado`.
+  - `$user->empresas()` y `$empresa->usuarios()`.
+  - El Superadmin marca qué empresas tiene autorizadas cada Administrador.
+- **Matriz de Permisos por Módulo y Acción (`modulo.accion`)**:
+  - `empresas.ver`, `empresas.crear`, `empresas.editar`, `empresas.eliminar`
+  - `almacenes.ver`, `almacenes.crear`, `almacenes.editar`, `almacenes.eliminar`
+  - `usuarios.ver`, `usuarios.crear`, `usuarios.editar`, `usuarios.eliminar`, `usuarios.permisos`, `usuarios.asignar_empresas`
+  - `clientes.ver`, `clientes.crear`, `clientes.editar`, `clientes.eliminar`
+  - `proveedores.ver`, `proveedores.crear`, `proveedores.editar`, `proveedores.eliminar`
+  - `metodos_pago.ver`, `metodos_pago.crear`, `metodos_pago.editar`, `metodos_pago.eliminar`
+  - `productos.ver`, `productos.crear`, `productos.editar`, `productos.eliminar`, `inventario.ajustar_stock`, `inventario.kardex`, `inventario.traslados`, `compras.recepcion`
+  - `cajas.ver`, `cajas.aperturar`, `cajas.cerrar`, `cajas.movimientos`, `cajas.arqueo`
+  - `pos.acceso`, `ventas.ver`, `ventas.crear`, `ventas.anular`, `ventas.descuentos`
+  - `cxc.ver`, `cxc.abonar`, `cxp.ver`, `cxp.abonar`
+  - `reportes.ver`, `logs.ver`
 - `logs_actividad`: `id`, `empresa_id`, `usuario_id`, `modulo`, `accion`, `ip`, `dispositivo`, `datos_antes_json`, `datos_despues_json`, `created_at`.
 
 ---
@@ -423,12 +441,15 @@ The POS system supports both **a single holding company with multiple child bran
 ## 11. Step-by-Step Implementation Roadmap
 
 1. **Fase 1 - Fundaciones Multi-Empresa & Almacenes**:
-   - Módulo de Empresas (Superadmin).
-   - Módulo de Almacenes (Superadmin / Asignación a Empresas).
-2. **Fase 2 - Seguridad, Roles & Permisos Granulares**:
-   - Módulo de Usuarios y Administradores.
-   - Matriz de Roles y Permisos por módulo y acción.
-   - Módulo de Auditoría y Logs de Actividad.
+   - [x] Módulo de Empresas (Superadmin).
+   - [ ] Módulo de Almacenes (Superadmin / Asignación a Empresas).
+2. **Fase 2 - Seguridad, Roles & Permisos Granulares (Spatie)**:
+   - [x] Instalación y Migraciones de Spatie Permission.
+   - [x] Tabla pivote `empresa_user` y relaciones Eloquent.
+   - [x] Seeder de Roles (`SuperAdmin`, `Admin`, `Operador`) y Matriz de Permisos.
+   - [ ] Módulo de Gestión de Administradores / Usuarios (asignación de roles, permisos y empresas).
+   - [ ] Selector de Empresa Activa en el Navbar (con `session('empresa_activa_id')`).
+   - [ ] Módulo de Auditoría y Logs de Actividad.
 3. **Fase 3 - Catálogos de Artículos & Configuración de Stock**:
    - Categorías y Marcas.
    - Productos y Servicios (con selector de tipo: repuesto, moto/vehículo, producto estándar, servicio).
@@ -447,4 +468,5 @@ The POS system supports both **a single holding company with multiple child bran
 7. **Fase 7 - Créditos & Finanzas (CXC & CXP)**:
    - Gestión de Cuentas por Cobrar (CXC) y Abonos de Clientes.
    - Gestión de Cuentas por Pagar (CXP) y Pagos a Proveedores.
+
 

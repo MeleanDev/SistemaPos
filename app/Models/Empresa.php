@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Empresa extends Model
 {
@@ -24,5 +25,15 @@ class Empresa extends Model
         return [
             'estado' => 'boolean',
         ];
+    }
+
+    /**
+     * Usuarios asignados a esta empresa
+     */
+    public function usuarios(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'empresa_user')
+            ->withPivot('es_predeterminada', 'estado')
+            ->withTimestamps();
     }
 }
