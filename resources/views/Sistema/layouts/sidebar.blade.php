@@ -1,0 +1,162 @@
+<aside class="left-sidebar" data-sidebarbg="skin6">
+    <div class="scroll-sidebar" data-sidebarbg="skin6">
+        <nav class="sidebar-nav">
+            <ul id="sidebarnav">
+
+                <!-- PANEL PRINCIPAL -->
+                <li class="sidebar-item @if (request()->routeIs('dashboard')) selected @endif">
+                    <a class="sidebar-link" href="{{ route('dashboard') }}" aria-expanded="false">
+                        <i class="fas fa-chart-pie"></i>
+                        <span class="hide-menu">Panel Principal</span>
+                    </a>
+                </li>
+
+                <!-- VENTAS Y CAJA -->
+                <li class="list-divider"></li>
+                <li class="nav-small-cap"><span class="hide-menu">Ventas & Facturación</span></li>
+
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                        <i class="fas fa-cash-register"></i>
+                        <span class="hide-menu">Punto de Venta (POS)</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                        <i class="fas fa-history"></i>
+                        <span class="hide-menu">Historial Facturas</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                        <i class="fas fa-wallet"></i>
+                        <span class="hide-menu">Caja y Arqueos</span>
+                    </a>
+                </li>
+
+                <!-- CRÉDITOS Y FINANZAS -->
+                <li class="list-divider"></li>
+                <li class="nav-small-cap"><span class="hide-menu">Créditos & Finanzas</span></li>
+
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                        <i class="fas fa-hand-holding-usd"></i>
+                        <span class="hide-menu">Cuentas por Cobrar (CXC)</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        <span class="hide-menu">Cuentas por Pagar (CXP)</span>
+                    </a>
+                </li>
+
+                <!-- COMPRAS Y RECEPCIÓN -->
+                <li class="list-divider"></li>
+                <li class="nav-small-cap"><span class="hide-menu">Compras</span></li>
+
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                        <i class="fas fa-truck-loading"></i>
+                        <span class="hide-menu">Recepción Mercancía</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                        <i class="fas fa-truck"></i>
+                        <span class="hide-menu">Proveedores</span>
+                    </a>
+                </li>
+
+                <!-- INVENTARIO Y PRODUCTOS -->
+                <li class="list-divider"></li>
+                <li class="nav-small-cap"><span class="hide-menu">Inventario & Catálogo</span></li>
+
+                <li class="sidebar-item">
+                    <a class="sidebar-link has-arrow" href="javascript:void(0)" aria-expanded="false">
+                        <i class="fas fa-boxes"></i>
+                        <span class="hide-menu">Inventario & Productos</span>
+                    </a>
+                    <ul aria-expanded="false" class="collapse first-level base-level-line">
+                        <li class="sidebar-item">
+                            <a href="javascript:void(0)" class="sidebar-link">
+                                <i class="fas fa-wrench me-2"></i>
+                                <span class="hide-menu">Repuestos</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-item">
+                            <a href="javascript:void(0)" class="sidebar-link">
+                                <i class="fas fa-motorcycle me-2"></i>
+                                <span class="hide-menu">Vehículos (Motos)</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-item">
+                            <a href="javascript:void(0)" class="sidebar-link">
+                                <i class="fas fa-exchange-alt me-2"></i>
+                                <span class="hide-menu">Movimiento Kardex</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-item">
+                            <a href="javascript:void(0)" class="sidebar-link">
+                                <i class="fas fa-warehouse me-2"></i>
+                                <span class="hide-menu">Almacenes</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- CLIENTES -->
+                <li class="list-divider"></li>
+                <li class="nav-small-cap"><span class="hide-menu">Clientes</span></li>
+
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                        <i class="fas fa-user-friends"></i>
+                        <span class="hide-menu">Clientes</span>
+                    </a>
+                </li>
+
+                <!-- REPORTES -->
+                <li class="list-divider"></li>
+                <li class="nav-small-cap"><span class="hide-menu">Informes</span></li>
+
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                        <i class="fas fa-chart-bar"></i>
+                        <span class="hide-menu">Reportes</span>
+                    </a>
+                </li>
+
+                <!-- ADMINISTRACIÓN Y CONFIGURACIÓN -->
+                <li class="list-divider"></li>
+                <li class="nav-small-cap"><span class="hide-menu">Sistema & Accesos</span></li>
+
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                        <i class="fas fa-user-tie"></i>
+                        <span class="hide-menu">Administradores</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                        <i class="fas fa-users-cog"></i>
+                        <span class="hide-menu">Usuarios</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-item">
+                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                        <i class="fas fa-cogs"></i>
+                        <span class="hide-menu">Configuración</span>
+                    </a>
+                </li>
+
+            </ul>
+        </nav>
+    </div>
+</aside>
