@@ -59,6 +59,7 @@ class ActualizarRequest extends FormRequest
             ],
             'telefono' => ['nullable', 'string', 'max:25'],
             'correo' => ['nullable', 'email', 'max:150'],
+            'logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,svg', 'max:2048'],
         ];
     }
 
@@ -86,6 +87,9 @@ class ActualizarRequest extends FormRequest
             'telefono.max' => 'El teléfono no debe superar los 25 caracteres.',
             'correo.email' => 'El correo electrónico debe tener un formato válido.',
             'correo.max' => 'El correo no debe superar los 150 caracteres.',
+            'logo.image' => 'El archivo seleccionado debe ser una imagen.',
+            'logo.mimes' => 'El logo debe ser de formato JPG, PNG, WEBP o SVG.',
+            'logo.max' => 'El logo no debe superar los 2MB de tamaño.',
         ];
     }
 }

@@ -40,8 +40,29 @@ $(document).ready(function () {
         renderizarEmpresas(filtradas, true);
     });
 
+    // Preview en vivo al seleccionar logo
+    $("#logo").on("change", function () {
+        const archivo = this.files[0];
+        if (archivo) {
+            const lector = new FileReader();
+            lector.onload = function (e) {
+                $("#previewLogo").attr("src", e.target.result).removeClass("d-none");
+                $("#iconoPlaceholderLogo").addClass("d-none");
+            };
+            lector.readAsDataURL(archivo);
+        } else {
+            resetPreviewLogo();
+        }
+    });
+
     aplicarRestriccionesInput();
 });
+
+const resetPreviewLogo = function () {
+    $("#previewLogo").attr("src", "").addClass("d-none");
+    $("#iconoPlaceholderLogo").removeClass("d-none");
+    $("#logo").val("");
+};
 
 const cargarEmpresas = async function () {
     mostrarSkeletonLoading();
@@ -131,6 +152,14 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
             ? `<span class="badge-documento"><i class="fas fa-id-card"></i>${empresa.rif}</span>`
             : '<span class="text-muted small">Sin RIF</span>';
 
+        const logoHtml = empresa.logo
+            ? `<div class="avatar-executive shadow-sm border bg-white p-1" style="width: 48px; height: 48px; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                    <img src="/storage/${empresa.logo}" alt="${nombre}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+               </div>`
+            : `<div class="avatar-executive shadow-sm" style="width: 48px; height: 48px; font-size: 1.1rem; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #ffffff; border-radius: 12px;">
+                    ${iniciales}
+               </div>`;
+
         const telefonoHtml = empresa.telefono
             ? `<a href="tel:${empresa.telefono}" class="contacto-item phone mb-1" title="Llamar"><i class="fas fa-phone-alt"></i><span>${empresa.telefono}</span></a>`
             : '<span class="text-muted small fst-italic" style="font-size: 0.78rem;"><i class="fas fa-minus text-muted opacity-50 me-1"></i>Sin teléfono</span>';
@@ -147,9 +176,7 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
                             <!-- ENCABEZADO DE LA CARD -->
                             <div class="d-flex align-items-start justify-content-between gap-2 mb-3">
                                 <div class="d-flex align-items-center gap-3">
-                                    <div class="avatar-executive shadow-sm" style="width: 48px; height: 48px; font-size: 1.1rem; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #ffffff; border-radius: 12px;">
-                                        ${iniciales}
-                                    </div>
+                                    ${logoHtml}
                                     <div class="d-flex flex-column">
                                         <h5 class="fw-bold text-dark text-capitalize mb-1" style="letter-spacing: -0.01em; line-height: 1.2;">${nombre}</h5>
                                         <div>${rif}</div>
@@ -164,11 +191,11 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
                             <div class="mb-3">
                                 <div class="d-flex align-items-center mb-2">
                                     <i class="fas fa-landmark text-primary me-2 opacity-75" style="width: 16px;"></i>
-                                    <span class="small fw-semibold text-secondary text-truncate" title="${empresa.razon_social || ""}">${empresa.razon_social || '<span class="text-muted fst-italic">Sin razón social</span>'}</span>
+                                    <span class="small fw-semibold text-secondary text-truncate" title="${empresa.razon_social || ''}">${empresa.razon_social || '<span class="text-muted fst-italic">Sin razón social</span>'}</span>
                                 </div>
                                 <div class="d-flex align-items-start mb-2">
                                     <i class="fas fa-map-marker-alt text-danger me-2 mt-1 opacity-75" style="width: 16px;"></i>
-                                    <span class="small text-dark text-truncate-2" style="font-size: 0.83rem; line-height: 1.35;" title="${empresa.direccion || ""}">${empresa.direccion || '<span class="text-muted fst-italic">Sin dirección fiscal</span>'}</span>
+                                    <span class="small text-dark text-truncate-2" style="font-size: 0.83rem; line-height: 1.35;" title="${empresa.direccion || ''}">${empresa.direccion || '<span class="text-muted fst-italic">Sin dirección fiscal</span>'}</span>
                                 </div>
                             </div>
 
@@ -245,6 +272,7 @@ const crear = function () {
     );
 
     $("#formularioEmpresa")[0].reset();
+    resetPreviewLogo();
     $("#formularioEmpresa")
         .find("input, select, textarea")
         .prop("disabled", false);
@@ -322,6 +350,14 @@ const llenarFormularioEmpresa = (data) => {
     $("#razon_social").val(data.razon_social || "");
     $("#correo").val(data.correo || "");
     $("#direccion").val(data.direccion || "");
+    $("#logo").val("");
+
+    if (data.logo) {
+        $("#previewLogo").attr("src", "/storage/" + data.logo).removeClass("d-none");
+        $("#iconoPlaceholderLogo").addClass("d-none");
+    } else {
+        resetPreviewLogo();
+    }
 
     const rif = desglosarCedula(data.rif);
     $("#tipo_cedula").val(rif.tipo || "J-");

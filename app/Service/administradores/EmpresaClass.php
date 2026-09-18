@@ -3,6 +3,8 @@
 namespace App\Service\Administradores;
 
 use App\Models\Empresa;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 class EmpresaClass
 {
@@ -29,6 +31,10 @@ class EmpresaClass
 
     public function guardar(array $datos)
     {
+        if (isset($datos['logo']) && $datos['logo'] instanceof UploadedFile) {
+            $datos['logo'] = $datos['logo']->store('empresas', 'public');
+        }
+
         $existenteInactivo = Empresa::where('rif', $datos['rif'])
             ->orWhere('nombre', $datos['nombre'])
             ->orWhere('razon_social', $datos['razon_social'])
@@ -49,6 +55,16 @@ class EmpresaClass
     public function actualizar(array $datos, $id)
     {
         $empresa = Empresa::findOrFail($id);
+
+        if (isset($datos['logo']) && $datos['logo'] instanceof UploadedFile) {
+            if (! empty($empresa->logo) && Storage::disk('public')->exists($empresa->logo)) {
+                Storage::disk('public')->delete($empresa->logo);
+            }
+            $datos['logo'] = $datos['logo']->store('empresas', 'public');
+        } else {
+            unset($datos['logo']);
+        }
+
         $empresa->update($datos);
 
         return $empresa;

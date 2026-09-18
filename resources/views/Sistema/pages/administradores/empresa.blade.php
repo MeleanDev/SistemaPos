@@ -63,6 +63,22 @@
 
                 <x-input name="direccion" id="direccion" label="Dirección Fiscal" icon="fas fa-map-marker-alt"
                     placeholder="Av. Principal, Edificio Centro, Local 1-A" required maxlength="255" col="col-12" />
+
+                <div class="col-12">
+                    <label class="form-label-executive">
+                        <i class="fas fa-image"></i> Logo de la Empresa <span class="badge bg-light text-muted ms-1">Opcional</span>
+                    </label>
+                    <div class="d-flex align-items-center gap-3">
+                        <div id="contenedorPreviewLogo" class="border rounded-3 p-1 bg-light d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; min-width: 56px; overflow: hidden;">
+                            <i class="fas fa-building text-muted fs-4" id="iconoPlaceholderLogo"></i>
+                            <img id="previewLogo" src="" alt="Logo preview" class="img-fluid rounded-2 d-none" style="max-height: 100%; object-fit: contain;">
+                        </div>
+                        <div class="flex-grow-1">
+                            <input type="file" class="form-control form-control-executive" id="logo" name="logo" accept="image/png, image/jpeg, image/webp, image/svg+xml">
+                            <small class="text-muted" style="font-size: 0.76rem;">Formatos permitidos: PNG, JPG, WEBP o SVG (Máx. 2MB)</small>
+                        </div>
+                    </div>
+                </div>
             </div>
         </form>
     </x-modal>
