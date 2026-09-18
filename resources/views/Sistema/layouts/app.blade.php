@@ -7,18 +7,15 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <meta name="description"
-            content="Sistema POS - Punto de Venta, Control de Inventario, Ventas y Reportes">
-        <meta name="keywords"
-            content="punto de venta, pos, facturacion, ventas, inventario, control de caja">
+        <meta name="description" content="Sistema POS - Punto de Venta, Control de Inventario, Ventas y Reportes">
+        <meta name="keywords" content="punto de venta, pos, facturacion, ventas, inventario, control de caja">
         <meta name="author" content="POS System">
         <meta name="robots" content="index, follow">
 
         <meta property="og:type" content="website">
         <meta property="og:url" content="{{ config('app.url') }}">
         <meta property="og:title" content="Sistema POS">
-        <meta property="og:description"
-            content="Sistema POS - Punto de Venta y Control de Inventario">
+        <meta property="og:description" content="Sistema POS - Punto de Venta y Control de Inventario">
         <meta property="og:image" content="{{ asset('estilos/imgPropio/logo.png') }}">
 
         <meta name="mobile-web-app-capable" content="yes">
@@ -36,10 +33,11 @@
         <!-- Font Awesome 6 Icons (Catálogo Completo) -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
         <link href="{{ asset('estilos/assets/libs/sweetalert2/dist/sweetalert2.min.css') }}" rel="stylesheet">
-        
+
         <!-- Select2 para selectores con búsqueda -->
         <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-        <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+        <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css"
+            rel="stylesheet" />
 
         <!-- Chart.js para visualización de métricas -->
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -71,53 +69,16 @@
         <script src="{{ asset('estilos/assets/libs/sweetalert2/dist/sweetalert2.all.min.js') }}"></script>
         <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-        <script>
-            $.ajaxSetup({
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                }
-            });
+        <!-- Componentes Globales de Alertas y Manejo AJAX -->
+        @include('Sistema.components.alert.sweetalert')
+        @include('Sistema.components.alert.toast')
 
-            $(document).ajaxError(function(event, jqxhr, settings, thrownError) {
-                $('.preloader').fadeOut('slow');
-
-                if (jqxhr.status === 419 || jqxhr.status === 401) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Sesión expirada',
-                        text: 'Tu sesión ha terminado por seguridad. Serás redirigido al inicio',
-                        showConfirmButton: false,
-                        timer: 2500,
-                        timerProgressBar: true
-                    }).then(() => {
-                        window.location.reload();
-                    });
-                } else if (jqxhr.status >= 500) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error del servidor',
-                        text: 'Ocurrió un problema procesando la solicitud. Intenta de nuevo.',
-                        confirmButtonText: 'Entendido'
-                    });
-                }
-            });
-
-            const notificacion = Swal.mixin({
-                toast: true,
-                position: "top-end",
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true,
-                didOpen: (toast) => {
-                    toast.onmouseenter = Swal.stopTimer;
-                    toast.onmouseleave = Swal.resumeTimer;
-                }
-            });
-        </script>
+        <!-- Componentes JavaScript Reutilizables POS -->
+        @include('Sistema.components.js-components')
 
         @yield('scripts')
 
-        {{-- 
+        {{--
         ==========================================================================
         MODAL PERFIL (Dejado comentado para futuras modificaciones)
         ==========================================================================

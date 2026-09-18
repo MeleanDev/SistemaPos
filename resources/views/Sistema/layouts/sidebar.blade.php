@@ -113,8 +113,8 @@
                 <li class="list-divider"></li>
                 <li class="nav-small-cap"><span class="hide-menu">Clientes</span></li>
 
-                <li class="sidebar-item">
-                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                <li class="sidebar-item @if (request()->routeIs('cliente*')) selected @endif">
+                    <a class="sidebar-link" href="{{ route('cliente') }}" aria-expanded="false">
                         <i class="fas fa-user-friends"></i>
                         <span class="hide-menu">Clientes</span>
                     </a>

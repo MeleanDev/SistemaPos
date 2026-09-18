@@ -1,7 +1,11 @@
 @extends('Sistema.layouts.app')
 
-@section('titulo', 'Panel Principal')
-@section('subtitulo', 'Dashboard')
+@section('titulo', '📊 Panel Principal')
+@section('subtitulo', 'Control en tiempo real de ventas, inventario, caja y métricas operativas')
+
+@section('rutas')
+    <span class="active">Dashboard</span>
+@endsection
 
 @section('contenido')
 <div class="row g-4 mb-4">

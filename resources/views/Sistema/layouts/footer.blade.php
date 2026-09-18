@@ -1,3 +1,3 @@
 <footer class="footer text-center text-muted">
-    Todos los derechos reservados &copy; {{ date('Y') }} <strong>Sistema POS</strong>.
+    Todos los derechos reservados 2026 <a href="https://rivactech.com/">Rivactech</a>.
 </footer>
