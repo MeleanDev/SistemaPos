@@ -36,6 +36,13 @@
                     </a>
                 </li>
 
+                <li class="sidebar-item @if (request()->routeIs('metodo_pago*')) selected @endif">
+                    <a class="sidebar-link" href="{{ route('metodo_pago') }}" aria-expanded="false">
+                        <i class="fas fa-credit-card"></i>
+                        <span class="hide-menu">Métodos de Pago</span>
+                    </a>
+                </li>
+
                 <!-- CRÉDITOS Y FINANZAS -->
                 <li class="list-divider"></li>
                 <li class="nav-small-cap"><span class="hide-menu">Créditos & Finanzas</span></li>

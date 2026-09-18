@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Empresa\ClienteController;
+use App\Http\Controllers\Empresa\MetodoPagoController;
 use App\Http\Controllers\Empresa\ProveedorController;
 use App\Http\Controllers\PanelPrincipalController;
 use App\Http\Controllers\ProfileController;
@@ -28,6 +29,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/proveedores', 'guardar');
         Route::put('/proveedores/actualizar/{id}', 'actualizar');
         Route::delete('/proveedores/{id}', 'eliminar');
+    });
+
+    Route::controller(MetodoPagoController::class)->group(function () {
+        Route::get('/metodos-pago', 'index')->name('metodo_pago');
+        Route::get('/metodos-pago/lista', 'lista');
+        Route::get('/metodos-pago/{id}', 'detalle');
+        Route::post('/metodos-pago', 'guardar');
+        Route::put('/metodos-pago/actualizar/{id}', 'actualizar');
+        Route::delete('/metodos-pago/{id}', 'eliminar');
     });
 
     Route::controller(ProfileController::class)->group(function () {
