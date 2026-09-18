@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Empresa\ClienteController;
+use App\Http\Controllers\Empresa\ProveedorController;
 use App\Http\Controllers\PanelPrincipalController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +19,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/clientes', 'guardar');
         Route::put('/clientes/actualizar/{id}', 'actualizar');
         Route::delete('/clientes/{id}', 'eliminar');
+    });
+
+    Route::controller(ProveedorController::class)->group(function () {
+        Route::get('/proveedores', 'index')->name('proveedor');
+        Route::get('/proveedores/lista', 'lista');
+        Route::get('/proveedores/{id}', 'detalle');
+        Route::post('/proveedores', 'guardar');
+        Route::put('/proveedores/actualizar/{id}', 'actualizar');
+        Route::delete('/proveedores/{id}', 'eliminar');
     });
 
     Route::controller(ProfileController::class)->group(function () {

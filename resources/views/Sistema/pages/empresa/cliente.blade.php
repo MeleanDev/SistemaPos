@@ -23,7 +23,6 @@
             'Teléfono',
             'Correo',
             'Tipo Cliente',
-            'Estado',
             'Acciones',
         ]"
     />

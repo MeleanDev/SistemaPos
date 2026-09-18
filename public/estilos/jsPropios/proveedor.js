@@ -7,29 +7,24 @@ const urlEditar = urlCompleta + "/actualizar/";
 
 let urlAccion = urlGuardar;
 let isEditar = false;
-let idClienteActual = null;
+let idProveedorActual = null;
 
 $(document).ready(function () {
     crearDataTable({
-        selector: "#datatable_clientes",
+        selector: "#datatable_proveedores",
         url: urlLista,
-        searchPlaceholder: "Cédula, nombre, teléfono...",
+        searchPlaceholder: "RIF, nombre comercial, contacto...",
         columns: [
             {
                 data: "nombre",
                 name: "nombre",
                 className: "text-start align-middle",
                 render: function (data, type, row) {
-                    const nombreCompleto =
-                        `${row.nombre || ""} ${row.apellido || ""}`.trim();
-                    const n = (row.nombre || "").trim();
-                    const a = (row.apellido || "").trim();
-                    const iniciales =
-                        (n.charAt(0) + (a ? a.charAt(0) : "")).toUpperCase() ||
-                        "CL";
-                    const cedula = row.cedula
-                        ? `<span class="badge-documento"><i class="fas fa-id-card"></i>${row.cedula}</span>`
-                        : '<span class="text-muted small">Sin documento</span>';
+                    const nombre = (row.nombre || "").trim();
+                    const iniciales = nombre.substring(0, 2).toUpperCase() || "PR";
+                    const rif = row.rif
+                        ? `<span class="badge-documento"><i class="fas fa-id-card"></i>${row.rif}</span>`
+                        : '<span class="text-muted small">Sin RIF</span>';
 
                     return `
                         <div class="d-flex align-items-center gap-2 py-1">
@@ -37,11 +32,31 @@ $(document).ready(function () {
                                 ${iniciales}
                             </div>
                             <div class="d-flex flex-column">
-                                <span class="fw-bold text-dark text-capitalize" style="font-size: 0.93rem; letter-spacing: -0.01em;">${nombreCompleto}</span>
-                                <div>${cedula}</div>
+                                <span class="fw-bold text-dark text-capitalize" style="font-size: 0.93rem; letter-spacing: -0.01em;">${nombre}</span>
+                                <div>${rif}</div>
                             </div>
                         </div>
                     `;
+                },
+            },
+            {
+                data: "razon_social",
+                name: "razon_social",
+                className: "text-start align-middle",
+                render: function (data) {
+                    return data
+                        ? `<span class="small fw-semibold text-secondary"><i class="fas fa-building text-muted me-1 small"></i>${data}</span>`
+                        : '<span class="text-muted small fst-italic">Sin razón social</span>';
+                },
+            },
+            {
+                data: "nombre_contacto",
+                name: "nombre_contacto",
+                className: "text-start align-middle",
+                render: function (data) {
+                    return data
+                        ? `<span class="small text-dark"><i class="fas fa-user-tie text-info me-1 small"></i>${data}</span>`
+                        : '<span class="text-muted small fst-italic" style="font-size: 0.78rem;"><i class="fas fa-minus text-muted opacity-50 me-1"></i>Sin contacto</span>';
                 },
             },
             {
@@ -65,17 +80,6 @@ $(document).ready(function () {
                 },
             },
             {
-                data: "tipo_cliente",
-                name: "tipo_cliente",
-                className: "text-center align-middle",
-                render: function (data) {
-                    if (data === "mayorista") {
-                        return '<span class="badge badge-mayorista"><i class="fas fa-crown"></i>Mayorista</span>';
-                    }
-                    return '<span class="badge badge-detal"><i class="fas fa-user"></i>Detal</span>';
-                },
-            },
-            {
                 data: null,
                 width: "120px",
                 className: "text-center align-middle",
@@ -89,7 +93,7 @@ $(document).ready(function () {
                         <button type="button" class="btn btn-outline-primary btn-sm rounded-circle shadow-sm" onclick="editar(${row.id});" title="Editar" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="eliminar(${row.id}, '${row.nombre} ${row.apellido}');" title="Eliminar cliente" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="eliminar(${row.id}, '${row.nombre}');" title="Eliminar proveedor" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>`;
@@ -103,54 +107,53 @@ $(document).ready(function () {
 
 const crear = function () {
     isEditar = false;
-    idClienteActual = null;
+    idProveedorActual = null;
     urlAccion = urlGuardar;
 
-    $("#modalCliente").modal("show");
-    $("#modalClienteTituloTexto").text("Nuevo Cliente");
-    $("#modalClienteSubtituloTexto").text(
-        "Completa la información del cliente",
+    $("#modalProveedor").modal("show");
+    $("#modalProveedorTituloTexto").text("Nuevo Proveedor");
+    $("#modalProveedorSubtituloTexto").text(
+        "Completa la información del proveedor",
     );
-    $("#modalClienteIcono").attr(
+    $("#modalProveedorIcono").attr(
         "class",
-        "fas fa-user-plus me-2 text-warning fs-5",
+        "fas fa-truck-loading me-2 text-warning fs-5",
     );
 
-    $("#formularioCliente")[0].reset();
-    $("#formularioCliente")
+    $("#formularioProveedor")[0].reset();
+    $("#formularioProveedor")
         .find("input, select, textarea")
         .prop("disabled", false);
-    $("#tipo_cedula").val("V-");
+    $("#tipo_cedula").val("J-");
     $("#codigo_pais").val("+58");
-    $("#tipo_cliente").val("detal");
 
-    $("#modalClienteBtnGuardar").prop("hidden", false).prop("disabled", false);
-    $("#modalClienteTextoGuardar").text("Guardar");
+    $("#modalProveedorBtnGuardar").prop("hidden", false).prop("disabled", false);
+    $("#modalProveedorTextoGuardar").text("Guardar");
 };
 
 const ver = async function (id) {
     try {
-        idClienteActual = id;
-        const cliente = await consultarRegistro(urlDetalles, id);
+        idProveedorActual = id;
+        const proveedor = await consultarRegistro(urlDetalles, id);
 
-        $("#modalCliente").modal("show");
-        $("#modalClienteTituloTexto").text("Detalles del Cliente");
-        $("#modalClienteSubtituloTexto").text(
-            "Consulta la información del cliente",
+        $("#modalProveedor").modal("show");
+        $("#modalProveedorTituloTexto").text("Detalles del Proveedor");
+        $("#modalProveedorSubtituloTexto").text(
+            "Consulta la información del proveedor",
         );
-        $("#modalClienteIcono").attr("class", "fas fa-eye me-2 text-info fs-5");
+        $("#modalProveedorIcono").attr("class", "fas fa-eye me-2 text-info fs-5");
 
-        llenarFormularioCliente(cliente);
+        llenarFormularioProveedor(proveedor);
 
-        $("#formularioCliente")
+        $("#formularioProveedor")
             .find("input, select, textarea")
             .prop("disabled", true);
-        $("#modalClienteBtnGuardar").prop("hidden", true);
+        $("#modalProveedorBtnGuardar").prop("hidden", true);
     } catch (error) {
         notificacion.fire({
             icon: "error",
             title: "Error",
-            text: "No se pudieron cargar los datos del cliente.",
+            text: "No se pudieron cargar los datos del proveedor.",
         });
     }
 };
@@ -158,81 +161,88 @@ const ver = async function (id) {
 const editar = async function (id) {
     try {
         isEditar = true;
-        idClienteActual = id;
+        idProveedorActual = id;
         urlAccion = urlEditar + id;
-        const cliente = await consultarRegistro(urlDetalles, id);
+        const proveedor = await consultarRegistro(urlDetalles, id);
 
-        $("#modalCliente").modal("show");
-        $("#modalClienteTituloTexto").text(
-            `Editar Cliente: ${cliente.nombre} ${cliente.apellido}`,
+        $("#modalProveedor").modal("show");
+        $("#modalProveedorTituloTexto").text(
+            `Editar Proveedor: ${proveedor.nombre}`,
         );
-        $("#modalClienteSubtituloTexto").text("Modifica los datos del cliente");
-        $("#modalClienteIcono").attr(
+        $("#modalProveedorSubtituloTexto").text("Modifica los datos del proveedor");
+        $("#modalProveedorIcono").attr(
             "class",
-            "fas fa-user-edit me-2 text-warning fs-5",
+            "fas fa-edit me-2 text-warning fs-5",
         );
 
-        $("#formularioCliente")
+        $("#formularioProveedor")
             .find("input, select, textarea")
             .prop("disabled", false);
-        llenarFormularioCliente(cliente);
+        llenarFormularioProveedor(proveedor);
 
-        $("#modalClienteBtnGuardar")
+        $("#modalProveedorBtnGuardar")
             .prop("hidden", false)
             .prop("disabled", false);
-        $("#modalClienteTextoGuardar").text("Actualizar Cambios");
+        $("#modalProveedorTextoGuardar").text("Actualizar Cambios");
     } catch (error) {
         notificacion.fire({
             icon: "error",
             title: "Error",
-            text: "No se pudo cargar la información del cliente.",
+            text: "No se pudo cargar la información del proveedor.",
         });
     }
 };
 
-const llenarFormularioCliente = (data) => {
+const llenarFormularioProveedor = (data) => {
     $("#nombre").val(data.nombre || "");
-    $("#apellido").val(data.apellido || "");
+    $("#razon_social").val(data.razon_social || "");
+    $("#nombre_contacto").val(data.nombre_contacto || "");
     $("#correo").val(data.correo || "");
     $("#direccion").val(data.direccion || "");
-    $("#tipo_cliente").val(data.tipo_cliente || "detal");
 
-    const cedula = desglosarCedula(data.cedula);
-    $("#tipo_cedula").val(cedula.tipo);
-    $("#cedula_numero").val(cedula.numero);
+    const rif = desglosarCedula(data.rif);
+    $("#tipo_cedula").val(rif.tipo || "J-");
+    $("#cedula_numero").val(rif.numero || "");
 
     const telefono = desglosarTelefono(data.telefono);
-    $("#codigo_pais").val(telefono.codigo);
-    $("#telefono_numero").val(telefono.numero);
+    $("#codigo_pais").val(telefono.codigo || "+58");
+    $("#telefono_numero").val(telefono.numero || "");
 };
 
-const eliminar = function (id, nombreCliente) {
+const eliminar = function (id, nombreProveedor) {
     cambiarEstadoRegistro({
         url: urlEliminar,
         id: id,
-        nombre: nombreCliente,
-        tablaSelector: "#datatable_clientes",
+        nombre: nombreProveedor,
+        tablaSelector: "#datatable_proveedores",
     });
 };
 
-$("#formularioCliente").on("submit", function (e) {
+$("#formularioProveedor").on("submit", function (e) {
     e.preventDefault();
 
     const nombre = $("#nombre").val().trim();
-    const apellido = $("#apellido").val().trim();
-    const cedulaNum = $("#cedula_numero").val().trim();
+    const razonSocial = $("#razon_social").val().trim();
+    const rifNum = $("#cedula_numero").val().trim();
 
-    if (nombre.length < 2 || apellido.length < 2) {
+    if (nombre.length < 2) {
         return notificacion.fire({
             icon: "warning",
-            title: "Nombre o Apellido demasiado corto",
+            title: "El nombre comercial debe tener al menos 2 caracteres",
         });
     }
 
-    if (cedulaNum.length < 5) {
+    if (razonSocial.length < 2) {
         return notificacion.fire({
             icon: "warning",
-            title: "Número de Cédula/RIF incompleto",
+            title: "La razón social debe tener al menos 2 caracteres",
+        });
+    }
+
+    if (rifNum.length < 5) {
+        return notificacion.fire({
+            icon: "warning",
+            title: "Número de RIF / Identificación incompleto",
         });
     }
 
@@ -240,13 +250,13 @@ $("#formularioCliente").on("submit", function (e) {
         form: this,
         url: urlAccion,
         isEditar: isEditar,
-        modalSelector: "#modalCliente",
-        tablaSelector: "#datatable_clientes",
-        btnSubmit: "#modalClienteBtnGuardar",
-        textoGuardarOriginal: $("#modalClienteTextoGuardar").text(),
+        modalSelector: "#modalProveedor",
+        tablaSelector: "#datatable_proveedores",
+        btnSubmit: "#modalProveedorBtnGuardar",
+        textoGuardarOriginal: $("#modalProveedorTextoGuardar").text(),
         antesDeEnviar: function (formData) {
-            const cedulaCompleta = $("#tipo_cedula").val() + cedulaNum;
-            formData.set("cedula", cedulaCompleta);
+            const rifCompleto = $("#tipo_cedula").val() + rifNum;
+            formData.set("rif", rifCompleto);
 
             const telNum = $("#telefono_numero").val().trim();
             if (telNum) {

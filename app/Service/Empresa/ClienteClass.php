@@ -18,7 +18,7 @@ class ClienteClass
             'direccion',
             'tipo_cliente',
             'estado'
-        );
+        )->where('estado', true);
     }
 
     public function detalle($id)
@@ -53,7 +53,7 @@ class ClienteClass
     public function eliminar($id)
     {
         $cliente = Cliente::findOrFail($id);
-        $cliente->estado = ! $cliente->estado;
+        $cliente->estado = false;
         $cliente->save();
 
         return $cliente;

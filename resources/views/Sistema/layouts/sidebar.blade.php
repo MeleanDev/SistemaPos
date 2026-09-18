@@ -65,8 +65,8 @@
                     </a>
                 </li>
 
-                <li class="sidebar-item">
-                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                <li class="sidebar-item @if (request()->routeIs('proveedor*')) selected @endif">
+                    <a class="sidebar-link" href="{{ route('proveedor') }}" aria-expanded="false">
                         <i class="fas fa-truck"></i>
                         <span class="hide-menu">Proveedores</span>
                     </a>

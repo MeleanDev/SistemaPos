@@ -3,34 +3,35 @@
 namespace App\Http\Controllers\Empresa;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Cliente\ActualizarRequest;
-use App\Http\Requests\Cliente\CrearRequest;
-use App\Service\Empresa\ClienteClass;
+use App\Http\Requests\Proveedor\ActualizarRequest;
+use App\Http\Requests\Proveedor\CrearRequest;
+use App\Service\Empresa\ProveedorClass;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
-class ClienteController extends Controller
+class ProveedorController extends Controller
 {
-    public function __construct(private ClienteClass $clienteClass) {}
+    public function __construct(private ProveedorClass $proveedorClass) {}
 
     public function index(): View
     {
-        return view('Sistema.pages.empresa.cliente');
+        return view('Sistema.pages.empresa.proveedor');
     }
 
     public function lista(): JsonResponse
     {
-        $clientes = $this->clienteClass->lista();
+        $proveedores = $this->proveedorClass->lista();
 
-        return datatables()->of($clientes)
+        return datatables()->of($proveedores)
             ->filter(function ($query) {
                 if ($search = request('search.value')) {
                     $query->where(function ($q) use ($search) {
-                        $q->whereRaw("CONCAT(nombre, ' ', apellido) LIKE ?", ["%{$search}%"])
-                            ->orWhere('cedula', 'LIKE', "%{$search}%")
+                        $q->where('nombre', 'LIKE', "%{$search}%")
+                            ->orWhere('razon_social', 'LIKE', "%{$search}%")
+                            ->orWhere('rif', 'LIKE', "%{$search}%")
+                            ->orWhere('nombre_contacto', 'LIKE', "%{$search}%")
                             ->orWhere('telefono', 'LIKE', "%{$search}%")
-                            ->orWhere('correo', 'LIKE', "%{$search}%")
-                            ->orWhere('tipo_cliente', 'LIKE', "%{$search}%");
+                            ->orWhere('correo', 'LIKE', "%{$search}%");
                     });
                 }
             })
@@ -40,13 +41,13 @@ class ClienteController extends Controller
     public function detalle($id): JsonResponse
     {
         try {
-            $cliente = $this->clienteClass->detalle($id);
+            $proveedor = $this->proveedorClass->detalle($id);
 
-            return response()->json($cliente);
+            return response()->json($proveedor);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cliente no encontrado',
+                'message' => 'Proveedor no encontrado',
             ], 404);
         }
     }
@@ -54,12 +55,12 @@ class ClienteController extends Controller
     public function guardar(CrearRequest $datos): JsonResponse
     {
         try {
-            $cliente = $this->clienteClass->guardar($datos->validated());
+            $proveedor = $this->proveedorClass->guardar($datos->validated());
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cliente registrado correctamente',
-                'data' => $cliente,
+                'message' => 'Proveedor registrado correctamente',
+                'data' => $proveedor,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -72,12 +73,12 @@ class ClienteController extends Controller
     public function actualizar(ActualizarRequest $datos, $id): JsonResponse
     {
         try {
-            $cliente = $this->clienteClass->actualizar($datos->validated(), $id);
+            $proveedor = $this->proveedorClass->actualizar($datos->validated(), $id);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cliente actualizado correctamente',
-                'data' => $cliente,
+                'message' => 'Proveedor actualizado correctamente',
+                'data' => $proveedor,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -90,12 +91,12 @@ class ClienteController extends Controller
     public function eliminar($id): JsonResponse
     {
         try {
-            $cliente = $this->clienteClass->eliminar($id);
+            $proveedor = $this->proveedorClass->eliminar($id);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cliente eliminado correctamente',
-                'data' => $cliente,
+                'message' => 'Proveedor eliminado correctamente',
+                'data' => $proveedor,
             ]);
         } catch (\Exception $e) {
             return response()->json([

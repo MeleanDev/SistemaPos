@@ -15,24 +15,61 @@ For every module (e.g. `Cliente`, `Proveedor`, `Repuesto`, `Vehiculo`, `Producto
 - **Form Requests**: Stored in `app/Http/Requests/{Modulo}/`
   - `CrearRequest.php`: Handles validation for creating records.
   - `ActualizarRequest.php`: Handles validation for updating records.
+  - **Rule Syntax Convention**: Always write validation rules using **array format** `['required', 'string', 'min:2', 'max:100']`. Never use pipe strings (avoid `required|string|max:100`).
   - **Uniqueness & Reactivation Rule**: Always scope uniqueness against active records only (`where estado = true`), so soft-deleted / inactive records can be seamlessly reactivated upon creation:
     ```php
     use Illuminate\Validation\Rule;
 
     // In CrearRequest:
-    'cedula' => [
+    'rif' => [
         'required',
         'string',
         'max:20',
-        Rule::unique('clientes', 'cedula')->where(fn ($q) => $q->where('estado', true)),
+        Rule::unique('proveedores', 'rif')->where(fn ($q) => $q->where('estado', true)),
     ],
+    'nombre' => [
+        'required',
+        'string',
+        'min:2',
+        'max:150',
+        Rule::unique('proveedores', 'nombre')->where(fn ($q) => $q->where('estado', true)),
+    ],
+    'razon_social' => [
+        'required',
+        'string',
+        'min:2',
+        'max:150',
+        Rule::unique('proveedores', 'razon_social')->where(fn ($q) => $q->where('estado', true)),
+    ],
+    'nombre_contacto' => ['nullable', 'string', 'max:100'],
+    'telefono' => ['nullable', 'string', 'max:25'],
+    'correo' => ['nullable', 'email', 'max:150'],
+    'direccion' => ['nullable', 'string', 'max:255'],
 
     // In ActualizarRequest:
-    'cedula' => [
+    'rif' => [
         'required',
         'string',
         'max:20',
-        Rule::unique('clientes', 'cedula')
+        Rule::unique('proveedores', 'rif')
+            ->ignore($this->route('id'))
+            ->where(fn ($q) => $q->where('estado', true)),
+    ],
+    'nombre' => [
+        'required',
+        'string',
+        'min:2',
+        'max:150',
+        Rule::unique('proveedores', 'nombre')
+            ->ignore($this->route('id'))
+            ->where(fn ($q) => $q->where('estado', true)),
+    ],
+    'razon_social' => [
+        'required',
+        'string',
+        'min:2',
+        'max:150',
+        Rule::unique('proveedores', 'razon_social')
             ->ignore($this->route('id'))
             ->where(fn ($q) => $q->where('estado', true)),
     ],
@@ -43,13 +80,19 @@ For every module (e.g. `Cliente`, `Proveedor`, `Repuesto`, `Vehiculo`, `Producto
 ## 2. Service Layer & Logical Deletion / Reactivation
 
 In service classes (`app/Service/Empresa/{Modulo}Class.php`):
-1. **Never physically DELETE records** with active commercial or financial history.
-2. **`guardar(array $datos)`**: If a record with the same unique identifier (e.g., `cedula`, `codigo`) exists in inactive state (`estado = false`), update its data with the new input and set `estado = true`. Otherwise, create a new record:
+1. **Active-Only DataTables Queries**: In `lista()`, ALWAYS filter by active records (`->where('estado', true)`). Inactive/soft-deleted records do not appear in the table.
+   ```php
+   public function lista()
+   {
+       return Modelo::select('id', 'rif', 'nombre', ...)->where('estado', true);
+   }
+   ```
+2. **`guardar(array $datos)`**: If a record with the same unique identifier (e.g., `rif`, `cedula`, `nombre`) exists in inactive state (`estado = false`), update its data with the new input and reactivate it to `estado = true`. Otherwise, create a new record:
    ```php
    public function guardar(array $datos)
    {
-       $existenteInactivo = Modelo::where('cedula', $datos['cedula'])
-           ->where('estado', false)
+       $existenteInactivo = Modelo::where('rif', $datos['rif'])
+           ->orWhere('nombre', $datos['nombre'])
            ->first();
 
        if ($existenteInactivo) {
@@ -58,19 +101,22 @@ In service classes (`app/Service/Empresa/{Modulo}Class.php`):
            return $existenteInactivo;
        }
 
+       $datos['estado'] = true;
        return Modelo::create($datos);
    }
    ```
-3. **`eliminar($id)`**: Toggles the logical status:
+3. **`eliminar($id)`**: Performs soft-deletion by setting `estado = false`:
    ```php
    public function eliminar($id)
    {
        $registro = Modelo::findOrFail($id);
-       $registro->estado = ! $registro->estado;
+       $registro->estado = false;
        $registro->save();
+
        return $registro;
    }
    ```
+4. **Clean Tables (No Redundant "Estado" Column)**: Since all visible records in the table are active (`estado = true`), do not include an "Estado" column in the main DataTable to keep the table clean and spacious.
 
 ---
 
@@ -227,8 +273,8 @@ Every module view uses this concise, clean Blade layout:
        <button type="button" class="btn btn-outline-primary btn-sm rounded-circle shadow-sm" onclick="editar(${row.id});" title="Editar" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
            <i class="fas fa-edit"></i>
        </button>
-       <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="eliminar(${row.id}, '${row.nombre}');" title="${titleEstado}" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
-           <i class="fas ${iconEstado}"></i>
+       <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="eliminar(${row.id}, '${row.nombre}');" title="Eliminar registro" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+           <i class="fas fa-trash-alt"></i>
        </button>
    </div>
    ```
