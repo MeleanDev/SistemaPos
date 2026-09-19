@@ -7,11 +7,23 @@ use App\Http\Requests\Proveedor\ActualizarRequest;
 use App\Http\Requests\Proveedor\CrearRequest;
 use App\Service\Empresa\ProveedorClass;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class ProveedorController extends Controller
 {
     public function __construct(private ProveedorClass $proveedorClass) {}
+
+    private function obtenerEmpresaId(): int
+    {
+        $empresa = Auth::user()?->empresaActiva();
+
+        if (! $empresa) {
+            abort(403, 'No tienes una empresa activa asignada.');
+        }
+
+        return $empresa->id;
+    }
 
     public function index(): View
     {
@@ -20,7 +32,7 @@ class ProveedorController extends Controller
 
     public function lista(): JsonResponse
     {
-        $proveedores = $this->proveedorClass->lista();
+        $proveedores = $this->proveedorClass->lista($this->obtenerEmpresaId());
 
         return datatables()->of($proveedores)
             ->filter(function ($query) {
@@ -41,7 +53,7 @@ class ProveedorController extends Controller
     public function detalle($id): JsonResponse
     {
         try {
-            $proveedor = $this->proveedorClass->detalle($id);
+            $proveedor = $this->proveedorClass->detalle($id, $this->obtenerEmpresaId());
 
             return response()->json($proveedor);
         } catch (\Exception $e) {
@@ -55,7 +67,7 @@ class ProveedorController extends Controller
     public function guardar(CrearRequest $datos): JsonResponse
     {
         try {
-            $proveedor = $this->proveedorClass->guardar($datos->validated());
+            $proveedor = $this->proveedorClass->guardar($datos->validated(), $this->obtenerEmpresaId());
 
             return response()->json([
                 'success' => true,
@@ -73,7 +85,7 @@ class ProveedorController extends Controller
     public function actualizar(ActualizarRequest $datos, $id): JsonResponse
     {
         try {
-            $proveedor = $this->proveedorClass->actualizar($datos->validated(), $id);
+            $proveedor = $this->proveedorClass->actualizar($datos->validated(), $id, $this->obtenerEmpresaId());
 
             return response()->json([
                 'success' => true,
@@ -91,7 +103,7 @@ class ProveedorController extends Controller
     public function eliminar($id): JsonResponse
     {
         try {
-            $proveedor = $this->proveedorClass->eliminar($id);
+            $proveedor = $this->proveedorClass->eliminar($id, $this->obtenerEmpresaId());
 
             return response()->json([
                 'success' => true,

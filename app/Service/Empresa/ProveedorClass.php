@@ -6,10 +6,11 @@ use App\Models\Proveedor;
 
 class ProveedorClass
 {
-    public function lista()
+    public function lista(int $empresaId)
     {
         return Proveedor::select(
             'id',
+            'empresa_id',
             'rif',
             'nombre',
             'razon_social',
@@ -18,19 +19,26 @@ class ProveedorClass
             'correo',
             'direccion',
             'estado'
-        )->where('estado', true);
+        )->where('estado', true)
+            ->where('empresa_id', $empresaId);
     }
 
-    public function detalle($id)
+    public function detalle($id, int $empresaId)
     {
-        return Proveedor::findOrFail($id);
+        return Proveedor::where('empresa_id', $empresaId)->findOrFail($id);
     }
 
-    public function guardar(array $datos)
+    public function guardar(array $datos, int $empresaId)
     {
-        $existenteInactivo = Proveedor::where('rif', $datos['rif'])
-            ->orWhere('nombre', $datos['nombre'])
-            ->orWhere('razon_social', $datos['razon_social'])
+        $datos['empresa_id'] = $empresaId;
+
+        $existenteInactivo = Proveedor::where('empresa_id', $empresaId)
+            ->where('estado', false)
+            ->where(function ($q) use ($datos) {
+                $q->where('rif', $datos['rif'])
+                    ->orWhere('nombre', $datos['nombre'])
+                    ->orWhere('razon_social', $datos['razon_social']);
+            })
             ->first();
 
         if ($existenteInactivo) {
@@ -45,17 +53,17 @@ class ProveedorClass
         return Proveedor::create($datos);
     }
 
-    public function actualizar(array $datos, $id)
+    public function actualizar(array $datos, $id, int $empresaId)
     {
-        $proveedor = Proveedor::findOrFail($id);
+        $proveedor = Proveedor::where('empresa_id', $empresaId)->findOrFail($id);
         $proveedor->update($datos);
 
         return $proveedor;
     }
 
-    public function eliminar($id)
+    public function eliminar($id, int $empresaId)
     {
-        $proveedor = Proveedor::findOrFail($id);
+        $proveedor = Proveedor::where('empresa_id', $empresaId)->findOrFail($id);
         $proveedor->estado = false;
         $proveedor->save();
 

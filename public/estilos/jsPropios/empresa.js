@@ -107,11 +107,21 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
 
     if (esFiltrado) {
         $("#contadorEmpresas").html(
-            `<i class="fas fa-filter me-1"></i> ${total} de ${totalGeneral} empresas`,
+            `<span class="rounded-circle d-flex align-items-center justify-content-center text-white shadow-xs" style="width: 24px; height: 24px; min-width: 24px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); font-size: 0.72rem;">
+                <i class="fas fa-filter"></i>
+            </span>
+            <span class="fw-bold text-dark" style="font-size: 0.84rem; letter-spacing: -0.01em;">
+                ${total} de ${totalGeneral} empresas
+            </span>`
         );
     } else {
         $("#contadorEmpresas").html(
-            `<i class="fas fa-building me-1"></i> ${total} ${total === 1 ? "Empresa activa" : "Empresas activas"}`,
+            `<span class="rounded-circle d-flex align-items-center justify-content-center text-white shadow-xs" style="width: 24px; height: 24px; min-width: 24px; background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%); font-size: 0.72rem;">
+                <i class="fas fa-building"></i>
+            </span>
+            <span class="fw-bold text-dark" style="font-size: 0.84rem; letter-spacing: -0.01em;">
+                ${total} ${total === 1 ? "Empresa activa" : "Empresas activas"}
+            </span>`
         );
     }
 

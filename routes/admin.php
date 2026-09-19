@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Administradores\EmpresaController;
+use App\Http\Controllers\Administradores\UsuarioController;
 use App\Http\Controllers\Empresa\ClienteController;
 use App\Http\Controllers\Empresa\MetodoPagoController;
 use App\Http\Controllers\Empresa\ProveedorController;
@@ -12,6 +13,18 @@ Route::middleware('auth')->group(function () {
 
     Route::controller(PanelPrincipalController::class)->group(function () {
         Route::get('/panel-principal', 'index')->name('dashboard');
+    });
+
+    Route::controller(UsuarioController::class)->group(function () {
+        Route::get('/usuarios', 'index')->name('usuario');
+        Route::get('/usuarios/lista', 'lista');
+        Route::get('/usuarios/catalogos', 'catalogos');
+        Route::get('/usuarios/{id}', 'detalle');
+        Route::post('/usuarios', 'guardar');
+        Route::put('/usuarios/actualizar/{id}', 'actualizar');
+        Route::post('/usuarios/{id}/permisos', 'actualizarPermisos');
+        Route::delete('/usuarios/{id}', 'eliminar');
+        Route::post('/cambiar-empresa', 'cambiarEmpresa')->name('cambiar_empresa');
     });
 
     Route::controller(EmpresaController::class)->group(function () {

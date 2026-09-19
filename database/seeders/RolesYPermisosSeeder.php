@@ -147,22 +147,10 @@ class RolesYPermisosSeeder extends Seeder
         ];
         $adminRole->syncPermissions($adminPermissions);
 
-        // C. Operador: Acceso operativo limitado a POS, Cajas, Clientes y Ventas
+        // C. Operador: Rol base cuyas facultades modulares se asignan granularmente
         $operadorRole = Role::firstOrCreate(['name' => 'Operador', 'guard_name' => 'web']);
         $operadorPermissions = [
             'pos.acceso',
-            'ventas.ver',
-            'ventas.crear',
-            'clientes.ver',
-            'clientes.crear',
-            'cajas.ver',
-            'cajas.aperturar',
-            'cajas.cerrar',
-            'cajas.movimientos',
-            'cxc.ver',
-            'cxc.abonar',
-            'productos.ver',
-            'metodos_pago.ver',
         ];
         $operadorRole->syncPermissions($operadorPermissions);
     }

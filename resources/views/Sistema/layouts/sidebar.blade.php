@@ -149,17 +149,10 @@
                     </a>
                 </li>
 
-                <li class="sidebar-item">
-                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
-                        <i class="fas fa-user-tie"></i>
-                        <span class="hide-menu">Administradores</span>
-                    </a>
-                </li>
-
-                <li class="sidebar-item">
-                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                <li class="sidebar-item @if (request()->routeIs('usuario*')) selected @endif">
+                    <a class="sidebar-link" href="{{ route('usuario') }}" aria-expanded="false">
                         <i class="fas fa-users-cog"></i>
-                        <span class="hide-menu">Usuarios</span>
+                        <span class="hide-menu">Usuarios & Roles</span>
                     </a>
                 </li>
 

@@ -10,13 +10,19 @@
  * @param {number|string} id - ID del registro a consultar
  * @returns {Promise} jQuery AJAX Promise
  */
-window.consultarRegistro = function (urlBase, id) {
+window.consultarRegistro = function (urlBase, id, callback) {
     const urlLimpia = urlBase.endsWith("/") ? urlBase : `${urlBase}/`;
-    return $.ajax({
+    const peticion = $.ajax({
         url: `${urlLimpia}${id}`,
         type: "GET",
         dataType: "json",
     });
+
+    if (typeof callback === "function") {
+        peticion.done(callback);
+    }
+
+    return peticion;
 };
 
 /**

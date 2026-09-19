@@ -10,7 +10,7 @@
  */
 window.desglosarCedula = function (cedulaCompleta) {
     if (!cedulaCompleta) {
-        return { tipo: "V-", numero: "" };
+        return { tipo: "V-", prefijo: "V-", numero: "" };
     }
 
     const prefijos = window.CONFIG_POS?.PREFIJOS_CEDULA || ["V-", "J-", "E-", "G-", "P-"];
@@ -19,22 +19,23 @@ window.desglosarCedula = function (cedulaCompleta) {
     if (prefijoEncontrado) {
         return {
             tipo: prefijoEncontrado,
+            prefijo: prefijoEncontrado,
             numero: cedulaCompleta.replace(prefijoEncontrado, ""),
         };
     }
 
-    return { tipo: "V-", numero: cedulaCompleta };
+    return { tipo: "V-", prefijo: "V-", numero: cedulaCompleta };
 };
 
 /**
  * Desglosa un número telefónico en su código de país y su número local.
  * 
  * @param {string} telefonoCompleto
- * @returns {{ codigo: string, numero: string }}
+ * @returns {{ codigo: string, prefijo: string, numero: string }}
  */
 window.desglosarTelefono = function (telefonoCompleto) {
     if (!telefonoCompleto) {
-        return { codigo: "+58", numero: "" };
+        return { codigo: "+58", prefijo: "+58", numero: "" };
     }
 
     const codigosPais = window.CONFIG_POS?.CODIGOS_PAIS?.map((c) => c.codigo) || [
@@ -46,11 +47,12 @@ window.desglosarTelefono = function (telefonoCompleto) {
     if (codigoEncontrado) {
         return {
             codigo: codigoEncontrado,
+            prefijo: codigoEncontrado,
             numero: telefonoCompleto.replace(codigoEncontrado, ""),
         };
     }
 
-    return { codigo: "+58", numero: telefonoCompleto };
+    return { codigo: "+58", prefijo: "+58", numero: telefonoCompleto };
 };
 
 /**

@@ -5,13 +5,47 @@ description: POS System Architecture, Conventions, Executive UI Components, and 
 
 # POS System Architecture & Conventions Guide
 
-This skill outlines the strict architecture, backend logic, and frontend UI/UX standards required for all modules within the POS system.
+## 🌟 Role & Profile: Senior Full Stack Frontend Engineer & UI/UX Design Specialist
+Elite Senior Full Stack Engineer and Frontend UI/UX Specialist with advanced mastery in Laravel, Vue.js, Blade components, Bootstrap 5, Tailwind CSS, and enterprise-grade Single Page/Multi-Page Application architectures.
+Every designed, written, reviewed, or refactored module MUST be **magnificent, highly aesthetic, clean, modern, executive, and production-ready**.
+
+### 🎨 Mandatory UI/UX & Aesthetic Design Directives
+1. **Rounded Borders**: Every UI element, card, button, modal, badge, input, and container MUST feature smooth, polished, rounded borders (e.g., Bootstrap `.rounded-4`, `.rounded-pill`, `.rounded-3`, or custom clean curves). No sharp square edges are allowed unless explicitly specified.
+2. **Visual Hierarchy & Executive Feel**: Prioritize clean layouts, high contrast, proper whitespace, smooth micro-interactions, subtle shadows (`shadow-sm`, `shadow-hover`), and modern color harmonies.
+3. **Dark Mode & Palette Alignment**: Prefer sleek dark visual themes for code editors, previews, or specialized interfaces when requested, maintaining a pristine, professional enterprise aesthetic.
+4. **Consistency**: Always leverage reusable design tokens, font weights (`fw-bold`, `fw-semibold`), and standard FontAwesome 6 icon sets according to the module domain.
+5. **Modern Typography**: Use clean, modern fonts like **Plus Jakarta Sans** or **Inter** with legible weights (400 to 800) and avoid forced micro-uppercase in form labels.
+6. **Flawless Code & Execution**: Write clean, maintainable code following established directory conventions, single source of truth (`config/pos.php`), and reusable JavaScript helpers (`enviarFormulario`, `crearDataTable`, `consultarRegistro`).
+7. **🚨 Strict Database Preservation Policy (MANDATORY)**: NEVER execute `php artisan migrate:fresh` or wipe/reset the database for routine/small changes, styling fixes, or standard tests. Always preserve the user's active session, configured companies, and registered data. You may ONLY run `migrate:fresh` when strictly unavoidable AND you have asked the user for explicit permission and received their confirmation ("pídeme permiso antes").
+8. **📖 Mandatory Skill Consultation**: Always review and strictly follow this skill (`pos-architecture`) and `AGENTS.md` before executing any architectural decision or terminal command.
+9. **🏢 Multi-Tenancy & Empresa Scoping (MANDATORY)**: All transactional and catalog entities (`Proveedores`, `Clientes`, `Productos`, `Ventas`, `Cajas`, etc.) MUST include `empresa_id`. All CRUD queries, unique validation rules (`Rule::unique`), and logical reactivations must be scoped to the active company `empresa_id` (`Auth::user()->empresaActiva()->id`).
 
 ---
 
-## 1. Directory & Request Conventions
+## 1. System Bootstrap, Clean Database & Setup Wizard
 
-For every module (e.g. `Cliente`, `Proveedor`, `Repuesto`, `Vehiculo`, `Producto`):
+### 1.1 Initial Setup Wizard (`/configuracion-inicial`)
+- **Purpose**: When the system is fresh or unconfigured (no active SuperAdmin or Empresa exists), all web requests automatically redirect to `/configuracion-inicial`.
+- **Middleware**: `App\Http\Middleware\VerificarConfiguracionInicial` appended to the `web` middleware group in `bootstrap/app.php`. Excludes static assets (`estilos/*`, `storage/*`, `build/*`, `favicon.ico`) and `configuracion-inicial*`.
+- **Database Seeder Standard**:
+  - `database/seeders/DatabaseSeeder.php` ONLY calls `RolesYPermisosSeeder::class`.
+  - **NEVER** seed mock users or companies in seeders. The Empresa Matriz and root SuperAdmin are created dynamically during initial setup.
+- **Setup Flow**:
+  1. **Paso 1: Empresa Matriz** (Nombre comercial, razón social, RIF con selector `J-, V-, G-, E-`, teléfono, correo, dirección fiscal y logo).
+  2. **Paso 2: SuperAdministrador** (Cédula `name`, email, nombre, apellido, contraseña min 8 caracteres y confirmación).
+  3. **Paso 3: Métodos de Pago** (Selección interactiva de formas de cobro iniciales).
+  - Executed in a single atomic `DB::transaction`, auto-logging the SuperAdmin and setting `session(['empresa_activa_id' => $empresa->id])`.
+
+### 1.2 Authentication & Login Standard
+- **Identity / Username**: `User.name` holds the Cédula / Document ID (e.g., `V-12345678`).
+- **Login Request**: Validates `name` and `password` with active status `estado = true`.
+- **Password Rules**: Minimum 8 characters on installation/setup, min 6 characters on standard user management.
+
+---
+
+## 2. Directory & Form Request Conventions
+
+For every module (e.g. `Cliente`, `Proveedor`, `Usuario`, `Empresa`, `MetodoPago`, `Producto`):
 - **Form Requests**: Stored in `app/Http/Requests/{Modulo}/`
   - `CrearRequest.php`: Handles validation for creating records.
   - `ActualizarRequest.php`: Handles validation for updating records.
@@ -77,17 +111,17 @@ For every module (e.g. `Cliente`, `Proveedor`, `Repuesto`, `Vehiculo`, `Producto
 
 ---
 
-## 2. Service Layer & Logical Deletion / Reactivation
+## 3. Service Layer & Logical Deletion / Reactivation
 
-In service classes (`app/Service/Empresa/{Modulo}Class.php`):
-1. **Active-Only DataTables Queries**: In `lista()`, ALWAYS filter by active records (`->where('estado', true)`). Inactive/soft-deleted records do not appear in the table.
+In service classes (`app/Service/{Dominio}/{Modulo}Class.php`):
+1. **Active-Only Queries**: In `lista()`, ALWAYS filter by active records (`->where('estado', true)`). Inactive/soft-deleted records do not appear in the default list.
    ```php
    public function lista()
    {
        return Modelo::select('id', 'rif', 'nombre', ...)->where('estado', true);
    }
    ```
-2. **`guardar(array $datos)`**: If a record with the same unique identifier (e.g., `rif`, `cedula`, `nombre`) exists in inactive state (`estado = false`), update its data with the new input and reactivate it to `estado = true`. Otherwise, create a new record:
+2. **`guardar(array $datos)`**: If a record with the same unique identifier (e.g., `rif`, `cedula`, `nombre`, `email`) exists in inactive state (`estado = false`), update its data with the new input and reactivate it to `estado = true`. Otherwise, create a new record:
    ```php
    public function guardar(array $datos)
    {
@@ -116,27 +150,6 @@ In service classes (`app/Service/Empresa/{Modulo}Class.php`):
        return $registro;
    }
    ```
-4. **Clean Tables (No Redundant "Estado" Column)**: Since all visible records in the table are active (`estado = true`), do not include an "Estado" column in the main DataTable to keep the table clean and spacious.
-
----
-
-## 3. Controllers & Routes
-
-- **Controllers**: Located in `app/Http/Controllers/Empresa/` (or domain subfolder).
-  - Injected with service class (e.g., `ClienteClass`).
-  - Returns `JsonResponse` with `{ success: true|false, message: string, data: mixed }`.
-  - Returns DataTables JSON via `datatables()->of($query)->filter(...)->toJson()` for `lista()`.
-- **Routes (`routes/admin.php`)**:
-  ```php
-  Route::controller(ModuloController::class)->group(function () {
-      Route::get('/modulos', 'index')->name('modulo');
-      Route::get('/modulos/lista', 'lista');
-      Route::get('/modulos/{id}', 'detalle');
-      Route::post('/modulos', 'guardar');
-      Route::put('/modulos/actualizar/{id}', 'actualizar');
-      Route::delete('/modulos/{id}', 'eliminar');
-  });
-  ```
 
 ---
 
@@ -160,84 +173,69 @@ This configuration is automatically synchronized to:
 
 ---
 
-## 5. Executive UI Components & View Structure
+## 5. UI Architecture: Card Grids vs DataTables
 
-Every module view uses this concise, clean Blade layout:
+### 5.1 When to Use Executive Card Grids
+- **Modules**: `Empresas`, `Usuarios / Administradores`.
+- **Reasoning**: These entities are created in low/moderate volumes where visual depth, logo/avatar identity, status badges, authorized company pills, and granular permission counters create a far superior executive user experience.
+- **Card Grid Architecture**:
+  1. **Search Header Card**: Clean input group with live text filter and dynamic counter badge.
+  2. **Responsive Grid**: `row g-4` with `.card-executive`, `.rounded-4`, soft shadows, hover elevation.
+  3. **Visual Header**:
+     - Large Squircle Logo / Avatar (`avatar-executive-md`).
+     - Entity name in bold (`fw-bold text-dark`), Document / Cédula badge (`badge-documento`).
+     - Role Badge (`SuperAdmin` gradient, `Admin` blue, `Operador` teal).
+  4. **Card Body**: Contact chips (email, phone, address) and assigned company pills.
+  5. **Card Footer**: Direct rounded action buttons (Editar, Eliminar/Desactivar).
+  6. **Skeleton Loading**: Visual placeholder animation while AJAX loads.
 
-```blade
-@extends('Sistema.layouts.app')
+### 5.2 When to Use DataTables
+- **Modules**: `Clientes`, `Proveedores`, `Productos / Inventario`, `Ventas`, `Kardex`.
+- **Reasoning**: Massive volume of transactional records requiring fast pagination, column sorting, and server-side processing.
 
-@section('titulo', '👥 Clientes')
-@section('subtitulo', 'Directorio y administración de clientes para compras al detal y mayoristas')
+---
 
-@section('rutas')
-    <a href="{{ route('cliente') }}">Empresa</a>
-    <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
-    <span class="active">Clientes</span>
-@endsection
+## 6. Granular Permissions Model (Spatie Laravel Permission)
 
-@section('acciones')
-    <x-btn-action
-        icon="fas fa-user-plus"
-        text="Nuevo Cliente"
-        onclick="crear()"
-    />
-@endsection
+### 6.1 Role Hierarchy & Granular Authorization
+1. **SuperAdministrador (`SuperAdmin`)**:
+   - Global root platform access across all companies and warehouses.
+   - All permissions synced automatically.
+   - No company assignment restriction (sees all companies via Navbar switcher).
+2. **Administrador (`Admin`)**:
+   - Assigned to 1 or more specific companies by the SuperAdmin.
+   - Standard administrative permissions for their assigned companies.
+3. **Operador (`Operador`)**:
+   - Operates POS, cash register, customer transactions, and sales.
+   - **Granular Module Permissions**: Allows administrators to selectively grant or revoke specific module permissions (`ver`, `crear`, `editar`, `eliminar`) for active modules.
 
-@section('contenido')
-    <!-- Datatable Component -->
-    <x-datatable
-        id="datatable_clientes"
-        :headers="[
-            'Cliente / Documento',
-            'Teléfono',
-            'Correo',
-            'Tipo Cliente',
-            'Estado',
-            'Acciones',
-        ]"
-    />
-
-    <!-- Executive Modal Component -->
-    <x-modal
-        id="modalCliente"
-        title="Nuevo Cliente"
-        subtitle="Completa la información del cliente"
-        icon="fas fa-user text-warning fs-5"
-        size="modal-lg"
-        headerColor="bg-dark text-white"
-        formId="formularioCliente"
-        submitText="Guardar"
-    >
-        <form id="formularioCliente">
-            @csrf
-            <div class="row g-3">
-                <x-input name="nombre" label="Nombre / Razón Comercial" icon="fas fa-user" placeholder="Ej. Juan" required maxlength="100" col="col-md-6" />
-                <x-input name="apellido" label="Apellido" icon="fas fa-user" placeholder="Ej. Pérez" required maxlength="100" col="col-md-6" />
-
-                <!-- Modular Document & Phone Inputs -->
-                <x-input-documento selectName="tipo_cedula" inputName="cedula_numero" required col="col-md-6" />
-                <x-input-telefono selectName="codigo_pais" inputName="telefono_numero" col="col-md-6" />
-
-                <x-select name="tipo_cliente" id="tipo_cliente" label="Tipo de Cliente" icon="fas fa-tag" required col="col-md-6">
-                    <option value="detal">Detal / Particular</option>
-                    <option value="mayorista">Mayorista / Empresa</option>
-                </x-select>
-
-                <x-input name="correo" id="correo" type="email" label="Correo Electrónico" icon="fas fa-envelope" placeholder="cliente@ejemplo.com" maxlength="150" col="col-md-6" optionalText="Opcional" />
-                <x-input name="direccion" id="direccion" label="Dirección de Habitación / Fiscal" icon="fas fa-map-marker-alt" placeholder="Calle 123, Sector, Casa/Apto 456" maxlength="255" col="col-12" optionalText="Opcional" />
-            </div>
-        </form>
-    </x-modal>
-@endsection
-
-@section('scripts')
-    @include('Sistema.components.datatable')
-    <script src="{{ asset('estilos/jsPropios/cliente.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/cliente.js')) ?: time() }}"></script>
-@endsection
+### 6.2 Active Modules Permission Matrix
+```php
+'permisos_modulos' => [
+    'Clientes' => [
+        ['name' => 'clientes.ver', 'label' => 'Ver clientes y detalles'],
+        ['name' => 'clientes.crear', 'label' => 'Registrar clientes'],
+        ['name' => 'clientes.editar', 'label' => 'Editar información'],
+        ['name' => 'clientes.eliminar', 'label' => 'Eliminar / Desactivar'],
+    ],
+    'Proveedores' => [
+        ['name' => 'proveedores.ver', 'label' => 'Ver proveedores y detalles'],
+        ['name' => 'proveedores.crear', 'label' => 'Registrar proveedores'],
+        ['name' => 'proveedores.editar', 'label' => 'Editar información'],
+        ['name' => 'proveedores.eliminar', 'label' => 'Eliminar / Desactivar'],
+    ],
+    'Métodos de Pago' => [
+        ['name' => 'metodos_pago.ver', 'label' => 'Ver métodos de pago'],
+        ['name' => 'metodos_pago.crear', 'label' => 'Crear nuevas formas de pago'],
+        ['name' => 'metodos_pago.editar', 'label' => 'Modificar métodos'],
+        ['name' => 'metodos_pago.eliminar', 'label' => 'Eliminar formas de pago'],
+    ],
+]
 ```
 
-### 5.1 Reusable Blade Components Summary
+---
+
+## 7. Reusable Blade Components Summary
 
 | Component | Description | Example Usage |
 |---|---|---|
@@ -248,206 +246,45 @@ Every module view uses this concise, clean Blade layout:
 | `<x-input>` | Standard executive input with icon | `<x-input name="nombre" label="Nombre" icon="fas fa-user" required />` |
 | `<x-select>` | Executive dropdown select | `<x-select name="tipo" label="Tipo" icon="fas fa-tag"><option>...</option></x-select>` |
 | `<x-modal>` | Modal with dynamic header, cancel & submit buttons | `<x-modal id="modalX" title="Título" submitText="Guardar">...</x-modal>` |
+| `<x-search-filter>` | Executive live search & counter filter bar | `<x-search-filter inputId="buscador" counterId="contador" placeholder="Buscar..." />` |
 
 ---
 
-## 6. Standard Table Columns & Badges
-
-1. **Dark Floating Header**: `<thead class="bg-dark text-white">` with rounded corners.
-2. **Unified Column 1 (`Cliente / Documento` or `Producto / Código`)**:
-   - Top: Full Name / Description in bold (`fw-bold text-dark`).
-   - Avatar circle with user initials (`.avatar-executive-sm`).
-   - Bottom: Monospace identity badge (`.badge-documento`).
-3. **Interactive Contact Chips**:
-   - Phone: `<a href="tel:${data}" class="contacto-item phone"><i class="fas fa-phone-alt"></i><span>${data}</span></a>`
-   - Email: `<a href="mailto:${data}" class="contacto-item email"><i class="fas fa-envelope"></i><span>${data}</span></a>`
-4. **Executive Badges**:
-   - `.badge-detal` (Soft Sky Blue) / `.badge-mayorista` (Vibrant Amber / Gold)
-   - `.badge-activo` (Fresh Emerald Green) / `.badge-inactivo` (Rose Crimson Red)
-5. **Action Buttons in DataTable**:
-   ```javascript
-   <div class="d-flex justify-content-center gap-1">
-       <button type="button" class="btn btn-outline-info btn-sm rounded-circle shadow-sm" onclick="ver(${row.id});" title="Ver detalles" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
-           <i class="fas fa-eye"></i>
-       </button>
-       <button type="button" class="btn btn-outline-primary btn-sm rounded-circle shadow-sm" onclick="editar(${row.id});" title="Editar" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
-           <i class="fas fa-edit"></i>
-       </button>
-       <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="eliminar(${row.id}, '${row.nombre}');" title="Eliminar registro" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
-           <i class="fas fa-trash-alt"></i>
-       </button>
-   </div>
-   ```
-6. **DataTables Backend Search Optimization**: In Controller `lista()`, always combine name fields with `CONCAT()`:
-   ```php
-   $query->whereRaw("CONCAT(nombre, ' ', apellido) LIKE ?", ["%{$search}%"])
-   ```
-
----
-
-## 7. Frontend JavaScript Reusable Components
+## 8. Frontend JavaScript Reusable Helpers
 
 All module JS files consume standard components from `public/estilos/jsPropios/components/`:
-
-1. **`crearDataTable(opciones)`**:
-   ```javascript
-   crearDataTable({
-       selector: "#datatable_clientes",
-       url: urlLista,
-       searchPlaceholder: "Buscar cliente...",
-       columns: [ ... ]
-   });
-   ```
+1. **`crearDataTable(opciones)`**: Standard DataTables initializer.
 2. **`consultarRegistro(urlDetalles, id)`**: Fetches record data via AJAX GET.
-3. **`enviarFormulario(opciones)`**: Handles `FormData`, method `PUT`, spinner states, SweetAlert2 notifications, modal closing, table reloading, and 422 error highlighting:
-   ```javascript
-   enviarFormulario({
-       form: this,
-       url: urlAccion,
-       isEditar: isEditar,
-       modalSelector: "#modalCliente",
-       tablaSelector: "#datatable_clientes",
-       btnSubmit: "#modalClienteBtnGuardar",
-       textoGuardarOriginal: $("#modalClienteTextoGuardar").text(),
-       antesDeEnviar: function (formData) {
-           formData.set("cedula", $("#tipo_cedula").val() + cedulaNum);
-       }
-   });
-   ```
-4. **`cambiarEstadoRegistro(opciones)`**: SweetAlert2 confirmation dialog with DELETE request and live table reload.
+3. **`enviarFormulario(opciones)`**: Handles `FormData`, method `PUT`, spinner states, SweetAlert2 notifications, modal closing, table/card reloading, and 422 error highlighting.
+4. **`cambiarEstadoRegistro(opciones)`**: SweetAlert2 confirmation dialog with DELETE request and live view reload.
 5. **`desglosarCedula(cedula)` & `desglosarTelefono(telefono)`**: Extracts prefix and clean numbers.
 6. **`aplicarRestriccionesInput()`**: Automatically sanitizes input lengths and patterns in real-time.
 
 ---
 
-## 8. Standard FontAwesome 6 Icons
+## 9. Standard FontAwesome 6 Icons
 
-- `fas fa-users` / `fas fa-user-plus` / `fas fa-user-edit` / `fas fa-user-tag` (Clientes / Usuarios)
+- `fas fa-users` / `fas fa-user-plus` / `fas fa-user-edit` / `fas fa-user-shield` / `fas fa-user-tag` (Usuarios / Clientes)
+- `fas fa-building` / `fas fa-store` / `fas fa-landmark` (Empresas / Sedes)
 - `fas fa-truck-moving` / `fas fa-dolly` (Proveedores / Recepción)
-- `fas fa-cogs` / `fas fa-wrench` / `fas fa-tools` (Repuestos)
-- `fas fa-motorcycle` / `fas fa-car` (Vehículos)
+- `fas fa-credit-card` / `fas fa-money-bill-wave` / `fas fa-dollar-sign` (Métodos de Pago)
 - `fas fa-boxes-stacked` / `fas fa-warehouse` (Inventario)
-- `fas fa-exchange-alt` / `fas fa-clipboard-list` (Kardex)
-- `fas fa-file-invoice-dollar` / `fas fa-receipt` (Facturación)
-- `fas fa-hand-holding-usd` (CXP / CXC)
-- `fas fa-chart-line` / `fas fa-chart-pie` (Reportes)
-- `fas fa-sliders-h` / `fas fa-gear` (Configuración)
+- `fas fa-cash-register` / `fas fa-receipt` (Punto de Venta / Facturación)
+- `fas fa-chart-line` / `fas fa-sliders-h` (Reportes / Configuración)
 
 ---
 
-## 9. Multi-Tenant, Multi-Almacén & User Role Hierarchy
+## 10. Step-by-Step Implementation Roadmap
 
-The POS system supports both **a single holding company with multiple child branches/companies** and **an independent single company**.
-
-```
-                           ┌───────────────────────────┐
-                           │   SUPERADMINISTRADOR      │
-                           │ (Plataforma Global, Logs) │
-                           └─────────────┬─────────────┘
-                                         │ Crea / Administra
-                    ┌────────────────────┴────────────────────┐
-                    ▼                                         ▼
-         ┌─────────────────────┐                   ┌─────────────────────┐
-         │  EMPRESA 1 (Matriz) │                   │  EMPRESA 2 (Filial) │
-         └──────────┬──────────┘                   └──────────┬──────────┘
-                    │                                         │
-       ┌────────────┴────────────┐               ┌────────────┴────────────┐
-       ▼                         ▼               ▼                         ▼
-┌──────────────┐          ┌──────────────┐┌──────────────┐          ┌──────────────┐
-│  ALMACÉN A   │          │  ALMACÉN B   ││  ALMACÉN C   │          │  ALMACÉN D   │
-└──────────────┘          └──────────────┘└──────────────┘          └──────────────┘
-       │                         │               │                         │
-       ▼                         ▼               ▼                         ▼
-┌──────────────┐          ┌──────────────┐┌──────────────┐          ┌──────────────┐
-│ CAJA / POS 1 │          │ CAJA / POS 2 ││ CAJA / POS 3 │          │ CAJA / POS 4 │
-└──────────────┘          └──────────────┘└──────────────┘          └──────────────┘
-```
-
-### 9.1 Role Hierarchy & Multi-Company Authorization Rules
-
-1. **Superadministrador (Global Root)**:
-   - Único facultado para dar de alta y configurar **Empresas** y **Almacenes**.
-   - **Autorización de Empresas a Administradores**: Es el único que puede asignar o conceder acceso a un usuario Administrador a una o varias empresas (`empresa_user`).
-   - Acceso global a todas las empresas del sistema mediante el selector de empresa activa en el Navbar.
-   - Acceso a logs globales de auditoría de la plataforma, estadísticas consolidadas y configuración general del sistema.
-2. **Administrador (Nivel Empresa)**:
-   - Pertenece a una empresa inicial y solo puede acceder a otras empresas **si el Superadministrador le ha otorgado los permisos explícitos**.
-   - No puede auto-asignarse a otras empresas sin autorización del Superadministrador.
-   - Administra los **Usuarios** de su empresa y gestiona la **Matriz Granular de Roles y Permisos**.
-   - Gestiona sus propios **Proveedores** (`proveedores` con `empresa_id`), productos, precios, compras, inventario, reportes, CXC y CXP de su empresa activa.
-3. **Usuarios / Operadores (Cajeros, Vendedores, Almacenistas, Despachadores)**:
-   - Pertenecen estrictamente a **1 sola Empresa** y se les asigna uno o más `Almacenes` y `Cajas`.
-   - No pueden cambiar de empresa ni ver el selector en el Navbar.
-   - Permisos estrictos por módulo y por acción (`ver`, `crear`, `editar`, `eliminar`, `anular_factura`, `aplicar_descuento`, `hacer_traslado`, `aperturar_caja`, etc.).
-
----
-
-## 10. Core Functional Domains & Database Architecture
-
-### A. Catálogos & Multi-Empresa
-- `empresas`: `id`, `rif`, `nombre`, `razon_social`, `logo`, `telefono`, `correo`, `direccion`, `configuracion_json`, `estado`.
-- `almacenes`: `id`, `empresa_id`, `codigo`, `nombre`, `ubicacion`, `es_principal`, `estado`.
-- `clientes`: `id`, `empresa_id` (opcional/global o por empresa), `cedula`, `nombre`, `apellido`, `telefono`, `correo`, `direccion`, `tipo_cliente`, `estado`.
-- `proveedores`: `id`, `empresa_id`, `rif`, `nombre`, `razon_social`, `nombre_contacto`, `telefono`, `correo`, `direccion`, `estado`.
-- `metodos_pago`: `id`, `nombre`, `descripcion`, `estado`.
-- `categorias` & `marcas`: Clasificación organizada de artículos.
-
-### B. Inventario, Productos & Kardex
-- `productos`: `id`, `empresa_id`, `codigo_barra`, `codigo_interno`, `nombre`, `descripcion`, `tipo` (`producto`, `servicio`, `repuesto`, `vehiculo`), `categoria_id`, `marca_id`, `precio_costo`, `precio_venta_detal`, `precio_venta_mayorista`, `maneja_inventario`, `estado`.
-- `inventario_almacen`: `id`, `empresa_id`, `almacen_id`, `producto_id`, `stock_actual`, `stock_minimo`, `stock_maximo`, `ubicacion_pasillo`.
-- `kardex_movimientos`: `id`, `empresa_id`, `almacen_id`, `producto_id`, `tipo_movimiento` (`entrada_compra`, `salida_venta`, `traslado_origen`, `traslado_destino`, `ajuste_positivo`, `ajuste_negativo`, `anulacion`), `cantidad`, `costo_unitario`, `stock_anterior`, `stock_nuevo`, `referencia_tipo`, `referencia_id`, `usuario_id`, `created_at`.
-- `traslados` & `traslado_detalles`: Movimientos controlados de mercancía entre almacenes (origen -> destino con estados `pendiente`, `en_transito`, `completado`, `cancelado`).
-- `compras` / `recepcion_mercancia`: Registro de órdenes de entrada con proveedor, almacén receptor, factura fiscal y actualización directa de stock + Kardex.
-
-### C. Punto de Venta (POS), Cajas & Facturación
-- `cajas`: `id`, `empresa_id`, `almacen_id`, `nombre`, `codigo`, `estado`.
-- `caja_sesiones`: `id`, `caja_id`, `usuario_id`, `fecha_apertura`, `monto_inicial_efectivo`, `fecha_cierre`, `monto_cierre_declarado`, `monto_cierre_sistema`, `diferencia`, `estado` (`abierta`, `cerrada`).
-- `caja_movimientos`: `id`, `caja_sesion_id`, `tipo` (`ingreso`, `egreso`, `gasto_menor`), `monto`, `motivo`, `usuario_id`.
-- `ventas`: `id`, `empresa_id`, `almacen_id`, `caja_sesion_id`, `cliente_id`, `usuario_id`, `numero_factura`, `tipo_documento` (`ticket`, `factura`, `nota_entrega`), `subtotal`, `descuento`, `iva`, `total`, `tipo_pago` (`contado`, `credito`), `estado` (`completada`, `anulada`).
-- `venta_detalles`: `id`, `venta_id`, `producto_id`, `cantidad`, `precio_unitario`, `descuento`, `subtotal`, `total`.
-- `venta_pagos`: `id`, `venta_id`, `metodo_pago_id`, `monto`, `moneda`, `tasa_cambio`, `referencia`.
-
-### D. Créditos & Finanzas (CXC & CXP)
-- `cxc_cuentas`: Registro de cuentas por cobrar originadas por ventas a crédito (`saldo_total`, `saldo_pendiente`, `fecha_vencimiento`, `estado`: `pendiente`, `parcial`, `pagada`).
-- `cxc_abonos`: Historial de pagos y abonos realizados por el cliente con recibo y método de pago.
-- `cxp_cuentas`: Registro de cuentas por pagar a proveedores por compras a crédito.
-- `cxp_abonos`: Historial de pagos emitidos al proveedor.
-
-### E. Seguridad, Roles, Permisos Granulares & Logs (Spatie Laravel Permission)
-- **Roles del Sistema**:
-  - `SuperAdmin`: Control global total (empresas, almacenes, asignación de empresas a administradores).
-  - `Admin`: Gestión integral de su empresa asignada (usuarios, clientes, proveedores, inventario, precios, cajas, POS, facturación, CXC, CXP, reportes y logs).
-  - `Operador`: Operación de Punto de Venta (POS), turnos de caja, cobros, facturación, clientes y abonos CXC.
-- **Relación Multi-Empresa (`empresa_user`)**:
-  - Tabla pivote con `user_id`, `empresa_id`, `es_predeterminada`, `estado`.
-  - `$user->empresas()` y `$empresa->usuarios()`.
-  - El Superadmin marca qué empresas tiene autorizadas cada Administrador.
-- **Matriz de Permisos por Módulo y Acción (`modulo.accion`)**:
-  - `empresas.ver`, `empresas.crear`, `empresas.editar`, `empresas.eliminar`
-  - `almacenes.ver`, `almacenes.crear`, `almacenes.editar`, `almacenes.eliminar`
-  - `usuarios.ver`, `usuarios.crear`, `usuarios.editar`, `usuarios.eliminar`, `usuarios.permisos`, `usuarios.asignar_empresas`
-  - `clientes.ver`, `clientes.crear`, `clientes.editar`, `clientes.eliminar`
-  - `proveedores.ver`, `proveedores.crear`, `proveedores.editar`, `proveedores.eliminar`
-  - `metodos_pago.ver`, `metodos_pago.crear`, `metodos_pago.editar`, `metodos_pago.eliminar`
-  - `productos.ver`, `productos.crear`, `productos.editar`, `productos.eliminar`, `inventario.ajustar_stock`, `inventario.kardex`, `inventario.traslados`, `compras.recepcion`
-  - `cajas.ver`, `cajas.aperturar`, `cajas.cerrar`, `cajas.movimientos`, `cajas.arqueo`
-  - `pos.acceso`, `ventas.ver`, `ventas.crear`, `ventas.anular`, `ventas.descuentos`
-  - `cxc.ver`, `cxc.abonar`, `cxp.ver`, `cxp.abonar`
-  - `reportes.ver`, `logs.ver`
-- `logs_actividad`: `id`, `empresa_id`, `usuario_id`, `modulo`, `accion`, `ip`, `dispositivo`, `datos_antes_json`, `datos_despues_json`, `created_at`.
-
----
-
-## 11. Step-by-Step Implementation Roadmap
-
-1. **Fase 1 - Fundaciones Multi-Empresa & Almacenes**:
-   - [x] Módulo de Empresas (Superadmin).
+1. **Fase 1 - Fundaciones Multi-Empresa & Asistente de Instalación**:
+   - [x] Módulo de Empresas en Cards ejecutivas (Superadmin).
+   - [x] Asistente de Configuración Inicial (`/configuracion-inicial`) y Middleware de redirección.
    - [ ] Módulo de Almacenes (Superadmin / Asignación a Empresas).
 2. **Fase 2 - Seguridad, Roles & Permisos Granulares (Spatie)**:
    - [x] Instalación y Migraciones de Spatie Permission.
    - [x] Tabla pivote `empresa_user` y relaciones Eloquent.
    - [x] Seeder de Roles (`SuperAdmin`, `Admin`, `Operador`) y Matriz de Permisos.
-   - [ ] Módulo de Gestión de Administradores / Usuarios (asignación de roles, permisos y empresas).
+   - [ ] **Módulo de Usuarios en Cards Ejecutivas con asignación granular de permisos para Operadores** (En Curso).
    - [ ] Selector de Empresa Activa en el Navbar (con `session('empresa_activa_id')`).
    - [ ] Módulo de Auditoría y Logs de Actividad.
 3. **Fase 3 - Catálogos de Artículos & Configuración de Stock**:
@@ -468,5 +305,3 @@ The POS system supports both **a single holding company with multiple child bran
 7. **Fase 7 - Créditos & Finanzas (CXC & CXP)**:
    - Gestión de Cuentas por Cobrar (CXC) y Abonos de Clientes.
    - Gestión de Cuentas por Pagar (CXP) y Pagos a Proveedores.
-
-

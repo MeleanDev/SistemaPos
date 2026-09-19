@@ -14,29 +14,13 @@
 @endsection
 
 @section('contenido')
-    <div class="card card-executive mb-4 border-0 shadow-sm">
-        <div class="card-body p-3">
-            <div class="row align-items-center g-3">
-                <div class="col-md-7 col-lg-8">
-                    <div class="input-group input-group-executive">
-                        <span class="input-group-text bg-transparent border-end-0 text-muted">
-                            <i class="fas fa-search"></i>
-                        </span>
-                        <input type="text" id="buscadorEmpresas"
-                            class="form-control form-control-executive border-start-0 ps-0"
-                            placeholder="Buscar empresa por RIF, nombre comercial, razón social o correo..."
-                            autocomplete="off">
-                    </div>
-                </div>
-                <div class="col-md-5 col-lg-4 text-md-end text-start">
-                    <span id="contadorEmpresas"
-                        class="badge bg-light-primary text-primary px-3 py-2 rounded-pill fw-bold fs-6">
-                        <i class="fas fa-building me-1"></i> Cargando empresas...
-                    </span>
-                </div>
-            </div>
-        </div>
-    </div>
+    <x-search-filter
+        inputId="buscadorEmpresas"
+        counterId="contadorEmpresas"
+        placeholder="Buscar empresa por RIF, nombre comercial, razón social o correo..."
+        loadingText="Cargando empresas..."
+        counterIcon="fas fa-building"
+    />
 
     <div class="row g-4" id="contenedorEmpresas">
     </div>

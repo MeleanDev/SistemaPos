@@ -23,26 +23,28 @@ class CrearRequest extends FormRequest
      */
     public function rules(): array
     {
+        $empresaId = $this->user()?->empresaActiva()?->id;
+
         return [
             'rif' => [
                 'required',
                 'string',
                 'max:20',
-                Rule::unique('proveedores', 'rif')->where(fn ($query) => $query->where('estado', true)),
+                Rule::unique('proveedores', 'rif')->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $empresaId)),
             ],
             'nombre' => [
                 'required',
                 'string',
                 'min:2',
                 'max:150',
-                Rule::unique('proveedores', 'nombre')->where(fn ($query) => $query->where('estado', true)),
+                Rule::unique('proveedores', 'nombre')->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $empresaId)),
             ],
             'razon_social' => [
                 'required',
                 'string',
                 'min:2',
                 'max:150',
-                Rule::unique('proveedores', 'razon_social')->where(fn ($query) => $query->where('estado', true)),
+                Rule::unique('proveedores', 'razon_social')->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $empresaId)),
             ],
             'nombre_contacto' => ['nullable', 'string', 'max:100'],
             'telefono' => ['nullable', 'string', 'max:25'],
