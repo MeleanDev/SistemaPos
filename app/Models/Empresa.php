@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Empresa extends Model
 {
@@ -35,5 +36,13 @@ class Empresa extends Model
         return $this->belongsToMany(User::class, 'empresa_user')
             ->withPivot('es_predeterminada', 'estado')
             ->withTimestamps();
+    }
+
+    /**
+     * Almacenes de esta empresa
+     */
+    public function almacenes(): HasMany
+    {
+        return $this->hasMany(Almacen::class, 'empresa_id');
     }
 }

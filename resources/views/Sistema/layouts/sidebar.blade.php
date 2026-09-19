@@ -67,14 +67,14 @@
 
                 <li class="sidebar-item">
                     <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
-                        <i class="fas fa-truck-loading"></i>
+                        <i class="fas fa-dolly"></i>
                         <span class="hide-menu">Recepción Mercancía</span>
                     </a>
                 </li>
 
                 <li class="sidebar-item @if (request()->routeIs('proveedor*')) selected @endif">
                     <a class="sidebar-link" href="{{ route('proveedor') }}" aria-expanded="false">
-                        <i class="fas fa-truck"></i>
+                        <i class="fas fa-truck-moving"></i>
                         <span class="hide-menu">Proveedores</span>
                     </a>
                 </li>
@@ -83,34 +83,34 @@
                 <li class="list-divider"></li>
                 <li class="nav-small-cap"><span class="hide-menu">Inventario & Catálogo</span></li>
 
-                <li class="sidebar-item">
-                    <a class="sidebar-link has-arrow" href="javascript:void(0)" aria-expanded="false">
-                        <i class="fas fa-boxes"></i>
+                <li class="sidebar-item @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('almacen*')) selected @endif">
+                    <a class="sidebar-link has-arrow @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('almacen*')) active @endif" href="javascript:void(0)" aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('almacen*')) true @else false @endif">
+                        <i class="fas fa-boxes-stacked"></i>
                         <span class="hide-menu">Inventario & Productos</span>
                     </a>
-                    <ul aria-expanded="false" class="collapse first-level base-level-line">
-                        <li class="sidebar-item">
-                            <a href="javascript:void(0)" class="sidebar-link">
-                                <i class="fas fa-wrench me-2"></i>
-                                <span class="hide-menu">Repuestos</span>
+                    <ul aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('almacen*')) true @else false @endif" class="collapse first-level base-level-line @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('almacen*')) in @endif">
+                        <li class="sidebar-item @if (request()->routeIs('categoria*')) active @endif">
+                            <a href="javascript:void(0)" class="sidebar-link @if (request()->routeIs('categoria*')) active @endif">
+                                <i class="fas fa-tags me-2"></i>
+                                <span class="hide-menu">Categorías</span>
                             </a>
                         </li>
-                        <li class="sidebar-item">
-                            <a href="javascript:void(0)" class="sidebar-link">
-                                <i class="fas fa-motorcycle me-2"></i>
-                                <span class="hide-menu">Vehículos (Motos)</span>
+                        <li class="sidebar-item @if (request()->routeIs('producto*')) active @endif">
+                            <a href="javascript:void(0)" class="sidebar-link @if (request()->routeIs('producto*')) active @endif">
+                                <i class="fas fa-boxes-stacked me-2"></i>
+                                <span class="hide-menu">Productos</span>
                             </a>
                         </li>
-                        <li class="sidebar-item">
-                            <a href="javascript:void(0)" class="sidebar-link">
-                                <i class="fas fa-exchange-alt me-2"></i>
-                                <span class="hide-menu">Movimiento Kardex</span>
-                            </a>
-                        </li>
-                        <li class="sidebar-item">
-                            <a href="javascript:void(0)" class="sidebar-link">
+                        <li class="sidebar-item @if (request()->routeIs('almacen*')) active @endif">
+                            <a href="{{ route('almacen') }}" class="sidebar-link @if (request()->routeIs('almacen*')) active @endif">
                                 <i class="fas fa-warehouse me-2"></i>
                                 <span class="hide-menu">Almacenes</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-item">
+                            <a href="javascript:void(0)" class="sidebar-link">
+                                <i class="fas fa-dolly me-2"></i>
+                                <span class="hide-menu">Movimiento Kardex</span>
                             </a>
                         </li>
                     </ul>
@@ -122,7 +122,7 @@
 
                 <li class="sidebar-item @if (request()->routeIs('cliente*')) selected @endif">
                     <a class="sidebar-link" href="{{ route('cliente') }}" aria-expanded="false">
-                        <i class="fas fa-user-friends"></i>
+                        <i class="fas fa-users"></i>
                         <span class="hide-menu">Clientes</span>
                     </a>
                 </li>
@@ -133,7 +133,7 @@
 
                 <li class="sidebar-item">
                     <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
-                        <i class="fas fa-chart-bar"></i>
+                        <i class="fas fa-chart-line"></i>
                         <span class="hide-menu">Reportes</span>
                     </a>
                 </li>
@@ -158,7 +158,7 @@
 
                 <li class="sidebar-item">
                     <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
-                        <i class="fas fa-cogs"></i>
+                        <i class="fas fa-sliders-h"></i>
                         <span class="hide-menu">Configuración</span>
                     </a>
                 </li>

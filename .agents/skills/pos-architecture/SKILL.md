@@ -279,18 +279,19 @@ All module JS files consume standard components from `public/estilos/jsPropios/c
 1. **Fase 1 - Fundaciones Multi-Empresa & Asistente de Instalación**:
    - [x] Módulo de Empresas en Cards ejecutivas (Superadmin).
    - [x] Asistente de Configuración Inicial (`/configuracion-inicial`) y Middleware de redirección.
-   - [ ] Módulo de Almacenes (Superadmin / Asignación a Empresas).
+   - [x] Módulo de Almacenes en Cards ejecutivas (Asignación por Empresa).
 2. **Fase 2 - Seguridad, Roles & Permisos Granulares (Spatie)**:
    - [x] Instalación y Migraciones de Spatie Permission.
    - [x] Tabla pivote `empresa_user` y relaciones Eloquent.
    - [x] Seeder de Roles (`SuperAdmin`, `Admin`, `Operador`) y Matriz de Permisos.
-   - [ ] **Módulo de Usuarios en Cards Ejecutivas con asignación granular de permisos para Operadores** (En Curso).
-   - [ ] Selector de Empresa Activa en el Navbar (con `session('empresa_activa_id')`).
+   - [x] Módulo de Usuarios en Cards Ejecutivas con asignación granular de permisos para Operadores.
+   - [x] Selector de Empresa Activa en el Navbar (con `session('empresa_activa_id')`).
    - [ ] Módulo de Auditoría y Logs de Actividad.
 3. **Fase 3 - Catálogos de Artículos & Configuración de Stock**:
-   - Categorías y Marcas.
-   - Productos y Servicios (con selector de tipo: repuesto, moto/vehículo, producto estándar, servicio).
-   - Stock por Almacén y Control de Precios (Detal / Mayorista).
+   - [ ] **Módulo de Categorías de Productos** (En Planificación).
+   - [ ] **Módulo de Marcas**.
+   - [ ] **Módulo de Productos & Servicios** (Control de precios Detal/Mayorista, código de barras, stock mínimo).
+   - [ ] Stock por Almacén y Ajustes de Inventario.
 4. **Fase 4 - Compras, Recepción de Mercancía, Kardex & Traslados**:
    - Recepción de Mercancía / Compras con Proveedores.
    - Motor de Kardex multi-almacén (entradas, salidas, ajustes).

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Administradores\EmpresaController;
 use App\Http\Controllers\Administradores\UsuarioController;
+use App\Http\Controllers\Empresa\AlmacenController;
 use App\Http\Controllers\Empresa\ClienteController;
 use App\Http\Controllers\Empresa\MetodoPagoController;
 use App\Http\Controllers\Empresa\ProveedorController;
@@ -13,6 +14,15 @@ Route::middleware('auth')->group(function () {
 
     Route::controller(PanelPrincipalController::class)->group(function () {
         Route::get('/panel-principal', 'index')->name('dashboard');
+    });
+
+    Route::controller(AlmacenController::class)->group(function () {
+        Route::get('/almacenes', 'index')->name('almacen');
+        Route::get('/almacenes/lista', 'lista');
+        Route::get('/almacenes/{id}', 'detalle');
+        Route::post('/almacenes', 'guardar');
+        Route::put('/almacenes/actualizar/{id}', 'actualizar');
+        Route::delete('/almacenes/{id}', 'eliminar');
     });
 
     Route::controller(UsuarioController::class)->group(function () {
