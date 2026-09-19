@@ -90,7 +90,7 @@
                     </a>
                     <ul aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('almacen*')) true @else false @endif" class="collapse first-level base-level-line @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('almacen*')) in @endif">
                         <li class="sidebar-item @if (request()->routeIs('categoria*')) active @endif">
-                            <a href="javascript:void(0)" class="sidebar-link @if (request()->routeIs('categoria*')) active @endif">
+                            <a href="{{ route('categoria') }}" class="sidebar-link @if (request()->routeIs('categoria*')) active @endif">
                                 <i class="fas fa-tags me-2"></i>
                                 <span class="hide-menu">Categorías</span>
                             </a>

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Administradores\EmpresaController;
 use App\Http\Controllers\Administradores\UsuarioController;
 use App\Http\Controllers\Empresa\AlmacenController;
+use App\Http\Controllers\Empresa\CategoriaController;
 use App\Http\Controllers\Empresa\ClienteController;
 use App\Http\Controllers\Empresa\MetodoPagoController;
 use App\Http\Controllers\Empresa\ProveedorController;
@@ -14,6 +15,15 @@ Route::middleware('auth')->group(function () {
 
     Route::controller(PanelPrincipalController::class)->group(function () {
         Route::get('/panel-principal', 'index')->name('dashboard');
+    });
+
+    Route::controller(CategoriaController::class)->group(function () {
+        Route::get('/categorias', 'index')->name('categoria');
+        Route::get('/categorias/lista', 'lista');
+        Route::get('/categorias/{id}', 'detalle');
+        Route::post('/categorias', 'guardar');
+        Route::put('/categorias/actualizar/{id}', 'actualizar');
+        Route::delete('/categorias/{id}', 'eliminar');
     });
 
     Route::controller(AlmacenController::class)->group(function () {

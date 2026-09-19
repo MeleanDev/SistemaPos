@@ -45,4 +45,12 @@ class Empresa extends Model
     {
         return $this->hasMany(Almacen::class, 'empresa_id');
     }
+
+    /**
+     * Categorías de productos de esta empresa
+     */
+    public function categorias(): HasMany
+    {
+        return $this->hasMany(Categoria::class, 'empresa_id');
+    }
 }

@@ -288,7 +288,7 @@ All module JS files consume standard components from `public/estilos/jsPropios/c
    - [x] Selector de Empresa Activa en el Navbar (con `session('empresa_activa_id')`).
    - [ ] Módulo de Auditoría y Logs de Actividad.
 3. **Fase 3 - Catálogos de Artículos & Configuración de Stock**:
-   - [ ] **Módulo de Categorías de Productos** (En Planificación).
+   - [x] **Módulo de Categorías de Productos** (DataTable + Modal Ejecutivo con Ver, Editar y Desactivar).
    - [ ] **Módulo de Marcas**.
    - [ ] **Módulo de Productos & Servicios** (Control de precios Detal/Mayorista, código de barras, stock mínimo).
    - [ ] Stock por Almacén y Ajustes de Inventario.
