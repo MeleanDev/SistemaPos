@@ -29,8 +29,9 @@ This project contains specialized domain skills in `.agents/skills/` (notably `.
 
 ## Multi-Tenancy & Empresa Scoping (MANDATORY RULE)
 
-- **Strict Company Isolation**: All transactional and catalog entities (`Proveedores`, `Clientes`, `Productos`, `Ventas`, `Cajas`, `Kardex`, etc.) MUST belong to a specific company (`empresa_id`).
+- **Strict Company Isolation**: All transactional and catalog entities (`Proveedores`, `Clientes`, `Productos`, `Ventas`, `Cajas`, `Kardex`, `Motos`, etc.) MUST belong to a specific company (`empresa_id`).
 - **Session Scoping**: Queries, inserts, updates, and validations (`Rule::unique`) MUST ALWAYS be scoped to the active session company (`Auth::user()->empresaActiva()->id` / `session('empresa_activa_id')`) and `estado = true`.
+- **Modular Feature Flags by Empresa (`maneja_motos`)**: Specialized business modules (such as Motos / Vehicle Serial Tracking: NIV, Chasis, Motor, Certificado de Origen) MUST be toggled per-company via `Empresa.maneja_motos`. For traditional retail/service tenants (`maneja_motos = false`), all moto-related menu items and routes MUST remain completely hidden and clean.
 
 ## Executive UI/UX Standard
 

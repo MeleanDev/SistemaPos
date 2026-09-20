@@ -584,10 +584,35 @@ const verFicha = async function (id) {
             codigosHtml = '<div class="col-12 text-muted fst-italic py-2"><i class="fas fa-info-circle me-1"></i> Este producto no posee códigos de barra registrados. Se identifica por SKU/Nombre.</div>';
         }
 
-        const detalUsd = parseFloat(prod.precio_detal_usd || 0);
-        const detalBs = (detalUsd * tasaUsdActual).toFixed(2);
-        const mayoristaUsd = parseFloat(prod.precio_mayorista_usd || 0);
-        const mayoristaBs = (mayoristaUsd * tasaUsdActual).toFixed(2);
+        let proveedoresHtml = "";
+        if (Array.isArray(prod.producto_proveedores) && prod.producto_proveedores.length > 0) {
+            prod.producto_proveedores.forEach((pp) => {
+                const prov = pp.proveedor || {};
+                const costoUsd = pp.ultimo_costo_usd ? `$ ${parseFloat(pp.ultimo_costo_usd).toFixed(2)}` : '--';
+                const costoBs = pp.ultimo_costo_bs ? `Bs. ${parseFloat(pp.ultimo_costo_bs).toFixed(2)}` : '--';
+                proveedoresHtml += `
+                    <div class="col-md-6">
+                        <div class="border rounded-3 p-2.5 d-flex align-items-center justify-content-between bg-white shadow-xs">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-executive-sm rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; min-width: 36px;">
+                                    <i class="fas fa-truck text-primary" style="font-size: 0.9rem;"></i>
+                                </div>
+                                <div>
+                                    <strong class="text-dark d-block" style="font-size: 0.88rem;">${prov.nombre || 'Proveedor'}</strong>
+                                    <small class="text-muted font-monospace"><i class="fas fa-id-card me-1"></i>${prov.rif || 'N/A'}</small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2 py-1 font-monospace fw-bold" style="font-size: 0.74rem;">${costoUsd}</span>
+                                <small class="text-muted d-block font-monospace" style="font-size: 0.70rem;">${costoBs}</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            proveedoresHtml = '<div class="col-12 text-muted fst-italic py-2"><i class="fas fa-info-circle me-1"></i> No posee proveedores registrados. Se vinculan automáticamente al procesar recepciones.</div>';
+        }
 
         const fichaHtml = `
             <div class="row g-4">
@@ -662,6 +687,16 @@ const verFicha = async function (id) {
                                     ${tablaAlmacenesHtml}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PROVEEDORES VINCULADOS -->
+                <div class="col-12">
+                    <div class="card border rounded-4 p-3 shadow-sm">
+                        <h6 class="fw-bold text-dark mb-2"><i class="fas fa-truck text-primary me-2"></i> Proveedores Suministradores</h6>
+                        <div class="row g-2">
+                            ${proveedoresHtml}
                         </div>
                     </div>
                 </div>

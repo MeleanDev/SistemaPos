@@ -42,6 +42,8 @@
         <!-- Chart.js para visualización de métricas -->
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+        @stack('css')
+        @yield('css')
     </head>
 
     <body>

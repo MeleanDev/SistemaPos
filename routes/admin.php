@@ -9,6 +9,7 @@ use App\Http\Controllers\Empresa\ConfiguracionController;
 use App\Http\Controllers\Empresa\MetodoPagoController;
 use App\Http\Controllers\Empresa\ProductoController;
 use App\Http\Controllers\Empresa\ProveedorController;
+use App\Http\Controllers\Empresa\RecepcionController;
 use App\Http\Controllers\Empresa\ServicioController;
 use App\Http\Controllers\PanelPrincipalController;
 use App\Http\Controllers\ProfileController;
@@ -35,6 +36,16 @@ Route::middleware('auth')->group(function () {
         Route::post('/productos', 'guardar');
         Route::put('/productos/actualizar/{id}', 'actualizar');
         Route::delete('/productos/{id}', 'eliminar');
+    });
+
+    Route::controller(RecepcionController::class)->group(function () {
+        Route::get('/recepciones', 'index')->name('recepcion');
+        Route::get('/recepciones/lista', 'lista');
+        Route::get('/recepciones/catalogos', 'catalogos');
+        Route::get('/recepciones/{id}', 'detalle');
+        Route::get('/recepciones/{id}/imprimir', 'imprimir')->name('recepcion.imprimir');
+        Route::post('/recepciones', 'guardar');
+        Route::post('/recepciones/{id}/anular', 'anular');
     });
 
     Route::controller(ServicioController::class)->group(function () {

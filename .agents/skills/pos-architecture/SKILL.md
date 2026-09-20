@@ -31,12 +31,18 @@ Every designed, written, reviewed, or refactored module MUST be **magnificent, h
   - `database/seeders/DatabaseSeeder.php` ONLY calls `RolesYPermisosSeeder::class`.
   - **NEVER** seed mock users or companies in seeders. The Empresa Matriz and root SuperAdmin are created dynamically during initial setup.
 - **Setup Flow**:
-  1. **Paso 1: Empresa Matriz** (Nombre comercial, razón social, RIF con selector `J-, V-, G-, E-`, teléfono, correo, dirección fiscal y logo).
+  1. **Paso 1: Empresa Matriz** (Nombre comercial, razón social, RIF con selector `J-, V-, G-, E-`, teléfono, correo, dirección fiscal, logo y **Switch de Giro de Negocio / Módulo de Motos y Seriales Únicos `maneja_motos`**).
   2. **Paso 2: SuperAdministrador** (Cédula `name`, email, nombre, apellido, contraseña min 8 caracteres y confirmación).
   3. **Paso 3: Métodos de Pago** (Selección interactiva de formas de cobro iniciales).
   - Executed in a single atomic `DB::transaction`, auto-logging the SuperAdmin and setting `session(['empresa_activa_id' => $empresa->id])`.
 
-### 1.2 Authentication & Login Standard
+### 1.2 Multi-Company Feature Flags (`maneja_motos`)
+- Every company (`Empresa`) contains a `maneja_motos` boolean flag.
+- **Standard Retail / Service Companies (`maneja_motos = false`)**: The sidebar completely hides all motorcycle/vehicle reception and catalog routes. The tenant operates as a clean, traditional POS.
+- **Dealership / Motorcycle Companies (`maneja_motos = true`)**: The sidebar dynamically unveils **Compras ➔ Recepción de Motos** and **Inventario & Catálogo ➔ Motos & Seriales**.
+- **Secondary Companies (`/empresas`)**: In the company creation and edit modal, administrators can toggle `maneja_motos` to tailor each company's specialized workflow.
+
+### 1.3 Authentication & Login Standard
 - **Identity / Username**: `User.name` holds the Cédula / Document ID (e.g., `V-12345678`).
 - **Login Request**: Validates `name` and `password` with active status `estado = true`.
 - **Password Rules**: Minimum 8 characters on installation/setup, min 6 characters on standard user management.
@@ -375,24 +381,37 @@ This section defines the end-to-end operational flow and relational contract bet
      - `aplica_igtf` (boolean) + `igtf_porcentaje` (default `3.00`% for foreign currency payments).
    - **Stock per Warehouse (`producto_stock_almacenes`)**: Real-time balance and shelf location per warehouse.
    - **Pricing**: Cost base, Price Detal, Price Mayorista.
-7. **Recepción de Mercancía / Compras**:
-   - Ingests products into *Almacén Central / Bodega*.
-   - Automatically learns and saves new barcodes scanned during reception.
-   - Updates average cost and logs `Entrada por Compra` in Kardex.
-8. **Traslados Internos**:
-   - Moves physical inventory between warehouses (e.g., Bodega Central ➔ Piso de Venta).
+7. **Recepción de Mercancía / Compras (General)**:
+   - Ingests physical products into designated warehouses with a 2-phase stepper workflow (Fase 1: Cabecera fiscal, proveedor y condición; Fase 2: Renglones, costos, márgenes y resumen).
+   - Bi-monetary support ($ USD y Bs. VES con tasa oficial BCV congelada al momento de la compra).
+   - Dynamic memory: preserves last applied profit margins (`ultimo_margen_detal`, `ultimo_margen_mayorista`) and automatically links the supplier to the product (`producto_proveedores`).
+   - Generates physical printable voucher sheets (`/recepciones/{id}/imprimir`) and atomic Kardex entries (`entrada_recepcion`).
+8. **Recepción & Control de Motos / Vehículos por Lotes y Seriales Únicos**:
+   - Specialized module for vehicle reception with strict individual serial tracking per unit.
+   - **Vehicular Attributes**: Marca, Modelo, Año, Color, Cilindrada (CC), Referencia (Ref).
+   - **Unique Fiscal & Legal Identifiers per Unit**:
+     - **N.I.V. / V.I.N.** (Número de Identificación Vehicular - 17 caracteres alfanuméricos únicos).
+     - **Número de Chasis** (Serial de carrocería/bastidor).
+     - **Número de Motor** (Serial de motor grabado).
+     - **Número de Certificado de Origen** (Título legal/fiscal de importación o ensamblaje).
+     - **Placa** (Asignada o en trámite).
+   - **Batch Entry Flow**: Capability to define the base vehicle model & prices once, and rapidly scan/input multiple serial sets for batch shipments.
+   - **Unit Lifecycle Status**: `disponible` (en inventario), `reservada` (en proceso de venta/crédito), `vendida` (facturada al cliente con acta de entrega), `en_mantenimiento` (taller/garantía).
+9. **Traslados Internos**:
+   - Moves physical inventory or serialized vehicles between warehouses (e.g., Bodega Central ➔ Piso de Venta).
    - Atomic transaction with double Kardex entry (`Salida por Traslado` and `Entrada por Traslado`).
-9. **Cajas & Turnos**:
-   - Physical cash registers tied to a specific warehouse (usually *Piso de Venta*).
-   - Handles session openings, live reconciliations (arqueos), and closures.
-10. **Punto de Venta (POS) & Facturación**:
-    - Fast barcode scanner search matching ANY registered barcode of the product.
+10. **Cajas & Turnos**:
+    - Physical cash registers tied to a specific warehouse (usually *Piso de Venta*).
+    - Handles session openings, live reconciliations (arqueos), and closures.
+11. **Punto de Venta (POS) & Facturación**:
+    - Fast barcode scanner search matching ANY registered barcode of the product or vehicle serial.
     - Automatic deduction from the cash register's assigned warehouse (*Piso de Venta*).
     - Real-time tax calculation: Net Subtotal, IVA (16%), IGTF (3% on cash/foreign currency), and Total.
     - Multi-payment support (Mixed payments using Métodos de Pago).
     - Direct Kardex logging (`Salida por Venta`).
-11. **Devoluciones & Anulaciones**:
-    - Invoice voiding re-credits stock to the originating warehouse and records `Entrada por Anulación` in Kardex.
-12. **Ajustes de Inventario**:
+12. **Devoluciones & Anulaciones**:
+    - Invoice voiding re-credits stock/serial to the originating warehouse and records `Entrada por Anulación` in Kardex.
+13. **Ajustes de Inventario**:
     - Audit count discrepancies logged to Kardex as `Ajuste de Inventario` (Mermas / Sobrantes).
+
 

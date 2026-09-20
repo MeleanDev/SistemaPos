@@ -65,9 +65,9 @@
                 <li class="list-divider"></li>
                 <li class="nav-small-cap"><span class="hide-menu">Compras</span></li>
 
-                <li class="sidebar-item">
-                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
-                        <i class="fas fa-dolly"></i>
+                <li class="sidebar-item @if (request()->routeIs('recepcion*')) selected @endif">
+                    <a class="sidebar-link" href="{{ route('recepcion') }}" aria-expanded="false">
+                        <i class="fas fa-truck-loading"></i>
                         <span class="hide-menu">Recepción Mercancía</span>
                     </a>
                 </li>
