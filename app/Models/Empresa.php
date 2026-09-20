@@ -53,4 +53,28 @@ class Empresa extends Model
     {
         return $this->hasMany(Categoria::class, 'empresa_id');
     }
+
+    /**
+     * Productos y servicios de esta empresa
+     */
+    public function productos(): HasMany
+    {
+        return $this->hasMany(Producto::class, 'empresa_id');
+    }
+
+    /**
+     * Monedas y tasas de cambio configuradas para esta empresa
+     */
+    public function monedas(): HasMany
+    {
+        return $this->hasMany(EmpresaMoneda::class, 'empresa_id');
+    }
+
+    /**
+     * Servicios registrados para esta empresa
+     */
+    public function servicios(): HasMany
+    {
+        return $this->hasMany(Servicio::class, 'empresa_id');
+    }
 }

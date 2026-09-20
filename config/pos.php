@@ -32,4 +32,26 @@ return [
         ['codigo' => '+507', 'pais' => 'Panamá', 'bandera' => '🇵🇦'],
         ['codigo' => '+52', 'pais' => 'México', 'bandera' => '🇲🇽'],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración Multi-Moneda del Sistema
+    |--------------------------------------------------------------------------
+    */
+    'monedas' => [
+        'principal' => [
+            'codigo' => 'VES',
+            'simbolo' => 'Bs.',
+            'nombre' => 'Bolívares (VES)',
+            'posicion' => 'left',
+            'decimales' => 2,
+        ],
+        'secundaria' => [
+            'codigo' => 'USD',
+            'simbolo' => '$',
+            'nombre' => 'Dólares Americanos (USD)',
+            'posicion' => 'left',
+            'decimales' => 2,
+        ],
+    ],
 ];

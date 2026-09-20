@@ -83,12 +83,12 @@
                 <li class="list-divider"></li>
                 <li class="nav-small-cap"><span class="hide-menu">Inventario & Catálogo</span></li>
 
-                <li class="sidebar-item @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('almacen*')) selected @endif">
-                    <a class="sidebar-link has-arrow @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('almacen*')) active @endif" href="javascript:void(0)" aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('almacen*')) true @else false @endif">
+                <li class="sidebar-item @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*')) selected @endif">
+                    <a class="sidebar-link has-arrow @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*')) active @endif" href="javascript:void(0)" aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*')) true @else false @endif">
                         <i class="fas fa-boxes-stacked"></i>
-                        <span class="hide-menu">Inventario & Productos</span>
+                        <span class="hide-menu">Inventario & Catálogo</span>
                     </a>
-                    <ul aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('almacen*')) true @else false @endif" class="collapse first-level base-level-line @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('almacen*')) in @endif">
+                    <ul aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*')) true @else false @endif" class="collapse first-level base-level-line @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*')) in @endif">
                         <li class="sidebar-item @if (request()->routeIs('categoria*')) active @endif">
                             <a href="{{ route('categoria') }}" class="sidebar-link @if (request()->routeIs('categoria*')) active @endif">
                                 <i class="fas fa-tags me-2"></i>
@@ -96,9 +96,15 @@
                             </a>
                         </li>
                         <li class="sidebar-item @if (request()->routeIs('producto*')) active @endif">
-                            <a href="javascript:void(0)" class="sidebar-link @if (request()->routeIs('producto*')) active @endif">
+                            <a href="{{ route('producto') }}" class="sidebar-link @if (request()->routeIs('producto*')) active @endif">
                                 <i class="fas fa-boxes-stacked me-2"></i>
                                 <span class="hide-menu">Productos</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-item @if (request()->routeIs('servicio*')) active @endif">
+                            <a href="{{ route('servicio') }}" class="sidebar-link @if (request()->routeIs('servicio*')) active @endif">
+                                <i class="fas fa-wrench me-2"></i>
+                                <span class="hide-menu">Servicios</span>
                             </a>
                         </li>
                         <li class="sidebar-item @if (request()->routeIs('almacen*')) active @endif">
@@ -156,8 +162,8 @@
                     </a>
                 </li>
 
-                <li class="sidebar-item">
-                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                <li class="sidebar-item @if (request()->routeIs('configuracion*')) selected @endif">
+                    <a class="sidebar-link" href="{{ route('configuracion') }}" aria-expanded="false">
                         <i class="fas fa-sliders-h"></i>
                         <span class="hide-menu">Configuración</span>
                     </a>

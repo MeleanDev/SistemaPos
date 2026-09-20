@@ -280,6 +280,7 @@ All module JS files consume standard components from `public/estilos/jsPropios/c
    - [x] Módulo de Empresas en Cards ejecutivas (Superadmin).
    - [x] Asistente de Configuración Inicial (`/configuracion-inicial`) y Middleware de redirección.
    - [x] Módulo de Almacenes en Cards ejecutivas (Asignación por Empresa).
+   - [x] Módulo de Configuración de Empresa (`/configuracion`): Panel multimoneda de tasas de cambio (USD $, EUR €, COP $ vs VES Bs.) y datos de empresa.
 2. **Fase 2 - Seguridad, Roles & Permisos Granulares (Spatie)**:
    - [x] Instalación y Migraciones de Spatie Permission.
    - [x] Tabla pivote `empresa_user` y relaciones Eloquent.
@@ -287,22 +288,111 @@ All module JS files consume standard components from `public/estilos/jsPropios/c
    - [x] Módulo de Usuarios en Cards Ejecutivas con asignación granular de permisos para Operadores.
    - [x] Selector de Empresa Activa en el Navbar (con `session('empresa_activa_id')`).
    - [ ] Módulo de Auditoría y Logs de Actividad.
-3. **Fase 3 - Catálogos de Artículos & Configuración de Stock**:
+3. **Fase 3 - Catálogos de Artículos, Clientes, Proveedores & Métodos de Pago**:
+   - [x] **Módulo de Clientes** (DataTable + Modal Ejecutivo con documento/teléfono/tipo de cliente).
+   - [x] **Módulo de Proveedores** (DataTable + Modal Ejecutivo + Modal Rápido de Proveedor).
+   - [x] **Módulo de Métodos de Pago** (DataTable + Modal Ejecutivo).
    - [x] **Módulo de Categorías de Productos** (DataTable + Modal Ejecutivo con Ver, Editar y Desactivar).
-   - [ ] **Módulo de Marcas**.
-   - [ ] **Módulo de Productos & Servicios** (Control de precios Detal/Mayorista, código de barras, stock mínimo).
-   - [ ] Stock por Almacén y Ajustes de Inventario.
+   - [x] **Módulo de Servicios** (Módulo independiente: sin stock, sin almacenes, cálculo bidireccional de precios en tiempo real USD <-> Bs. según tasa activa de la empresa).
+   - [x] **Módulo de Productos** (Catálogo desacoplado de precios/stock delegados a Recepción, Códigos de Barra múltiples, Vinculación y Creación Rápida de Proveedores sin salir del formulario, IVA/IGTF, Insignias ejecutivas de alto contraste y Ficha Técnica 360°).
+   - [ ] **Módulo de Marcas** (si aplica) / Ajustes de Inventario.
 4. **Fase 4 - Compras, Recepción de Mercancía, Kardex & Traslados**:
-   - Recepción de Mercancía / Compras con Proveedores.
-   - Motor de Kardex multi-almacén (entradas, salidas, ajustes).
-   - Módulo de Traslados entre almacenes.
+   - [ ] Recepción de Mercancía / Compras con Proveedores (asignación de costos, precios mayorista/detal y entrada de stock a almacén).
+   - [ ] Motor de Kardex multi-almacén (entradas, salidas, ajustes).
+   - [ ] Módulo de Traslados entre almacenes.
 5. **Fase 5 - Cajas & Turnos**:
-   - Cajas físicas por almacén.
-   - Apertura, Arqueo en vivo, Cierre de Caja y Movimientos de Caja menor.
+   - [ ] Cajas físicas por almacén.
+   - [ ] Apertura, Arqueo en vivo, Cierre de Caja y Movimientos de Caja menor.
 6. **Fase 6 - Punto de Venta (POS) & Facturación**:
-   - Interfaz POS rápida y táctil.
-   - Pagos mixtos / multimoneda con Métodos de Pago.
-   - Historial de Facturas y Anulaciones con reversión a Kardex/Caja.
+   - [ ] Interfaz POS rápida y táctil.
+   - [ ] Pagos mixtos / multimoneda con Métodos de Pago.
+   - [ ] Historial de Facturas y Anulaciones con reversión a Kardex/Caja.
 7. **Fase 7 - Créditos & Finanzas (CXC & CXP)**:
-   - Gestión de Cuentas por Cobrar (CXC) y Abonos de Clientes.
-   - Gestión de Cuentas por Pagar (CXP) y Pagos a Proveedores.
+   - [ ] Gestión de Cuentas por Cobrar (CXC) y Abonos de Clientes.
+   - [ ] Gestión de Cuentas por Pagar (CXP) y Pagos a Proveedores.
+
+---
+
+## 11. Global System Interconnection & Operational Blueprint
+
+This section defines the end-to-end operational flow and relational contract between all system modules for future development and multi-agent alignment.
+
+### 11.1 Entity-Relationship & Modular Flow Matrix
+
+```
+[EMPRESAS] (Multi-Tenancy Root)
+   │
+   ├── [USUARIOS & ROLES] (Spatie Permissions + empresa_user pivot)
+   │
+   ├── [ALMACENES] (Bodegas, Depósitos, Piso de Venta / Mostrador)
+   │        │
+   │        ▼
+   ├── [CATEGORIAS] ──────┐ (1 a N)
+   │                      ▼
+   ├── [PROVEEDORES] ─── [PRODUCTO_PROVEEDORES] ◄──┐
+   │                                                │
+   ├── [PRODUCTOS & SERVICIOS] ─────────────────────┤
+   │        │  ├── [PRODUCTO_CODIGOS_BARRA] (N por producto)
+   │        │  ├── [PRODUCTO_STOCK_ALMACENES] (Stock por almacén)
+   │        │  └── Fiscal: IVA (16%/0%) + IGTF (3% divisas)
+   │        │
+   │        ├──► [RECEPCIONES / COMPRAS] (Entrada ➔ Stock Almacén Central + Nuevos CB + Kardex)
+   │        │
+   │        ├──► [TRASLADOS] (Movimiento Atómico: Bodega ➔ Piso de Venta + Doble Asiento Kardex)
+   │        │
+   │        ├──► [PUNTO DE VENTA (POS) / FACTURAS] (Caja en Piso de Venta ➔ Descuento Stock + Kardex)
+   │        │
+   │        └──► [KARDEX] (Libro Mayor Inmutable de Movimientos de Inventario)
+   │
+   ├── [CAJAS & TURNOS] (Aperturas, Arqueos, Cierres vinculados a Almacén Piso de Venta)
+   │
+   ├── [METODOS DE PAGO] (Efectivo, Transferencia, Pago Móvil, Zelle, Divisas USD/EUR)
+   │
+   ├── [CLIENTES] (Detal / Mayorista para ventas y créditos)
+   │
+   └── [CREDITOS & FINANZAS] (CXC Clientes y CXP Proveedores)
+```
+
+### 11.2 Module-by-Module Operational Contracts
+
+1. **Empresas (`empresas`)**:
+   - Master entity for multi-tenancy. Every catalog and transaction is scoped via `empresa_id`.
+2. **Usuarios & Permisos (`users`, `roles`, `permissions`, `empresa_user`)**:
+   - SuperAdmin (global), Admin (per-company), Operador (granular permissions per module: `ver`, `crear`, `editar`, `eliminar`).
+3. **Almacenes (`almacenes`)**:
+   - Physical locations (`Bodega Central`, `Piso de Venta / Mostrador`, `Depósito Secundario`).
+   - Essential foundation for multi-warehouse stock, reception, and transfers.
+4. **Categorías (`categorias`)**:
+   - Single categorization per product (`categoria_id`).
+5. **Proveedores (`proveedores`)**:
+   - Suppliers linked to products via `producto_proveedores` with supplier SKU and last purchase cost.
+6. **Productos & Servicios (`productos`)**:
+   - **Type**: `producto` (physical, trackable in stock) vs `servicio` (intangible, billed without physical stock).
+   - **Units of Measure**: `unidad`, `kilo`, `gramo`, `litro`, `bulto`, `caja`, `paquete`, `metro`.
+   - **Multiple Barcodes (`producto_codigos_barra`)**: Multiple scannable EAN/UPC barcodes per product (individual pack, box x12, supplier barcode).
+   - **Fiscal Configuration**:
+     - `aplica_iva` (boolean) + `iva_porcentaje` (e.g., `16.00`, `8.00`, `0.00` exento).
+     - `aplica_igtf` (boolean) + `igtf_porcentaje` (default `3.00`% for foreign currency payments).
+   - **Stock per Warehouse (`producto_stock_almacenes`)**: Real-time balance and shelf location per warehouse.
+   - **Pricing**: Cost base, Price Detal, Price Mayorista.
+7. **Recepción de Mercancía / Compras**:
+   - Ingests products into *Almacén Central / Bodega*.
+   - Automatically learns and saves new barcodes scanned during reception.
+   - Updates average cost and logs `Entrada por Compra` in Kardex.
+8. **Traslados Internos**:
+   - Moves physical inventory between warehouses (e.g., Bodega Central ➔ Piso de Venta).
+   - Atomic transaction with double Kardex entry (`Salida por Traslado` and `Entrada por Traslado`).
+9. **Cajas & Turnos**:
+   - Physical cash registers tied to a specific warehouse (usually *Piso de Venta*).
+   - Handles session openings, live reconciliations (arqueos), and closures.
+10. **Punto de Venta (POS) & Facturación**:
+    - Fast barcode scanner search matching ANY registered barcode of the product.
+    - Automatic deduction from the cash register's assigned warehouse (*Piso de Venta*).
+    - Real-time tax calculation: Net Subtotal, IVA (16%), IGTF (3% on cash/foreign currency), and Total.
+    - Multi-payment support (Mixed payments using Métodos de Pago).
+    - Direct Kardex logging (`Salida por Venta`).
+11. **Devoluciones & Anulaciones**:
+    - Invoice voiding re-credits stock to the originating warehouse and records `Entrada por Anulación` in Kardex.
+12. **Ajustes de Inventario**:
+    - Audit count discrepancies logged to Kardex as `Ajuste de Inventario` (Mermas / Sobrantes).
+

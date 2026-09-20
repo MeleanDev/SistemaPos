@@ -5,8 +5,11 @@ use App\Http\Controllers\Administradores\UsuarioController;
 use App\Http\Controllers\Empresa\AlmacenController;
 use App\Http\Controllers\Empresa\CategoriaController;
 use App\Http\Controllers\Empresa\ClienteController;
+use App\Http\Controllers\Empresa\ConfiguracionController;
 use App\Http\Controllers\Empresa\MetodoPagoController;
+use App\Http\Controllers\Empresa\ProductoController;
 use App\Http\Controllers\Empresa\ProveedorController;
+use App\Http\Controllers\Empresa\ServicioController;
 use App\Http\Controllers\PanelPrincipalController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +18,33 @@ Route::middleware('auth')->group(function () {
 
     Route::controller(PanelPrincipalController::class)->group(function () {
         Route::get('/panel-principal', 'index')->name('dashboard');
+    });
+
+    Route::controller(ConfiguracionController::class)->group(function () {
+        Route::get('/configuracion', 'index')->name('configuracion');
+        Route::get('/configuracion/datos', 'datos');
+        Route::post('/configuracion/empresa', 'actualizarEmpresa');
+        Route::post('/configuracion/monedas', 'actualizarMonedas');
+    });
+
+    Route::controller(ProductoController::class)->group(function () {
+        Route::get('/productos', 'index')->name('producto');
+        Route::get('/productos/lista', 'lista');
+        Route::get('/productos/catalogos', 'catalogos');
+        Route::get('/productos/{id}', 'detalle');
+        Route::post('/productos', 'guardar');
+        Route::put('/productos/actualizar/{id}', 'actualizar');
+        Route::delete('/productos/{id}', 'eliminar');
+    });
+
+    Route::controller(ServicioController::class)->group(function () {
+        Route::get('/servicios', 'index')->name('servicio');
+        Route::get('/servicios/lista', 'lista');
+        Route::get('/servicios/catalogos', 'catalogos');
+        Route::get('/servicios/{id}', 'detalle');
+        Route::post('/servicios', 'guardar');
+        Route::put('/servicios/actualizar/{id}', 'actualizar');
+        Route::delete('/servicios/{id}', 'eliminar');
     });
 
     Route::controller(CategoriaController::class)->group(function () {

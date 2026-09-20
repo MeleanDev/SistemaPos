@@ -4,40 +4,34 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Almacen extends Model
+class EmpresaMoneda extends Model
 {
-    protected $table = 'almacenes';
+    protected $table = 'empresa_monedas';
 
     protected $fillable = [
         'empresa_id',
         'codigo',
         'nombre',
-        'direccion',
+        'simbolo',
+        'tasa_cambio',
+        'es_principal',
         'estado',
+        'ultima_actualizacion_tasa',
     ];
 
     protected function casts(): array
     {
         return [
+            'tasa_cambio' => 'decimal:4',
+            'es_principal' => 'boolean',
             'estado' => 'boolean',
+            'ultima_actualizacion_tasa' => 'datetime',
         ];
     }
 
-    /**
-     * Empresa a la que pertenece el almacén
-     */
     public function empresa(): BelongsTo
     {
         return $this->belongsTo(Empresa::class, 'empresa_id');
-    }
-
-    /**
-     * Stock de productos en este almacén
-     */
-    public function stockProductos(): HasMany
-    {
-        return $this->hasMany(ProductoStockAlmacen::class, 'almacen_id');
     }
 }
