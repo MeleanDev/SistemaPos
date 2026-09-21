@@ -3,52 +3,41 @@
 namespace App\Http\Controllers\Empresa;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Finanzas\CuentaPorCobrar\AbonarFacturaRequest;
+use App\Http\Requests\Finanzas\CuentaPorCobrar\AbonarGeneralRequest;
 use App\Service\Finanzas\CuentaPorCobrarClass;
 use Exception;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class CuentaPorCobrarController extends Controller
 {
     public function __construct(
-        protected CuentaPorCobrarClass $cxcService
+        private CuentaPorCobrarClass $cuentaPorCobrarClass
     ) {}
 
-    protected function empresaId(): int
+    private function obtenerEmpresaId(): int
     {
-        $user = Auth::user();
-        $empresaId = session('empresa_activa_id');
+        $empresa = Auth::user()?->empresaActiva();
 
-        if (! $empresaId && $user) {
-            $empresa = $user->empresaActiva();
-            $empresaId = $empresa?->id;
+        if (! $empresa) {
+            abort(403, 'No tienes una empresa activa asignada.');
         }
 
-        if (! $empresaId) {
-            throw new Exception('No hay una empresa activa seleccionada en la sesión.');
-        }
-
-        return (int) $empresaId;
+        return $empresa->id;
     }
 
-    /**
-     * Vista principal de Cuentas por Cobrar
-     */
     public function index(): View
     {
         return view('Sistema.pages.empresa.cxc');
     }
 
-    /**
-     * Resumen de clientes con deudas y KPIs
-     */
     public function lista(): JsonResponse
     {
         try {
-            $empresaId = $this->empresaId();
-            $resumen = $this->cxcService->resumenClientes($empresaId);
+            $empresaId = $this->obtenerEmpresaId();
+            $resumen = $this->cuentaPorCobrarClass->resumenClientes($empresaId);
 
             return response()->json([
                 'success' => true,
@@ -62,14 +51,11 @@ class CuentaPorCobrarController extends Controller
         }
     }
 
-    /**
-     * Catálogos para el modal de abono (métodos de pago y tasa de cambio)
-     */
     public function catalogos(): JsonResponse
     {
         try {
-            $empresaId = $this->empresaId();
-            $catalogos = $this->cxcService->catalogos($empresaId);
+            $empresaId = $this->obtenerEmpresaId();
+            $catalogos = $this->cuentaPorCobrarClass->catalogos($empresaId);
 
             return response()->json([
                 'success' => true,
@@ -83,14 +69,11 @@ class CuentaPorCobrarController extends Controller
         }
     }
 
-    /**
-     * Detalle completo de facturas e historial de un cliente
-     */
     public function clienteDetalle(int $id): JsonResponse
     {
         try {
-            $empresaId = $this->empresaId();
-            $detalle = $this->cxcService->detalleClienteFacturas($id, $empresaId);
+            $empresaId = $this->obtenerEmpresaId();
+            $detalle = $this->cuentaPorCobrarClass->detalleClienteFacturas($id, $empresaId);
 
             return response()->json([
                 'success' => true,
@@ -104,29 +87,15 @@ class CuentaPorCobrarController extends Controller
         }
     }
 
-    /**
-     * Procesar abono a factura específica
-     */
-    public function abonarFactura(Request $request): JsonResponse
+    public function abonarFactura(AbonarFacturaRequest $request): JsonResponse
     {
-        $request->validate([
-            'cuenta_id' => ['required', 'integer'],
-            'metodo_pago_id' => ['required', 'integer', 'exists:metodos_pago,id'],
-            'moneda' => ['required', 'string', 'in:USD,VES'],
-            'monto' => ['required', 'numeric', 'min:0.01'],
-            'tasa_cambio' => ['required', 'numeric', 'min:0.0001'],
-            'fecha_abono' => ['nullable', 'date'],
-            'referencia' => ['nullable', 'string', 'max:100'],
-            'observaciones' => ['nullable', 'string', 'max:255'],
-        ]);
-
         try {
-            $empresaId = $this->empresaId();
+            $empresaId = $this->obtenerEmpresaId();
             $userId = (int) Auth::id();
 
-            $resultado = $this->cxcService->abonarFacturaEspecifica(
-                (int) $request->input('cuenta_id'),
-                $request->all(),
+            $resultado = $this->cuentaPorCobrarClass->abonarFacturaEspecifica(
+                (int) $request->validated('cuenta_id'),
+                $request->validated(),
                 $userId,
                 $empresaId
             );
@@ -144,29 +113,15 @@ class CuentaPorCobrarController extends Controller
         }
     }
 
-    /**
-     * Procesar abono general FIFO a la deuda total del cliente
-     */
-    public function abonarGeneral(Request $request): JsonResponse
+    public function abonarGeneral(AbonarGeneralRequest $request): JsonResponse
     {
-        $request->validate([
-            'cliente_id' => ['required', 'integer', 'exists:clientes,id'],
-            'metodo_pago_id' => ['required', 'integer', 'exists:metodos_pago,id'],
-            'moneda' => ['required', 'string', 'in:USD,VES'],
-            'monto' => ['required', 'numeric', 'min:0.01'],
-            'tasa_cambio' => ['required', 'numeric', 'min:0.0001'],
-            'fecha_abono' => ['nullable', 'date'],
-            'referencia' => ['nullable', 'string', 'max:100'],
-            'observaciones' => ['nullable', 'string', 'max:255'],
-        ]);
-
         try {
-            $empresaId = $this->empresaId();
+            $empresaId = $this->obtenerEmpresaId();
             $userId = (int) Auth::id();
 
-            $resultado = $this->cxcService->abonarGeneralDeuda(
-                (int) $request->input('cliente_id'),
-                $request->all(),
+            $resultado = $this->cuentaPorCobrarClass->abonarGeneralDeuda(
+                (int) $request->validated('cliente_id'),
+                $request->validated(),
                 $userId,
                 $empresaId
             );
@@ -184,13 +139,10 @@ class CuentaPorCobrarController extends Controller
         }
     }
 
-    /**
-     * Vista de impresión térmica del comprobante de abono
-     */
     public function imprimirTicket(int $id): View
     {
-        $empresaId = $this->empresaId();
-        $datos = $this->cxcService->obtenerComprobanteAbono($id, $empresaId);
+        $empresaId = $this->obtenerEmpresaId();
+        $datos = $this->cuentaPorCobrarClass->obtenerComprobanteAbono($id, $empresaId);
 
         return view('Sistema.pages.empresa.ticket-abono-cxc', $datos);
     }

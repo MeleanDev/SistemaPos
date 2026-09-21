@@ -15,17 +15,11 @@ class PosController extends Controller
         protected VentaClass $ventaService
     ) {}
 
-    /**
-     * Renderizar la interfaz interactiva de Punto de Venta (POS)
-     */
     public function index(): View
     {
         return view('Sistema.pages.empresa.pos');
     }
 
-    /**
-     * Retornar catálogos y datos iniciales en formato JSON
-     */
     public function datos(): JsonResponse
     {
         try {
@@ -43,9 +37,6 @@ class PosController extends Controller
         }
     }
 
-    /**
-     * Búsqueda en tiempo real de clientes
-     */
     public function buscarClientes(Request $request): JsonResponse
     {
         $termino = (string) $request->input('termino', '');
@@ -57,9 +48,6 @@ class PosController extends Controller
         ]);
     }
 
-    /**
-     * Registro rápido de cliente desde el POS
-     */
     public function guardarClienteRapido(Request $request): JsonResponse
     {
         $request->validate([
@@ -88,9 +76,6 @@ class PosController extends Controller
         }
     }
 
-    /**
-     * Procesar y facturar la venta
-     */
     public function guardar(Request $request): JsonResponse
     {
         $request->validate([
@@ -121,9 +106,6 @@ class PosController extends Controller
         }
     }
 
-    /**
-     * Guardar venta en espera (pausada)
-     */
     public function guardarEnEspera(Request $request): JsonResponse
     {
         try {
@@ -142,9 +124,6 @@ class PosController extends Controller
         }
     }
 
-    /**
-     * Listar ventas en espera
-     */
     public function listarEnEspera(): JsonResponse
     {
         try {
@@ -162,9 +141,6 @@ class PosController extends Controller
         }
     }
 
-    /**
-     * Recuperar venta en espera
-     */
     public function recuperarEnEspera(int $id): JsonResponse
     {
         try {
@@ -182,9 +158,6 @@ class PosController extends Controller
         }
     }
 
-    /**
-     * Eliminar venta en espera
-     */
     public function eliminarEnEspera(int $id): JsonResponse
     {
         try {
@@ -202,9 +175,6 @@ class PosController extends Controller
         }
     }
 
-    /**
-     * Buscar factura para devolución
-     */
     public function buscarFacturaDevolucion(Request $request): JsonResponse
     {
         $busqueda = (string) $request->input('busqueda', '');
@@ -224,9 +194,6 @@ class PosController extends Controller
         }
     }
 
-    /**
-     * Procesar devolución de venta
-     */
     public function procesarDevolucion(Request $request): JsonResponse
     {
         $request->validate([
@@ -253,9 +220,6 @@ class PosController extends Controller
         }
     }
 
-    /**
-     * Vista para imprimir ticket térmico
-     */
     public function imprimir(string $id): View
     {
         $venta = $this->ventaService->obtenerVentaParaImpresion($id);

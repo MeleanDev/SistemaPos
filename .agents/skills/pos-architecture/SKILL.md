@@ -49,71 +49,85 @@ Every designed, written, reviewed, or refactored module MUST be **magnificent, h
 
 ---
 
-## 2. Directory & Form Request Conventions
+## 2. Controller & Form Request Architectural Standards
 
-For every module (e.g. `Cliente`, `Proveedor`, `Usuario`, `Empresa`, `MetodoPago`, `Producto`):
-- **Form Requests**: Stored in `app/Http/Requests/{Modulo}/`
-  - `CrearRequest.php`: Handles validation for creating records.
-  - `ActualizarRequest.php`: Handles validation for updating records.
-  - **Rule Syntax Convention**: Always write validation rules using **array format** `['required', 'string', 'min:2', 'max:100']`. Never use pipe strings (avoid `required|string|max:100`).
-  - **Uniqueness & Reactivation Rule**: Always scope uniqueness against active records only (`where estado = true`), so soft-deleted / inactive records can be seamlessly reactivated upon creation:
+### 2.1 Mandatory Form Requests (NO INLINE VALIDATION IN CONTROLLERS)
+- **NEVER use inline `$request->validate([...])` inside controller methods.**
+- Every endpoint receiving payload data MUST use a dedicated `FormRequest` class under `app/Http/Requests/{Domain}/{Modulo}/` or `app/Http/Requests/{Modulo}/` (e.g. `CrearRequest.php`, `ActualizarRequest.php`, `AbonarFacturaRequest.php`, `AbonarGeneralRequest.php`).
+- Controller methods must inject the strongly-typed `FormRequest` in the method signature and retrieve sanitized data using `$request->validated()` or `$request->validated('key')`. **Never pass raw `$request->all()` on validated endpoints**.
+
+### 2.2 Controller Architecture & Dependency Injection Conventions
+1. **Constructor Property Promotion**: Always type-hint service classes with `private` constructor property promotion using standard naming `${module}Class` (e.g., `private ProveedorClass $proveedorClass`, `private CuentaPorCobrarClass $cuentaPorCobrarClass`).
+2. **Active Company Scoping Helper**: Every company-scoped controller MUST implement the standard `obtenerEmpresaId()` method:
+   ```php
+   private function obtenerEmpresaId(): int
+   {
+       $empresa = Auth::user()?->empresaActiva();
+
+       if (! $empresa) {
+           abort(403, 'No tienes una empresa activa asignada.');
+       }
+
+       return $empresa->id;
+   }
+   ```
+3. **HTTP Responses**: Return consistent JSON payloads (`{ success: bool, message?: string, data?: mixed }`) and use proper status codes (e.g., 200, 403, 404, 422, 500).
+
+### 2.3 Form Request Rules & Multi-Tenancy Scoping
+- **Rule Syntax Convention**: Always write validation rules using **array format** `['required', 'string', 'min:2', 'max:100']`. Never use pipe strings (avoid `required|string|max:100`).
+- **Spanish Error Messages**: Always override `messages(): array` in every `FormRequest` to return clear, user-friendly Spanish error messages.
+- **Tenant-Scoped Entities vs Global Catalogs**:
+  - **Tenant Entities** (`proveedores`, `cuentas_por_cobrar`, `cuentas_por_pagar`, `productos`, `almacenes`, `ventas`, `kardex`, `motos`):
+    `Rule::unique` and `Rule::exists` MUST include `where('empresa_id', $empresaId)` and `where('estado', true)`.
     ```php
-    use Illuminate\Validation\Rule;
+    $empresaId = $this->user()?->empresaActiva()?->id ?? session('empresa_activa_id');
 
-    // In CrearRequest:
-    'rif' => [
+    // In CrearRequest / AbonarRequest:
+    'cuenta_id' => [
         'required',
-        'string',
-        'max:20',
-        Rule::unique('proveedores', 'rif')->where(fn ($q) => $q->where('estado', true)),
+        'integer',
+        Rule::exists('cuentas_por_cobrar', 'id')->where(fn ($q) => $q->where('empresa_id', $empresaId)),
     ],
-    'nombre' => [
+    'proveedor_id' => [
         'required',
-        'string',
-        'min:2',
-        'max:150',
-        Rule::unique('proveedores', 'nombre')->where(fn ($q) => $q->where('estado', true)),
-    ],
-    'razon_social' => [
-        'required',
-        'string',
-        'min:2',
-        'max:150',
-        Rule::unique('proveedores', 'razon_social')->where(fn ($q) => $q->where('estado', true)),
-    ],
-    'nombre_contacto' => ['nullable', 'string', 'max:100'],
-    'telefono' => ['nullable', 'string', 'max:25'],
-    'correo' => ['nullable', 'email', 'max:150'],
-    'direccion' => ['nullable', 'string', 'max:255'],
-
-    // In ActualizarRequest:
-    'rif' => [
-        'required',
-        'string',
-        'max:20',
-        Rule::unique('proveedores', 'rif')
-            ->ignore($this->route('id'))
-            ->where(fn ($q) => $q->where('estado', true)),
-    ],
-    'nombre' => [
-        'required',
-        'string',
-        'min:2',
-        'max:150',
-        Rule::unique('proveedores', 'nombre')
-            ->ignore($this->route('id'))
-            ->where(fn ($q) => $q->where('estado', true)),
-    ],
-    'razon_social' => [
-        'required',
-        'string',
-        'min:2',
-        'max:150',
-        Rule::unique('proveedores', 'razon_social')
-            ->ignore($this->route('id'))
-            ->where(fn ($q) => $q->where('estado', true)),
+        'integer',
+        Rule::exists('proveedores', 'id')->where(fn ($q) => $q->where('empresa_id', $empresaId)->where('estado', true)),
     ],
     ```
+  - **Global Catalogs** (`metodos_pago`, `clientes`):
+    These tables do not contain an `empresa_id` column. Scope uniqueness and existence with `where('estado', true)` without querying `empresa_id`:
+    ```php
+    'metodo_pago_id' => [
+        'required',
+        'integer',
+        Rule::exists('metodos_pago', 'id')->where(fn ($q) => $q->where('estado', true)),
+    ],
+    'cliente_id' => [
+        'required',
+        'integer',
+        Rule::exists('clientes', 'id')->where(fn ($q) => $q->where('estado', true)),
+    ],
+    ```
+- **Uniqueness & Reactivation Scoping**:
+  Always scope uniqueness against active records only (`where estado = true`), so soft-deleted / inactive records can be seamlessly reactivated upon creation:
+  ```php
+  // In CrearRequest:
+  'rif' => [
+      'required',
+      'string',
+      'max:20',
+      Rule::unique('proveedores', 'rif')->where(fn ($q) => $q->where('empresa_id', $empresaId)->where('estado', true)),
+  ],
+  // In ActualizarRequest:
+  'rif' => [
+      'required',
+      'string',
+      'max:20',
+      Rule::unique('proveedores', 'rif')
+          ->ignore($this->route('id'))
+          ->where(fn ($q) => $q->where('empresa_id', $empresaId)->where('estado', true)),
+  ],
+  ```
 
 ---
 
@@ -296,26 +310,28 @@ All module JS files consume standard components from `public/estilos/jsPropios/c
    - [ ] Módulo de Auditoría y Logs de Actividad.
 3. **Fase 3 - Catálogos de Artículos, Clientes, Proveedores & Métodos de Pago**:
    - [x] **Módulo de Clientes** (DataTable + Modal Ejecutivo con documento/teléfono/tipo de cliente).
-   - [x] **Módulo de Proveedores** (DataTable + Modal Ejecutivo + Modal Rápido de Proveedor).
+   - [x] **Módulo de Proveedores** (DataTable + Modal Ejecutivo + Multi-tenancy por empresa_id).
    - [x] **Módulo de Métodos de Pago** (DataTable + Modal Ejecutivo).
    - [x] **Módulo de Categorías de Productos** (DataTable + Modal Ejecutivo con Ver, Editar y Desactivar).
-   - [x] **Módulo de Servicios** (Módulo independiente: sin stock, sin almacenes, cálculo bidireccional de precios en tiempo real USD <-> Bs. según tasa activa de la empresa).
-   - [x] **Módulo de Productos** (Catálogo desacoplado de precios/stock delegados a Recepción, Códigos de Barra múltiples, Vinculación y Creación Rápida de Proveedores sin salir del formulario, IVA/IGTF, Insignias ejecutivas de alto contraste y Ficha Técnica 360°).
-   - [ ] **Módulo de Marcas** (si aplica) / Ajustes de Inventario.
-4. **Fase 4 - Compras, Recepción de Mercancía, Kardex & Traslados**:
-   - [ ] Recepción de Mercancía / Compras con Proveedores (asignación de costos, precios mayorista/detal y entrada de stock a almacén).
-   - [ ] Motor de Kardex multi-almacén (entradas, salidas, ajustes).
-   - [ ] Módulo de Traslados entre almacenes.
-5. **Fase 5 - Cajas & Turnos**:
-   - [ ] Cajas físicas por almacén.
-   - [ ] Apertura, Arqueo en vivo, Cierre de Caja y Movimientos de Caja menor.
+   - [x] **Módulo de Servicios** (Módulo independiente: sin stock, sin almacenes, cálculo bidireccional USD <-> Bs. según tasa activa).
+   - [x] **Módulo de Productos** (Catálogo con Códigos de Barra múltiples, Vinculación de Proveedores, IVA/IGTF, Stock por Almacén y Ficha Técnica 360°).
+4. **Fase 4 - Compras, Recepción de Mercancía & Kardex**:
+   - [x] Recepción de Mercancía / Compras con Proveedores (asignación de costos, precios mayorista/detal, tasas compra/venta independientes y entrada de stock).
+   - [x] Motor de Kardex multi-almacén (entradas, salidas, devoluciones).
+   - [x] Comprobante de Recepción imprimible térmico/carta.
+5. **Fase 5 - Módulo Especializado de Motos / Vehículos**:
+   - [x] Catálogo y Recepción por lotes de Motos con seriales únicos (NIV, Chasis, Motor, Certificado de Origen, Placa, Color, Cilindrada).
+   - [x] Feature flag modular por empresa (`maneja_motos`) con ocultamiento limpio en Sidebar para comercios tradicionales.
 6. **Fase 6 - Punto de Venta (POS) & Facturación**:
-   - [ ] Interfaz POS rápida y táctil.
-   - [ ] Pagos mixtos / multimoneda con Métodos de Pago.
-   - [ ] Historial de Facturas y Anulaciones con reversión a Kardex/Caja.
+   - [x] Interfaz POS rápida y táctil para Productos, Servicios y Motos.
+   - [x] Búsqueda predictiva por nombre, código interno, códigos de barra y seriales de motos.
+   - [x] Pagos mixtos / multimoneda con Métodos de Pago (Efectivo USD/VES, Zelle, Tarjeta, Pago Móvil, Crédito).
+   - [x] Ventas en Espera (Carritos suspendidos) y Devoluciones con reversión a Kardex/Stock.
+   - [x] Ticket de Venta térmico (80mm) con desglose fiscal y tasas.
 7. **Fase 7 - Créditos & Finanzas (CXC & CXP)**:
-   - [ ] Gestión de Cuentas por Cobrar (CXC) y Abonos de Clientes.
-   - [ ] Gestión de Cuentas por Pagar (CXP) y Pagos a Proveedores.
+   - [x] Gestión de Cuentas por Cobrar (CXC) de clientes y registro de abonos parciales/totales.
+   - [x] Gestión de Cuentas por Pagar (CXP) a proveedores y registro de abonos.
+   - [x] Emisión de comprobantes térmicos de abono con saldo pendiente dinámico en USD y Bs.
 
 ---
 

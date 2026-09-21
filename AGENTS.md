@@ -33,6 +33,13 @@ This project contains specialized domain skills in `.agents/skills/` (notably `.
 - **Session Scoping**: Queries, inserts, updates, and validations (`Rule::unique`) MUST ALWAYS be scoped to the active session company (`Auth::user()->empresaActiva()->id` / `session('empresa_activa_id')`) and `estado = true`.
 - **Modular Feature Flags by Empresa (`maneja_motos`)**: Specialized business modules (such as Motos / Vehicle Serial Tracking: NIV, Chasis, Motor, Certificado de Origen) MUST be toggled per-company via `Empresa.maneja_motos`. For traditional retail/service tenants (`maneja_motos = false`), all moto-related menu items and routes MUST remain completely hidden and clean.
 
+## Mandatory Form Requests & Controller Conventions (MANDATORY RULE)
+
+- **NO INLINE VALIDATION IN CONTROLLERS**: NEVER use `$request->validate([...])` inside controller methods. All incoming request validation MUST live in dedicated `FormRequest` classes under `app/Http/Requests/`.
+- **Use Validated Data**: Always retrieve sanitized input in controllers via `$request->validated()` or `$request->validated('field')`. Never pass raw `$request->all()` on validated endpoints.
+- **Rule Syntax**: Always define validation rules using array format `['required', 'string', ...]` with custom Spanish messages in `messages()`.
+- **Controller Property Promotion & Helpers**: Always use constructor property promotion `private {Module}Class ${module}Class` and the standard `private function obtenerEmpresaId(): int` using `Auth::user()?->empresaActiva()`.
+
 ## Executive UI/UX Standard
 
 - Every designed, written, reviewed, or refactored view MUST be **magnificent, highly aesthetic, clean, modern, executive, and production-ready**.
