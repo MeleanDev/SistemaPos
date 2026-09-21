@@ -25,35 +25,85 @@ let contadorFilasProveedores = 0;
 /**
  * Auto-cálculo bidireccional en tiempo real de precios (USD <-> Bs.) según la tasa activa de la empresa
  */
-const calcularPreciosBsDesdeUsd = function (campo = 'todos') {
-    if (!tasaUsdActual || tasaUsdActual <= 0) return;
+/**
+ * Auto-cálculo bidireccional en tiempo real de precios (USD <-> Bs.) y márgenes
+ */
+const alCambiarCostoUsd = function () {
+    const costoUsd = parseFloat($("#precio_costo_usd").val()) || 0;
+    const tasa = tasaUsdActual > 0 ? tasaUsdActual : 1.0;
 
-    if (campo === 'detal' || campo === 'todos') {
-        const val = parseFloat($("#precio_detal_usd").val()) || 0;
-        $("#precio_detal_bs").val(val > 0 ? (val * tasaUsdActual).toFixed(4) : '');
-    }
-    if (campo === 'mayorista' || campo === 'todos') {
-        const val = parseFloat($("#precio_mayorista_usd").val()) || 0;
-        $("#precio_mayorista_bs").val(val > 0 ? (val * tasaUsdActual).toFixed(4) : '');
+    $("#precio_costo_bs").val(costoUsd > 0 ? (costoUsd * tasa).toFixed(2) : "");
+
+    // Recalcular precios de venta según márgenes configurados
+    calcularPrecioDetalDesdeMargenForm();
+    calcularPrecioMayorDesdeMargenForm();
+};
+
+const calcularPrecioDetalDesdeMargenForm = function () {
+    const costoUsd = parseFloat($("#precio_costo_usd").val()) || 0;
+    const margen = parseFloat($("#ultimo_margen_detal").val()) || 0;
+    const tasa = tasaUsdActual > 0 ? tasaUsdActual : 1.0;
+
+    if (costoUsd > 0) {
+        const precioUsd = costoUsd * (1 + margen / 100);
+        $("#precio_detal_usd").val(precioUsd.toFixed(2));
+        $("#precio_detal_bs").val((precioUsd * tasa).toFixed(2));
+    } else {
+        const pvpUsd = parseFloat($("#precio_detal_usd").val()) || 0;
+        if (pvpUsd > 0) {
+            $("#precio_detal_bs").val((pvpUsd * tasa).toFixed(2));
+        }
     }
 };
 
-const calcularPreciosUsdDesdeBs = function (campo = 'todos') {
-    if (!tasaUsdActual || tasaUsdActual <= 0) return;
+const calcularMargenDetalDesdePrecioForm = function () {
+    const costoUsd = parseFloat($("#precio_costo_usd").val()) || 0;
+    const pvpUsd = parseFloat($("#precio_detal_usd").val()) || 0;
+    const tasa = tasaUsdActual > 0 ? tasaUsdActual : 1.0;
 
-    if (campo === 'detal' || campo === 'todos') {
-        const val = parseFloat($("#precio_detal_bs").val()) || 0;
-        $("#precio_detal_usd").val(val > 0 ? (val / tasaUsdActual).toFixed(4) : '');
-    }
-    if (campo === 'mayorista' || campo === 'todos') {
-        const val = parseFloat($("#precio_mayorista_bs").val()) || 0;
-        $("#precio_mayorista_usd").val(val > 0 ? (val / tasaUsdActual).toFixed(4) : '');
+    $("#precio_detal_bs").val(pvpUsd > 0 ? (pvpUsd * tasa).toFixed(2) : "");
+
+    if (costoUsd > 0 && pvpUsd > 0) {
+        const margen = ((pvpUsd - costoUsd) / costoUsd) * 100;
+        $("#ultimo_margen_detal").val(margen.toFixed(2));
     }
 };
 
-window.calcularPreciosBs = calcularPreciosBsDesdeUsd;
-window.calcularPreciosBsDesdeUsd = calcularPreciosBsDesdeUsd;
-window.calcularPreciosUsdDesdeBs = calcularPreciosUsdDesdeBs;
+const calcularPrecioMayorDesdeMargenForm = function () {
+    const costoUsd = parseFloat($("#precio_costo_usd").val()) || 0;
+    const margen = parseFloat($("#ultimo_margen_mayorista").val()) || 0;
+    const tasa = tasaUsdActual > 0 ? tasaUsdActual : 1.0;
+
+    if (costoUsd > 0) {
+        const precioUsd = costoUsd * (1 + margen / 100);
+        $("#precio_mayorista_usd").val(precioUsd.toFixed(2));
+        $("#precio_mayorista_bs").val((precioUsd * tasa).toFixed(2));
+    } else {
+        const pvpUsd = parseFloat($("#precio_mayorista_usd").val()) || 0;
+        if (pvpUsd > 0) {
+            $("#precio_mayorista_bs").val((pvpUsd * tasa).toFixed(2));
+        }
+    }
+};
+
+const calcularMargenMayorDesdePrecioForm = function () {
+    const costoUsd = parseFloat($("#precio_costo_usd").val()) || 0;
+    const pvpUsd = parseFloat($("#precio_mayorista_usd").val()) || 0;
+    const tasa = tasaUsdActual > 0 ? tasaUsdActual : 1.0;
+
+    $("#precio_mayorista_bs").val(pvpUsd > 0 ? (pvpUsd * tasa).toFixed(2) : "");
+
+    if (costoUsd > 0 && pvpUsd > 0) {
+        const margen = ((pvpUsd - costoUsd) / costoUsd) * 100;
+        $("#ultimo_margen_mayorista").val(margen.toFixed(2));
+    }
+};
+
+window.alCambiarCostoUsd = alCambiarCostoUsd;
+window.calcularPrecioDetalDesdeMargenForm = calcularPrecioDetalDesdeMargenForm;
+window.calcularMargenDetalDesdePrecioForm = calcularMargenDetalDesdePrecioForm;
+window.calcularPrecioMayorDesdeMargenForm = calcularPrecioMayorDesdeMargenForm;
+window.calcularMargenMayorDesdePrecioForm = calcularMargenMayorDesdePrecioForm;
 
 $(document).ready(function () {
     cargarCatalogos();
@@ -224,6 +274,7 @@ const cargarCatalogos = async function () {
             if (res.data.tasa_usd) {
                 tasaUsdActual = parseFloat(res.data.tasa_usd) || 1.0;
                 $("#badgeTasaUsd").text(tasaUsdActual.toFixed(4));
+                $("#badgeTasaUsdModal").text(tasaUsdActual.toFixed(4));
             }
             poblarSelectCategorias();
         }
@@ -264,7 +315,7 @@ const toggleIgtfInput = function () {
 };
 
 /**
- * Filas dinámicas: Códigos de Barra
+ * Filas dinámicas: Códigos de Barra / QR
  */
 const agregarFilaCodigoBarra = function (codigo = "", descripcion = "") {
     contadorFilasCodigos++;
@@ -274,12 +325,12 @@ const agregarFilaCodigoBarra = function (codigo = "", descripcion = "") {
         <tr id="${idFila}">
             <td>
                 <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-white"><i class="fas fa-barcode text-primary"></i></span>
-                    <input type="text" class="form-control" name="codigos_barra[${contadorFilasCodigos}][codigo]" value="${codigo}" placeholder="Ej. 759123456789" maxlength="100">
+                    <span class="input-group-text bg-white"><i class="fas fa-qrcode text-primary"></i></span>
+                    <input type="text" class="form-control" name="codigos_barra[${contadorFilasCodigos}][codigo]" value="${codigo}" placeholder="Ej. 759123456789 o QR-PROD-001" maxlength="100">
                 </div>
             </td>
             <td>
-                <input type="text" class="form-control form-control-sm" name="codigos_barra[${contadorFilasCodigos}][descripcion]" value="${descripcion}" placeholder="Ej. Empaque individual, Caja x12" maxlength="100">
+                <input type="text" class="form-control form-control-sm" name="codigos_barra[${contadorFilasCodigos}][descripcion]" value="${descripcion}" placeholder="Ej. Empaque individual, QR etiqueta, Caja x12" maxlength="100">
             </td>
             <td class="text-center">
                 <button type="button" class="btn btn-outline-danger btn-sm rounded-circle" onclick="$('#${idFila}').remove()" style="width: 28px; height: 28px; padding: 0;">
@@ -447,8 +498,24 @@ const crear = function () {
     $("#modalProductoIcono").attr("class", "fas fa-boxes-stacked text-warning fs-5");
     $("#modalProductoTextoGuardar").text("Guardar");
 
+    // Código interno automático
+    $("#codigo_interno").val("").attr("placeholder", "[Generado automáticamente]");
+
     // Valores por defecto
     $("#tipo").val("producto");
+    $("#unidad_medida").val("unidad");
+    $("#precio_costo_usd").val("");
+    $("#precio_costo_bs").val("");
+    $("#ultimo_margen_detal").val("30.00");
+    $("#precio_detal_usd").val("");
+    $("#precio_detal_bs").val("");
+    $("#ultimo_margen_mayorista").val("15.00");
+    $("#precio_mayorista_usd").val("");
+    $("#precio_mayorista_bs").val("");
+    $("#stock_minimo").val("0");
+    $("#stock_maximo").val("");
+    $("#badgeTasaUsdModal").text(tasaUsdActual.toFixed(4));
+
     $("#aplica_iva").prop("checked", true);
     $("#iva_porcentaje").val("16.00").prop("disabled", false);
     $("#aplica_igtf").prop("checked", true);
@@ -493,6 +560,29 @@ const editar = async function (id) {
         $("#descripcion").val(prod.descripcion || "");
         $("#unidad_medida").val(prod.unidad_medida || "unidad");
 
+        // Precios, Costos y Márgenes
+        const costoUsd = parseFloat(prod.precio_costo_usd || 0);
+        const costoBs = parseFloat(prod.precio_costo_bs || 0);
+        const margenDetal = prod.ultimo_margen_detal !== null && prod.ultimo_margen_detal !== undefined ? parseFloat(prod.ultimo_margen_detal) : 30.00;
+        const detalUsd = parseFloat(prod.precio_detal_usd || 0);
+        const detalBs = parseFloat(prod.precio_detal_bs || 0);
+        const margenMayor = prod.ultimo_margen_mayorista !== null && prod.ultimo_margen_mayorista !== undefined ? parseFloat(prod.ultimo_margen_mayorista) : 15.00;
+        const mayorUsd = parseFloat(prod.precio_mayorista_usd || 0);
+        const mayorBs = parseFloat(prod.precio_mayorista_bs || 0);
+
+        $("#precio_costo_usd").val(costoUsd > 0 ? costoUsd.toFixed(2) : "");
+        $("#precio_costo_bs").val(costoBs > 0 ? costoBs.toFixed(2) : (costoUsd > 0 ? (costoUsd * tasaUsdActual).toFixed(2) : ""));
+        $("#ultimo_margen_detal").val(margenDetal.toFixed(2));
+        $("#precio_detal_usd").val(detalUsd > 0 ? detalUsd.toFixed(2) : "");
+        $("#precio_detal_bs").val(detalBs > 0 ? detalBs.toFixed(2) : (detalUsd > 0 ? (detalUsd * tasaUsdActual).toFixed(2) : ""));
+        $("#ultimo_margen_mayorista").val(margenMayor.toFixed(2));
+        $("#precio_mayorista_usd").val(mayorUsd > 0 ? mayorUsd.toFixed(2) : "");
+        $("#precio_mayorista_bs").val(mayorBs > 0 ? mayorBs.toFixed(2) : (mayorUsd > 0 ? (mayorUsd * tasaUsdActual).toFixed(2) : ""));
+
+        $("#stock_minimo").val(prod.stock_minimo || 0);
+        $("#stock_maximo").val(prod.stock_maximo || "");
+        $("#badgeTasaUsdModal").text(tasaUsdActual.toFixed(4));
+
         // Impuestos
         $("#aplica_iva").prop("checked", prod.aplica_iva);
         $("#iva_porcentaje").val(prod.iva_porcentaje || "16.00").prop("disabled", !prod.aplica_iva);
@@ -527,7 +617,7 @@ const editar = async function (id) {
 };
 
 /**
- * Ficha Técnica 360° (Ver Detalles)
+ * Ficha Técnica 360° (Ver Detalles con Kardex)
  */
 const verFicha = async function (id) {
     try {
@@ -614,6 +704,44 @@ const verFicha = async function (id) {
             proveedoresHtml = '<div class="col-12 text-muted fst-italic py-2"><i class="fas fa-info-circle me-1"></i> No posee proveedores registrados. Se vinculan automáticamente al procesar recepciones.</div>';
         }
 
+        // Histórico de Kardex
+        let kardexHtml = "";
+        if (Array.isArray(prod.movimientos_kardex) && prod.movimientos_kardex.length > 0) {
+            prod.movimientos_kardex.forEach((mov) => {
+                const esEntrada = ['entrada_recepcion', 'entrada_ajuste', 'entrada_traslado', 'entrada_anulacion'].includes(mov.tipo_movimiento);
+                const badgeTipo = esEntrada
+                    ? `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 font-monospace"><i class="fas fa-arrow-down me-1"></i>${mov.tipo_movimiento.replace(/_/g, ' ')}</span>`
+                    : `<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1 font-monospace"><i class="fas fa-arrow-up me-1"></i>${mov.tipo_movimiento.replace(/_/g, ' ')}</span>`;
+
+                const cantFormateada = esEntrada ? `+${mov.cantidad}` : `-${mov.cantidad}`;
+                const cantClass = esEntrada ? 'text-success' : 'text-danger';
+
+                kardexHtml += `
+                    <tr>
+                        <td class="small text-muted font-monospace">${mov.fecha}</td>
+                        <td class="fw-semibold small">${mov.almacen_nombre}</td>
+                        <td class="text-capitalize small">${badgeTipo}</td>
+                        <td class="small text-muted font-monospace">${mov.motivo || mov.documento_tipo || '--'}</td>
+                        <td class="text-end font-monospace fw-bold ${cantClass}">${cantFormateada}</td>
+                        <td class="text-end font-monospace small text-muted">${mov.stock_anterior} ➔ <span class="fw-bold text-dark">${mov.stock_nuevo}</span></td>
+                        <td class="text-end font-monospace small">$ ${mov.costo_unitario_usd.toFixed(2)}</td>
+                        <td class="small text-muted">${mov.usuario_nombre}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            kardexHtml = '<tr><td colspan="8" class="text-center text-muted py-3"><i class="fas fa-history me-1"></i> No se registran movimientos de Kardex para este producto aún.</td></tr>';
+        }
+
+        const costoBaseUsd = parseFloat(prod.precio_costo_usd || 0);
+        const costoBaseBs = parseFloat(prod.precio_costo_bs || 0);
+        const detalUsd = parseFloat(prod.precio_detal_usd || 0);
+        const detalBs = parseFloat(prod.precio_detal_bs || 0);
+        const mayoristaUsd = parseFloat(prod.precio_mayorista_usd || 0);
+        const mayoristaBs = parseFloat(prod.precio_mayorista_bs || 0);
+        const margenDetal = prod.ultimo_margen_detal !== null && prod.ultimo_margen_detal !== undefined ? parseFloat(prod.ultimo_margen_detal) : 30.00;
+        const margenMayor = prod.ultimo_margen_mayorista !== null && prod.ultimo_margen_mayorista !== undefined ? parseFloat(prod.ultimo_margen_mayorista) : 15.00;
+
         const fichaHtml = `
             <div class="row g-4">
                 <!-- ENCABEZADO 360 -->
@@ -651,12 +779,20 @@ const verFicha = async function (id) {
                         <h6 class="fw-bold text-dark mb-3"><i class="fas fa-coins text-warning me-2"></i> Estructura de Precios & Fiscal</h6>
                         <ul class="list-group list-group-flush small">
                             <li class="list-group-item d-flex justify-content-between px-0">
-                                <span class="text-muted">Precio Detal:</span>
-                                ${detalUsd > 0 ? `<strong class="text-dark font-monospace">$ ${detalUsd.toFixed(2)} / Bs. ${detalBs}</strong>` : '<span class="badge rounded-pill px-2 py-1 fw-semibold" style="background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a;"><i class="fas fa-truck-loading me-1"></i>Por Recepción</span>'}
+                                <span class="text-muted">Costo Base de Compra:</span>
+                                ${costoBaseUsd > 0 ? `<strong class="text-dark font-monospace">$ ${costoBaseUsd.toFixed(2)} / Bs. ${costoBaseBs.toFixed(2)}</strong>` : '<span class="text-muted fst-italic">No establecido</span>'}
                             </li>
                             <li class="list-group-item d-flex justify-content-between px-0">
-                                <span class="text-muted">Precio Mayorista:</span>
-                                ${mayoristaUsd > 0 ? `<strong class="text-dark font-monospace">$ ${mayoristaUsd.toFixed(2)} / Bs. ${mayoristaBs}</strong>` : '<span class="badge rounded-pill px-2 py-1 fw-semibold" style="background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a;"><i class="fas fa-truck-loading me-1"></i>Por Recepción</span>'}
+                                <span class="text-muted">Precio Detal (Margen ${margenDetal.toFixed(1)}%):</span>
+                                ${detalUsd > 0 ? `<strong class="text-primary font-monospace fw-bold">$ ${detalUsd.toFixed(2)} / Bs. ${detalBs.toFixed(2)}</strong>` : '<span class="badge rounded-pill px-2 py-1 fw-semibold" style="background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a;"><i class="fas fa-truck-loading me-1"></i>Por Recepción</span>'}
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0">
+                                <span class="text-muted">Precio Mayorista (Margen ${margenMayor.toFixed(1)}%):</span>
+                                ${mayoristaUsd > 0 ? `<strong class="font-monospace fw-bold" style="color: #7e22ce;">$ ${mayoristaUsd.toFixed(2)} / Bs. ${mayoristaBs.toFixed(2)}</strong>` : '<span class="badge rounded-pill px-2 py-1 fw-semibold" style="background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a;"><i class="fas fa-truck-loading me-1"></i>Por Recepción</span>'}
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0">
+                                <span class="text-muted">Stock Mínimo / Máximo:</span>
+                                <strong class="font-monospace text-dark">${prod.stock_minimo || 0} / ${prod.stock_maximo || 'Sin límite'}</strong>
                             </li>
                             <li class="list-group-item d-flex justify-content-between px-0">
                                 <span class="text-muted">IVA:</span>
@@ -710,6 +846,35 @@ const verFicha = async function (id) {
                         </div>
                     </div>
                 </div>
+
+                <!-- HISTÓRICO DE MOVIMIENTOS KARDEX -->
+                <div class="col-12">
+                    <div class="card border rounded-4 p-3 shadow-sm">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h6 class="fw-bold text-dark mb-0"><i class="fas fa-history text-primary me-2"></i> Histórico Reciente de Movimientos (Kardex)</h6>
+                            <span class="badge rounded-pill bg-light text-dark border font-monospace px-3 py-1">Últimos 30 movimientos</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light font-monospace small">
+                                    <tr>
+                                        <th>Fecha & Hora</th>
+                                        <th>Almacén</th>
+                                        <th>Tipo Movimiento</th>
+                                        <th>Motivo / Doc</th>
+                                        <th class="text-end">Cantidad</th>
+                                        <th class="text-end">Balance Stock</th>
+                                        <th class="text-end">Costo Unitario ($)</th>
+                                        <th>Usuario</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${kardexHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
 
@@ -734,17 +899,7 @@ $("#formularioProducto").on("submit", function (e) {
     e.preventDefault();
 
     const nombre = $("#nombre").val().trim();
-    const codigoInterno = $("#codigo_interno").val().trim();
     const categoriaId = $("#categoria_id").val();
-
-    if (codigoInterno.length < 2) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "El código SKU/Interno debe tener al menos 2 caracteres",
-            });
-        }
-    }
 
     if (!categoriaId) {
         if (window.notificacion) {

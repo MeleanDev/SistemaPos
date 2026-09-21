@@ -8,6 +8,8 @@ const urlGuardarProveedor = window.location.origin + "/proveedores";
 const urlGuardarProducto = window.location.origin + "/productos";
 
 let tasaUsdActual = 1.0000;
+let tasaCompraActual = 1.0000;
+let tasaVentaActual = 1.0000;
 let monedaDocumentoActual = "USD"; // 'USD' o 'VES'
 
 let catalogosSistema = {
@@ -16,6 +18,8 @@ let catalogosSistema = {
     productos: [],
     categorias: [],
     tasa_usd: 1.0000,
+    tasa_compra: 1.0000,
+    tasa_venta: 1.0000,
     proximo_codigo: "REC-00001",
 };
 
@@ -244,9 +248,15 @@ const cargarCatalogos = async function () {
         if (res.success && res.data) {
             catalogosSistema = res.data;
             tasaUsdActual = parseFloat(res.data.tasa_usd) || 1.0000;
+            tasaCompraActual = parseFloat(res.data.tasa_compra || res.data.tasa_usd) || tasaUsdActual;
+            tasaVentaActual = parseFloat(res.data.tasa_venta || res.data.tasa_usd) || tasaUsdActual;
 
-            $("#tasa_cambio").val(tasaUsdActual.toFixed(4));
+            $("#tasa_cambio").val(tasaVentaActual.toFixed(4));
+            $("#tasa_compra").val(tasaCompraActual.toFixed(4));
+            $("#tasa_venta").val(tasaVentaActual.toFixed(4));
             $("#badgeTasaCambio").text(tasaUsdActual.toFixed(4));
+            $("#badgeTasaCompraFase2").text(tasaCompraActual.toFixed(4));
+            $("#badgeTasaVentaFase2").text(tasaVentaActual.toFixed(4));
             $("#badgeCodigoRecepcion").html(`<i class="fas fa-hashtag me-1"></i>${res.data.proximo_codigo}`);
 
             poblarSelectProveedores();
@@ -257,6 +267,42 @@ const cargarCatalogos = async function () {
         console.error("Error al cargar catálogos de recepción:", e);
     }
 };
+
+/**
+ * Sincronizar cambios en los inputs de Tasa de Compra y Tasa de Venta
+ */
+const actualizarTasasDesdeInput = function () {
+    const tCompra = parseFloat($("#tasa_compra").val()) || 0;
+    const tVenta = parseFloat($("#tasa_venta").val()) || 0;
+
+    if (tCompra > 0) {
+        tasaCompraActual = tCompra;
+        $("#badgeTasaCompraFase2").text(tasaCompraActual.toFixed(4));
+    }
+    if (tVenta > 0) {
+        tasaVentaActual = tVenta;
+        $("#tasa_cambio").val(tasaVentaActual.toFixed(4));
+        $("#badgeTasaVentaFase2").text(tasaVentaActual.toFixed(4));
+    }
+
+    calcularPrecioDetalDesdeMargen();
+    calcularPrecioMayoristaDesdeMargen();
+    recalcularFormularioRenglon();
+};
+window.actualizarTasasDesdeInput = actualizarTasasDesdeInput;
+
+/**
+ * Restablecer a tasa oficial del sistema
+ */
+const restablecerTasaOficial = function (tipo) {
+    if (tipo === "compra") {
+        $("#tasa_compra").val(tasaUsdActual.toFixed(4));
+    } else if (tipo === "venta") {
+        $("#tasa_venta").val(tasaUsdActual.toFixed(4));
+    }
+    actualizarTasasDesdeInput();
+};
+window.restablecerTasaOficial = restablecerTasaOficial;
 
 const poblarSelectProveedores = function () {
     const $select = $("#proveedor_id");
@@ -726,17 +772,18 @@ const seleccionarProductoParaCarga = function (prod, datosPrecargados = null) {
 
     const bultosInicial = datosPrecargados?.bultos || 1;
     const unidPorBultoInicial = datosPrecargados?.unidades_por_bulto || 1;
+    const cantidadInicial = bultosInicial * unidPorBultoInicial;
     let costoBultoInicial = "";
 
     if (datosPrecargados) {
         costoBultoInicial = esVes ? datosPrecargados.costo_bulto_bs : datosPrecargados.costo_bulto_usd;
     } else if (costoInicial > 0) {
-        costoBultoInicial = (costoInicial * unidPorBultoInicial).toFixed(2);
+        costoBultoInicial = (costoInicial * cantidadInicial).toFixed(2);
     }
 
     $("#form_renglon_bultos").val(bultosInicial);
     $("#form_renglon_unid_bulto").val(unidPorBultoInicial);
-    $("#form_renglon_cantidad").val(bultosInicial * unidPorBultoInicial);
+    $("#form_renglon_cantidad").val(cantidadInicial);
     $("#form_renglon_costo_bulto").val(costoBultoInicial);
     $("#form_renglon_costo_unitario").val(costoInicial > 0 ? costoInicial.toFixed(4) : "0.0000");
     $("#form_renglon_descuento").val(datosPrecargados?.descuento_porcentaje || 0);
@@ -782,9 +829,11 @@ const calcularCantidadDesdeBultos = function () {
     const cantidadTotal = bultos * unidPorBulto;
     $("#form_renglon_cantidad").val(cantidadTotal > 0 ? cantidadTotal : 0);
 
-    const costoBulto = parseFloat($("#form_renglon_costo_bulto").val()) || 0;
-    if (costoBulto > 0 && unidPorBulto > 0) {
-        $("#form_renglon_costo_unitario").val((costoBulto / unidPorBulto).toFixed(4));
+    const costoTotal = parseFloat($("#form_renglon_costo_bulto").val()) || 0;
+    if (costoTotal > 0 && cantidadTotal > 0) {
+        $("#form_renglon_costo_unitario").val((costoTotal / cantidadTotal).toFixed(4));
+    } else if (costoTotal > 0) {
+        $("#form_renglon_costo_unitario").val(costoTotal.toFixed(4));
     }
 
     calcularPrecioDetalDesdeMargen();
@@ -794,11 +843,16 @@ const calcularCantidadDesdeBultos = function () {
 window.calcularCantidadDesdeBultos = calcularCantidadDesdeBultos;
 
 const calcularCostoDesdeBulto = function () {
-    const costoBulto = parseFloat($("#form_renglon_costo_bulto").val()) || 0;
+    const costoTotal = parseFloat($("#form_renglon_costo_bulto").val()) || 0;
+    const bultos = parseFloat($("#form_renglon_bultos").val()) || 0;
     const unidPorBulto = parseFloat($("#form_renglon_unid_bulto").val()) || 1;
+    let cantidadTotal = parseFloat($("#form_renglon_cantidad").val()) || (bultos * unidPorBulto);
+    if (cantidadTotal <= 0) {
+        cantidadTotal = 1;
+    }
 
-    if (costoBulto > 0 && unidPorBulto > 0) {
-        $("#form_renglon_costo_unitario").val((costoBulto / unidPorBulto).toFixed(4));
+    if (costoTotal > 0) {
+        $("#form_renglon_costo_unitario").val((costoTotal / cantidadTotal).toFixed(4));
     } else {
         $("#form_renglon_costo_unitario").val("0.0000");
     }
@@ -819,16 +873,37 @@ window.actualizarCostoUnitarioManual = actualizarCostoUnitarioManual;
 const calcularPrecioDetalDesdeMargen = function () {
     const esVes = monedaDocumentoActual === "VES";
     const costoInput = parseFloat($("#form_renglon_costo_unitario").val()) || 0;
-    let costoUsd = esVes ? (tasaUsdActual > 0 ? costoInput / tasaUsdActual : 0) : costoInput;
-
     const margenDetal = parseFloat($("#form_renglon_margen_detal").val()) || 0;
-    if (costoUsd > 0) {
-        const nuevoDetalUsd = costoUsd * (1 + margenDetal / 100);
-        $("#form_renglon_precio_detal").val(nuevoDetalUsd.toFixed(2));
-        $("#form_renglon_detal_bs").text(`Bs. ${(nuevoDetalUsd * tasaUsdActual).toFixed(2)}`);
+
+    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
+    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
+
+    if (costoInput > 0) {
+        if (!esVes) {
+            // CASO 1: Factura en USD
+            // Costo en USD: costoInput
+            // Precio en USD: [Costo * (1 + Margen/100) * TasaCompra] / TasaVenta
+            const baseGanancia = costoInput * (1 + margenDetal / 100);
+            const nuevoDetalUsd = (baseGanancia * tCompra) / tVenta;
+            const nuevoDetalBs = nuevoDetalUsd * tVenta;
+
+            $("#form_renglon_precio_detal").val(nuevoDetalUsd.toFixed(2));
+            $("#form_renglon_detal_bs").text(`Bs. ${nuevoDetalBs.toFixed(2)}`);
+        } else {
+            // CASO 2: Factura en VES
+            // Costo en USD: costoInput / TasaCompra
+            // Precio en USD: CostoUsd * (1 + Margen/100)
+            // Precio en Bs: PrecioUsd * TasaVenta
+            const costoUsd = costoInput / tCompra;
+            const nuevoDetalUsd = costoUsd * (1 + margenDetal / 100);
+            const nuevoDetalBs = nuevoDetalUsd * tVenta;
+
+            $("#form_renglon_precio_detal").val(nuevoDetalBs.toFixed(2));
+            $("#form_renglon_detal_bs").text(`$ ${nuevoDetalUsd.toFixed(2)}`);
+        }
     } else {
         $("#form_renglon_precio_detal").val("");
-        $("#form_renglon_detal_bs").text("Bs. 0.00");
+        $("#form_renglon_detal_bs").text(esVes ? "$ 0.00" : "Bs. 0.00");
     }
 };
 window.calcularPrecioDetalDesdeMargen = calcularPrecioDetalDesdeMargen;
@@ -836,14 +911,32 @@ window.calcularPrecioDetalDesdeMargen = calcularPrecioDetalDesdeMargen;
 const calcularMargenDetalDesdePrecio = function () {
     const esVes = monedaDocumentoActual === "VES";
     const costoInput = parseFloat($("#form_renglon_costo_unitario").val()) || 0;
-    let costoUsd = esVes ? (tasaUsdActual > 0 ? costoInput / tasaUsdActual : 0) : costoInput;
+    const precioInput = parseFloat($("#form_renglon_precio_detal").val()) || 0;
 
-    const precioDetalUsd = parseFloat($("#form_renglon_precio_detal").val()) || 0;
+    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
+    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
 
-    if (costoUsd > 0 && precioDetalUsd > 0) {
-        const nuevoMargen = ((precioDetalUsd - costoUsd) / costoUsd) * 100;
-        $("#form_renglon_margen_detal").val(nuevoMargen.toFixed(0));
-        $("#form_renglon_detal_bs").text(`Bs. ${(precioDetalUsd * tasaUsdActual).toFixed(2)}`);
+    if (costoInput > 0 && precioInput > 0) {
+        if (!esVes) {
+            // CASO 1: Factura en USD (input es Precio USD)
+            // Margen = [(PrecioUsd * TasaVenta) / (CostoUsd * TasaCompra) - 1] * 100
+            const nuevoMargen = ((precioInput * tVenta) / (costoInput * tCompra) - 1) * 100;
+            const nuevoDetalBs = precioInput * tVenta;
+
+            $("#form_renglon_margen_detal").val(nuevoMargen.toFixed(0));
+            $("#form_renglon_detal_bs").text(`Bs. ${nuevoDetalBs.toFixed(2)}`);
+        } else {
+            // CASO 2: Factura en VES (input es Precio Bs)
+            // CostoUsd = CostoBs / TasaCompra
+            // PrecioUsd = PrecioBs / TasaVenta
+            // Margen = (PrecioUsd / CostoUsd - 1) * 100
+            const costoUsd = costoInput / tCompra;
+            const precioUsd = precioInput / tVenta;
+            const nuevoMargen = costoUsd > 0 ? ((precioUsd / costoUsd) - 1) * 100 : 0;
+
+            $("#form_renglon_margen_detal").val(nuevoMargen.toFixed(0));
+            $("#form_renglon_detal_bs").text(`$ ${precioUsd.toFixed(2)}`);
+        }
     }
     recalcularFormularioRenglon();
 };
@@ -852,16 +945,32 @@ window.calcularMargenDetalDesdePrecio = calcularMargenDetalDesdePrecio;
 const calcularPrecioMayoristaDesdeMargen = function () {
     const esVes = monedaDocumentoActual === "VES";
     const costoInput = parseFloat($("#form_renglon_costo_unitario").val()) || 0;
-    let costoUsd = esVes ? (tasaUsdActual > 0 ? costoInput / tasaUsdActual : 0) : costoInput;
-
     const margenMayor = parseFloat($("#form_renglon_margen_mayorista").val()) || 0;
-    if (costoUsd > 0) {
-        const nuevoMayorUsd = costoUsd * (1 + margenMayor / 100);
-        $("#form_renglon_precio_mayorista").val(nuevoMayorUsd.toFixed(2));
-        $("#form_renglon_mayorista_bs").text(`Bs. ${(nuevoMayorUsd * tasaUsdActual).toFixed(2)}`);
+
+    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
+    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
+
+    if (costoInput > 0) {
+        if (!esVes) {
+            // CASO 1: Factura en USD
+            const baseGanancia = costoInput * (1 + margenMayor / 100);
+            const nuevoMayorUsd = (baseGanancia * tCompra) / tVenta;
+            const nuevoMayorBs = nuevoMayorUsd * tVenta;
+
+            $("#form_renglon_precio_mayorista").val(nuevoMayorUsd.toFixed(2));
+            $("#form_renglon_mayorista_bs").text(`Bs. ${nuevoMayorBs.toFixed(2)}`);
+        } else {
+            // CASO 2: Factura en VES
+            const costoUsd = costoInput / tCompra;
+            const nuevoMayorUsd = costoUsd * (1 + margenMayor / 100);
+            const nuevoMayorBs = nuevoMayorUsd * tVenta;
+
+            $("#form_renglon_precio_mayorista").val(nuevoMayorBs.toFixed(2));
+            $("#form_renglon_mayorista_bs").text(`$ ${nuevoMayorUsd.toFixed(2)}`);
+        }
     } else {
         $("#form_renglon_precio_mayorista").val("");
-        $("#form_renglon_mayorista_bs").text("Bs. 0.00");
+        $("#form_renglon_mayorista_bs").text(esVes ? "$ 0.00" : "Bs. 0.00");
     }
 };
 window.calcularPrecioMayoristaDesdeMargen = calcularPrecioMayoristaDesdeMargen;
@@ -869,14 +978,28 @@ window.calcularPrecioMayoristaDesdeMargen = calcularPrecioMayoristaDesdeMargen;
 const calcularMargenMayoristaDesdePrecio = function () {
     const esVes = monedaDocumentoActual === "VES";
     const costoInput = parseFloat($("#form_renglon_costo_unitario").val()) || 0;
-    let costoUsd = esVes ? (tasaUsdActual > 0 ? costoInput / tasaUsdActual : 0) : costoInput;
+    const precioMayorInput = parseFloat($("#form_renglon_precio_mayorista").val()) || 0;
 
-    const precioMayorUsd = parseFloat($("#form_renglon_precio_mayorista").val()) || 0;
+    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
+    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
 
-    if (costoUsd > 0 && precioMayorUsd > 0) {
-        const nuevoMargen = ((precioMayorUsd - costoUsd) / costoUsd) * 100;
-        $("#form_renglon_margen_mayorista").val(nuevoMargen.toFixed(0));
-        $("#form_renglon_mayorista_bs").text(`Bs. ${(precioMayorUsd * tasaUsdActual).toFixed(2)}`);
+    if (costoInput > 0 && precioMayorInput > 0) {
+        if (!esVes) {
+            // CASO 1: Factura en USD
+            const nuevoMargen = ((precioMayorInput * tVenta) / (costoInput * tCompra) - 1) * 100;
+            const nuevoMayorBs = precioMayorInput * tVenta;
+
+            $("#form_renglon_margen_mayorista").val(nuevoMargen.toFixed(0));
+            $("#form_renglon_mayorista_bs").text(`Bs. ${nuevoMayorBs.toFixed(2)}`);
+        } else {
+            // CASO 2: Factura en VES
+            const costoUsd = costoInput / tCompra;
+            const precioUsd = precioMayorInput / tVenta;
+            const nuevoMargen = costoUsd > 0 ? ((precioUsd / costoUsd) - 1) * 100 : 0;
+
+            $("#form_renglon_margen_mayorista").val(nuevoMargen.toFixed(0));
+            $("#form_renglon_mayorista_bs").text(`$ ${precioUsd.toFixed(2)}`);
+        }
     }
     recalcularFormularioRenglon();
 };
@@ -888,21 +1011,32 @@ const recalcularFormularioRenglon = function () {
     const costoInput = parseFloat($("#form_renglon_costo_unitario").val()) || 0;
     const descPorc = parseFloat($("#form_renglon_descuento").val()) || 0;
 
-    let costoUsd = esVes ? (tasaUsdActual > 0 ? costoInput / tasaUsdActual : 0) : costoInput;
-    let costoBs = (costoUsd * tasaUsdActual).toFixed(2);
+    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
 
-    if (esVes) {
-        $("#form_renglon_costo_equivalente").text(`Equiv: $ ${costoUsd.toFixed(2)}`);
+    let costoUsd = 0;
+    let costoBs = 0;
+
+    if (!esVes) {
+        costoUsd = costoInput;
+        costoBs = costoUsd * tCompra;
+        $("#form_renglon_costo_equivalente").text(`Equiv: Bs. ${costoBs.toFixed(2)}`);
     } else {
-        $("#form_renglon_costo_equivalente").text(`Equiv: Bs. ${costoBs}`);
+        costoBs = costoInput;
+        costoUsd = tCompra > 0 ? costoBs / tCompra : 0;
+        $("#form_renglon_costo_equivalente").text(`Equiv: $ ${costoUsd.toFixed(2)}`);
     }
 
     const subtotalBrutoUsd = cantidad * costoUsd;
     const subtotalNetoUsd = subtotalBrutoUsd * (1 - descPorc / 100);
-    const subtotalNetoBs = subtotalNetoUsd * tasaUsdActual;
+    const subtotalNetoBs = subtotalNetoUsd * tCompra;
 
-    $("#form_renglon_subtotal_usd").text(`$ ${subtotalNetoUsd.toFixed(2)}`);
-    $("#form_renglon_subtotal_bs").text(`Bs. ${subtotalNetoBs.toFixed(2)}`);
+    if (!esVes) {
+        $("#form_renglon_subtotal_usd").text(`$ ${subtotalNetoUsd.toFixed(2)}`);
+        $("#form_renglon_subtotal_bs").text(`Bs. ${subtotalNetoBs.toFixed(2)}`);
+    } else {
+        $("#form_renglon_subtotal_usd").text(`Bs. ${subtotalNetoBs.toFixed(2)}`);
+        $("#form_renglon_subtotal_bs").text(`$ ${subtotalNetoUsd.toFixed(2)}`);
+    }
 };
 window.recalcularFormularioRenglon = recalcularFormularioRenglon;
 
@@ -966,32 +1100,58 @@ const agregarOActualizarRenglon = function () {
     const cantidad = bultos * unidPorBulto;
     $("#form_renglon_cantidad").val(cantidad);
 
-    const costoInput = costoBultoInput / unidPorBulto;
+    const costoInput = cantidad > 0 ? (costoBultoInput / cantidad) : costoBultoInput;
     $("#form_renglon_costo_unitario").val(costoInput.toFixed(4));
 
     const esVes = monedaDocumentoActual === "VES";
-    let costoUsd = esVes ? (tasaUsdActual > 0 ? costoInput / tasaUsdActual : 0) : costoInput;
-    let costoBs = costoUsd * tasaUsdActual;
+    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
+    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
 
-    const costoBultoUsd = esVes ? (tasaUsdActual > 0 ? costoBultoInput / tasaUsdActual : 0) : costoBultoInput;
-    const costoBultoBs = costoBultoUsd * tasaUsdActual;
+    let costoUsd = 0;
+    let costoBs = 0;
+    let costoBultoUsd = 0;
+    let costoBultoBs = 0;
+
+    if (!esVes) {
+        costoUsd = costoInput;
+        costoBs = costoUsd * tCompra;
+        costoBultoUsd = costoBultoInput;
+        costoBultoBs = costoBultoUsd * tCompra;
+    } else {
+        costoBs = costoInput;
+        costoUsd = costoBs / tCompra;
+        costoBultoBs = costoBultoInput;
+        costoBultoUsd = costoBultoBs / tCompra;
+    }
 
     const descPorc = parseFloat($("#form_renglon_descuento").val()) || 0;
     const ivaPorc = parseFloat($("#form_renglon_iva").val()) || 0;
-
-    const precioDetalUsd = parseFloat($("#form_renglon_precio_detal").val()) || (costoUsd * 1.3);
-    const precioDetalBs = precioDetalUsd * tasaUsdActual;
     const margenDetal = parseFloat($("#form_renglon_margen_detal").val()) || 30;
-
-    const precioMayorUsd = parseFloat($("#form_renglon_precio_mayorista").val()) || (costoUsd * 1.15);
-    const precioMayorBs = precioMayorUsd * tasaUsdActual;
     const margenMayor = parseFloat($("#form_renglon_margen_mayorista").val()) || 15;
+
+    let precioDetalUsd = 0;
+    let precioDetalBs = 0;
+    let precioMayorUsd = 0;
+    let precioMayorBs = 0;
+
+    if (!esVes) {
+        precioDetalUsd = parseFloat($("#form_renglon_precio_detal").val()) || ((costoUsd * (1 + margenDetal / 100) * tCompra) / tVenta);
+        precioDetalBs = precioDetalUsd * tVenta;
+        precioMayorUsd = parseFloat($("#form_renglon_precio_mayorista").val()) || ((costoUsd * (1 + margenMayor / 100) * tCompra) / tVenta);
+        precioMayorBs = precioMayorUsd * tVenta;
+    } else {
+        precioDetalBs = parseFloat($("#form_renglon_precio_detal").val()) || (costoUsd * (1 + margenDetal / 100) * tVenta);
+        precioDetalUsd = precioDetalBs / tVenta;
+        precioMayorBs = parseFloat($("#form_renglon_precio_mayorista").val()) || (costoUsd * (1 + margenMayor / 100) * tVenta);
+        precioMayorUsd = precioMayorBs / tVenta;
+    }
 
     const subtotalBrutoUsd = cantidad * costoUsd;
     const descuentoUsd = subtotalBrutoUsd * (descPorc / 100);
     const subtotalNetoUsd = subtotalBrutoUsd - descuentoUsd;
-    const subtotalNetoBs = subtotalNetoUsd * tasaUsdActual;
+    const subtotalNetoBs = subtotalNetoUsd * tCompra;
     const ivaMontoUsd = ivaPorc > 0 ? subtotalNetoUsd * (ivaPorc / 100) : 0;
+    const ivaMontoBs = ivaMontoUsd * tCompra;
 
     const itemRenglon = {
         producto_id: productoSeleccionadoActual.id,
@@ -1007,11 +1167,11 @@ const agregarOActualizarRenglon = function () {
         costo_unitario_bs: costoBs,
         descuento_porcentaje: descPorc,
         descuento_usd: descuentoUsd,
-        descuento_bs: descuentoUsd * tasaUsdActual,
+        descuento_bs: descuentoUsd * tCompra,
         aplica_iva: ivaPorc > 0,
         iva_porcentaje: ivaPorc,
         iva_monto_usd: ivaMontoUsd,
-        iva_monto_bs: ivaMontoUsd * tasaUsdActual,
+        iva_monto_bs: ivaMontoBs,
         margen_detal_porcentaje: margenDetal,
         precio_detal_usd: precioDetalUsd,
         precio_detal_bs: precioDetalBs,
@@ -1021,11 +1181,11 @@ const agregarOActualizarRenglon = function () {
         subtotal_usd: subtotalNetoUsd,
         subtotal_bs: subtotalNetoBs,
         costo_anterior_usd: parseFloat(productoSeleccionadoActual.precio_costo_usd || 0),
-        costo_anterior_bs: parseFloat(productoSeleccionadoActual.precio_costo_usd || 0) * tasaUsdActual,
+        costo_anterior_bs: parseFloat(productoSeleccionadoActual.precio_costo_usd || 0) * tCompra,
         precio_detal_anterior_usd: parseFloat(productoSeleccionadoActual.precio_detal_usd || 0),
-        precio_detal_anterior_bs: parseFloat(productoSeleccionadoActual.precio_detal_usd || 0) * tasaUsdActual,
+        precio_detal_anterior_bs: parseFloat(productoSeleccionadoActual.precio_detal_usd || 0) * tVenta,
         precio_mayorista_anterior_usd: parseFloat(productoSeleccionadoActual.precio_mayorista_usd || 0),
-        precio_mayorista_anterior_bs: parseFloat(productoSeleccionadoActual.precio_mayorista_usd || 0) * tasaUsdActual,
+        precio_mayorista_anterior_bs: parseFloat(productoSeleccionadoActual.precio_mayorista_usd || 0) * tVenta,
     };
 
     if (indiceEdicionActual !== null && indiceEdicionActual >= 0 && indiceEdicionActual < listaProductosCargados.length) {
@@ -1041,9 +1201,11 @@ const agregarOActualizarRenglon = function () {
             listaProductosCargados[indiceExistente].costo_unitario_usd = itemRenglon.costo_unitario_usd;
             listaProductosCargados[indiceExistente].costo_unitario_bs = itemRenglon.costo_unitario_bs;
             listaProductosCargados[indiceExistente].precio_detal_usd = itemRenglon.precio_detal_usd;
+            listaProductosCargados[indiceExistente].precio_detal_bs = itemRenglon.precio_detal_bs;
             listaProductosCargados[indiceExistente].precio_mayorista_usd = itemRenglon.precio_mayorista_usd;
+            listaProductosCargados[indiceExistente].precio_mayorista_bs = itemRenglon.precio_mayorista_bs;
             listaProductosCargados[indiceExistente].subtotal_usd = listaProductosCargados[indiceExistente].cantidad * itemRenglon.costo_unitario_usd * (1 - itemRenglon.descuento_porcentaje / 100);
-            listaProductosCargados[indiceExistente].subtotal_bs = listaProductosCargados[indiceExistente].subtotal_usd * tasaUsdActual;
+            listaProductosCargados[indiceExistente].subtotal_bs = listaProductosCargados[indiceExistente].subtotal_usd * tCompra;
         } else {
             listaProductosCargados.push(itemRenglon);
         }
@@ -1126,6 +1288,7 @@ window.limpiarTablaProductos = limpiarTablaProductos;
 const renderizarTablaDetalles = function () {
     const $tbody = $("#contenedorFilasRecepcion");
     const $hiddenContainer = $("#contenedorInputsHiddenDetalles");
+    const esVes = monedaDocumentoActual === "VES";
     $tbody.empty();
     $hiddenContainer.empty();
 
@@ -1149,6 +1312,18 @@ const renderizarTablaDetalles = function () {
     listaProductosCargados.forEach((item, idx) => {
         const prod = item.producto;
         const bultosTexto = item.bultos > 0 ? `<small class="text-muted d-block font-monospace">(${item.bultos} blt x ${item.unidades_por_bulto})</small>` : "";
+
+        const costPrincipal = !esVes ? `$ ${parseFloat(item.costo_unitario_usd).toFixed(2)}` : `Bs. ${parseFloat(item.costo_unitario_bs).toFixed(2)}`;
+        const costSecundario = !esVes ? `Bs. ${parseFloat(item.costo_unitario_bs).toFixed(2)}` : `$ ${parseFloat(item.costo_unitario_usd).toFixed(2)}`;
+
+        const detalPrincipal = !esVes ? `$ ${parseFloat(item.precio_detal_usd).toFixed(2)}` : `Bs. ${parseFloat(item.precio_detal_bs).toFixed(2)}`;
+        const detalSecundario = !esVes ? `Bs. ${parseFloat(item.precio_detal_bs).toFixed(2)}` : `$ ${parseFloat(item.precio_detal_usd).toFixed(2)}`;
+
+        const mayorPrincipal = !esVes ? `$ ${parseFloat(item.precio_mayorista_usd).toFixed(2)}` : `Bs. ${parseFloat(item.precio_mayorista_bs).toFixed(2)}`;
+        const mayorSecundario = !esVes ? `Bs. ${parseFloat(item.precio_mayorista_bs).toFixed(2)}` : `$ ${parseFloat(item.precio_mayorista_usd).toFixed(2)}`;
+
+        const subtotalPrincipal = !esVes ? `$ ${parseFloat(item.subtotal_usd).toFixed(2)}` : `Bs. ${parseFloat(item.subtotal_bs).toFixed(2)}`;
+        const subtotalSecundario = !esVes ? `Bs. ${parseFloat(item.subtotal_bs).toFixed(2)}` : `$ ${parseFloat(item.subtotal_usd).toFixed(2)}`;
 
         const filaHtml = `
             <tr class="fila-producto-cargado align-middle">
@@ -1178,40 +1353,54 @@ const renderizarTablaDetalles = function () {
                     ${bultosTexto}
                 </td>
 
-                <!-- Costo Unitario ($ y Bs) -->
+                <!-- Costo Unitario -->
                 <td class="text-end font-monospace">
-                    <strong class="text-success d-block">$ ${parseFloat(item.costo_unitario_usd).toFixed(2)}</strong>
-                    <small class="text-muted" style="font-size: 0.72rem;">Bs. ${parseFloat(item.costo_unitario_bs).toFixed(2)}</small>
+                    <strong class="text-success d-block" style="font-size: 0.92rem;">${costPrincipal}</strong>
+                    <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.78rem; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">
+                        ${costSecundario}
+                    </span>
                 </td>
 
                 <!-- Descuento -->
                 <td class="text-center font-monospace small">
-                    ${item.descuento_porcentaje > 0 ? `<span class="badge rounded-pill bg-danger-subtle text-danger px-2 py-1">-${parseFloat(item.descuento_porcentaje)}%</span>` : '<span class="text-muted">0%</span>'}
+                    ${item.descuento_porcentaje > 0 ? `<span class="badge rounded-pill bg-danger-subtle text-danger px-2 py-1 fw-bold">-${parseFloat(item.descuento_porcentaje)}%</span>` : '<span class="text-muted">0%</span>'}
                 </td>
 
                 <!-- IVA -->
                 <td class="text-center font-monospace small">
-                    <span class="badge rounded-pill bg-light text-secondary border px-2 py-1">
+                    <span class="badge rounded-pill bg-light text-secondary border px-2 py-1 fw-semibold">
                         ${item.iva_porcentaje > 0 ? `IVA ${parseFloat(item.iva_porcentaje)}%` : 'Exento'}
                     </span>
                 </td>
 
                 <!-- Precio Detal -->
                 <td class="text-end font-monospace">
-                    <strong class="text-primary d-block">$ ${parseFloat(item.precio_detal_usd).toFixed(2)}</strong>
-                    <small class="text-muted" style="font-size: 0.72rem;">Bs. ${parseFloat(item.precio_detal_bs).toFixed(2)} <span class="badge bg-light text-secondary">(${parseFloat(item.margen_detal_porcentaje)}%)</span></small>
+                    <div class="d-flex align-items-center justify-content-end gap-1">
+                        <strong class="text-primary d-block" style="font-size: 0.92rem;">${detalPrincipal}</strong>
+                        <span class="badge rounded-pill bg-light text-secondary border px-1.5 py-0" style="font-size: 0.70rem;">${parseFloat(item.margen_detal_porcentaje)}%</span>
+                    </div>
+                    <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.78rem; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">
+                        ${detalSecundario}
+                    </span>
                 </td>
 
                 <!-- Precio Mayorista -->
                 <td class="text-end font-monospace">
-                    <strong style="color: #7e22ce;" class="d-block">$ ${parseFloat(item.precio_mayorista_usd).toFixed(2)}</strong>
-                    <small class="text-muted" style="font-size: 0.72rem;">Bs. ${parseFloat(item.precio_mayorista_bs).toFixed(2)} <span class="badge bg-light text-secondary">(${parseFloat(item.margen_mayorista_porcentaje)}%)</span></small>
+                    <div class="d-flex align-items-center justify-content-end gap-1">
+                        <strong style="color: #7e22ce;" class="d-block" style="font-size: 0.92rem;">${mayorPrincipal}</strong>
+                        <span class="badge rounded-pill bg-light text-secondary border px-1.5 py-0" style="font-size: 0.70rem;">${parseFloat(item.margen_mayorista_porcentaje)}%</span>
+                    </div>
+                    <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.78rem; background-color: #faf5ff; color: #6b21a8; border: 1px solid #e9d5ff;">
+                        ${mayorSecundario}
+                    </span>
                 </td>
 
                 <!-- Subtotal -->
                 <td class="text-end font-monospace">
-                    <strong class="text-dark d-block" style="font-size: 0.92rem;">$ ${parseFloat(item.subtotal_usd).toFixed(2)}</strong>
-                    <small class="text-muted" style="font-size: 0.72rem;">Bs. ${parseFloat(item.subtotal_bs).toFixed(2)}</small>
+                    <strong class="text-dark d-block" style="font-size: 0.95rem;">${subtotalPrincipal}</strong>
+                    <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.78rem; background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">
+                        ${subtotalSecundario}
+                    </span>
                 </td>
 
                 <!-- Acciones -->
@@ -1281,7 +1470,7 @@ const recalcularTotalesGenerales = function () {
     const totalDescuentosTotalUsd = totalDescuentosItemsUsd + descGlobalMontoUsd;
 
     const totalGeneralUsd = subtotalNetoUsd + totalIvaUsd;
-    const totalGeneralBs = totalGeneralUsd * tasaUsdActual;
+    const totalGeneralBs = totalGeneralUsd * (tasaCompraActual > 0 ? tasaCompraActual : tasaUsdActual);
 
     $("#resumenTotalUnidades").text(totalUnidades.toLocaleString());
     $("#resumenMontoBrutoUsd").text(`$ ${montoBrutoUsd.toFixed(2)}`);
@@ -1311,8 +1500,15 @@ const crear = function () {
     limpiarTablaProductos();
     volverAFase1();
 
+    tasaCompraActual = tasaUsdActual;
+    tasaVentaActual = tasaUsdActual;
+
     $("#badgeTasaCambio").text(tasaUsdActual.toFixed(4));
     $("#tasa_cambio").val(tasaUsdActual.toFixed(4));
+    $("#tasa_compra").val(tasaCompraActual.toFixed(4));
+    $("#tasa_venta").val(tasaVentaActual.toFixed(4));
+    $("#badgeTasaCompraFase2").text(tasaCompraActual.toFixed(4));
+    $("#badgeTasaVentaFase2").text(tasaVentaActual.toFixed(4));
     $("#badgeCodigoRecepcion").html(`<i class="fas fa-hashtag me-1"></i>${catalogosSistema.proximo_codigo || "REC-00001"}`);
 
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRecepcion"));

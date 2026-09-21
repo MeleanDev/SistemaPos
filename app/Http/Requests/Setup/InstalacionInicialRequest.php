@@ -33,6 +33,7 @@ class InstalacionInicialRequest extends FormRequest
             'empresa_telefono_numero' => ['nullable', 'string', 'max:20'],
             'empresa_correo' => ['nullable', 'email', 'max:150'],
             'empresa_logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,svg', 'max:2048'],
+            'empresa_maneja_motos' => ['nullable', 'boolean'],
 
             // Datos del SuperAdministrador
             'admin_tipo_cedula' => ['required', 'string'],

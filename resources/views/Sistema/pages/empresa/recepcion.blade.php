@@ -166,7 +166,7 @@
                                                     </div>
                                                     <div>
                                                         <h6 class="fw-bold text-dark mb-0">Facturado en Dólares ($ USD)</h6>
-                                                        <small class="text-muted">Los costos se ingresan en $ y el sistema calcula los valores en Bolívares.</small>
+                                                        <small class="text-muted">Los costos y precios se expresan en $ y el sistema calcula automáticamente los valores en Bolívares.</small>
                                                     </div>
                                                 </div>
                                                 <div class="form-check m-0">
@@ -185,12 +185,45 @@
                                                     </div>
                                                     <div>
                                                         <h6 class="fw-bold text-dark mb-0">Facturado en Bolívares (Bs. VES)</h6>
-                                                        <small class="text-muted">Los costos se ingresan en Bs. y el sistema calcula los valores en Dólares a la tasa oficial.</small>
+                                                        <small class="text-muted">Los costos y precios se expresan en Bs. y el sistema calcula automáticamente los valores en Dólares.</small>
                                                     </div>
                                                 </div>
                                                 <div class="form-check m-0">
                                                     <input class="form-check-input" type="radio" name="moneda_factura_radio" id="radio_ves" value="VES" onchange="seleccionarMonedaDocumento('VES')">
                                                 </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- CAMPOS EJECUTIVOS PARA TASA DE COMPRA Y TASA DE VENTA -->
+                                <div class="mt-3 pt-3 border-top">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label-executive">
+                                                <i class="fas fa-shopping-cart text-warning me-1"></i> Tasa de Compra (Bs. / $) <span class="text-danger">*</span>
+                                                <small class="text-muted fw-normal">(Tasa del proveedor)</small>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white text-dark fw-bold font-monospace">Bs.</span>
+                                                <input type="number" step="any" min="0.0001" name="tasa_compra" id="tasa_compra" class="form-control form-control-executive font-monospace fw-bold" placeholder="1.0000" value="1.0000" oninput="actualizarTasasDesdeInput()" required>
+                                                <button type="button" class="btn btn-outline-secondary rounded-end-pill px-3" onclick="restablecerTasaOficial('compra')" title="Restablecer a tasa oficial">
+                                                    <i class="fas fa-sync-alt small"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label-executive">
+                                                <i class="fas fa-cash-register text-success me-1"></i> Tasa de Venta (Bs. / $) <span class="text-danger">*</span>
+                                                <small class="text-muted fw-normal">(Tasa oficial de fijación PVP)</small>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white text-success fw-bold font-monospace">Bs.</span>
+                                                <input type="number" step="any" min="0.0001" name="tasa_venta" id="tasa_venta" class="form-control form-control-executive font-monospace fw-bold" placeholder="1.0000" value="1.0000" oninput="actualizarTasasDesdeInput()" required>
+                                                <button type="button" class="btn btn-outline-secondary rounded-end-pill px-3" onclick="restablecerTasaOficial('venta')" title="Restablecer a tasa oficial">
+                                                    <i class="fas fa-sync-alt small"></i>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -318,6 +351,12 @@
                                         <span class="badge rounded-pill px-3 py-2 fw-semibold" id="badgeAlmFase2" style="background-color: #f8fafc; color: #475569; border: 1px solid #cbd5e1;">
                                             <i class="fas fa-warehouse text-secondary me-1"></i> Almacén: --
                                         </span>
+                                        <span class="badge rounded-pill px-3 py-2 fw-semibold" style="background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;">
+                                            <i class="fas fa-shopping-cart text-warning me-1"></i> T. Compra: <strong class="font-monospace" id="badgeTasaCompraFase2">1.0000</strong> Bs.
+                                        </span>
+                                        <span class="badge rounded-pill px-3 py-2 fw-semibold" style="background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">
+                                            <i class="fas fa-cash-register text-success me-1"></i> T. Venta: <strong class="font-monospace" id="badgeTasaVentaFase2">1.0000</strong> Bs.
+                                        </span>
                                     </div>
 
                                     <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 fw-semibold" onclick="volverAFase1()">
@@ -443,25 +482,30 @@
                                             <input type="number" step="any" id="form_renglon_cantidad" class="form-control form-control-executive font-monospace fw-bold text-center bg-light text-primary border-primary" placeholder="0" value="0" readonly tabindex="-1" title="Calculado automáticamente: Bultos * Unid./Bulto">
                                         </div>
 
-                                        <!-- Costo por Bulto (Obligatorio) -->
+                                        <!-- Costo Total del Producto / Factura (Obligatorio) -->
                                         <div class="col-md-3">
-                                            <label class="form-label-executive"><i class="fas fa-tag text-success"></i> Costo por Bulto <span class="text-danger">*</span></label>
+                                            <label class="form-label-executive"><i class="fas fa-tag text-success"></i> Costo del Producto / Factura <span class="text-danger">*</span></label>
                                             <div class="input-group">
                                                 <span class="input-group-text bg-white label-simbolo-moneda-fac text-success fw-bold">$</span>
                                                 <input type="number" step="any" min="0.0001" id="form_renglon_costo_bulto" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.00" oninput="calcularCostoDesdeBulto()">
                                             </div>
+                                            <small class="text-muted font-monospace d-block mt-1" style="font-size: 0.72rem;">
+                                                Monto total pagado por las unidades
+                                            </small>
                                         </div>
 
-                                        <!-- Costo Unitario de Compra (Cálculo Automático) -->
+                                        <!-- Costo Unitario de Compra (Cálculo Automático: Costo / Cantidad Total) -->
                                         <div class="col-md-3">
                                             <label class="form-label-executive"><i class="fas fa-dollar-sign text-secondary"></i> Costo Unitario Calculado</label>
                                             <div class="input-group">
                                                 <span class="input-group-text bg-light label-simbolo-moneda-fac">$</span>
-                                                <input type="number" step="any" min="0" id="form_renglon_costo_unitario" class="form-control form-control-executive font-monospace text-end bg-light" placeholder="0.00" readonly tabindex="-1">
+                                                <input type="number" step="any" min="0" id="form_renglon_costo_unitario" class="form-control form-control-executive font-monospace text-end bg-light fw-bold text-dark" placeholder="0.00" readonly tabindex="-1">
                                             </div>
-                                            <small class="text-muted font-monospace d-block mt-1 text-end" id="form_renglon_costo_equivalente" style="font-size: 0.72rem;">
-                                                Equiv: Bs. 0.00
-                                            </small>
+                                            <div class="mt-1 text-end">
+                                                <span class="badge rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs d-inline-block" id="form_renglon_costo_equivalente" style="background-color: #ecfdf5; color: #047857; border: 1.5px solid #6ee7b7; font-size: 0.95rem;">
+                                                    Equiv: Bs. 0.00
+                                                </span>
+                                            </div>
                                         </div>
 
                                         <!-- Descuento Comercial % -->
@@ -495,12 +539,14 @@
                                         <div class="col-md-3">
                                             <label class="form-label-executive"><i class="fas fa-store text-primary"></i> Nuevo Precio Detal</label>
                                             <div class="input-group">
-                                                <span class="input-group-text bg-white text-primary fw-bold">$</span>
+                                                <span class="input-group-text bg-white text-primary fw-bold label-simbolo-moneda-fac">$</span>
                                                 <input type="number" step="any" min="0" id="form_renglon_precio_detal" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.00" oninput="calcularMargenDetalDesdePrecio()">
                                             </div>
-                                            <small class="text-muted font-monospace d-block mt-1 text-end" id="form_renglon_detal_bs" style="font-size: 0.72rem;">
-                                                Bs. 0.00
-                                            </small>
+                                            <div class="mt-1 text-end">
+                                                <span class="badge rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs d-inline-block" id="form_renglon_detal_bs" style="background-color: #eff6ff; color: #1d4ed8; border: 1.5px solid #93c5fd; font-size: 0.98rem;">
+                                                    Bs. 0.00
+                                                </span>
+                                            </div>
                                         </div>
 
                                         <!-- Margen Mayorista % & Nuevo Precio Mayorista -->
@@ -515,20 +561,24 @@
                                         <div class="col-md-3">
                                             <label class="form-label-executive" style="color: #7e22ce;"><i class="fas fa-truck-moving"></i> Nuevo Precio Mayorista</label>
                                             <div class="input-group">
-                                                <span class="input-group-text bg-white fw-bold" style="color: #7e22ce;">$</span>
+                                                <span class="input-group-text bg-white fw-bold label-simbolo-moneda-fac" style="color: #7e22ce;">$</span>
                                                 <input type="number" step="any" min="0" id="form_renglon_precio_mayorista" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.00" oninput="calcularMargenMayoristaDesdePrecio()">
                                             </div>
-                                            <small class="text-muted font-monospace d-block mt-1 text-end" id="form_renglon_mayorista_bs" style="font-size: 0.72rem;">
-                                                Bs. 0.00
-                                            </small>
+                                            <div class="mt-1 text-end">
+                                                <span class="badge rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs d-inline-block" id="form_renglon_mayorista_bs" style="background-color: #faf5ff; color: #6b21a8; border: 1.5px solid #d8b4fe; font-size: 0.98rem;">
+                                                    Bs. 0.00
+                                                </span>
+                                            </div>
                                         </div>
 
                                         <!-- Subtotal Renglón & Botón de Inserción -->
                                         <div class="col-md-4 d-flex align-items-center justify-content-between p-3 bg-white rounded-3 border">
                                             <div>
                                                 <span class="text-muted small d-block">Subtotal Renglón Neto:</span>
-                                                <h5 class="fw-bold mb-0 text-dark font-monospace" id="form_renglon_subtotal_usd">$ 0.00</h5>
-                                                <small class="text-muted font-monospace" id="form_renglon_subtotal_bs">Bs. 0.00</small>
+                                                <h5 class="fw-bold mb-1 text-dark font-monospace" id="form_renglon_subtotal_usd">$ 0.00</h5>
+                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs d-inline-block" id="form_renglon_subtotal_bs" style="background-color: #f8fafc; color: #0f172a; border: 1.5px solid #cbd5e1; font-size: 0.95rem;">
+                                                    Bs. 0.00
+                                                </span>
                                             </div>
                                             <div class="d-flex gap-2">
                                                 <button type="button" class="btn btn-outline-secondary rounded-pill px-3 py-2 fw-semibold" onclick="cancelarEdicionRenglon()">
@@ -651,7 +701,7 @@
 
                 <!-- FOOTER DEL MODAL -->
                 <div class="modal-footer bg-light border-0 py-3 px-4 rounded-bottom-4 d-flex justify-content-between">
-                    <button type="button" class="btn btn-executive-cancel" data-bs-dismiss="modal">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">
                         <i class="fas fa-times me-1"></i> Cancelar
                     </button>
                     
@@ -659,11 +709,11 @@
                         <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-semibold" id="btnVolverFase1Footer" style="display: none;" onclick="volverAFase1()">
                             <i class="fas fa-arrow-left me-1"></i> Volver a Fase 1
                         </button>
-                        <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold" id="btnAvanzarFase2Footer" onclick="avanzarAFase2()">
+                        <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" id="btnAvanzarFase2Footer" onclick="avanzarAFase2()">
                             <span>Continuar a Fase 2</span> <i class="fas fa-arrow-right ms-1"></i>
                         </button>
-                        <button type="button" class="btn btn-executive-submit" id="btnGuardarRecepcion" style="display: none;" onclick="guardarRecepcion()">
-                            <i class="fas fa-check-circle me-1"></i> Procesar Recepción e Ingresar al Inventario
+                        <button type="button" class="btn btn-success rounded-pill px-4 py-2 fw-bold shadow-sm d-flex align-items-center gap-2" id="btnGuardarRecepcion" style="display: none;" onclick="guardarRecepcion()">
+                            <i class="fas fa-check-double me-1"></i> Procesar Recepción e Ingresar al Inventario
                         </button>
                     </div>
                 </div>

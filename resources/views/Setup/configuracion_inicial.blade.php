@@ -688,6 +688,24 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Giro de Negocio: Módulo de Motos y Seriales Únicos -->
+                    <div class="col-12">
+                        <div class="p-3 rounded-4 border bg-light d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center bg-white shadow-sm text-primary" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                                    <i class="fas fa-motorcycle"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-dark">¿Esta empresa comercializa Motos o Vehículos?</h6>
+                                    <p class="mb-0 text-muted small">Habilita el módulo de recepción y control por seriales únicos (N.I.V., Chasis, Motor, Certificado de Origen).</p>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch fs-4 mb-0">
+                                <input class="form-check-input" type="checkbox" role="switch" id="empresa_maneja_motos" name="empresa_maneja_motos" value="1">
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="wizard-footer-actions justify-content-end">

@@ -71,6 +71,7 @@ class ConfiguracionInicialController extends Controller
                 'telefono' => $telefonoEmpresa,
                 'correo' => $request->empresa_correo ? trim($request->empresa_correo) : null,
                 'logo' => $logoPath,
+                'maneja_motos' => $request->boolean('empresa_maneja_motos'),
                 'estado' => true,
             ]);
 

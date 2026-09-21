@@ -7,9 +7,12 @@ use App\Http\Controllers\Empresa\CategoriaController;
 use App\Http\Controllers\Empresa\ClienteController;
 use App\Http\Controllers\Empresa\ConfiguracionController;
 use App\Http\Controllers\Empresa\MetodoPagoController;
+use App\Http\Controllers\Empresa\MotoController;
+use App\Http\Controllers\Empresa\PosController;
 use App\Http\Controllers\Empresa\ProductoController;
 use App\Http\Controllers\Empresa\ProveedorController;
 use App\Http\Controllers\Empresa\RecepcionController;
+use App\Http\Controllers\Empresa\RecepcionMotoController;
 use App\Http\Controllers\Empresa\ServicioController;
 use App\Http\Controllers\PanelPrincipalController;
 use App\Http\Controllers\ProfileController;
@@ -19,6 +22,21 @@ Route::middleware('auth')->group(function () {
 
     Route::controller(PanelPrincipalController::class)->group(function () {
         Route::get('/panel-principal', 'index')->name('dashboard');
+    });
+
+    Route::controller(PosController::class)->group(function () {
+        Route::get('/pos', 'index')->name('pos');
+        Route::get('/pos/datos', 'datos');
+        Route::get('/pos/buscar-clientes', 'buscarClientes');
+        Route::post('/pos/guardar-cliente-rapido', 'guardarClienteRapido');
+        Route::post('/pos/guardar', 'guardar');
+        Route::post('/pos/en-espera/guardar', 'guardarEnEspera');
+        Route::get('/pos/en-espera/lista', 'listarEnEspera');
+        Route::get('/pos/en-espera/{id}/recuperar', 'recuperarEnEspera');
+        Route::delete('/pos/en-espera/{id}', 'eliminarEnEspera');
+        Route::get('/pos/devolucion/buscar', 'buscarFacturaDevolucion');
+        Route::post('/pos/devolucion/procesar', 'procesarDevolucion');
+        Route::get('/pos/imprimir/{id}', 'imprimir')->name('pos.imprimir');
     });
 
     Route::controller(ConfiguracionController::class)->group(function () {
@@ -38,6 +56,14 @@ Route::middleware('auth')->group(function () {
         Route::delete('/productos/{id}', 'eliminar');
     });
 
+    Route::controller(MotoController::class)->group(function () {
+        Route::get('/motos', 'index')->name('moto');
+        Route::get('/motos/lista', 'lista');
+        Route::get('/motos/{id}', 'detalle');
+        Route::put('/motos/actualizar/{id}', 'actualizar');
+        Route::post('/motos/{id}/cambiar-estado', 'cambiarEstado');
+    });
+
     Route::controller(RecepcionController::class)->group(function () {
         Route::get('/recepciones', 'index')->name('recepcion');
         Route::get('/recepciones/lista', 'lista');
@@ -46,6 +72,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/recepciones/{id}/imprimir', 'imprimir')->name('recepcion.imprimir');
         Route::post('/recepciones', 'guardar');
         Route::post('/recepciones/{id}/anular', 'anular');
+    });
+
+    Route::controller(RecepcionMotoController::class)->group(function () {
+        Route::get('/recepciones-motos', 'index')->name('recepcion_moto');
+        Route::get('/recepciones-motos/lista', 'lista');
+        Route::get('/recepciones-motos/catalogos', 'catalogos');
+        Route::get('/recepciones-motos/{id}', 'detalle');
+        Route::get('/recepciones-motos/{id}/imprimir', 'imprimir')->name('recepcion_moto.imprimir');
+        Route::post('/recepciones-motos', 'guardar');
+        Route::post('/recepciones-motos/{id}/anular', 'anular');
     });
 
     Route::controller(ServicioController::class)->group(function () {

@@ -5,6 +5,7 @@ namespace App\Service\Empresa;
 use App\Models\Almacen;
 use App\Models\Categoria;
 use App\Models\EmpresaMoneda;
+use App\Models\Kardex;
 use App\Models\Producto;
 use App\Models\ProductoCodigoBarra;
 use App\Models\ProductoProveedor;
@@ -52,16 +53,72 @@ class ProductoClass
     }
 
     /**
-     * Ficha técnica 360° y detalle completo de un producto
+     * Generar código interno numérico autoincrementable por empresa
      */
-    public function detalle(int $id, int $empresaId): Producto
+    public function generarCodigoInterno(int $empresaId): string
     {
-        return Producto::with([
+        $productos = Producto::where('empresa_id', $empresaId)->get(['id', 'codigo_interno']);
+        $maxNum = 0;
+
+        foreach ($productos as $p) {
+            $cod = trim($p->codigo_interno ?? '');
+            if (is_numeric($cod)) {
+                $val = (int) $cod;
+                if ($val > $maxNum) {
+                    $maxNum = $val;
+                }
+            } elseif (preg_match('/(\d+)/', $cod, $matches)) {
+                $val = (int) $matches[1];
+                if ($val > $maxNum) {
+                    $maxNum = $val;
+                }
+            }
+        }
+
+        return (string) ($maxNum + 1);
+    }
+
+    /**
+     * Ficha técnica 360° y detalle completo de un producto con historial de Kardex
+     */
+    public function detalle(int $id, int $empresaId): array
+    {
+        $producto = Producto::with([
             'categoria',
             'codigosBarra',
             'productoProveedores.proveedor',
             'stockAlmacenes.almacen',
         ])->where('empresa_id', $empresaId)->findOrFail($id);
+
+        // Cargar historial de movimientos de Kardex recientes del producto
+        $movimientos = Kardex::with(['almacen', 'usuario'])
+            ->where('empresa_id', $empresaId)
+            ->where('producto_id', $id)
+            ->orderBy('id', 'desc')
+            ->limit(30)
+            ->get()
+            ->map(function ($k) {
+                return [
+                    'id' => $k->id,
+                    'fecha' => $k->created_at ? $k->created_at->format('Y-m-d h:i A') : '--',
+                    'almacen_nombre' => $k->almacen?->nombre ?? 'Almacén',
+                    'tipo_movimiento' => $k->tipo_movimiento,
+                    'documento_tipo' => $k->documento_tipo,
+                    'documento_id' => $k->documento_id,
+                    'cantidad' => (float) $k->cantidad,
+                    'stock_anterior' => (float) $k->stock_anterior,
+                    'stock_nuevo' => (float) $k->stock_nuevo,
+                    'costo_unitario_usd' => (float) $k->costo_unitario_usd,
+                    'costo_unitario_bs' => (float) $k->costo_unitario_bs,
+                    'motivo' => $k->motivo,
+                    'usuario_nombre' => $k->usuario?->name ?? 'Sistema',
+                ];
+            });
+
+        $prodArray = $producto->toArray();
+        $prodArray['movimientos_kardex'] = $movimientos;
+
+        return $prodArray;
     }
 
     /**
@@ -70,6 +127,11 @@ class ProductoClass
     public function guardar(array $datos, int $empresaId): Producto
     {
         return DB::transaction(function () use ($datos, $empresaId) {
+            // Asignar código interno numérico autoincrementable si no viene proporcionado
+            if (empty($datos['codigo_interno'])) {
+                $datos['codigo_interno'] = $this->generarCodigoInterno($empresaId);
+            }
+
             $datos = $this->prepararDatos($datos, $empresaId);
 
             // Buscar si existía inactivo para reactivar
@@ -109,8 +171,14 @@ class ProductoClass
     public function actualizar(array $datos, int $id, int $empresaId): Producto
     {
         return DB::transaction(function () use ($datos, $id, $empresaId) {
-            $datos = $this->prepararDatos($datos, $empresaId);
             $producto = Producto::where('empresa_id', $empresaId)->findOrFail($id);
+
+            // Preservar código interno numérico si no fue modificado
+            if (empty($datos['codigo_interno'])) {
+                $datos['codigo_interno'] = $producto->codigo_interno;
+            }
+
+            $datos = $this->prepararDatos($datos, $empresaId);
 
             $producto->update($datos);
 
@@ -140,21 +208,24 @@ class ProductoClass
     }
 
     /**
-     * Sincronizar códigos de barra opcionales
+     * Sincronizar códigos de barra / QR opcionales
      */
     private function sincronizarCodigosBarra(Producto $producto, array $codigos, int $empresaId): void
     {
         $producto->codigosBarra()->delete();
 
+        $procesados = [];
         foreach ($codigos as $item) {
             $codigo = is_array($item) ? ($item['codigo'] ?? null) : $item;
             $descripcion = is_array($item) ? ($item['descripcion'] ?? null) : null;
+            $codigoLimpio = ! empty($codigo) ? trim($codigo) : null;
 
-            if (! empty($codigo)) {
+            if ($codigoLimpio && ! in_array(mb_strtoupper($codigoLimpio), $procesados)) {
+                $procesados[] = mb_strtoupper($codigoLimpio);
                 ProductoCodigoBarra::create([
                     'producto_id' => $producto->id,
                     'empresa_id' => $empresaId,
-                    'codigo_barra' => trim($codigo),
+                    'codigo_barra' => $codigoLimpio,
                     'descripcion' => $descripcion ? trim($descripcion) : null,
                     'es_principal' => false,
                 ]);
@@ -238,6 +309,9 @@ class ProductoClass
         } elseif ($datos['precio_mayorista_bs'] > 0) {
             $datos['precio_mayorista_usd'] = round($datos['precio_mayorista_bs'] / $tasaUsd, 4);
         }
+
+        $datos['ultimo_margen_detal'] = isset($datos['ultimo_margen_detal']) && $datos['ultimo_margen_detal'] !== '' ? (float) $datos['ultimo_margen_detal'] : 30.00;
+        $datos['ultimo_margen_mayorista'] = isset($datos['ultimo_margen_mayorista']) && $datos['ultimo_margen_mayorista'] !== '' ? (float) $datos['ultimo_margen_mayorista'] : 15.00;
 
         $datos['tasa_cambio'] = $tasaUsd;
 

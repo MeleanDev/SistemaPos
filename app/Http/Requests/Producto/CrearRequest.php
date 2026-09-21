@@ -4,6 +4,7 @@ namespace App\Http\Requests\Producto;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class CrearRequest extends FormRequest
@@ -45,9 +46,8 @@ class CrearRequest extends FormRequest
                 Rule::exists('categorias', 'id')->where(fn ($q) => $q->where('empresa_id', $empresaId)->where('estado', true)),
             ],
             'codigo_interno' => [
-                'required',
+                'nullable',
                 'string',
-                'min:2',
                 'max:50',
                 Rule::unique('productos', 'codigo_interno')->where(fn ($q) => $q->where('empresa_id', $empresaId)->where('estado', true)),
             ],
@@ -63,11 +63,13 @@ class CrearRequest extends FormRequest
             'stock_minimo' => ['nullable', 'numeric', 'min:0'],
             'stock_maximo' => ['nullable', 'numeric', 'min:0'],
 
-            // Precios Multi-Moneda
+            // Precios & Costos Multi-Moneda
             'precio_costo_usd' => ['nullable', 'numeric', 'min:0'],
             'precio_costo_bs' => ['nullable', 'numeric', 'min:0'],
+            'ultimo_margen_detal' => ['nullable', 'numeric', 'min:0'],
             'precio_detal_usd' => ['nullable', 'numeric', 'min:0'],
             'precio_detal_bs' => ['nullable', 'numeric', 'min:0'],
+            'ultimo_margen_mayorista' => ['nullable', 'numeric', 'min:0'],
             'precio_mayorista_usd' => ['nullable', 'numeric', 'min:0'],
             'precio_mayorista_bs' => ['nullable', 'numeric', 'min:0'],
             'tasa_cambio' => ['nullable', 'numeric', 'min:0.0001'],
@@ -78,9 +80,24 @@ class CrearRequest extends FormRequest
             'aplica_igtf' => ['required', 'boolean'],
             'igtf_porcentaje' => ['nullable', 'numeric', 'min:0', 'max:100'],
 
-            // Códigos de barra opcionales
+            // Códigos de barra / QR opcionales con unicidad por empresa
             'codigos_barra' => ['nullable', 'array'],
-            'codigos_barra.*.codigo' => ['nullable', 'string', 'max:100'],
+            'codigos_barra.*.codigo' => [
+                'nullable',
+                'string',
+                'max:100',
+                'distinct:ignore_case',
+                Rule::unique('producto_codigos_barra', 'codigo_barra')
+                    ->where(function ($q) use ($empresaId) {
+                        $q->where('empresa_id', $empresaId)
+                            ->whereExists(function ($sub) {
+                                $sub->select(DB::raw(1))
+                                    ->from('productos')
+                                    ->whereColumn('productos.id', 'producto_codigos_barra.producto_id')
+                                    ->where('productos.estado', true);
+                            });
+                    }),
+            ],
             'codigos_barra.*.descripcion' => ['nullable', 'string', 'max:100'],
 
             // Proveedores opcionales
@@ -107,6 +124,8 @@ class CrearRequest extends FormRequest
             'nombre.required' => 'El nombre del producto o servicio es obligatorio.',
             'nombre.unique' => 'Ya existe un producto registrado con este nombre en tu empresa.',
             'unidad_medida.required' => 'Debe seleccionar una unidad de medida.',
+            'codigos_barra.*.codigo.distinct' => 'No puedes repetir el mismo código de barra o QR dentro del mismo producto.',
+            'codigos_barra.*.codigo.unique' => 'El código de barra o QR ya está asignado a otro producto en tu empresa.',
         ];
     }
 }

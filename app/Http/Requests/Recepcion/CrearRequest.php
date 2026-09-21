@@ -31,6 +31,8 @@ class CrearRequest extends FormRequest
             'condicion_pago' => ['required', 'string', 'in:contado,credito'],
             'dias_credito' => ['nullable', 'integer', 'min:0', 'max:365'],
             'tasa_cambio' => ['nullable', 'numeric', 'min:0.0001'],
+            'tasa_compra' => ['nullable', 'numeric', 'min:0.0001'],
+            'tasa_venta' => ['nullable', 'numeric', 'min:0.0001'],
             'monto_bruto_usd' => ['nullable', 'numeric', 'min:0'],
             'descuento_global_porcentaje' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'observaciones' => ['nullable', 'string', 'max:1000'],

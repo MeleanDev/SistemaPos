@@ -18,12 +18,14 @@ class Empresa extends Model
         'telefono',
         'correo',
         'logo',
+        'maneja_motos',
         'estado',
     ];
 
     protected function casts(): array
     {
         return [
+            'maneja_motos' => 'boolean',
             'estado' => 'boolean',
         ];
     }
@@ -76,5 +78,21 @@ class Empresa extends Model
     public function servicios(): HasMany
     {
         return $this->hasMany(Servicio::class, 'empresa_id');
+    }
+
+    /**
+     * Motos registradas para esta empresa
+     */
+    public function motos(): HasMany
+    {
+        return $this->hasMany(Moto::class, 'empresa_id');
+    }
+
+    /**
+     * Recepciones de motos de esta empresa
+     */
+    public function recepcionMotos(): HasMany
+    {
+        return $this->hasMany(RecepcionMoto::class, 'empresa_id');
     }
 }

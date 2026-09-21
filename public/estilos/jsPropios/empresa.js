@@ -178,6 +178,10 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
             ? `<a href="mailto:${empresa.correo}" class="contacto-item email mb-1 text-truncate" style="max-width: 100%;" title="${empresa.correo}"><i class="fas fa-envelope"></i><span class="text-truncate">${empresa.correo}</span></a>`
             : '<span class="text-muted small fst-italic" style="font-size: 0.78rem;"><i class="fas fa-minus text-muted opacity-50 me-1"></i>Sin correo</span>';
 
+        const motoBadgeHtml = empresa.maneja_motos
+            ? `<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fw-bold" style="font-size: 0.72rem;"><i class="fas fa-motorcycle me-1"></i>Motos & Seriales</span>`
+            : `<span class="badge rounded-pill bg-light text-muted border px-2 py-1" style="font-size: 0.72rem;"><i class="fas fa-boxes-stacked me-1"></i>Retail Estándar</span>`;
+
         const cardHtml = `
             <div class="col-md-6 col-xl-4">
                 <div class="card card-executive h-100 border-0 shadow-sm hover-lift transition-all" style="border-radius: 16px; overflow: hidden; border-top: 4px solid #4f46e5 !important;">
@@ -192,7 +196,10 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
                                         <div>${rif}</div>
                                     </div>
                                 </div>
-                                <span class="badge-activo" style="font-size: 0.75rem;"><i class="fas fa-check-circle me-1"></i>Activa</span>
+                                <div class="d-flex flex-column align-items-end gap-1">
+                                    <span class="badge-activo" style="font-size: 0.75rem;"><i class="fas fa-check-circle me-1"></i>Activa</span>
+                                    ${motoBadgeHtml}
+                                </div>
                             </div>
 
                             <hr class="my-3 opacity-10">
@@ -283,6 +290,7 @@ const crear = function () {
 
     $("#formularioEmpresa")[0].reset();
     resetPreviewLogo();
+    $("#maneja_motos").prop("checked", false);
     $("#formularioEmpresa")
         .find("input, select, textarea")
         .prop("disabled", false);
@@ -361,6 +369,7 @@ const llenarFormularioEmpresa = (data) => {
     $("#correo").val(data.correo || "");
     $("#direccion").val(data.direccion || "");
     $("#logo").val("");
+    $("#maneja_motos").prop("checked", !!data.maneja_motos);
 
     if (data.logo) {
         $("#previewLogo").attr("src", "/storage/" + data.logo).removeClass("d-none");
@@ -445,6 +454,8 @@ $("#formularioEmpresa").on("submit", function (e) {
             } else {
                 formData.delete("telefono");
             }
+
+            formData.set("maneja_motos", $("#maneja_motos").is(":checked") ? "1" : "0");
         },
         onSuccess: function () {
             cargarEmpresas();

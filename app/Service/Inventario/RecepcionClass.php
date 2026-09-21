@@ -112,6 +112,8 @@ class RecepcionClass
             'almacenes' => $almacenes,
             'categorias' => $categorias,
             'tasa_usd' => $tasaUsd,
+            'tasa_compra' => $tasaUsd,
+            'tasa_venta' => $tasaUsd,
             'productos' => $productos,
             'proximo_codigo' => $this->generarCodigo($empresaId),
         ];
@@ -137,11 +139,20 @@ class RecepcionClass
             $empresaId = $this->empresaId();
             $userId = Auth::id();
 
-            $tasaCambio = (float) ($datos['tasa_cambio'] ?? 1.0000);
-            if ($tasaCambio <= 0) {
-                $monedaUsd = EmpresaMoneda::where('empresa_id', $empresaId)->where('codigo', 'USD')->first();
-                $tasaCambio = $monedaUsd ? (float) $monedaUsd->tasa_cambio : 1.0000;
+            $monedaUsd = EmpresaMoneda::where('empresa_id', $empresaId)->where('codigo', 'USD')->first();
+            $tasaOficial = $monedaUsd ? (float) $monedaUsd->tasa_cambio : 1.0000;
+
+            $tasaCompra = (float) ($datos['tasa_compra'] ?? ($datos['tasa_cambio'] ?? $tasaOficial));
+            if ($tasaCompra <= 0) {
+                $tasaCompra = $tasaOficial;
             }
+
+            $tasaVenta = (float) ($datos['tasa_venta'] ?? ($datos['tasa_cambio'] ?? $tasaOficial));
+            if ($tasaVenta <= 0) {
+                $tasaVenta = $tasaOficial;
+            }
+
+            $tasaCambio = $tasaVenta;
 
             $almacenIdGlobal = (int) $datos['almacen_id'];
             $proveedorId = (int) $datos['proveedor_id'];
@@ -192,7 +203,7 @@ class RecepcionClass
                 $bultos = ! empty($item['bultos']) ? (float) $item['bultos'] : null;
                 $unidadesPorBulto = ! empty($item['unidades_por_bulto']) ? (float) $item['unidades_por_bulto'] : null;
                 $costoBultoUsd = (float) ($item['costo_bulto_usd'] ?? 0);
-                $costoBultoBs = round($costoBultoUsd * $tasaCambio, 4);
+                $costoBultoBs = round($costoBultoUsd * $tasaCompra, 4);
 
                 $costoAnteriorUsd = (float) $producto->precio_costo_usd;
                 $costoAnteriorBs = (float) $producto->precio_costo_bs;
@@ -211,14 +222,14 @@ class RecepcionClass
 
                 if ($descuentoPorcentaje > 0) {
                     $descuentoUsd = round($renglonBrutoUsd * ($descuentoPorcentaje / 100), 2);
-                    $descuentoBs = round($descuentoUsd * $tasaCambio, 2);
+                    $descuentoBs = round($descuentoUsd * $tasaCompra, 2);
                 }
 
                 $renglonSubtotalNetoUsd = round($renglonBrutoUsd - $descuentoUsd, 2);
-                $renglonSubtotalNetoBs = round($renglonSubtotalNetoUsd * $tasaCambio, 2);
+                $renglonSubtotalNetoBs = round($renglonSubtotalNetoUsd * $tasaCompra, 2);
                 $subtotalNetoUsd += $renglonSubtotalNetoUsd;
 
-                $costoUnitarioBs = round($costoUnitarioUsd * $tasaCambio, 4);
+                $costoUnitarioBs = round($costoUnitarioUsd * $tasaCompra, 4);
 
                 // IVA por producto
                 $aplicaIva = isset($item['aplica_iva']) ? (bool) $item['aplica_iva'] : (bool) $producto->aplica_iva;
@@ -228,18 +239,18 @@ class RecepcionClass
 
                 if ($aplicaIva && $ivaPorcentaje > 0) {
                     $ivaMontoUsd = round($renglonSubtotalNetoUsd * ($ivaPorcentaje / 100), 2);
-                    $ivaMontoBs = round($ivaMontoUsd * $tasaCambio, 2);
+                    $ivaMontoBs = round($ivaMontoUsd * $tasaCompra, 2);
                     $ivaTotalUsd += $ivaMontoUsd;
                 }
 
                 // Precios de Venta
                 $margenDetal = (float) ($item['margen_detal_porcentaje'] ?? $producto->ultimo_margen_detal ?? 30);
-                $precioDetalUsd = (float) ($item['precio_detal_usd'] ?? ($costoUnitarioUsd * (1 + ($margenDetal / 100))));
-                $precioDetalBs = round($precioDetalUsd * $tasaCambio, 4);
+                $precioDetalUsd = (float) ($item['precio_detal_usd'] ?? ($costoUnitarioUsd * (1 + ($margenDetal / 100)) * $tasaCompra / $tasaVenta));
+                $precioDetalBs = round($precioDetalUsd * $tasaVenta, 4);
 
                 $margenMayorista = (float) ($item['margen_mayorista_porcentaje'] ?? $producto->ultimo_margen_mayorista ?? 15);
-                $precioMayoristaUsd = (float) ($item['precio_mayorista_usd'] ?? ($costoUnitarioUsd * (1 + ($margenMayorista / 100))));
-                $precioMayoristaBs = round($precioMayoristaUsd * $tasaCambio, 4);
+                $precioMayoristaUsd = (float) ($item['precio_mayorista_usd'] ?? ($costoUnitarioUsd * (1 + ($margenMayorista / 100)) * $tasaCompra / $tasaVenta));
+                $precioMayoristaBs = round($precioMayoristaUsd * $tasaVenta, 4);
 
                 $detallesAProcesar[] = [
                     'producto' => $producto,
@@ -284,13 +295,13 @@ class RecepcionClass
             $descuentoGlobalBs = 0;
             if ($descuentoGlobalPorcentaje > 0) {
                 $descuentoGlobalUsd = round($subtotalNetoUsd * ($descuentoGlobalPorcentaje / 100), 2);
-                $descuentoGlobalBs = round($descuentoGlobalUsd * $tasaCambio, 2);
+                $descuentoGlobalBs = round($descuentoGlobalUsd * $tasaCompra, 2);
                 $subtotalNetoUsd = round($subtotalNetoUsd - $descuentoGlobalUsd, 2);
             }
 
             $totalUsd = round($subtotalNetoUsd + $ivaTotalUsd, 2);
-            $totalBs = round($totalUsd * $tasaCambio, 2);
-            $montoBrutoBs = round($montoBrutoUsd * $tasaCambio, 2);
+            $totalBs = round($totalUsd * $tasaCompra, 2);
+            $montoBrutoBs = round($montoBrutoUsd * $tasaCompra, 2);
 
             // 1. Crear Recepción Encabezado
             $recepcion = Recepcion::create([
@@ -308,6 +319,8 @@ class RecepcionClass
                 'dias_credito' => $diasCredito,
                 'fecha_vencimiento' => $fechaVencimiento,
                 'tasa_cambio' => $tasaCambio,
+                'tasa_compra' => $tasaCompra,
+                'tasa_venta' => $tasaVenta,
                 'moneda_documento' => $monedaDocumento,
                 'monto_bruto_usd' => $montoBrutoUsd,
                 'monto_bruto_bs' => $montoBrutoBs,

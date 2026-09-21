@@ -63,6 +63,24 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Switch: Módulo de Motos y Seriales Únicos -->
+                <div class="col-12">
+                    <div class="p-3 rounded-4 border bg-light d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center bg-white shadow-sm text-primary" style="width: 40px; height: 40px; font-size: 1.15rem;">
+                                <i class="fas fa-motorcycle"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.9rem;">¿Maneja Motos / Seriales Únicos?</h6>
+                                <p class="mb-0 text-muted small" style="font-size: 0.78rem;">Habilita el módulo de recepción y control por N.I.V., Chasis, Motor y Certificado de Origen.</p>
+                            </div>
+                        </div>
+                        <div class="form-check form-switch fs-4 mb-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="maneja_motos" name="maneja_motos" value="1">
+                        </div>
+                    </div>
+                </div>
             </div>
         </form>
     </x-modal>

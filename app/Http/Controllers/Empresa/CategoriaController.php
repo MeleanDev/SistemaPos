@@ -7,6 +7,7 @@ use App\Http\Requests\Categoria\ActualizarRequest;
 use App\Http\Requests\Categoria\CrearRequest;
 use App\Service\Empresa\CategoriaClass;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -25,8 +26,13 @@ class CategoriaController extends Controller
         return $empresa->id;
     }
 
-    public function index(): View
+    public function index(): View|RedirectResponse
     {
+        $empresa = Auth::user()?->empresaActiva();
+        if ($empresa && $empresa->maneja_motos) {
+            return redirect()->route('moto');
+        }
+
         return view('Sistema.pages.empresa.categoria');
     }
 

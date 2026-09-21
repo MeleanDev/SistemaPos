@@ -19,6 +19,7 @@ class EmpresaClass
             'telefono',
             'correo',
             'logo',
+            'maneja_motos',
             'estado',
             'created_at'
         )->where('estado', true);
@@ -34,6 +35,8 @@ class EmpresaClass
         if (isset($datos['logo']) && $datos['logo'] instanceof UploadedFile) {
             $datos['logo'] = $datos['logo']->store('empresas', 'public');
         }
+
+        $datos['maneja_motos'] = ! empty($datos['maneja_motos']);
 
         $existenteInactivo = Empresa::where('rif', $datos['rif'])
             ->orWhere('nombre', $datos['nombre'])
@@ -64,6 +67,8 @@ class EmpresaClass
         } else {
             unset($datos['logo']);
         }
+
+        $datos['maneja_motos'] = ! empty($datos['maneja_motos']);
 
         $empresa->update($datos);
 

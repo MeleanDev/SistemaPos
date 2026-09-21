@@ -52,6 +52,7 @@ class CrearRequest extends FormRequest
             'telefono' => ['nullable', 'string', 'max:25'],
             'correo' => ['nullable', 'email', 'max:150'],
             'logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,svg', 'max:2048'],
+            'maneja_motos' => ['nullable', 'boolean'],
         ];
     }
 
