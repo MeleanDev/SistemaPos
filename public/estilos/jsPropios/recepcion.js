@@ -1955,17 +1955,16 @@ const abrirModalRapidoProducto = function (query = "") {
         const esCodigoBarra = /^\d{6,}$/.test(query);
         if (esCodigoBarra) {
             $("#rapido_prod_barcode").val(query);
-            $("#rapido_prod_codigo").val("PROD-" + Math.floor(1000 + Math.random() * 9000));
+            $("#rapido_prod_codigo").val("");
             $("#rapido_prod_nombre").val("");
             setTimeout(() => $("#rapido_prod_nombre").focus(), 300);
         } else {
             $("#rapido_prod_nombre").val(query);
-            const prefijo = query.replace(/[^a-zA-Z0-9]/g, "").substring(0, 4).toUpperCase();
-            $("#rapido_prod_codigo").val((prefijo ? prefijo : "PROD") + "-" + Math.floor(1000 + Math.random() * 9000));
+            $("#rapido_prod_codigo").val("");
             setTimeout(() => $("#rapido_prod_categoria_id").focus(), 300);
         }
     } else {
-        $("#rapido_prod_codigo").val("PROD-" + Math.floor(1000 + Math.random() * 9000));
+        $("#rapido_prod_codigo").val("");
         setTimeout(() => $("#rapido_prod_nombre").focus(), 300);
     }
 

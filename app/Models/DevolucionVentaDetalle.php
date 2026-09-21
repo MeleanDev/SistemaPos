@@ -16,7 +16,11 @@ class DevolucionVentaDetalle extends Model
         'devolucion_venta_id',
         'venta_detalle_id',
         'producto_id',
+        'moto_id',
+        'servicio_id',
         'almacen_id',
+        'nombre_item',
+        'serial_identificador',
         'cantidad',
         'precio_unitario_usd',
         'precio_unitario_bs',
@@ -45,6 +49,16 @@ class DevolucionVentaDetalle extends Model
     public function producto(): BelongsTo
     {
         return $this->belongsTo(Producto::class, 'producto_id');
+    }
+
+    public function moto(): BelongsTo
+    {
+        return $this->belongsTo(Moto::class, 'moto_id');
+    }
+
+    public function servicio(): BelongsTo
+    {
+        return $this->belongsTo(Servicio::class, 'servicio_id');
     }
 
     public function almacen(): BelongsTo

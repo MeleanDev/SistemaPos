@@ -818,8 +818,8 @@
 
             <div class="row g-3">
                 <div class="col-md-6">
-                    <x-input name="codigo_interno" id="rapido_prod_codigo" label="Código Interno / SKU" icon="fas fa-hashtag"
-                        placeholder="Ej. PROD-00123" required maxlength="50" />
+                    <x-input name="codigo_interno" id="rapido_prod_codigo" label="Código Interno Numérico" icon="fas fa-hashtag"
+                        placeholder="[Generado automáticamente]" readonly maxlength="50" optionalText="Numérico auto" />
                 </div>
                 <div class="col-md-6">
                     <x-input name="codigo_barra_principal" id="rapido_prod_barcode" label="Código de Barras" icon="fas fa-barcode"

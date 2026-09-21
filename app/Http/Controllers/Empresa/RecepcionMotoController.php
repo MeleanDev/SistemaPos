@@ -10,7 +10,6 @@ use App\Models\Proveedor;
 use App\Service\Inventario\RecepcionMotoClass;
 use Exception;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -21,13 +20,8 @@ class RecepcionMotoController extends Controller
         private RecepcionMotoClass $recepcionMotoService
     ) {}
 
-    public function index(): View|RedirectResponse
+    public function index(): View
     {
-        $empresa = Auth::user()?->empresaActiva();
-        if ($empresa && ! $empresa->maneja_motos) {
-            return redirect()->route('recepcion');
-        }
-
         return view('Sistema.pages.empresa.recepcion-moto');
     }
 
@@ -50,6 +44,7 @@ class RecepcionMotoController extends Controller
 
             $tasaOficial = $this->recepcionMotoService->obtenerTasaOficial($empresaId);
             $codigoSugerido = $this->recepcionMotoService->generarCodigo($empresaId);
+            $proximaReferencia = $this->recepcionMotoService->generarReferenciaNumerica($empresaId);
 
             return response()->json([
                 'success' => true,
@@ -58,6 +53,7 @@ class RecepcionMotoController extends Controller
                     'almacenes' => $almacenes,
                     'tasa_oficial' => $tasaOficial,
                     'codigo_sugerido' => $codigoSugerido,
+                    'proxima_referencia' => $proximaReferencia,
                 ],
             ]);
         } catch (Exception $e) {

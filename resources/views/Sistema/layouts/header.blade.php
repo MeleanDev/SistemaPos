@@ -11,10 +11,8 @@
                     class="ti-menu ti-close"></i></a>
             <div class="navbar-brand">
                 <a href="{{ route('dashboard') }}" class="d-flex align-items-center text-decoration-none">
-                    <span class="badge bg-primary rounded-3 p-2 me-2 fs-5">
-                        <i class="fas fa-cash-register text-white"></i>
-                    </span>
-                    <span class="fw-bold text-dark fs-4 tracking-tight">SISTEMA <span class="text-primary">POS</span></span>
+                    <img src="{{ asset('estilos/imgPropio/datavault-logo.jpg') }}" alt="DataVault System" class="rounded-circle shadow-xs me-2" style="width: 38px; height: 38px; object-fit: cover; border: 1.5px solid #0284c7;">
+                    <span class="fw-bold text-dark fs-4 tracking-tight" style="letter-spacing: -0.02em;">DATAVAULT <span class="text-primary">SYSTEM</span></span>
                 </a>
             </div>
             <a class="topbartoggler d-block d-lg-none waves-effect waves-light" href="javascript:void(0)"
@@ -23,8 +21,13 @@
                     class="ti-more"></i></a>
         </div>
         <div class="navbar-collapse collapse" id="navbarSupportedContent">
-            <!-- SELECTOR DE EMPRESA ACTIVA EN NAVBAR -->
-            <ul class="navbar-nav float-left me-auto ms-3 ps-1">
+            <!-- BOTÓN DE TOGGLE SIDEBAR Y SELECTOR DE EMPRESA ACTIVA EN NAVBAR -->
+            <ul class="navbar-nav float-left me-auto ms-3 ps-1 align-items-center">
+                <li class="nav-item d-none d-lg-block me-2">
+                    <button type="button" class="btn btn-white bg-white border rounded-circle shadow-xs d-flex align-items-center justify-content-center" id="btnToggleSidebarGlobal" onclick="toggleSidebarMenu()" title="Expandir / Contraer Menú Lateral (Ctrl + B)" style="width: 38px; height: 38px; color: #334155; transition: all 0.2s ease;">
+                        <i class="fas fa-bars" id="iconToggleSidebarGlobal" style="font-size: 1rem;"></i>
+                    </button>
+                </li>
                 @if ($usuarioActual)
                     @if ($empresasPermitidas->count() > 1 || $usuarioActual->hasRole('SuperAdmin'))
                         <li class="nav-item dropdown">

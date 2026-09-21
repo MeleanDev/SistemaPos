@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Service\Inventario\MotoClass;
 use Exception;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -17,13 +16,8 @@ class MotoController extends Controller
         private MotoClass $motoService
     ) {}
 
-    public function index(): View|RedirectResponse
+    public function index(): View
     {
-        $empresa = Auth::user()?->empresaActiva();
-        if ($empresa && ! $empresa->maneja_motos) {
-            return redirect()->route('producto');
-        }
-
         return view('Sistema.pages.empresa.moto');
     }
 

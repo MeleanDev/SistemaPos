@@ -285,7 +285,7 @@ const cambiarAlmacenActivo = function () {
 window.cambiarAlmacenActivo = cambiarAlmacenActivo;
 
 /**
- * 4. Buscador / Escáner de Productos
+ * 4. Buscador / Escáner de Productos & Modo Prefijo *
  */
 const configurarBuscadorProductosPos = function () {
     const $input = $("#posInputBuscadorProducto");
@@ -295,7 +295,11 @@ const configurarBuscadorProductosPos = function () {
     $input.on("keypress", function (e) {
         if (e.which === 13) {
             e.preventDefault();
-            const query = $(this).val().trim().toLowerCase();
+            const rawVal = $(this).val().trim();
+            if (!rawVal) return;
+
+            const requiereModal = rawVal.startsWith("*");
+            const query = (requiereModal ? rawVal.substring(1).trim() : rawVal).toLowerCase();
             if (!query) return;
 
             // 1. Buscar coincidencia exacta por código de barra o SKU
@@ -306,7 +310,11 @@ const configurarBuscadorProductosPos = function () {
             });
 
             if (prodExacto) {
-                agregarProductoAlCarrito(prodExacto);
+                if (requiereModal) {
+                    abrirModalSeleccionCantidadAlmacen(prodExacto);
+                } else {
+                    agregarProductoAlCarrito(prodExacto);
+                }
                 $(this).val("");
                 $dropdown.hide();
                 return;
@@ -318,11 +326,15 @@ const configurarBuscadorProductosPos = function () {
             );
 
             if (coincidencias.length === 1) {
-                agregarProductoAlCarrito(coincidencias[0]);
+                if (requiereModal) {
+                    abrirModalSeleccionCantidadAlmacen(coincidencias[0]);
+                } else {
+                    agregarProductoAlCarrito(coincidencias[0]);
+                }
                 $(this).val("");
                 $dropdown.hide();
             } else if (coincidencias.length > 1) {
-                renderizarDropdownProductos(coincidencias);
+                renderizarDropdownProductos(coincidencias, requiereModal);
             } else {
                 if (window.notificacion) {
                     window.notificacion.fire({
@@ -337,7 +349,9 @@ const configurarBuscadorProductosPos = function () {
 
     $input.on("input", function () {
         clearTimeout(debounceTimer);
-        const query = $(this).val().trim().toLowerCase();
+        const rawVal = $(this).val().trim();
+        const requiereModal = rawVal.startsWith("*");
+        const query = (requiereModal ? rawVal.substring(1).trim() : rawVal).toLowerCase();
 
         if (query.length < 2) {
             $dropdown.hide();
@@ -352,7 +366,7 @@ const configurarBuscadorProductosPos = function () {
                 return nombreMatch || skuMatch || barcodeMatch;
             });
 
-            renderizarDropdownProductos(coincidencias);
+            renderizarDropdownProductos(coincidencias, requiereModal);
         }, 150);
     });
 
@@ -363,7 +377,7 @@ const configurarBuscadorProductosPos = function () {
     });
 };
 
-const renderizarDropdownProductos = function (productos) {
+const renderizarDropdownProductos = function (productos, requiereModal = false) {
     const $dropdown = $("#dropdownProductosPos");
     $dropdown.empty();
 
@@ -388,27 +402,49 @@ const renderizarDropdownProductos = function (productos) {
             ? `<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle font-monospace px-1.5 py-0.5" style="font-size: 0.68rem;">IVA ${p.iva_porcentaje}%</span>`
             : `<span class="badge rounded-pill bg-light text-secondary border font-monospace px-1.5 py-0.5" style="font-size: 0.68rem;">Exento</span>`;
 
+        let itemIcon = '<i class="fas fa-box"></i>';
+        let itemBg = 'bg-primary bg-opacity-10 text-primary';
+        let tipoBadge = '';
+
+        if (p.tipo_item === 'moto') {
+            itemIcon = '<i class="fas fa-motorcycle"></i>';
+            itemBg = 'bg-warning bg-opacity-15 text-warning-emphasis';
+            tipoBadge = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle font-monospace" style="font-size: 0.70rem;">Moto / Serial</span>';
+        } else if (p.tipo_item === 'servicio') {
+            itemIcon = '<i class="fas fa-wrench"></i>';
+            itemBg = 'bg-info bg-opacity-15 text-info-emphasis';
+            tipoBadge = '<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle font-monospace" style="font-size: 0.70rem;">Servicio</span>';
+        }
+
+        const stockText = p.tipo_item === 'moto'
+            ? `<strong class="text-success">Disponible (1 UND)</strong>`
+            : (p.tipo_item === 'servicio' ? `<strong class="text-info">Servicio Activo</strong>` : `<strong class="${stockAlmacenActual <= 0 ? 'text-danger' : 'text-success'}">${stockAlmacenActual} ${p.unidad_medida || 'und'}</strong>`);
+
+        const modoBadge = requiereModal ? '<span class="badge bg-warning text-dark font-monospace me-1"><i class="fas fa-asterisk"></i> Cantidad & Almacén</span>' : '';
+
         const itemHtml = `
             <a href="javascript:void(0)" class="list-group-item list-group-item-action p-2.5 d-flex align-items-center justify-content-between prod-item-pos" data-id="${p.id}" data-tipo="${p.tipo_item}">
                 <div class="d-flex align-items-center gap-2">
-                    <div class="avatar-executive-sm rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; min-width: 38px; font-size: 1.1rem;">
-                        <i class="${p.tipo_item === 'servicio' ? 'fas fa-wrench' : 'fas fa-box'}"></i>
+                    <div class="avatar-executive-sm rounded-3 ${itemBg} d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; min-width: 38px; font-size: 1.1rem;">
+                        ${itemIcon}
                     </div>
                     <div>
                         <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                            ${modoBadge}
                             <strong class="text-dark font-monospace" style="font-size: 0.90rem;">${p.nombre}</strong>
                             <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.70rem;">#${p.codigo_interno}</span>
+                            ${tipoBadge}
                             ${badgeIvaHtml}
                         </div>
                         <div class="small font-monospace text-muted mt-0.5">
-                            Stock: <strong class="${stockAlmacenActual <= 0 && p.tipo_item === 'producto' ? 'text-danger' : 'text-success'}">${stockAlmacenActual} ${p.unidad_medida || 'und'}</strong>
+                            Stock: ${stockText}
                             • Detal: <strong class="text-primary">$${precioDetalUsd.toFixed(2)}</strong> <small class="text-muted">(Bs. ${precioDetalBs})</small>
                             • Mayor: <strong style="color: #7e22ce;">$${precioMayorUsd.toFixed(2)}</strong> <small class="text-muted">(Bs. ${precioMayorBs})</small>
                         </div>
                     </div>
                 </div>
-                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1 fw-bold shadow-xs">
-                    <i class="fas fa-plus me-1"></i> Cargar
+                <button type="button" class="btn btn-sm ${requiereModal ? 'btn-warning text-dark' : 'btn-primary'} rounded-pill px-3 py-1 fw-bold shadow-xs">
+                    <i class="fas ${requiereModal ? 'fa-sliders-h' : 'fa-plus'} me-1"></i> ${requiereModal ? 'Detalle' : 'Cargar'}
                 </button>
             </a>
         `;
@@ -416,10 +452,15 @@ const renderizarDropdownProductos = function (productos) {
     });
 
     $dropdown.find(".prod-item-pos").on("click", function () {
-        const id = $(this).data("id");
-        const prod = posCatalogos.productos.find((p) => p.id === id);
+        const id = parseInt($(this).data("id"));
+        const tipo = $(this).data("tipo");
+        const prod = posCatalogos.productos.find((p) => parseInt(p.id) === id && p.tipo_item === tipo);
         if (prod) {
-            agregarProductoAlCarrito(prod);
+            if (requiereModal) {
+                abrirModalSeleccionCantidadAlmacen(prod);
+            } else {
+                agregarProductoAlCarrito(prod);
+            }
             $("#posInputBuscadorProducto").val("").focus();
             $dropdown.hide();
         }
@@ -429,16 +470,179 @@ const renderizarDropdownProductos = function (productos) {
 };
 
 /**
- * 5. Agregar / Modificar / Eliminar Productos en el Carrito
+ * 5. Modal de Cantidad y Almacén de Despacho (Prefijo *)
  */
-const agregarProductoAlCarrito = function (prod, cantidad = 1) {
+let productoSeleccionadoModalDetalle = null;
+
+const abrirModalSeleccionCantidadAlmacen = function (prod) {
+    if (!prod) return;
+    productoSeleccionadoModalDetalle = prod;
+
+    $("#modalDetalleProdId").val(prod.id);
+    $("#modalDetalleProdTipo").val(prod.tipo_item || "producto");
+    $("#modalDetalleProdNombre").text(prod.nombre);
+    $("#modalDetalleProdCodigo").text(`#${prod.codigo_interno || '0000'}`);
+    $("#modalDetalleProdCategoria").text(prod.categoria_nombre || 'General');
+
+    const detalUsd = parseFloat(prod.precio_detal_usd || 0);
+    const mayorUsd = parseFloat(prod.precio_mayorista_usd || 0);
+    $("#modalDetallePrecioDetal").text(`Detal: $${detalUsd.toFixed(2)}`);
+    $("#modalDetallePrecioMayor").text(`Mayor: $${mayorUsd.toFixed(2)}`);
+
+    $("#modalDetalleBadgeIva").text(prod.aplica_iva ? `IVA ${prod.iva_porcentaje}%` : "Exento")
+        .removeClass("bg-primary-subtle text-primary bg-light text-secondary")
+        .addClass(prod.aplica_iva ? "bg-primary-subtle text-primary" : "bg-light text-secondary");
+
+    // Configurar icono
+    let iconHtml = '<i class="fas fa-box"></i>';
+    let iconBg = 'bg-primary bg-opacity-10 text-primary';
+    if (prod.tipo_item === 'moto') {
+        iconHtml = '<i class="fas fa-motorcycle"></i>';
+        iconBg = 'bg-warning bg-opacity-15 text-warning-emphasis';
+        $("#modalDetalleContenedorMoto").show();
+        $("#modalDetalleNiv").text(prod.numero_niv || '--');
+        $("#modalDetalleMotor").text(prod.numero_motor || '--');
+        $("#modalDetalleChasis").text(prod.numero_chasis || '--');
+        $("#modalDetalleInputCantidad").val(1).prop("readonly", true);
+        $("#modalDetallePresets").hide();
+    } else {
+        if (prod.tipo_item === 'servicio') {
+            iconHtml = '<i class="fas fa-wrench"></i>';
+            iconBg = 'bg-info bg-opacity-15 text-info-emphasis';
+        }
+        $("#modalDetalleContenedorMoto").hide();
+        $("#modalDetalleInputCantidad").val(1).prop("readonly", false);
+        $("#modalDetallePresets").show();
+    }
+    $("#modalDetalleIcono").html(iconHtml).attr("class", `avatar-executive-sm rounded-3 ${iconBg} d-flex align-items-center justify-content-center`);
+
+    // Poblar almacenes con stock
+    const $selAlm = $("#modalDetalleSelectAlmacen");
+    $selAlm.empty();
+
+    if (Array.isArray(posCatalogos.almacenes)) {
+        posCatalogos.almacenes.forEach((alm) => {
+            let stockEnAlm = 0;
+            if (Array.isArray(prod.stock_almacenes)) {
+                const s = prod.stock_almacenes.find((stk) => stk.almacen_id === alm.id);
+                if (s) stockEnAlm = s.cantidad_actual;
+            }
+            const esSeleccionado = alm.id === posAlmacenActualId;
+            $selAlm.append(`<option value="${alm.id}" data-stock="${stockEnAlm}" ${esSeleccionado ? "selected" : ""}>${alm.nombre} (Disp: ${stockEnAlm} ${prod.unidad_medida || 'und'})</option>`);
+        });
+    }
+
+    $("#modalDetalleInputDescuento").val(0);
+    $("#modalDetalleTasa").text(posTasaDia.toFixed(4));
+
+    actualizarStockAlmacenModalDetalle();
+    actualizarSubtotalModalDetalle();
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDetalleVentaProducto")).show();
+    setTimeout(() => {
+        $("#modalDetalleInputCantidad").focus().select();
+    }, 300);
+};
+window.abrirModalSeleccionCantidadAlmacen = abrirModalSeleccionCantidadAlmacen;
+
+const actualizarStockAlmacenModalDetalle = function () {
+    const $opt = $("#modalDetalleSelectAlmacen option:selected");
+    const stock = parseFloat($opt.data("stock")) || 0;
+    const unidad = productoSeleccionadoModalDetalle ? (productoSeleccionadoModalDetalle.unidad_medida || 'UND') : 'UND';
+
+    $("#modalDetalleStockBadge").text(`${stock} ${unidad}`)
+        .removeClass("bg-success bg-danger")
+        .addClass(stock <= 0 && productoSeleccionadoModalDetalle?.tipo_item === 'producto' ? "bg-danger" : "bg-success");
+};
+window.actualizarStockAlmacenModalDetalle = actualizarStockAlmacenModalDetalle;
+
+const actualizarSubtotalModalDetalle = function () {
+    if (!productoSeleccionadoModalDetalle) return;
+    const prod = productoSeleccionadoModalDetalle;
+    const cant = parseFloat($("#modalDetalleInputCantidad").val()) || 0;
+    const desc = parseFloat($("#modalDetalleInputDescuento").val()) || 0;
+    const precioUnit = posTipoVentaActual === "mayor" ? parseFloat(prod.precio_mayorista_usd || 0) : parseFloat(prod.precio_detal_usd || 0);
+
+    const subtotalUsd = roundDecimals(cant * precioUnit * (1 - desc / 100), 2);
+    const subtotalBs = roundDecimals(subtotalUsd * posTasaDia, 2);
+
+    $("#modalDetalleSubtotalUsd").text(`$ ${subtotalUsd.toFixed(2)}`);
+    $("#modalDetalleSubtotalBs").text(`Bs. ${subtotalBs.toFixed(2)}`);
+};
+window.actualizarSubtotalModalDetalle = actualizarSubtotalModalDetalle;
+
+const alterarCantidadModalDetalle = function (delta) {
+    if (productoSeleccionadoModalDetalle?.tipo_item === 'moto') return;
+    const actual = parseFloat($("#modalDetalleInputCantidad").val()) || 1;
+    const nueva = Math.max(0.001, actual + delta);
+    $("#modalDetalleInputCantidad").val(nueva);
+    actualizarSubtotalModalDetalle();
+};
+window.alterarCantidadModalDetalle = alterarCantidadModalDetalle;
+
+const sumarPresetModalDetalle = function (cant) {
+    if (productoSeleccionadoModalDetalle?.tipo_item === 'moto') return;
+    const actual = parseFloat($("#modalDetalleInputCantidad").val()) || 0;
+    $("#modalDetalleInputCantidad").val(actual + cant);
+    actualizarSubtotalModalDetalle();
+};
+window.sumarPresetModalDetalle = sumarPresetModalDetalle;
+
+const confirmarAgregarConDetalle = function (e) {
+    if (e) e.preventDefault();
+    if (!productoSeleccionadoModalDetalle) return;
+
+    const prod = productoSeleccionadoModalDetalle;
+    const cant = parseFloat($("#modalDetalleInputCantidad").val()) || 1;
+    const desc = parseFloat($("#modalDetalleInputDescuento").val()) || 0;
+    const almId = parseInt($("#modalDetalleSelectAlmacen").val()) || posAlmacenActualId;
+
+    if (cant <= 0) {
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: "warning", title: "Cantidad inválida", text: "La cantidad debe ser mayor a 0." });
+        }
+        return;
+    }
+
+    agregarProductoAlCarrito(prod, cant, almId, desc);
+
+    const modalEl = document.getElementById("modalDetalleVentaProducto");
+    const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+    if (modalInst) modalInst.hide();
+
+    $("#posInputBuscadorProducto").val("").focus();
+};
+window.confirmarAgregarConDetalle = confirmarAgregarConDetalle;
+
+/**
+ * 6. Agregar / Modificar / Eliminar Productos en el Carrito
+ */
+const agregarProductoAlCarrito = function (prod, cantidad = 1, almacenId = null, descuentoPorcentaje = 0) {
     const precioUnitUsd = posTipoVentaActual === "mayor" ? parseFloat(prod.precio_mayorista_usd || 0) : parseFloat(prod.precio_detal_usd || 0);
+    const targetAlmId = almacenId || posAlmacenActualId;
 
     // Verificar si ya existe en el carrito
     const idxExistente = posCarrito.findIndex((item) => item.producto_id === prod.id && item.tipo_item === prod.tipo_item);
 
     if (idxExistente !== -1) {
+        if (prod.tipo_item === 'moto') {
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "warning",
+                    title: "Moto ya en Carrito",
+                    text: `La unidad con serial NIV "${prod.numero_niv || prod.codigo_interno}" ya está cargada en el carrito.`,
+                });
+            }
+            return;
+        }
+
         posCarrito[idxExistente].cantidad += cantidad;
+        if (descuentoPorcentaje > 0) {
+            posCarrito[idxExistente].descuento_porcentaje = descuentoPorcentaje;
+        }
+        if (almacenId) {
+            posCarrito[idxExistente].almacen_id = targetAlmId;
+        }
         posCarrito[idxExistente].subtotal_usd = roundDecimals(
             posCarrito[idxExistente].cantidad * posCarrito[idxExistente].precio_unitario_usd * (1 - posCarrito[idxExistente].descuento_porcentaje / 100),
             2
@@ -446,28 +650,32 @@ const agregarProductoAlCarrito = function (prod, cantidad = 1) {
         posCarrito[idxExistente].subtotal_bs = roundDecimals(posCarrito[idxExistente].subtotal_usd * posTasaDia, 2);
         posIndiceRenglonSeleccionado = idxExistente;
     } else {
-        const subtotalUsd = roundDecimals(cantidad * precioUnitUsd, 2);
+        const subtotalUsd = roundDecimals(cantidad * precioUnitUsd * (1 - descuentoPorcentaje / 100), 2);
         const subtotalBs = roundDecimals(subtotalUsd * posTasaDia, 2);
 
         let stockAlm = 0;
         if (Array.isArray(prod.stock_almacenes)) {
-            const stk = prod.stock_almacenes.find((s) => s.almacen_id === posAlmacenActualId);
+            const stk = prod.stock_almacenes.find((s) => s.almacen_id === targetAlmId);
             if (stk) stockAlm = stk.cantidad_actual;
         }
 
         posCarrito.push({
             producto_id: prod.id,
             tipo_item: prod.tipo_item || "producto",
+            almacen_id: targetAlmId,
             codigo: prod.codigo_interno || "--",
             nombre: prod.nombre,
             unidad: prod.unidad_medida || "UND",
+            numero_niv: prod.numero_niv || null,
+            numero_motor: prod.numero_motor || null,
+            numero_chasis: prod.numero_chasis || null,
             cantidad: cantidad,
             precio_detal_usd: parseFloat(prod.precio_detal_usd || 0),
             precio_mayorista_usd: parseFloat(prod.precio_mayorista_usd || 0),
             precio_unitario_usd: precioUnitUsd,
             aplica_iva: !!prod.aplica_iva,
             iva_porcentaje: parseFloat(prod.iva_porcentaje || 16),
-            descuento_porcentaje: 0,
+            descuento_porcentaje: descuentoPorcentaje,
             subtotal_usd: subtotalUsd,
             subtotal_bs: subtotalBs,
             stock_disponible: stockAlm,
@@ -578,6 +786,27 @@ const renderizarCarritoPos = function () {
         const precioUnitBs = (item.precio_unitario_usd * posTasaDia).toFixed(2);
         const esSeleccionado = posIndiceRenglonSeleccionado === idx;
 
+        let itemIcon = '<i class="fas fa-box text-primary me-1"></i>';
+        let badgeTipo = '';
+
+        if (item.tipo_item === 'moto') {
+            itemIcon = '<i class="fas fa-motorcycle text-warning me-1"></i>';
+            badgeTipo = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle font-monospace ms-1" style="font-size: 0.68rem;">Moto</span>';
+        } else if (item.tipo_item === 'servicio') {
+            itemIcon = '<i class="fas fa-wrench text-info me-1"></i>';
+            badgeTipo = '<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle font-monospace ms-1" style="font-size: 0.68rem;">Servicio</span>';
+        }
+
+        const cantidadHtml = item.tipo_item === 'moto'
+            ? `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle font-monospace px-2.5 py-1.5 fw-bold" style="font-size: 0.80rem;"><i class="fas fa-tag me-1"></i> 1 UND</span>`
+            : `
+                <div class="input-group input-group-sm justify-content-center" style="max-width: 110px; margin: 0 auto;">
+                    <button class="btn btn-outline-secondary px-2" type="button" onclick="event.stopPropagation(); alterarCantidadItem(${idx}, -1);">-</button>
+                    <input type="number" step="any" min="0.001" class="form-control text-center font-monospace fw-bold px-1" value="${item.cantidad}" onchange="event.stopPropagation(); actualizarCantidadItem(${idx}, this.value);" onclick="event.stopPropagation(); this.select();">
+                    <button class="btn btn-outline-secondary px-2" type="button" onclick="event.stopPropagation(); alterarCantidadItem(${idx}, 1);">+</button>
+                </div>
+            `;
+
         const filaHtml = `
             <tr class="fila-pos-item ${esSeleccionado ? 'table-active border-primary' : ''}" data-idx="${idx}" onclick="seleccionarFilaPos(${idx})" style="cursor: pointer;">
                 <!-- Código -->
@@ -587,20 +816,16 @@ const renderizarCarritoPos = function () {
 
                 <!-- Producto / Descripción -->
                 <td>
-                    <strong class="text-dark d-block font-monospace" style="font-size: 0.90rem;">${item.nombre}</strong>
+                    <strong class="text-dark d-block font-monospace" style="font-size: 0.90rem;">${itemIcon} ${item.nombre} ${badgeTipo}</strong>
                     <div class="small text-muted font-monospace" style="font-size: 0.72rem;">
                         <span>${item.unidad}</span>
-                        ${item.stock_disponible !== undefined ? ` • <span class="${item.stock_disponible <= 0 && item.tipo_item === 'producto' ? 'text-danger' : 'text-success'}">Disp: ${item.stock_disponible}</span>` : ''}
+                        ${item.stock_disponible !== undefined && item.tipo_item === 'producto' ? ` • <span class="${item.stock_disponible <= 0 ? 'text-danger' : 'text-success'}">Disp: ${item.stock_disponible}</span>` : ''}
                     </div>
                 </td>
 
                 <!-- Cantidad -->
                 <td class="text-center font-monospace">
-                    <div class="input-group input-group-sm justify-content-center" style="max-width: 110px; margin: 0 auto;">
-                        <button class="btn btn-outline-secondary px-2" type="button" onclick="event.stopPropagation(); alterarCantidadItem(${idx}, -1);">-</button>
-                        <input type="number" step="any" min="0.001" class="form-control text-center font-monospace fw-bold px-1" value="${item.cantidad}" onchange="event.stopPropagation(); actualizarCantidadItem(${idx}, this.value);" onclick="event.stopPropagation(); this.select();">
-                        <button class="btn btn-outline-secondary px-2" type="button" onclick="event.stopPropagation(); alterarCantidadItem(${idx}, 1);">+</button>
-                    </div>
+                    ${cantidadHtml}
                 </td>
 
                 <!-- Precio Unitario -->
@@ -1183,7 +1408,7 @@ const buscarFacturaParaDevolucion = async function () {
 
             if (Array.isArray(res.data.detalles)) {
                 res.data.detalles.forEach((det) => {
-                    const prodNombre = det.producto ? det.producto.nombre : "Artículo";
+                    const prodNombre = det.nombre_item || (det.producto ? det.producto.nombre : (det.moto ? (det.moto.marca + ' ' + det.moto.modelo) : (det.servicio ? det.servicio.nombre : "Artículo")));
                     const precioUnit = parseFloat(det.precio_unitario_usd).toFixed(2);
 
                     // Calcular previamente devueltos si existen
@@ -1352,16 +1577,30 @@ const filtrarConsultaProductos = function () {
             ? `<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-0.5">IVA ${p.iva_porcentaje}%</span>`
             : `<span class="badge rounded-pill bg-light text-secondary border font-monospace px-2 py-0.5">Exento</span>`;
 
+        let stockText = `${stockTotal} ${p.unidad_medida || 'und'}`;
+        let stockBadgeClass = stockTotal <= 0 && p.tipo_item === 'producto' ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success';
+        let tipoBadge = '';
+
+        if (p.tipo_item === 'moto') {
+            stockText = '1 UND Disp.';
+            stockBadgeClass = 'bg-warning-subtle text-warning-emphasis';
+            tipoBadge = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle font-monospace ms-1">Moto</span>';
+        } else if (p.tipo_item === 'servicio') {
+            stockText = 'Servicio';
+            stockBadgeClass = 'bg-info-subtle text-info-emphasis';
+            tipoBadge = '<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle font-monospace ms-1">Servicio</span>';
+        }
+
         const filaHtml = `
-            <tr>
+            <tr class="fila-consulta-prod" onclick="cargarProductoDesdeConsulta(${p.id}, '${p.tipo_item}')" style="cursor: pointer;">
                 <td class="font-monospace"><span class="badge bg-light text-secondary border px-2 py-1">#${p.codigo_interno}</span></td>
                 <td>
-                    <strong class="text-dark font-monospace d-block" style="font-size: 0.88rem;">${p.nombre}</strong>
+                    <strong class="text-dark font-monospace d-block" style="font-size: 0.88rem;">${p.nombre} ${tipoBadge}</strong>
                     <small class="text-muted font-monospace">${p.categoria_nombre || 'General'}</small>
                 </td>
                 <td class="text-center font-monospace">
-                    <span class="badge ${stockTotal <= 0 && p.tipo_item === 'producto' ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'} rounded-pill px-2.5 py-1">
-                        ${stockTotal} ${p.unidad_medida || 'und'}
+                    <span class="badge ${stockBadgeClass} rounded-pill px-2.5 py-1">
+                        ${stockText}
                     </span>
                 </td>
                 <td class="text-end font-monospace">
@@ -1376,7 +1615,7 @@ const filtrarConsultaProductos = function () {
                     ${badgeIva}
                 </td>
                 <td class="text-center">
-                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-2.5 py-1 shadow-xs fw-bold" onclick="cargarProductoDesdeConsulta(${p.id})" title="Añadir a la Venta Activa">
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1 shadow-xs fw-bold" onclick="event.stopPropagation(); cargarProductoDesdeConsulta(${p.id}, '${p.tipo_item}')" title="Añadir a la Venta Activa">
                         <i class="fas fa-plus me-1"></i> Cargar
                     </button>
                 </td>
@@ -1387,11 +1626,15 @@ const filtrarConsultaProductos = function () {
 };
 window.filtrarConsultaProductos = filtrarConsultaProductos;
 
-const cargarProductoDesdeConsulta = function (id) {
-    const prod = posCatalogos.productos.find((p) => p.id === id);
+const cargarProductoDesdeConsulta = function (id, tipoItem = 'producto') {
+    const prod = posCatalogos.productos.find((p) => parseInt(p.id) === parseInt(id) && p.tipo_item === tipoItem);
     if (prod) {
         agregarProductoAlCarrito(prod);
-        bootstrap.Modal.getInstance(document.getElementById("modalConsultaProducto")).hide();
+        const modalEl = document.getElementById("modalConsultaProducto");
+        const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+        if (modalInst) {
+            modalInst.hide();
+        }
         $("#posInputBuscadorProducto").val("").focus();
     }
 };

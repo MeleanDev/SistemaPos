@@ -10,7 +10,7 @@ beforeEach(function () {
     Role::firstOrCreate(['name' => 'SuperAdmin', 'guard_name' => 'web']);
 });
 
-test('empresa con maneja_motos en false es redirigida limpiamente a recepcion general', function () {
+test('empresa puede acceder simultaneamente a recepcion de motos sin restricciones', function () {
     $empresa = Empresa::create([
         'rif' => 'J-12345678-0',
         'nombre' => 'Tienda General',
@@ -28,7 +28,8 @@ test('empresa con maneja_motos en false es redirigida limpiamente a recepcion ge
         ->withSession(['empresa_activa_id' => $empresa->id])
         ->get(route('recepcion_moto'));
 
-    $response->assertRedirect(route('recepcion'));
+    $response->assertOk()
+        ->assertViewIs('Sistema.pages.empresa.recepcion-moto');
 });
 
 test('empresa con maneja_motos en true puede acceder y procesar recepcion de motos con seriales', function () {

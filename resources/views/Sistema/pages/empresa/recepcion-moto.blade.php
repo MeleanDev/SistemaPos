@@ -342,8 +342,8 @@
 
                                 <div class="row g-3 mb-3">
                                     <div class="col-md-2">
-                                        <label class="form-label-executive"><i class="fas fa-barcode text-secondary"></i> Referencia / SKU <span class="text-danger">*</span></label>
-                                        <input type="text" id="lote_referencia" class="form-control form-control-executive" placeholder="Ej. MOT-BER-150" maxlength="100">
+                                        <label class="form-label-executive"><i class="fas fa-barcode text-secondary"></i> Referencia Numérica <span class="text-danger">*</span></label>
+                                        <input type="text" id="lote_referencia" class="form-control form-control-executive font-monospace fw-bold" placeholder="Ej. 1001" maxlength="50" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                                     </div>
 
                                     <div class="col-md-3">

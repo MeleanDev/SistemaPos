@@ -184,10 +184,26 @@
                 </thead>
                 <tbody>
                     @foreach($venta->detalles as $det)
+                        @php
+                            $nombreItem = $det->nombre_item ?? $det->producto?->nombre ?? ($det->moto ? "{$det->moto->marca} {$det->moto->modelo}" : null) ?? $det->servicio?->nombre ?? 'Artículo';
+                            $codigoItem = $det->serial_identificador ?? $det->producto?->codigo_interno ?? $det->moto?->numero_niv ?? $det->servicio?->codigo ?? '--';
+                        @endphp
                         <tr>
                             <td>
-                                <div class="fw-bold">{{ $det->producto?->nombre ?? 'Artículo' }}</div>
-                                <div style="font-size: 9px; color: #444;">SKU: {{ $det->producto?->codigo_interno }} {{ $det->aplica_iva ? '(IVA 16%)' : '(E)' }}</div>
+                                <div class="fw-bold">{{ $nombreItem }}</div>
+                                <div style="font-size: 9px; color: #444;">
+                                    @if($det->tipo_item === 'moto')
+                                        NIV: {{ $det->serial_identificador ?? $det->moto?->numero_niv }}
+                                        @if($det->moto && $det->moto->numero_motor)
+                                            <br>Motor: {{ $det->moto->numero_motor }}
+                                        @endif
+                                        @if($det->moto && $det->moto->color)
+                                            <br>Color: {{ $det->moto->color }}
+                                        @endif
+                                    @else
+                                        COD: {{ $codigoItem }} {{ $det->aplica_iva ? '(IVA ' . (float)$det->iva_porcentaje . '%)' : '(E)' }}
+                                    @endif
+                                </div>
                             </td>
                             <td class="text-center">{{ (float) $det->cantidad }}</td>
                             <td class="text-end">${{ number_format($det->precio_unitario_usd, 2) }}</td>

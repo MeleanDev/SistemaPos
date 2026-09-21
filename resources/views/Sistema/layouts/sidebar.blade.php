@@ -47,39 +47,38 @@
                 <li class="list-divider"></li>
                 <li class="nav-small-cap"><span class="hide-menu">Créditos & Finanzas</span></li>
 
-                <li class="sidebar-item">
-                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                <li class="sidebar-item @if (request()->routeIs('cxc*')) selected @endif">
+                    <a class="sidebar-link" href="{{ route('cxc') }}" aria-expanded="false">
                         <i class="fas fa-hand-holding-usd"></i>
                         <span class="hide-menu">Cuentas por Cobrar (CXC)</span>
                     </a>
                 </li>
 
-                <li class="sidebar-item">
-                    <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
+                <li class="sidebar-item @if (request()->routeIs('cxp*')) selected @endif">
+                    <a class="sidebar-link" href="{{ route('cxp') }}" aria-expanded="false">
                         <i class="fas fa-file-invoice-dollar"></i>
                         <span class="hide-menu">Cuentas por Pagar (CXP)</span>
                     </a>
                 </li>
 
+
                 <!-- COMPRAS Y RECEPCIÓN -->
                 <li class="list-divider"></li>
-                <li class="nav-small-cap"><span class="hide-menu">Compras</span></li>
+                <li class="nav-small-cap"><span class="hide-menu">Compras & Recepción</span></li>
 
-                @if(Auth::user()?->empresaActiva()?->maneja_motos)
-                <li class="sidebar-item @if (request()->routeIs('recepcion_moto*')) selected @endif">
-                    <a class="sidebar-link" href="{{ route('recepcion_moto') }}" aria-expanded="false">
-                        <i class="fas fa-truck-ramp-box"></i>
-                        <span class="hide-menu">Recepción de Motos</span>
-                    </a>
-                </li>
-                @else
                 <li class="sidebar-item @if (request()->routeIs('recepcion.*') || request()->routeIs('recepcion')) selected @endif">
                     <a class="sidebar-link" href="{{ route('recepcion') }}" aria-expanded="false">
                         <i class="fas fa-truck-loading"></i>
                         <span class="hide-menu">Recepción Mercancía</span>
                     </a>
                 </li>
-                @endif
+
+                <li class="sidebar-item @if (request()->routeIs('recepcion_moto*')) selected @endif">
+                    <a class="sidebar-link" href="{{ route('recepcion_moto') }}" aria-expanded="false">
+                        <i class="fas fa-truck-ramp-box"></i>
+                        <span class="hide-menu">Recepción de Motos</span>
+                    </a>
+                </li>
 
                 <li class="sidebar-item @if (request()->routeIs('proveedor*')) selected @endif">
                     <a class="sidebar-link" href="{{ route('proveedor') }}" aria-expanded="false">
@@ -88,7 +87,7 @@
                     </a>
                 </li>
 
-                <!-- INVENTARIO Y PRODUCTOS -->
+                <!-- INVENTARIO Y CATÁLOGO -->
                 <li class="list-divider"></li>
                 <li class="nav-small-cap"><span class="hide-menu">Inventario & Catálogo</span></li>
 
@@ -98,14 +97,6 @@
                         <span class="hide-menu">Inventario & Catálogo</span>
                     </a>
                     <ul aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*')) true @else false @endif" class="collapse first-level base-level-line @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*')) in @endif">
-                        @if(Auth::user()?->empresaActiva()?->maneja_motos)
-                        <li class="sidebar-item @if (request()->routeIs('moto*')) active @endif">
-                            <a href="{{ route('moto') }}" class="sidebar-link @if (request()->routeIs('moto*')) active @endif">
-                                <i class="fas fa-motorcycle me-2"></i>
-                                <span class="hide-menu">Motos & Seriales</span>
-                            </a>
-                        </li>
-                        @else
                         <li class="sidebar-item @if (request()->routeIs('categoria*')) active @endif">
                             <a href="{{ route('categoria') }}" class="sidebar-link @if (request()->routeIs('categoria*')) active @endif">
                                 <i class="fas fa-tags me-2"></i>
@@ -118,13 +109,18 @@
                                 <span class="hide-menu">Productos</span>
                             </a>
                         </li>
+                        <li class="sidebar-item @if (request()->routeIs('moto*')) active @endif">
+                            <a href="{{ route('moto') }}" class="sidebar-link @if (request()->routeIs('moto*')) active @endif">
+                                <i class="fas fa-motorcycle me-2"></i>
+                                <span class="hide-menu">Motos & Seriales</span>
+                            </a>
+                        </li>
                         <li class="sidebar-item @if (request()->routeIs('servicio*')) active @endif">
                             <a href="{{ route('servicio') }}" class="sidebar-link @if (request()->routeIs('servicio*')) active @endif">
                                 <i class="fas fa-wrench me-2"></i>
                                 <span class="hide-menu">Servicios</span>
                             </a>
                         </li>
-                        @endif
                         <li class="sidebar-item @if (request()->routeIs('almacen*')) active @endif">
                             <a href="{{ route('almacen') }}" class="sidebar-link @if (request()->routeIs('almacen*')) active @endif">
                                 <i class="fas fa-warehouse me-2"></i>

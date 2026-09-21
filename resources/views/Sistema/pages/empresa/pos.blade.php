@@ -75,7 +75,7 @@
 @endpush
 
 @section('contenido')
-<div class="container-fluid px-2 px-md-3 py-2">
+<div class="container-fluid px-2 px-md-3 py-1">
 
     <!-- CONTENEDOR PRINCIPAL DEL POS -->
     <div class="row g-2">
@@ -87,8 +87,8 @@
                 <!-- ========================================================================= -->
                 <!-- 1. CABECERA POS: CLIENTE, DATOS, TIPO DE VENTA (DETAL/MAYOR) & TASA DEL DÍA -->
                 <!-- ========================================================================= -->
-                <div class="p-3 bg-light border-bottom">
-                    <div class="row g-3 align-items-stretch">
+                <div class="p-2.5 p-md-3 bg-light border-bottom">
+                    <div class="row g-2.5 align-items-center">
                         
                         <!-- BÚSQUEDA Y SELECCIÓN DE CLIENTE -->
                         <div class="col-12 col-md-6 col-xl-3">
@@ -148,7 +148,7 @@
                         <div class="col-12 col-md-6 col-xl-3">
                             <div class="d-flex flex-column h-100 justify-content-between">
                                 <label class="form-label-executive mb-1 text-truncate">
-                                    <i class="fas fa-tags text-primary me-1"></i> Tipo de Tarifa / Modalidad
+                                    <i class="fas fa-tags text-primary me-1"></i> Modalidad de Venta
                                 </label>
                                 <div class="btn-group w-100 shadow-xs" role="group" aria-label="Tipo de Venta" style="height: 44px;">
                                     <input type="radio" class="btn-check" name="pos_tipo_venta" id="tipoVentaDetal" value="detal" checked onchange="cambiarTipoVenta('detal')">
@@ -164,12 +164,17 @@
                             </div>
                         </div>
 
-                        <!-- TASA DEL DÍA & ALMACÉN -->
+                        <!-- TASA DEL DÍA, ALMACÉN & PANTALLA COMPLETA -->
                         <div class="col-12 col-md-6 col-xl-2">
                             <div class="d-flex flex-column h-100 justify-content-between">
-                                <label class="form-label-executive mb-1 text-truncate">
-                                    <i class="fas fa-coins text-success me-1"></i> Tasa & Almacén
-                                </label>
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <label class="form-label-executive mb-0 text-truncate">
+                                        <i class="fas fa-coins text-success me-1"></i> Tasa & Almacén
+                                    </label>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-0" onclick="toggleSidebarMenu()" title="Contraer/Expandir Menú Lateral (Ctrl+B)" style="font-size: 0.70rem;">
+                                        <i class="fas fa-bars"></i>
+                                    </button>
+                                </div>
                                 <div class="p-1.5 rounded-3 bg-white border d-flex flex-column justify-content-center shadow-xs" style="min-height: 44px;">
                                     <div class="d-flex align-items-center justify-content-between mb-0.5">
                                         <span class="badge rounded-pill px-2 py-0.5 fw-bold font-monospace text-truncate" style="background-color: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; font-size: 0.80rem;">
@@ -192,13 +197,13 @@
                 <!-- ========================================================================= -->
                 <!-- 2. TABLA DE PRODUCTOS (CARRITO DE VENTA)                                 -->
                 <!-- ========================================================================= -->
-                <div class="table-responsive" style="min-height: 280px; max-height: calc(100vh - 440px); overflow-y: auto;">
+                <div class="table-responsive" style="min-height: 320px; max-height: calc(100vh - 430px); overflow-y: auto;">
                     <table class="table table-hover align-middle mb-0" id="tablaPosVenta">
                         <thead class="table-light sticky-top font-monospace" style="z-index: 5; font-size: 0.78rem;">
                             <tr>
                                 <th style="width: 120px;">Código</th>
-                                <th style="min-width: 230px;">Producto / Descripción</th>
-                                <th class="text-center" style="width: 130px;">Cantidad</th>
+                                <th style="min-width: 250px;">Producto / Descripción</th>
+                                <th class="text-center" style="width: 140px;">Cantidad</th>
                                 <th class="text-end" style="width: 140px;">Precio Unit.</th>
                                 <th class="text-center" style="width: 110px;">IVA</th>
                                 <th class="text-end" style="width: 150px;">Total Renglón</th>
@@ -210,7 +215,7 @@
                                 <td colspan="7" class="text-center py-5 text-muted">
                                     <i class="fas fa-cash-register fa-3x mb-3 text-secondary opacity-50 d-block"></i>
                                     <h6 class="fw-bold text-dark mb-1">Carrito de Venta Vacío</h6>
-                                    <span class="small">Escanea un código de barras o busca un producto en el campo inferior para comenzar la venta.</span>
+                                    <span class="small">Escanea un código de barras o escribe <strong class="text-primary">*código</strong> para especificar cantidad y almacén.</span>
                                 </td>
                             </tr>
                         </tbody>
@@ -227,7 +232,7 @@
                                 <span class="input-group-text bg-white text-primary border-end-0 rounded-start-pill ps-3">
                                     <i class="fas fa-barcode fs-4"></i>
                                 </span>
-                                <input type="text" id="posInputBuscadorProducto" class="form-control form-control-executive border-start-0 font-monospace ps-2" placeholder="Escanear código de barras o escribir SKU / Nombre del producto... [Presiona Enter]" autocomplete="off">
+                                <input type="text" id="posInputBuscadorProducto" class="form-control form-control-executive border-start-0 font-monospace ps-2" placeholder="Escanear código / serial (NIV, Chasis, Motor) o escribir *código para elegir cantidad y almacén... [Enter]" autocomplete="off">
                                 <button type="button" class="btn btn-outline-secondary rounded-end-pill px-3" onclick="abrirModalConsultaProducto()" title="Verificar Precio y Stock [F8]">
                                     <i class="fas fa-search me-1"></i> <span class="d-none d-sm-inline">Consultar</span> <span class="kbd-shortcut ms-1">F8</span>
                                 </button>
@@ -237,7 +242,7 @@
                         </div>
 
                         <div class="col-md-3 col-sm-4 text-end">
-                            <span class="badge bg-white text-dark border font-monospace px-3 py-2 fw-bold shadow-xs rounded-pill" style="font-size: 0.82rem;" id="posContadorItems">
+                            <span class="badge bg-white text-dark border font-monospace px-3 py-2 fw-bold shadow-xs rounded-pill" style="font-size: 0.85rem;" id="posContadorItems">
                                 <i class="fas fa-shopping-basket text-primary me-1"></i> 0 Ítems (0 Unid.)
                             </span>
                         </div>
@@ -660,14 +665,14 @@
 <!-- MODAL DE CONSULTA DE PRODUCTO / VERIFICADOR DE PRECIOS & EXISTENCIAS      -->
 <!-- ========================================================================= -->
 <div class="modal fade" id="modalConsultaProducto" tabindex="-1" aria-labelledby="modalConsultaProductoLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
             <div class="modal-header bg-dark text-white border-0 py-3 px-4 rounded-top-4">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fas fa-search-dollar text-success fs-4"></i>
                     <div>
                         <h5 class="modal-title fw-bold mb-0 text-white" id="modalConsultaProductoLabel">Verificador de Precios & Existencias</h5>
-                        <small class="text-white-50">Consulta precios detal, mayorista y stock sin alterar la venta activa</small>
+                        <small class="text-white-50">Consulta precios detal, mayorista y stock disponible. Haz clic en cualquier producto para cargarlo a la venta.</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -675,21 +680,22 @@
 
             <div class="modal-body p-4 bg-light-subtle">
                 <div class="input-group input-group-lg mb-3">
-                    <span class="input-group-text bg-white"><i class="fas fa-barcode text-primary"></i></span>
-                    <input type="text" id="inputConsultaProdFiltro" class="form-control form-control-executive font-monospace" placeholder="Buscar por código de barras, SKU o nombre..." oninput="filtrarConsultaProductos()">
+                    <span class="input-group-text bg-white border-end-0 rounded-start-pill ps-3"><i class="fas fa-search text-primary"></i></span>
+                    <input type="text" id="inputConsultaProdFiltro" class="form-control form-control-executive border-start-0 rounded-end-pill font-monospace" placeholder="Buscar por código de barras, SKU, nombre o categoría..." oninput="filtrarConsultaProductos()">
                 </div>
 
                 <div class="card border rounded-4 bg-white shadow-xs overflow-hidden">
-                    <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                    <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
                         <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light font-monospace small">
+                            <thead class="table-light sticky-top font-monospace small" style="z-index: 3;">
                                 <tr>
-                                    <th>Código</th>
-                                    <th>Producto</th>
-                                    <th class="text-center">Stock Total</th>
-                                    <th class="text-end">Precio Detal</th>
-                                    <th class="text-end">Precio Mayor</th>
-                                    <th class="text-center" style="width: 80px;"></th>
+                                    <th style="width: 120px;">Código</th>
+                                    <th>Producto / Descripción</th>
+                                    <th class="text-center" style="width: 140px;">Stock Total</th>
+                                    <th class="text-end" style="width: 140px;">Precio Detal</th>
+                                    <th class="text-end" style="width: 140px;">Precio Mayor</th>
+                                    <th class="text-center" style="width: 100px;">IVA</th>
+                                    <th class="text-center" style="width: 110px;">Acción</th>
                                 </tr>
                             </thead>
                             <tbody id="contenedorFilasConsultaProductos">
@@ -705,6 +711,146 @@
                     <i class="fas fa-times me-1"></i> Cerrar
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE SELECCIÓN DE CANTIDAD Y ALMACÉN (PREFIJO * O EDICIÓN DETALLADA) -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalDetalleVentaProducto" tabindex="-1" aria-labelledby="modalDetalleVentaProductoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-dark text-white border-0 py-3 px-4 rounded-top-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="avatar-executive-sm rounded-circle bg-warning bg-opacity-20 text-warning d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                        <i class="fas fa-boxes-stacked fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-white" id="modalDetalleVentaProductoLabel">Detalle de Renglón & Despacho</h5>
+                        <small class="text-white-50">Configura la cantidad exacta a vender y el almacén de salida</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form id="formDetalleVentaProducto" onsubmit="confirmarAgregarConDetalle(event)">
+                <input type="hidden" id="modalDetalleProdId">
+                <input type="hidden" id="modalDetalleProdTipo">
+
+                <div class="modal-body p-4 bg-light-subtle">
+                    <!-- INFORMACIÓN DEL ARTÍCULO SELECCIONADO -->
+                    <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom pb-2 mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <div id="modalDetalleIcono" class="avatar-executive-sm rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; font-size: 1.3rem;">
+                                    <i class="fas fa-box"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold text-dark mb-0 font-monospace" id="modalDetalleProdNombre">Nombre del Producto</h6>
+                                    <div class="small font-monospace text-muted mt-0.5">
+                                        <span id="modalDetalleProdCodigo" class="badge bg-light text-secondary border">#0000</span>
+                                        <span id="modalDetalleProdCategoria" class="ms-1">General</span>
+                                        <span id="modalDetalleBadgeIva" class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle font-monospace ms-1">IVA 16%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-end font-monospace">
+                                <span class="text-muted small d-block">Tarifa Detal / Mayor:</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1 fw-bold" id="modalDetallePrecioDetal">$ 0.00</span>
+                                    <span class="badge bg-purple-subtle text-purple-emphasis border border-purple-subtle rounded-pill px-2.5 py-1 fw-bold" id="modalDetallePrecioMayor">$ 0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SI ES MOTO / SERIAL MUESTRA DETALLES VEHICULARES -->
+                        <div id="modalDetalleContenedorMoto" class="p-2 rounded-3 bg-warning-subtle text-warning-emphasis font-monospace small mb-2" style="display: none;">
+                            <div class="row g-1">
+                                <div class="col-md-4"><strong>NIV:</strong> <span id="modalDetalleNiv">--</span></div>
+                                <div class="col-md-4"><strong>Motor:</strong> <span id="modalDetalleMotor">--</span></div>
+                                <div class="col-md-4"><strong>Chasis:</strong> <span id="modalDetalleChasis">--</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SELECTOR DE ALMACÉN Y STOCK DISPONIBLE -->
+                    <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-7">
+                                <label class="form-label-executive mb-1"><i class="fas fa-warehouse text-primary me-1"></i> Almacén de Despacho <span class="text-danger">*</span></label>
+                                <select id="modalDetalleSelectAlmacen" class="form-select form-select-executive font-monospace" onchange="actualizarStockAlmacenModalDetalle()">
+                                    <!-- Opciones cargadas dinámicamente con stock -->
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label-executive mb-1"><i class="fas fa-cubes text-secondary me-1"></i> Stock en Almacén</label>
+                                <div class="p-2 rounded-3 bg-light border d-flex align-items-center justify-content-between font-monospace" style="min-height: 42px;">
+                                    <span class="text-muted small">Disponible:</span>
+                                    <span id="modalDetalleStockBadge" class="badge bg-success rounded-pill px-3 py-1 fw-bold fs-6">0 UND</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SELECCIÓN DE CANTIDAD Y DESCUENTO -->
+                    <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-6">
+                                <label class="form-label-executive mb-1"><i class="fas fa-calculator text-primary me-1"></i> Cantidad a Vender <span class="text-danger">*</span></label>
+                                <div class="input-group input-group-lg">
+                                    <button class="btn btn-outline-secondary px-3" type="button" onclick="alterarCantidadModalDetalle(-1)">-</button>
+                                    <input type="number" step="any" min="0.001" id="modalDetalleInputCantidad" class="form-control form-control-executive text-center font-monospace fw-bold fs-4" value="1" oninput="actualizarSubtotalModalDetalle()" required>
+                                    <button class="btn btn-outline-secondary px-3" type="button" onclick="alterarCantidadModalDetalle(1)">+</button>
+                                </div>
+                                <!-- BOTONES DE PRESET DE CANTIDADES RÁPIDAS -->
+                                <div class="d-flex flex-wrap gap-1 mt-2" id="modalDetallePresets">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill font-monospace px-2 py-0.5" onclick="sumarPresetModalDetalle(1)">+1</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill font-monospace px-2 py-0.5" onclick="sumarPresetModalDetalle(5)">+5</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill font-monospace px-2 py-0.5" onclick="sumarPresetModalDetalle(10)">+10</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill font-monospace px-2 py-0.5" onclick="sumarPresetModalDetalle(25)">+25</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill font-monospace px-2 py-0.5" onclick="sumarPresetModalDetalle(50)">+50</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill font-monospace px-2 py-0.5" onclick="sumarPresetModalDetalle(100)">+100</button>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label-executive mb-1"><i class="fas fa-percent text-warning me-1"></i> Descuento Especial (%)</label>
+                                <div class="input-group input-group-lg">
+                                    <span class="input-group-text bg-light text-muted font-monospace">%</span>
+                                    <input type="number" step="any" min="0" max="100" id="modalDetalleInputDescuento" class="form-control form-control-executive font-monospace text-center fw-bold" value="0" oninput="actualizarSubtotalModalDetalle()">
+                                </div>
+                                <small class="text-muted font-monospace mt-1 d-block">Aplica únicamente a este renglón</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RESUMEN EN TIEMPO REAL DEL RENGLÓN -->
+                    <div class="p-3 rounded-4 bg-light border d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <div>
+                            <span class="text-muted small font-monospace d-block">Subtotal Estimado Renglón:</span>
+                            <h4 class="fw-bold mb-0 text-dark font-monospace" id="modalDetalleSubtotalUsd">$ 0.00</h4>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs" style="background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 1rem;" id="modalDetalleSubtotalBs">
+                                Bs. 0.00
+                            </span>
+                            <small class="text-muted font-monospace d-block mt-0.5">Tasa: <span id="modalDetalleTasa">1.0000</span> Bs.</small>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer bg-light border-0 py-3 px-4 rounded-bottom-4 d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-success rounded-pill px-5 py-2.5 fw-bold shadow-sm d-flex align-items-center gap-2">
+                        <i class="fas fa-cart-plus fs-5"></i>
+                        <span>Agregar al Carrito [Enter]</span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

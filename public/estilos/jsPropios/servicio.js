@@ -76,6 +76,19 @@ $(document).ready(function () {
                 },
             },
             {
+                data: "aplica_iva",
+                name: "aplica_iva",
+                className: "text-center align-middle",
+                render: function (data, type, row) {
+                    const aplicaIva = !!data;
+                    const porc = parseFloat(row.iva_porcentaje || 16.00).toFixed(0);
+
+                    return aplicaIva
+                        ? `<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2.5 py-1" style="font-size: 0.75rem;"><i class="fas fa-percentage me-1"></i>IVA ${porc}%</span>`
+                        : `<span class="badge rounded-pill bg-light text-secondary border font-monospace px-2.5 py-1" style="font-size: 0.75rem;"><i class="fas fa-ban me-1"></i>Exento</span>`;
+                },
+            },
+            {
                 data: null,
                 width: "100px",
                 className: "text-center align-middle",
@@ -133,6 +146,22 @@ const poblarSelectCategorias = function () {
 };
 
 /**
+ * Alternar visibilidad del porcentaje de IVA según el switch
+ */
+const toggleIvaInput = function () {
+    const aplicaIva = $("#aplica_iva").is(":checked");
+    if (aplicaIva) {
+        $("#contenedorIvaPorcentaje").show();
+        if (!$("#iva_porcentaje").val() || parseFloat($("#iva_porcentaje").val()) === 0) {
+            $("#iva_porcentaje").val("16.00");
+        }
+    } else {
+        $("#contenedorIvaPorcentaje").hide();
+    }
+};
+window.toggleIvaInput = toggleIvaInput;
+
+/**
  * Cálculo bidireccional en tiempo real de precios (USD <-> Bs.) según la tasa activa
  */
 const calcularPreciosBsDesdeUsd = function () {
@@ -162,6 +191,11 @@ const crear = function () {
     $("#formularioServicio")[0].reset();
     $("#formularioServicio .is-invalid").removeClass("is-invalid");
     $("#formularioServicio .invalid-feedback").remove();
+
+    // Default IVA
+    $("#aplica_iva").prop("checked", false);
+    $("#iva_porcentaje").val("16.00");
+    toggleIvaInput();
 
     $("#badgeTasaUsd").text(tasaUsdActual.toFixed(4));
     $("#modalServicioTitulo").text("Nuevo Servicio");
@@ -205,6 +239,12 @@ const editar = async function (id) {
         // Precios en USD y auto-cálculo en Bs.
         $("#precio_venta_usd").val(srv.precio_venta_usd || "");
         calcularPreciosBs();
+
+        // Régimen Fiscal (IVA)
+        const aplicaIva = !!srv.aplica_iva;
+        $("#aplica_iva").prop("checked", aplicaIva);
+        $("#iva_porcentaje").val(srv.iva_porcentaje !== null && srv.iva_porcentaje !== undefined ? parseFloat(srv.iva_porcentaje).toFixed(2) : "16.00");
+        toggleIvaInput();
 
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalServicio"));
         modal.show();

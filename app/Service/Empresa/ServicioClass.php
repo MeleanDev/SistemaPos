@@ -118,6 +118,18 @@ class ServicioClass
         // Auto-calcular conversión a Bolívares según tasa oficial activa
         $datos['precio_venta_bs'] = round($datos['precio_venta_usd'] * $tasaUsd, 4);
 
+        // Régimen Fiscal (IVA)
+        $aplicaIva = isset($datos['aplica_iva']) && (
+            $datos['aplica_iva'] === true ||
+            $datos['aplica_iva'] === '1' ||
+            $datos['aplica_iva'] === 1 ||
+            $datos['aplica_iva'] === 'true' ||
+            $datos['aplica_iva'] === 'on'
+        );
+
+        $datos['aplica_iva'] = $aplicaIva;
+        $datos['iva_porcentaje'] = $aplicaIva ? (float) ($datos['iva_porcentaje'] ?? 16.00) : 0.00;
+
         return $datos;
     }
 }

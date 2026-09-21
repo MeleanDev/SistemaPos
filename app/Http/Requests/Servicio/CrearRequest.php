@@ -43,6 +43,8 @@ class CrearRequest extends FormRequest
             'descripcion' => ['nullable', 'string', 'max:1000'],
             'precio_venta_usd' => ['required', 'numeric', 'min:0'],
             'precio_venta_bs' => ['nullable', 'numeric', 'min:0'],
+            'aplica_iva' => ['nullable'],
+            'iva_porcentaje' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
     }
 

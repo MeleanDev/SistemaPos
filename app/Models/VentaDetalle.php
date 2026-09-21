@@ -16,8 +16,12 @@ class VentaDetalle extends Model
     protected $fillable = [
         'venta_id',
         'producto_id',
+        'moto_id',
+        'servicio_id',
         'almacen_id',
         'tipo_item',
+        'nombre_item',
+        'serial_identificador',
         'cantidad',
         'costo_unitario_usd',
         'costo_unitario_bs',
@@ -59,6 +63,16 @@ class VentaDetalle extends Model
     public function producto(): BelongsTo
     {
         return $this->belongsTo(Producto::class, 'producto_id');
+    }
+
+    public function moto(): BelongsTo
+    {
+        return $this->belongsTo(Moto::class, 'moto_id');
+    }
+
+    public function servicio(): BelongsTo
+    {
+        return $this->belongsTo(Servicio::class, 'servicio_id');
     }
 
     public function almacen(): BelongsTo

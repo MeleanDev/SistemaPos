@@ -7,8 +7,11 @@ use App\Models\Empresa;
 use App\Models\EmpresaMoneda;
 use App\Models\Kardex;
 use App\Models\MetodoPago;
+use App\Models\Moto;
 use App\Models\Producto;
 use App\Models\ProductoStockAlmacen;
+use App\Models\Proveedor;
+use App\Models\Servicio;
 use App\Models\User;
 use App\Models\Venta;
 use Spatie\Permission\Models\Role;
@@ -496,4 +499,345 @@ test('pos procesa devolucion de factura y revierte el stock en kardex', function
     // Estado de la venta debe ser devuelta_parcial
     $ventaActualizada = Venta::find($venta->id);
     expect($ventaActualizada->estado)->toBe('devuelta_parcial');
+});
+
+test('pos procesa venta de moto con seriales cambiando estado a vendida y permitiendo devolucion a disponible', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-90000008-8',
+        'nombre' => 'Moto & Service Hub POS',
+        'razon_social' => 'Moto & Service Hub C.A.',
+        'direccion' => 'Av. Libertador',
+        'maneja_motos' => true,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'ALM-MOTO-POS',
+        'nombre' => 'Showroom Motos',
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $proveedor = Proveedor::create([
+        'empresa_id' => $empresa->id,
+        'rif' => 'J-12345678-0',
+        'nombre' => 'Ensambladora Bera',
+        'razon_social' => 'Bera Motors C.A.',
+        'estado' => true,
+    ]);
+
+    $moto = Moto::create([
+        'empresa_id' => $empresa->id,
+        'almacen_id' => $almacen->id,
+        'proveedor_id' => $proveedor->id,
+        'referencia' => 'BR-150-2026',
+        'marca' => 'Bera',
+        'modelo' => 'SBR 150',
+        'anio' => '2026',
+        'color' => 'Azul Eléctrico',
+        'cilindrada' => '150cc',
+        'numero_niv' => 'BERA150NIV2026001',
+        'numero_chasis' => 'CHASIS-BERA-001',
+        'numero_motor' => 'MOTOR-BERA-001',
+        'certificado_origen' => 'CERT-BERA-001',
+        'precio_costo_usd' => 800.00,
+        'precio_costo_bs' => 29200.00,
+        'precio_detal_usd' => 1100.00,
+        'precio_detal_bs' => 40150.00,
+        'precio_mayorista_usd' => 1000.00,
+        'precio_mayorista_bs' => 36500.00,
+        'estado' => 'disponible',
+    ]);
+
+    $cliente = Cliente::create([
+        'empresa_id' => $empresa->id,
+        'cedula' => 'V-18888999',
+        'nombre' => 'Carlos',
+        'apellido' => 'Mendoza',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    $metodo = MetodoPago::firstOrCreate(['nombre' => 'Transferencia USD'], ['estado' => true]);
+
+    $user = User::factory()->create(['name' => 'V-90000008']);
+    $user->assignRole('SuperAdmin');
+    $user->empresas()->attach($empresa->id);
+
+    // 1. Facturar la Moto en POS
+    $payload = [
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'tipo_venta' => 'detal',
+        'tasa_cambio' => 36.5000,
+        'condicion_pago' => 'contado',
+        'items' => [
+            [
+                'producto_id' => $moto->id,
+                'tipo_item' => 'moto',
+                'cantidad' => 1,
+                'precio_unitario_usd' => 1100.00,
+                'descuento_porcentaje' => 0,
+                'almacen_id' => $almacen->id,
+            ],
+        ],
+        'pagos' => [
+            [
+                'metodo_pago_id' => $metodo->id,
+                'moneda' => 'USD',
+                'tasa_cambio' => 1.0000,
+                'monto' => 1276.00, // 1100 + 16% IVA = 1276
+                'referencia' => 'TRF-MOTO-001',
+            ],
+        ],
+    ];
+
+    $response = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', $payload);
+
+    $response->assertOk()
+        ->assertJsonPath('success', true);
+
+    // Verificar que la moto ahora está vendida
+    expect($moto->fresh()->estado)->toBe('vendida');
+
+    // Verificar detalle de la venta
+    $venta = Venta::with('detalles')->where('empresa_id', $empresa->id)->first();
+    expect($venta)->not->toBeNull();
+    $det = $venta->detalles->first();
+    expect($det->tipo_item)->toBe('moto');
+    expect($det->moto_id)->toBe($moto->id);
+    expect($det->serial_identificador)->toBe('BERA150NIV2026001');
+
+    // 2. Procesar Devolución de la Moto
+    $payloadDev = [
+        'venta_id' => $venta->id,
+        'motivo' => 'Cancelación de compra por el cliente',
+        'items' => [
+            [
+                'venta_detalle_id' => $det->id,
+                'cantidad' => 1,
+            ],
+        ],
+    ];
+
+    $resDev = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/devolucion/procesar', $payloadDev);
+
+    $resDev->assertOk()->assertJsonPath('success', true);
+
+    // Verificar que la moto regresa a disponible
+    expect($moto->fresh()->estado)->toBe('disponible');
+});
+
+test('pos procesa venta de servicios correctamente', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-90000009-9',
+        'nombre' => 'Taller Mecánico & Servicios',
+        'razon_social' => 'Taller Mecánico & Servicios C.A.',
+        'direccion' => 'Av. Sucre',
+        'maneja_motos' => true,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'ALM-SRV-POS',
+        'nombre' => 'Principal',
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'CAT-MAN-01',
+        'nombre' => 'Mantenimiento',
+        'estado' => true,
+    ]);
+
+    $servicio = Servicio::create([
+        'empresa_id' => $empresa->id,
+        'categoria_id' => $categoria->id,
+        'codigo' => 'SRV-MAN-001',
+        'nombre' => 'Cambio de Aceite y Filtro',
+        'precio_costo_usd' => 5.00,
+        'precio_costo_bs' => 182.50,
+        'precio_venta_usd' => 25.00,
+        'precio_venta_bs' => 912.50,
+        'aplica_iva' => true,
+        'iva_porcentaje' => 16.00,
+        'aplica_igtf' => false,
+        'estado' => true,
+    ]);
+
+    $cliente = Cliente::create([
+        'empresa_id' => $empresa->id,
+        'cedula' => 'V-22334455',
+        'nombre' => 'Pedro',
+        'apellido' => 'Pérez',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    $metodo = MetodoPago::firstOrCreate(['nombre' => 'Efectivo Divisas ($)'], ['estado' => true]);
+
+    $user = User::factory()->create(['name' => 'V-90000009']);
+    $user->assignRole('SuperAdmin');
+    $user->empresas()->attach($empresa->id);
+
+    $payload = [
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'tipo_venta' => 'detal',
+        'tasa_cambio' => 36.5000,
+        'condicion_pago' => 'contado',
+        'items' => [
+            [
+                'producto_id' => $servicio->id,
+                'tipo_item' => 'servicio',
+                'cantidad' => 2,
+                'precio_unitario_usd' => 25.00,
+                'descuento_porcentaje' => 0,
+                'almacen_id' => $almacen->id,
+            ],
+        ],
+        'pagos' => [
+            [
+                'metodo_pago_id' => $metodo->id,
+                'moneda' => 'USD',
+                'tasa_cambio' => 1.0000,
+                'monto' => 58.00, // (25 * 2) + 16% IVA = 58.00
+                'referencia' => 'EF-SRV-001',
+            ],
+        ],
+    ];
+
+    $response = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', $payload);
+
+    $response->assertOk()->assertJsonPath('success', true);
+
+    $venta = Venta::with('detalles')->where('empresa_id', $empresa->id)->first();
+    expect($venta)->not->toBeNull();
+    $det = $venta->detalles->first();
+    expect($det->tipo_item)->toBe('servicio');
+    expect($det->servicio_id)->toBe($servicio->id);
+    expect($det->nombre_item)->toBe('Cambio de Aceite y Filtro');
+    expect((float) $det->cantidad)->toBe(2.000);
+    expect((float) $venta->iva_monto_usd)->toBe(8.00); // 16% de 50 = 8.00
+});
+
+test('pos procesa servicio exento de iva con 0 impuestos', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-90000010-0',
+        'nombre' => 'Servicios Médicos & Asesorías',
+        'razon_social' => 'Servicios Médicos & Asesorías C.A.',
+        'direccion' => 'Av. Fuerzas Armadas',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'ALM-MED-POS',
+        'nombre' => 'Consultorio',
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'CAT-MED-01',
+        'nombre' => 'Consultas',
+        'estado' => true,
+    ]);
+
+    // Servicio EXENTO de IVA
+    $servicioExento = Servicio::create([
+        'empresa_id' => $empresa->id,
+        'categoria_id' => $categoria->id,
+        'codigo' => 'SRV-CONS-001',
+        'nombre' => 'Consulta Médica Especializada',
+        'precio_costo_usd' => 0.00,
+        'precio_costo_bs' => 0.00,
+        'precio_venta_usd' => 40.00,
+        'precio_venta_bs' => 1460.00,
+        'aplica_iva' => false,
+        'iva_porcentaje' => 0.00,
+        'aplica_igtf' => false,
+        'estado' => true,
+    ]);
+
+    $cliente = Cliente::create([
+        'empresa_id' => $empresa->id,
+        'cedula' => 'V-33445566',
+        'nombre' => 'María',
+        'apellido' => 'González',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    $metodo = MetodoPago::firstOrCreate(['nombre' => 'Efectivo Divisas ($)'], ['estado' => true]);
+
+    $user = User::factory()->create(['name' => 'V-90000010']);
+    $user->assignRole('SuperAdmin');
+    $user->empresas()->attach($empresa->id);
+
+    // 1. Verificar catálogo inicial de POS (aplica_iva = false)
+    $resDatos = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get('/pos/datos');
+
+    $resDatos->assertOk();
+    $prodPos = collect($resDatos->json('data.productos'))->firstWhere('id', $servicioExento->id);
+    expect($prodPos['aplica_iva'])->toBeFalse();
+    expect((float) $prodPos['iva_porcentaje'])->toBe(0.0);
+
+    // 2. Facturar el servicio exento
+    $payload = [
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'tipo_venta' => 'detal',
+        'tasa_cambio' => 36.5000,
+        'condicion_pago' => 'contado',
+        'items' => [
+            [
+                'producto_id' => $servicioExento->id,
+                'tipo_item' => 'servicio',
+                'cantidad' => 1,
+                'precio_unitario_usd' => 40.00,
+                'descuento_porcentaje' => 0,
+                'almacen_id' => $almacen->id,
+            ],
+        ],
+        'pagos' => [
+            [
+                'metodo_pago_id' => $metodo->id,
+                'moneda' => 'USD',
+                'tasa_cambio' => 1.0000,
+                'monto' => 40.00, // Exactamente 40.00 sin IVA
+                'referencia' => 'EF-CONS-001',
+            ],
+        ],
+    ];
+
+    $response = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', $payload);
+
+    $response->assertOk()->assertJsonPath('success', true);
+
+    $venta = Venta::with('detalles')->where('empresa_id', $empresa->id)->first();
+    expect($venta)->not->toBeNull();
+    expect((float) $venta->iva_monto_usd)->toBe(0.00);
+    expect((float) $venta->total_usd)->toBe(40.00);
+
+    $det = $venta->detalles->first();
+    expect($det->aplica_iva)->toBeFalse();
+    expect((float) $det->iva_monto_usd)->toBe(0.00);
+    expect((float) $det->subtotal_usd)->toBe(40.00);
 });

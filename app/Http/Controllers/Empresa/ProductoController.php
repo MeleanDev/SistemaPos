@@ -7,7 +7,6 @@ use App\Http\Requests\Producto\ActualizarRequest;
 use App\Http\Requests\Producto\CrearRequest;
 use App\Service\Empresa\ProductoClass;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -26,13 +25,8 @@ class ProductoController extends Controller
         return $empresa->id;
     }
 
-    public function index(): View|RedirectResponse
+    public function index(): View
     {
-        $empresa = Auth::user()?->empresaActiva();
-        if ($empresa && $empresa->maneja_motos) {
-            return redirect()->route('moto');
-        }
-
         return view('Sistema.pages.empresa.producto');
     }
 

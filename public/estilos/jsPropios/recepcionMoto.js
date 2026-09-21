@@ -12,10 +12,16 @@ let tasaCambioActual = 1.0000;
 let monedaSeleccionada = 'USD';
 let lotesAgregados = [];
 let editandoLoteIndex = null;
+let proximaReferenciaSugerida = '1';
 
 $(document).ready(function () {
     inicializarTabla();
     cargarCatalogos();
+
+    // Restringir referencia a solo números
+    $('#lote_referencia').on('input', function () {
+        this.value = this.value.replace(/[^0-9]/g, '');
+    });
 
     // Establecer fechas actuales por defecto
     const hoy = new Date().toISOString().split('T')[0];
@@ -93,8 +99,9 @@ const inicializarTabla = function () {
                 className: 'text-end',
                 render: function (data, type, row) {
                     const totalUsd = parseFloat(data || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    const totalBs = parseFloat(row.total_bs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    return `<div><strong class="text-success">$ ${totalUsd}</strong><br><small class="text-muted font-monospace">Bs. ${totalBs}</small></div>`;
+                    const tasa = parseFloat(row.tasa_cambio || 1);
+                    const totalBs = (parseFloat(data || 0) * tasa).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    return `<div><strong class="text-success">$ ${totalUsd}</strong><br><small class="text-muted">Bs. ${totalBs}</small></div>`;
                 }
             },
             {
@@ -113,18 +120,20 @@ const inicializarTabla = function () {
                 name: 'estado',
                 className: 'text-center',
                 render: function (data) {
-                    if (data === 'anulada') {
-                        return '<span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="fas fa-ban me-1"></i>Anulada</span>';
+                    if (data === 'procesada') {
+                        return '<span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-1"><i class="fas fa-check-circle me-1"></i>Procesada</span>';
+                    } else if (data === 'anulada') {
+                        return '<span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3 py-1"><i class="fas fa-ban me-1"></i>Anulada</span>';
                     }
-                    return '<span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-double me-1"></i>Procesada</span>';
+                    return `<span class="badge rounded-pill bg-secondary px-3 py-1">${data}</span>`;
                 }
             },
             {
                 data: 'id',
-                name: 'id',
-                className: 'text-end',
+                name: 'acciones',
                 orderable: false,
                 searchable: false,
+                className: 'text-end',
                 render: function (data, type, row) {
                     const anulada = row.estado === 'anulada';
                     return `
@@ -160,6 +169,12 @@ const cargarCatalogos = async function () {
             proveedoresLista = respuesta.data.proveedores || [];
             almacenesLista = respuesta.data.almacenes || [];
             tasaCambioActual = parseFloat(respuesta.data.tasa_oficial) || 1.0000;
+            if (respuesta.data.proxima_referencia) {
+                proximaReferenciaSugerida = String(respuesta.data.proxima_referencia);
+                if (!$('#lote_referencia').val()) {
+                    $('#lote_referencia').val(proximaReferenciaSugerida);
+                }
+            }
 
             $('#tasa_cambio').val(tasaCambioActual);
             $('#badgeTasaCambio').text(tasaCambioActual.toFixed(4));
@@ -605,7 +620,15 @@ const editarLote = function (index) {
 
 const cancelarEdicionLote = function () {
     editandoLoteIndex = null;
-    $('#lote_referencia').val('');
+    
+    let maxRef = parseInt(proximaReferenciaSugerida) || 1;
+    lotesAgregados.forEach((l) => {
+        const r = parseInt(l.referencia);
+        if (!isNaN(r) && r >= maxRef) {
+            maxRef = r + 1;
+        }
+    });
+    $('#lote_referencia').val(maxRef);
     $('#lote_marca').val('');
     $('#lote_modelo').val('');
     $('#lote_color').val('');

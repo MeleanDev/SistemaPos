@@ -51,6 +51,32 @@ class RecepcionMotoClass
     }
 
     /**
+     * Generar referencia numérica autoincrementable para motos por empresa
+     */
+    public function generarReferenciaNumerica(int $empresaId): string
+    {
+        $motos = Moto::where('empresa_id', $empresaId)->get(['id', 'referencia']);
+        $maxNum = 0;
+
+        foreach ($motos as $m) {
+            $ref = trim($m->referencia ?? '');
+            if (is_numeric($ref)) {
+                $val = (int) $ref;
+                if ($val > $maxNum) {
+                    $maxNum = $val;
+                }
+            } elseif (preg_match('/(\d+)/', $ref, $matches)) {
+                $val = (int) $matches[1];
+                if ($val > $maxNum) {
+                    $maxNum = $val;
+                }
+            }
+        }
+
+        return (string) ($maxNum + 1);
+    }
+
+    /**
      * Obtener tasa de cambio oficial de la empresa
      */
     public function obtenerTasaOficial(int $empresaId): float
@@ -209,9 +235,14 @@ class RecepcionMotoClass
                 $ivaGlobalUsd += $renglonIvaUsd;
                 $totalGlobalUsd += $renglonTotalUsd;
 
+                $refLote = trim($det['referencia'] ?? '');
+                if (empty($refLote)) {
+                    $refLote = $this->generarReferenciaNumerica($empresaId);
+                }
+
                 $detallesCalculados[] = [
                     'almacen_id' => $det['almacen_id'] ?? $datos['almacen_id'],
-                    'referencia' => trim($det['referencia'] ?? ''),
+                    'referencia' => $refLote,
                     'marca' => trim($det['marca']),
                     'modelo' => trim($det['modelo']),
                     'anio' => trim($det['anio'] ?? date('Y')),

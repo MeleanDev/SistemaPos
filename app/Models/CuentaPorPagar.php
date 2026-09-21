@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CuentaPorPagar extends Model
 {
@@ -53,5 +54,10 @@ class CuentaPorPagar extends Model
     public function recepcion(): BelongsTo
     {
         return $this->belongsTo(Recepcion::class, 'recepcion_id');
+    }
+
+    public function abonos(): HasMany
+    {
+        return $this->hasMany(CuentaPorPagarAbono::class, 'cuenta_por_pagar_id');
     }
 }

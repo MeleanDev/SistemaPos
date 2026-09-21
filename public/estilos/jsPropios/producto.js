@@ -108,6 +108,11 @@ window.calcularMargenMayorDesdePrecioForm = calcularMargenMayorDesdePrecioForm;
 $(document).ready(function () {
     cargarCatalogos();
 
+    // Restricción a solo números para código interno
+    $("#codigo_interno").on("input", function () {
+        this.value = this.value.replace(/[^0-9]/g, "");
+    });
+
     // Inicializar DataTable
     crearDataTable({
         selector: "#datatable_productos",

@@ -6,6 +6,8 @@ use App\Http\Controllers\Empresa\AlmacenController;
 use App\Http\Controllers\Empresa\CategoriaController;
 use App\Http\Controllers\Empresa\ClienteController;
 use App\Http\Controllers\Empresa\ConfiguracionController;
+use App\Http\Controllers\Empresa\CuentaPorCobrarController;
+use App\Http\Controllers\Empresa\CuentaPorPagarController;
 use App\Http\Controllers\Empresa\MetodoPagoController;
 use App\Http\Controllers\Empresa\MotoController;
 use App\Http\Controllers\Empresa\PosController;
@@ -151,7 +153,28 @@ Route::middleware('auth')->group(function () {
         Route::delete('/proveedores/{id}', 'eliminar');
     });
 
+    Route::controller(CuentaPorCobrarController::class)->group(function () {
+        Route::get('/cuentas-por-cobrar', 'index')->name('cxc');
+        Route::get('/cuentas-por-cobrar/lista', 'lista');
+        Route::get('/cuentas-por-cobrar/catalogos', 'catalogos');
+        Route::get('/cuentas-por-cobrar/cliente/{id}', 'clienteDetalle');
+        Route::post('/cuentas-por-cobrar/abonar-factura', 'abonarFactura');
+        Route::post('/cuentas-por-cobrar/abonar-general', 'abonarGeneral');
+        Route::get('/cuentas-por-cobrar/ticket/{id}', 'imprimirTicket')->name('cxc.ticket');
+    });
+
+    Route::controller(CuentaPorPagarController::class)->group(function () {
+        Route::get('/cuentas-por-pagar', 'index')->name('cxp');
+        Route::get('/cuentas-por-pagar/lista', 'lista');
+        Route::get('/cuentas-por-pagar/catalogos', 'catalogos');
+        Route::get('/cuentas-por-pagar/proveedor/{id}', 'proveedorDetalle');
+        Route::post('/cuentas-por-pagar/abonar-factura', 'abonarFactura');
+        Route::post('/cuentas-por-pagar/abonar-general', 'abonarGeneral');
+        Route::get('/cuentas-por-pagar/ticket/{id}', 'imprimirTicket')->name('cxp.ticket');
+    });
+
     Route::controller(MetodoPagoController::class)->group(function () {
+
         Route::get('/metodos-pago', 'index')->name('metodo_pago');
         Route::get('/metodos-pago/lista', 'lista');
         Route::get('/metodos-pago/{id}', 'detalle');

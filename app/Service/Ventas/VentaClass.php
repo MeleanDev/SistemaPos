@@ -9,6 +9,7 @@ use App\Models\DevolucionVenta;
 use App\Models\DevolucionVentaDetalle;
 use App\Models\EmpresaMoneda;
 use App\Models\MetodoPago;
+use App\Models\Moto;
 use App\Models\Producto;
 use App\Models\Servicio;
 use App\Models\Venta;
@@ -116,7 +117,7 @@ class VentaClass
                 return [
                     'id' => $s->id,
                     'tipo_item' => 'servicio',
-                    'codigo_interno' => $s->codigo ?? 'SRV-'.$s->id,
+                    'codigo_interno' => (string) ($s->codigo ?: $s->id),
                     'nombre' => $s->nombre,
                     'unidad_medida' => 'SRV',
                     'categoria_nombre' => $s->categoria?->nombre ?? 'Servicio',
@@ -130,8 +131,67 @@ class VentaClass
                     'iva_porcentaje' => (float) ($s->iva_porcentaje ?? 16.00),
                     'aplica_igtf' => (bool) $s->aplica_igtf,
                     'igtf_porcentaje' => (float) ($s->igtf_porcentaje ?? 3.00),
-                    'codigos_barra' => [],
+                    'codigos_barra' => array_values(array_filter([(string) $s->codigo, (string) $s->id])),
                     'stock_almacenes' => [],
+                ];
+            });
+
+        // 7. Motos disponibles
+        $motos = Moto::with('almacen')
+            ->where('empresa_id', $empresaId)
+            ->where('estado', 'disponible')
+            ->get()
+            ->map(function ($m) use ($tasaUsd) {
+                $costoUsd = (float) $m->precio_costo_usd;
+                $detalUsd = (float) $m->precio_detal_usd;
+                $mayorUsd = (float) $m->precio_mayorista_usd;
+                $referencia = trim($m->referencia ?? '');
+                $codigos = array_values(array_filter([
+                    $referencia,
+                    $m->numero_niv,
+                    $m->numero_chasis,
+                    $m->numero_motor,
+                    $m->certificado_origen,
+                    $m->placa,
+                ]));
+
+                return [
+                    'id' => $m->id,
+                    'tipo_item' => 'moto',
+                    'codigo_interno' => $referencia ?: $m->numero_niv,
+                    'referencia' => $referencia,
+                    'nombre' => "{$m->marca} {$m->modelo} ({$m->anio})".($referencia ? " [Ref: #{$referencia}]" : '')." - NIV: {$m->numero_niv}",
+                    'marca' => $m->marca,
+                    'modelo' => $m->modelo,
+                    'anio' => $m->anio,
+                    'color' => $m->color,
+                    'cilindrada' => $m->cilindrada,
+                    'numero_niv' => $m->numero_niv,
+                    'numero_chasis' => $m->numero_chasis,
+                    'numero_motor' => $m->numero_motor,
+                    'certificado_origen' => $m->certificado_origen,
+                    'placa' => $m->placa,
+                    'unidad_medida' => 'UND',
+                    'categoria_nombre' => 'Motos & Vehículos',
+                    'precio_costo_usd' => $costoUsd,
+                    'precio_costo_bs' => round($costoUsd * $tasaUsd, 2),
+                    'precio_detal_usd' => $detalUsd,
+                    'precio_detal_bs' => round($detalUsd * $tasaUsd, 2),
+                    'precio_mayorista_usd' => $mayorUsd,
+                    'precio_mayorista_bs' => round($mayorUsd * $tasaUsd, 2),
+                    'aplica_iva' => true,
+                    'iva_porcentaje' => 16.00,
+                    'aplica_igtf' => true,
+                    'igtf_porcentaje' => 3.00,
+                    'codigos_barra' => $codigos,
+                    'almacen_id' => $m->almacen_id,
+                    'stock_almacenes' => [
+                        [
+                            'almacen_id' => $m->almacen_id,
+                            'almacen_nombre' => $m->almacen?->nombre ?? 'Almacén',
+                            'cantidad_actual' => 1,
+                        ],
+                    ],
                 ];
             });
 
@@ -141,7 +201,7 @@ class VentaClass
             'metodos_pago' => $metodosPago,
             'tasa_usd' => $tasaUsd,
             'proximo_codigo' => $this->generarCodigo($empresaId),
-            'productos' => $productos->concat($servicios)->values(),
+            'productos' => $productos->concat($servicios)->concat($motos)->values(),
         ];
     }
 
@@ -272,9 +332,13 @@ class VentaClass
                 }
 
                 $producto = null;
+                $moto = null;
+                $servicio = null;
                 $costoUnitarioUsd = 0;
                 $aplicaIva = false;
                 $ivaPorcentaje = 0;
+                $nombreItem = null;
+                $serialIdentificador = null;
 
                 if ($tipoItem === 'producto') {
                     $producto = Producto::where('id', $productoId)
@@ -284,14 +348,33 @@ class VentaClass
                     $costoUnitarioUsd = (float) $producto->precio_costo_usd;
                     $aplicaIva = (bool) $producto->aplica_iva;
                     $ivaPorcentaje = $aplicaIva ? (float) ($producto->iva_porcentaje ?? 16.00) : 0;
+                    $nombreItem = $producto->nombre;
+                    $serialIdentificador = $producto->codigo_interno;
+                } elseif ($tipoItem === 'moto') {
+                    $moto = Moto::where('id', $productoId)
+                        ->where('empresa_id', $empresaId)
+                        ->firstOrFail();
+
+                    if ($moto->estado !== 'disponible') {
+                        throw new Exception("La moto con NIV '{$moto->numero_niv}' ya no se encuentra disponible para la venta.");
+                    }
+
+                    $costoUnitarioUsd = (float) $moto->precio_costo_usd;
+                    $aplicaIva = true;
+                    $ivaPorcentaje = 16.00;
+                    $nombreItem = "{$moto->marca} {$moto->modelo} ({$moto->anio})";
+                    $serialIdentificador = $moto->numero_niv;
+                    $almacenItem = $moto->almacen_id ?: $almacenItem;
                 } elseif ($tipoItem === 'servicio') {
                     $servicio = Servicio::where('id', $productoId)
                         ->where('empresa_id', $empresaId)
                         ->firstOrFail();
 
-                    $costoUnitarioUsd = 0;
+                    $costoUnitarioUsd = (float) $servicio->precio_costo_usd;
                     $aplicaIva = (bool) $servicio->aplica_iva;
                     $ivaPorcentaje = $aplicaIva ? (float) ($servicio->iva_porcentaje ?? 16.00) : 0;
+                    $nombreItem = $servicio->nombre;
+                    $serialIdentificador = $servicio->codigo;
                 }
 
                 $descuentoPorc = (float) ($it['descuento_porcentaje'] ?? 0);
@@ -314,10 +397,15 @@ class VentaClass
                 }
 
                 $detallesParaInsertar[] = [
-                    'producto_id' => $productoId,
+                    'producto_id' => $producto?->id,
+                    'moto_id' => $moto?->id,
+                    'servicio_id' => $servicio?->id,
                     'producto_model' => $producto,
+                    'moto_model' => $moto,
                     'almacen_id' => $almacenItem,
                     'tipo_item' => $tipoItem,
+                    'nombre_item' => $nombreItem,
+                    'serial_identificador' => $serialIdentificador,
                     'cantidad' => $cantidad,
                     'costo_unitario_usd' => $costoUnitarioUsd,
                     'costo_unitario_bs' => round($costoUnitarioUsd * $tasaCambio, 4),
@@ -439,8 +527,12 @@ class VentaClass
                 $detModel = VentaDetalle::create([
                     'venta_id' => $venta->id,
                     'producto_id' => $det['producto_id'],
+                    'moto_id' => $det['moto_id'],
+                    'servicio_id' => $det['servicio_id'],
                     'almacen_id' => $det['almacen_id'],
                     'tipo_item' => $det['tipo_item'],
+                    'nombre_item' => $det['nombre_item'],
+                    'serial_identificador' => $det['serial_identificador'],
                     'cantidad' => $det['cantidad'],
                     'costo_unitario_usd' => $det['costo_unitario_usd'],
                     'costo_unitario_bs' => $det['costo_unitario_bs'],
@@ -458,7 +550,7 @@ class VentaClass
                 ]);
 
                 // Descontar inventario solo si es producto físico
-                if ($det['tipo_item'] === 'producto' && $det['producto_model']) {
+                if ($det['tipo_item'] === 'producto' && $det['producto_model'] && $det['producto_id']) {
                     $this->kardexService->registrarMovimiento([
                         'empresa_id' => $empresaId,
                         'almacen_id' => $det['almacen_id'],
@@ -472,6 +564,11 @@ class VentaClass
                         'costo_unitario_bs' => $det['costo_unitario_bs'],
                         'motivo' => "Venta POS Comprobante #{$venta->codigo}",
                     ]);
+                }
+
+                // Si es moto, actualizar su estado a 'vendida'
+                if ($det['tipo_item'] === 'moto' && $det['moto_model']) {
+                    $det['moto_model']->update(['estado' => 'vendida']);
                 }
             }
 
@@ -511,7 +608,7 @@ class VentaClass
                 ]);
             }
 
-            return $venta->load(['cliente', 'almacen', 'detalles.producto', 'pagos.metodoPago']);
+            return $venta->load(['cliente', 'almacen', 'detalles.producto', 'detalles.moto', 'detalles.servicio', 'pagos.metodoPago']);
         });
     }
 
@@ -586,7 +683,7 @@ class VentaClass
         $empresaId = $this->empresaId();
         $busqueda = trim($busqueda);
 
-        $venta = Venta::with(['cliente', 'almacen', 'detalles.producto', 'pagos.metodoPago', 'devoluciones.detalles'])
+        $venta = Venta::with(['cliente', 'almacen', 'detalles.producto', 'detalles.moto', 'detalles.servicio', 'pagos.metodoPago', 'devoluciones.detalles'])
             ->where('empresa_id', $empresaId)
             ->where(function ($q) use ($busqueda) {
                 $q->where('codigo', $busqueda)
@@ -691,7 +788,11 @@ class VentaClass
                     'devolucion_venta_id' => $devolucion->id,
                     'venta_detalle_id' => $vd->id,
                     'producto_id' => $vd->producto_id,
+                    'moto_id' => $vd->moto_id,
+                    'servicio_id' => $vd->servicio_id,
                     'almacen_id' => $vd->almacen_id,
+                    'nombre_item' => $vd->nombre_item,
+                    'serial_identificador' => $vd->serial_identificador,
                     'cantidad' => $d['cantidad'],
                     'precio_unitario_usd' => $d['precio_unitario_usd'],
                     'precio_unitario_bs' => $d['precio_unitario_bs'],
@@ -700,7 +801,7 @@ class VentaClass
                 ]);
 
                 // Reintegrar stock al almacén si es producto físico
-                if ($vd->tipo_item === 'producto') {
+                if ($vd->tipo_item === 'producto' && $vd->producto_id) {
                     $this->kardexService->registrarMovimiento([
                         'empresa_id' => $empresaId,
                         'almacen_id' => $vd->almacen_id,
@@ -714,6 +815,11 @@ class VentaClass
                         'costo_unitario_bs' => $vd->costo_unitario_bs,
                         'motivo' => "Reintegro por Devolución #{$devolucion->codigo} de Venta #{$venta->codigo}",
                     ]);
+                }
+
+                // Reintegrar moto a estado 'disponible' si es moto
+                if ($vd->tipo_item === 'moto' && $vd->moto_id) {
+                    Moto::where('id', $vd->moto_id)->update(['estado' => 'disponible']);
                 }
             }
 
@@ -740,7 +846,7 @@ class VentaClass
                 $cxc->save();
             }
 
-            return $devolucion->load(['detalles.producto', 'venta.cliente']);
+            return $devolucion->load(['detalles.producto', 'detalles.moto', 'detalles.servicio', 'venta.cliente']);
         });
     }
 
@@ -751,7 +857,7 @@ class VentaClass
     {
         $empresaId = $this->empresaId();
 
-        return Venta::with(['empresa', 'cliente', 'almacen', 'usuario', 'detalles.producto', 'pagos.metodoPago'])
+        return Venta::with(['empresa', 'cliente', 'almacen', 'usuario', 'detalles.producto', 'detalles.moto', 'detalles.servicio', 'pagos.metodoPago'])
             ->where('empresa_id', $empresaId)
             ->where(function ($q) use ($idOcodigo) {
                 $q->where('id', $idOcodigo)

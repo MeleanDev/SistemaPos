@@ -78,6 +78,44 @@
         <!-- Componentes JavaScript Reutilizables POS -->
         @include('Sistema.components.js-components')
 
+        <script>
+            function toggleSidebarMenu() {
+                const $wrapper = $("#main-wrapper");
+                const currentType = $wrapper.attr("data-sidebartype");
+                const newType = currentType === "mini-sidebar" ? "full" : "mini-sidebar";
+                $wrapper.attr("data-sidebartype", newType);
+                localStorage.setItem("sidebar_state", newType);
+                
+                const $icon = $("#iconToggleSidebarGlobal");
+                if ($icon.length) {
+                    if (newType === "mini-sidebar") {
+                        $icon.removeClass("fa-bars").addClass("fa-indent");
+                    } else {
+                        $icon.removeClass("fa-indent").addClass("fa-bars");
+                    }
+                }
+            }
+            window.toggleSidebarMenu = toggleSidebarMenu;
+
+            $(document).ready(function() {
+                const savedState = localStorage.getItem("sidebar_state");
+                if (savedState) {
+                    $("#main-wrapper").attr("data-sidebartype", savedState);
+                    if (savedState === "mini-sidebar") {
+                        $("#iconToggleSidebarGlobal").removeClass("fa-bars").addClass("fa-indent");
+                    }
+                }
+
+                // Atajo de teclado global Ctrl + B para abrir/cerrar sidebar
+                $(document).on("keydown", function(e) {
+                    if (e.ctrlKey && (e.key === "b" || e.key === "B")) {
+                        e.preventDefault();
+                        toggleSidebarMenu();
+                    }
+                });
+            });
+        </script>
+
         @yield('scripts')
 
         {{--

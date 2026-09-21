@@ -25,6 +25,7 @@
             'Servicio',
             'Categoría',
             'Precios (USD / Bs.)',
+            'Régimen Fiscal',
             'Acciones',
         ]"
     />
@@ -70,22 +71,48 @@
                 </div>
 
                 <!-- ESTRUCTURA DE PRECIOS -->
-                <div class="col-12">
-                    <div class="card border rounded-4 p-3 bg-light-subtle">
+                <div class="col-md-7">
+                    <div class="card border rounded-4 p-3 bg-light-subtle h-100">
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <h6 class="fw-bold text-dark mb-0"><i class="fas fa-coins text-warning me-2"></i> Precio del Servicio</h6>
-                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill font-monospace px-3 py-1">
-                                <i class="fas fa-exchange-alt me-1"></i> Tasa Sistema: 1 $ = <span id="badgeTasaUsd">1.0000</span> Bs.
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill font-monospace px-2.5 py-1" style="font-size: 0.75rem;">
+                                1 $ = <span id="badgeTasaUsd">1.0000</span> Bs.
                             </span>
                         </div>
-                        <div class="row g-3">
-                            <div class="col-md-6">
+                        <div class="row g-2">
+                            <div class="col-6">
                                 <label class="form-label-executive"><i class="fas fa-dollar-sign text-primary me-1"></i> Precio ($ USD) <span class="text-danger">*</span></label>
                                 <input type="number" step="0.0001" min="0" class="form-control form-control-executive text-end fw-bold text-dark" id="precio_venta_usd" name="precio_venta_usd" placeholder="0.00" required oninput="calcularPreciosBsDesdeUsd()">
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label-executive"><i class="fas fa-coins text-success me-1"></i> Precio en Bolívares (Bs.) <span class="text-danger">*</span></label>
+                            <div class="col-6">
+                                <label class="form-label-executive"><i class="fas fa-coins text-success me-1"></i> Precio (Bs.)</label>
                                 <input type="number" step="0.0001" min="0" class="form-control form-control-executive text-end fw-bold text-dark" id="precio_venta_bs" name="precio_venta_bs" placeholder="0.00" oninput="calcularPreciosUsdDesdeBs()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RÉGIMEN FISCAL (IVA) -->
+                <div class="col-md-5">
+                    <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                        <h6 class="fw-bold text-dark mb-2"><i class="fas fa-file-invoice-dollar text-warning me-1"></i> Régimen Fiscal</h6>
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <div class="d-flex align-items-center justify-content-between border rounded-3 p-2 bg-light-subtle">
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="aplica_iva" name="aplica_iva" value="1" onchange="toggleIvaInput()">
+                                        <label class="form-check-label fw-bold text-dark small" for="aplica_iva">Aplica IVA</label>
+                                    </div>
+                                    <div style="width: 100px;" id="contenedorIvaPorcentaje">
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" step="0.01" min="0" max="100" class="form-control text-end fw-bold font-monospace" id="iva_porcentaje" name="iva_porcentaje" value="16.00">
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <small class="text-muted d-block mt-1 ps-1" style="font-size: 0.73rem;">
+                                    Si se desactiva, el servicio quedará <strong>Exento de IVA</strong>.
+                                </small>
                             </div>
                         </div>
                     </div>
