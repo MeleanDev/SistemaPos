@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Administradores;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Usuario\ActualizarPermisosRequest;
 use App\Http\Requests\Usuario\ActualizarRequest;
+use App\Http\Requests\Usuario\CambiarEmpresaRequest;
 use App\Http\Requests\Usuario\CrearRequest;
 use App\Service\Administradores\UsuarioClass;
+use Exception;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -37,13 +39,13 @@ class UsuarioController extends Controller
         return response()->json($this->usuarioClass->obtenerRolesYEmpresas());
     }
 
-    public function detalle($id): JsonResponse
+    public function detalle(int $id): JsonResponse
     {
         try {
             $usuario = $this->usuarioClass->detalle($id);
 
             return response()->json($usuario);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Usuario no encontrado',
@@ -51,17 +53,17 @@ class UsuarioController extends Controller
         }
     }
 
-    public function guardar(CrearRequest $datos): JsonResponse
+    public function guardar(CrearRequest $request): JsonResponse
     {
         try {
-            $usuario = $this->usuarioClass->guardar($datos->validated());
+            $usuario = $this->usuarioClass->guardar($request->validated());
 
             return response()->json([
                 'success' => true,
                 'message' => 'Usuario registrado correctamente',
                 'data' => $usuario,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -69,17 +71,17 @@ class UsuarioController extends Controller
         }
     }
 
-    public function actualizar(ActualizarRequest $datos, $id): JsonResponse
+    public function actualizar(ActualizarRequest $request, int $id): JsonResponse
     {
         try {
-            $usuario = $this->usuarioClass->actualizar($datos->validated(), $id);
+            $usuario = $this->usuarioClass->actualizar($request->validated(), $id);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Usuario actualizado correctamente',
                 'data' => $usuario,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -87,16 +89,11 @@ class UsuarioController extends Controller
         }
     }
 
-    public function actualizarPermisos(Request $request, $id): JsonResponse
+    public function actualizarPermisos(ActualizarPermisosRequest $request, int $id): JsonResponse
     {
-        $request->validate([
-            'permisos' => ['nullable', 'array'],
-            'permisos.*' => ['string', 'exists:permissions,name'],
-        ]);
-
         try {
-            $permisos = $request->input('permisos', []);
-            $usuario = $this->usuarioClass->actualizarPermisos($id, $permisos);
+            $permisos = $request->validated('permisos', []);
+            $usuario = $this->usuarioClass->actualizarPermisos($id, $permisos ?? []);
 
             return response()->json([
                 'success' => true,
@@ -107,7 +104,7 @@ class UsuarioController extends Controller
                     'permisos_count' => $usuario->permissions->count(),
                 ],
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar permisos: '.$e->getMessage(),
@@ -115,7 +112,7 @@ class UsuarioController extends Controller
         }
     }
 
-    public function eliminar($id): JsonResponse
+    public function eliminar(int $id): JsonResponse
     {
         try {
             if (Auth::id() == $id) {
@@ -132,7 +129,7 @@ class UsuarioController extends Controller
                 'message' => 'Usuario eliminado correctamente',
                 'data' => $usuario,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -140,13 +137,10 @@ class UsuarioController extends Controller
         }
     }
 
-    public function cambiarEmpresa(Request $request): JsonResponse
+    public function cambiarEmpresa(CambiarEmpresaRequest $request): JsonResponse
     {
-        $request->validate([
-            'empresa_id' => ['required', 'integer', 'exists:empresas,id'],
-        ]);
-
-        $cambiado = $this->usuarioClass->cambiarEmpresaActiva($request->empresa_id, Auth::user());
+        $empresaId = (int) $request->validated('empresa_id');
+        $cambiado = $this->usuarioClass->cambiarEmpresaActiva($empresaId, Auth::user());
 
         if ($cambiado) {
             return response()->json([
