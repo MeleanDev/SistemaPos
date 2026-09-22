@@ -1,4 +1,3 @@
-// URL limpia independiente de query parameters en la barra de navegación
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
 const urlLista = urlBase + "/lista";
 const urlDetalles = urlBase + "/";
@@ -14,7 +13,6 @@ let listaAlmacenes = [];
 $(document).ready(function () {
     cargarAlmacenes();
 
-    // Búsqueda en tiempo real
     $("#buscadorAlmacenes").on("input", function () {
         const busqueda = $(this).val().toLowerCase().trim();
 
@@ -41,9 +39,6 @@ $(document).ready(function () {
     aplicarRestriccionesInput();
 });
 
-/**
- * Mostrar esqueletos de carga visual
- */
 const mostrarSkeletonLoading = function () {
     const $contenedor = $("#contenedorAlmacenes");
     let skeletonHtml = "";
@@ -76,9 +71,6 @@ const mostrarSkeletonLoading = function () {
     );
 };
 
-/**
- * Cargar almacenes desde el servidor
- */
 const cargarAlmacenes = async function () {
     mostrarSkeletonLoading();
 
@@ -114,9 +106,6 @@ const cargarAlmacenes = async function () {
     }
 };
 
-/**
- * Renderizar la lista de almacenes en Cards
- */
 const renderizarAlmacenes = function (almacenes, esFiltrado = false) {
     const $contenedor = $("#contenedorAlmacenes");
     $contenedor.empty();
@@ -183,7 +172,6 @@ const renderizarAlmacenes = function (almacenes, esFiltrado = false) {
                 <div class="card card-executive h-100 border-0 shadow-sm hover-lift transition-all" style="border-radius: 16px; overflow: hidden; border-top: 4px solid #4f46e5 !important;">
                     <div class="card-body p-4 d-flex flex-column justify-content-between">
                         <div>
-                            <!-- ENCABEZADO DE LA CARD -->
                             <div class="d-flex align-items-start justify-content-between gap-2 mb-3">
                                 <div class="d-flex align-items-center gap-3">
                                     <div class="avatar-executive shadow-sm" style="width: 48px; height: 48px; font-size: 1.25rem; background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%); color: #ffffff; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
@@ -201,18 +189,16 @@ const renderizarAlmacenes = function (almacenes, esFiltrado = false) {
 
                             <hr class="my-3 opacity-10">
 
-                            <!-- DETALLES DE UBICACIÓN -->
                             <div class="mb-3">
                                 <div class="d-flex align-items-start">
                                     <i class="fas fa-map-marker-alt text-danger me-2 mt-1 opacity-75" style="width: 16px;"></i>
-                                    <span class="small text-dark text-truncate-2" style="font-size: 0.83rem; line-height: 1.35;" title="${direccion || ''}">
+                                    <span class="small text-dark text-truncate-2" style="font-size: 0.83rem; line-height: 1.35;" title="${direccion || ""}">
                                         ${direccion || '<span class="text-muted fst-italic">Sin dirección registrada</span>'}
                                     </span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- FOOTER Y BOTONES DE ACCIÓN -->
                         <div class="pt-3 border-top mt-3 d-flex justify-content-end align-items-center gap-2">
                             <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1"
                                 onclick="editar(${almacen.id})" style="font-size: 0.8rem;">
@@ -232,9 +218,6 @@ const renderizarAlmacenes = function (almacenes, esFiltrado = false) {
     });
 };
 
-/**
- * Abrir modal para crear nuevo almacén
- */
 const crear = function () {
     isEditar = false;
     idAlmacenActual = null;
@@ -253,37 +236,41 @@ const crear = function () {
     modal.show();
 };
 
-/**
- * Abrir modal para editar almacén
- */
 const editar = async function (id) {
-    isEditar = true;
-    idAlmacenActual = id;
-    urlAccion = urlEditar + id;
+    try {
+        isEditar = true;
+        idAlmacenActual = id;
+        urlAccion = urlEditar + id;
 
-    $("#formularioAlmacen")[0].reset();
-    $("#modalAlmacen .is-invalid").removeClass("is-invalid");
-    $("#modalAlmacen .invalid-feedback").remove();
+        const datos = await consultarRegistro(urlDetalles, id);
+        if (!datos) return;
 
-    $("#modalAlmacenTitulo").text("Editar Almacén");
-    $("#modalAlmacenSubtitulo").text("Modifica los datos del almacén seleccionado");
-    $("#modalAlmacenIcono").attr("class", "fas fa-edit text-warning fs-5");
-    $("#modalAlmacenTextoGuardar").text("Actualizar");
+        $("#formularioAlmacen")[0].reset();
+        $("#modalAlmacen .is-invalid").removeClass("is-invalid");
+        $("#modalAlmacen .invalid-feedback").remove();
 
-    const datos = await consultarRegistro(urlDetalles, id);
-    if (!datos) return;
+        $("#modalAlmacenTitulo").text("Editar Almacén");
+        $("#modalAlmacenSubtitulo").text("Modifica los datos del almacén seleccionado");
+        $("#modalAlmacenIcono").attr("class", "fas fa-edit text-warning fs-5");
+        $("#modalAlmacenTextoGuardar").text("Actualizar");
 
-    $("#codigo").val(datos.codigo || "");
-    $("#nombre").val(datos.nombre || "");
-    $("#direccion").val(datos.direccion || "");
+        $("#codigo").val(datos.codigo || "");
+        $("#nombre").val(datos.nombre || "");
+        $("#direccion").val(datos.direccion || "");
 
-    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalAlmacen"));
-    modal.show();
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalAlmacen"));
+        modal.show();
+    } catch (error) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "error",
+                title: "Error",
+                text: "No se pudieron cargar los datos del almacén.",
+            });
+        }
+    }
 };
 
-/**
- * Procesar envío del formulario (Crear / Actualizar)
- */
 $("#formularioAlmacen").on("submit", function (e) {
     e.preventDefault();
 
@@ -321,9 +308,6 @@ $("#formularioAlmacen").on("submit", function (e) {
     });
 });
 
-/**
- * Eliminar Almacén (Borrado Lógico)
- */
 const eliminar = function (id, nombre) {
     cambiarEstadoRegistro({
         url: urlEliminar,
