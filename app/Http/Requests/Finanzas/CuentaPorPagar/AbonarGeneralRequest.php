@@ -2,20 +2,12 @@
 
 namespace App\Http\Requests\Finanzas\CuentaPorPagar;
 
+use App\Http\Requests\BaseRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class AbonarGeneralRequest extends FormRequest
+class AbonarGeneralRequest extends BaseRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
      * Get the validation rules that apply to the request.
      *
@@ -23,13 +15,11 @@ class AbonarGeneralRequest extends FormRequest
      */
     public function rules(): array
     {
-        $empresaId = $this->user()?->empresaActiva()?->id ?? session('empresa_activa_id');
-
         return [
             'proveedor_id' => [
                 'required',
                 'integer',
-                Rule::exists('proveedores', 'id')->where(fn ($query) => $query->where('empresa_id', $empresaId)->where('estado', true)),
+                Rule::exists('proveedores', 'id')->where(fn ($query) => $query->where('empresa_id', $this->empresaId())->where('estado', true)),
             ],
             'metodo_pago_id' => [
                 'required',

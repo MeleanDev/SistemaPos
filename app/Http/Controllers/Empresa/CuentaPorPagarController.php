@@ -17,17 +17,6 @@ class CuentaPorPagarController extends Controller
         private CuentaPorPagarClass $cuentaPorPagarClass
     ) {}
 
-    private function obtenerEmpresaId(): int
-    {
-        $empresa = Auth::user()?->empresaActiva();
-
-        if (! $empresa) {
-            abort(403, 'No tienes una empresa activa asignada.');
-        }
-
-        return $empresa->id;
-    }
-
     public function index(): View
     {
         return view('Sistema.pages.empresa.cxp');

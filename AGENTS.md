@@ -35,10 +35,11 @@ This project contains specialized domain skills in `.agents/skills/` (notably `.
 
 ## Mandatory Form Requests & Controller Conventions (MANDATORY RULE)
 
-- **NO INLINE VALIDATION IN CONTROLLERS**: NEVER use `$request->validate([...])` inside controller methods. All incoming request validation MUST live in dedicated `FormRequest` classes under `app/Http/Requests/`.
+- **NO INLINE VALIDATION IN CONTROLLERS**: NEVER use `$request->validate([...])` inside controller methods. All incoming request validation MUST live in dedicated `FormRequest` classes under `app/Http/Requests/` extending `App\Http\Requests\BaseRequest`.
 - **Use Validated Data**: Always retrieve sanitized input in controllers via `$request->validated()` or `$request->validated('field')`. Never pass raw `$request->all()` on validated endpoints.
 - **Rule Syntax**: Always define validation rules using array format `['required', 'string', ...]` with custom Spanish messages in `messages()`.
-- **Controller Property Promotion & Helpers**: Always use constructor property promotion `private {Module}Class ${module}Class` and the standard `private function obtenerEmpresaId(): int` using `Auth::user()?->empresaActiva()`.
+- **Centralized Empresa Scoping (`HasEmpresaActiva` & `BaseRequest`)**: Base controller `Controller` and `BaseRequest` use `App\Traits\HasEmpresaActiva`. Use `$this->obtenerEmpresaId()` / `$this->empresaId()` directly without redefining local helpers.
+- **Constructor Property Promotion**: Always use constructor property promotion `private {Module}Class ${module}Class`.
 
 ## Executive UI/UX Standard
 

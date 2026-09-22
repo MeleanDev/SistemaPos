@@ -2,20 +2,12 @@
 
 namespace App\Http\Requests\Proveedor;
 
+use App\Http\Requests\BaseRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class ActualizarRequest extends FormRequest
+class ActualizarRequest extends BaseRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
      * Get the validation rules that apply to the request.
      *
@@ -24,7 +16,6 @@ class ActualizarRequest extends FormRequest
     public function rules(): array
     {
         $id = $this->route('id');
-        $empresaId = $this->user()?->empresaActiva()?->id;
 
         return [
             'rif' => [
@@ -33,7 +24,7 @@ class ActualizarRequest extends FormRequest
                 'max:20',
                 Rule::unique('proveedores', 'rif')
                     ->ignore($id)
-                    ->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $empresaId)),
+                    ->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $this->empresaId())),
             ],
             'nombre' => [
                 'required',
@@ -42,7 +33,7 @@ class ActualizarRequest extends FormRequest
                 'max:150',
                 Rule::unique('proveedores', 'nombre')
                     ->ignore($id)
-                    ->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $empresaId)),
+                    ->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $this->empresaId())),
             ],
             'razon_social' => [
                 'required',
@@ -51,7 +42,7 @@ class ActualizarRequest extends FormRequest
                 'max:150',
                 Rule::unique('proveedores', 'razon_social')
                     ->ignore($id)
-                    ->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $empresaId)),
+                    ->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $this->empresaId())),
             ],
             'nombre_contacto' => ['nullable', 'string', 'max:100'],
             'telefono' => ['nullable', 'string', 'max:25'],

@@ -28,7 +28,7 @@ class RecepcionMotoController extends Controller
     public function catalogos(): JsonResponse
     {
         try {
-            $empresaId = Auth::user()->empresaActiva()->id;
+            $empresaId = $this->obtenerEmpresaId();
 
             $proveedores = Proveedor::where('empresa_id', $empresaId)
                 ->where('estado', true)
@@ -66,7 +66,7 @@ class RecepcionMotoController extends Controller
 
     public function lista(): JsonResponse
     {
-        $empresaId = Auth::user()->empresaActiva()->id;
+        $empresaId = $this->obtenerEmpresaId();
         $recepciones = $this->recepcionMotoService->lista($empresaId);
 
         return datatables()->of($recepciones)

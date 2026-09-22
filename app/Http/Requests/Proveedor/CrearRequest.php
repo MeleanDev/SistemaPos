@@ -2,20 +2,12 @@
 
 namespace App\Http\Requests\Proveedor;
 
+use App\Http\Requests\BaseRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class CrearRequest extends FormRequest
+class CrearRequest extends BaseRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
      * Get the validation rules that apply to the request.
      *
@@ -23,28 +15,26 @@ class CrearRequest extends FormRequest
      */
     public function rules(): array
     {
-        $empresaId = $this->user()?->empresaActiva()?->id;
-
         return [
             'rif' => [
                 'required',
                 'string',
                 'max:20',
-                Rule::unique('proveedores', 'rif')->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $empresaId)),
+                Rule::unique('proveedores', 'rif')->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $this->empresaId())),
             ],
             'nombre' => [
                 'required',
                 'string',
                 'min:2',
                 'max:150',
-                Rule::unique('proveedores', 'nombre')->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $empresaId)),
+                Rule::unique('proveedores', 'nombre')->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $this->empresaId())),
             ],
             'razon_social' => [
                 'required',
                 'string',
                 'min:2',
                 'max:150',
-                Rule::unique('proveedores', 'razon_social')->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $empresaId)),
+                Rule::unique('proveedores', 'razon_social')->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $this->empresaId())),
             ],
             'nombre_contacto' => ['nullable', 'string', 'max:100'],
             'telefono' => ['nullable', 'string', 'max:25'],

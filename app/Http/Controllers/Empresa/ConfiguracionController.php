@@ -7,23 +7,11 @@ use App\Http\Requests\Configuracion\ActualizarEmpresaRequest;
 use App\Http\Requests\Configuracion\ActualizarTasasRequest;
 use App\Service\Empresa\ConfiguracionEmpresaClass;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class ConfiguracionController extends Controller
 {
     public function __construct(private ConfiguracionEmpresaClass $configuracionClass) {}
-
-    private function obtenerEmpresaId(): int
-    {
-        $empresa = Auth::user()?->empresaActiva();
-
-        if (! $empresa) {
-            abort(403, 'No tienes una empresa activa asignada.');
-        }
-
-        return $empresa->id;
-    }
 
     public function index(): View
     {

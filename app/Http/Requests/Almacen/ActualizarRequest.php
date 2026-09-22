@@ -2,20 +2,12 @@
 
 namespace App\Http\Requests\Almacen;
 
+use App\Http\Requests\BaseRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class ActualizarRequest extends FormRequest
+class ActualizarRequest extends BaseRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
      * Get the validation rules that apply to the request.
      *
@@ -23,7 +15,6 @@ class ActualizarRequest extends FormRequest
      */
     public function rules(): array
     {
-        $empresaId = $this->user()?->empresaActiva()?->id;
         $id = $this->route('id');
 
         return [
@@ -34,7 +25,7 @@ class ActualizarRequest extends FormRequest
                 'max:50',
                 Rule::unique('almacenes', 'codigo')
                     ->ignore($id)
-                    ->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $empresaId)),
+                    ->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $this->empresaId())),
             ],
             'nombre' => [
                 'required',
@@ -43,7 +34,7 @@ class ActualizarRequest extends FormRequest
                 'max:150',
                 Rule::unique('almacenes', 'nombre')
                     ->ignore($id)
-                    ->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $empresaId)),
+                    ->where(fn ($query) => $query->where('estado', true)->where('empresa_id', $this->empresaId())),
             ],
             'direccion' => ['nullable', 'string', 'max:255'],
         ];

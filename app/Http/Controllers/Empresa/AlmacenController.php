@@ -8,23 +8,11 @@ use App\Http\Requests\Almacen\CrearRequest;
 use App\Service\Empresa\AlmacenClass;
 use Exception;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class AlmacenController extends Controller
 {
     public function __construct(private AlmacenClass $almacenClass) {}
-
-    private function obtenerEmpresaId(): int
-    {
-        $empresa = Auth::user()?->empresaActiva();
-
-        if (! $empresa) {
-            abort(403, 'No tienes una empresa activa asignada.');
-        }
-
-        return $empresa->id;
-    }
 
     public function index(): View
     {

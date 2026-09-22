@@ -7,23 +7,11 @@ use App\Http\Requests\Producto\ActualizarRequest;
 use App\Http\Requests\Producto\CrearRequest;
 use App\Service\Empresa\ProductoClass;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class ProductoController extends Controller
 {
     public function __construct(private ProductoClass $productoClass) {}
-
-    private function obtenerEmpresaId(): int
-    {
-        $empresa = Auth::user()?->empresaActiva();
-
-        if (! $empresa) {
-            abort(403, 'No tienes una empresa activa asignada.');
-        }
-
-        return $empresa->id;
-    }
 
     public function index(): View
     {

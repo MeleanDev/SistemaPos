@@ -8,27 +8,15 @@ use App\Http\Requests\Servicio\CrearRequest;
 use App\Service\Empresa\ServicioClass;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class ServicioController extends Controller
 {
     public function __construct(private ServicioClass $servicioClass) {}
 
-    private function obtenerEmpresaId(): int
-    {
-        $empresa = Auth::user()?->empresaActiva();
-
-        if (! $empresa) {
-            abort(403, 'No tienes una empresa activa asignada.');
-        }
-
-        return $empresa->id;
-    }
-
     public function index(): View|RedirectResponse
     {
-        $empresa = Auth::user()?->empresaActiva();
+        $empresa = $this->obtenerEmpresaActiva();
         if ($empresa && $empresa->maneja_motos) {
             return redirect()->route('moto');
         }

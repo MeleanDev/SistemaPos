@@ -2,21 +2,13 @@
 
 namespace App\Http\Requests\Producto;
 
+use App\Http\Requests\BaseRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
-class CrearRequest extends FormRequest
+class CrearRequest extends BaseRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
      * Prepare the data for validation.
      */
@@ -36,7 +28,7 @@ class CrearRequest extends FormRequest
      */
     public function rules(): array
     {
-        $empresaId = $this->user()?->empresaActiva()?->id;
+        $empresaId = $this->empresaId();
 
         return [
             'tipo' => ['required', 'string', 'in:producto,servicio'],

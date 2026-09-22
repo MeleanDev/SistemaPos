@@ -7,23 +7,11 @@ use App\Http\Requests\Proveedor\ActualizarRequest;
 use App\Http\Requests\Proveedor\CrearRequest;
 use App\Service\Empresa\ProveedorClass;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class ProveedorController extends Controller
 {
     public function __construct(private ProveedorClass $proveedorClass) {}
-
-    private function obtenerEmpresaId(): int
-    {
-        $empresa = Auth::user()?->empresaActiva();
-
-        if (! $empresa) {
-            abort(403, 'No tienes una empresa activa asignada.');
-        }
-
-        return $empresa->id;
-    }
 
     public function index(): View
     {

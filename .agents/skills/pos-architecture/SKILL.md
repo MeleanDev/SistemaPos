@@ -58,40 +58,33 @@ Every designed, written, reviewed, or refactored module MUST be **magnificent, h
 
 ### 2.2 Controller Architecture & Dependency Injection Conventions
 1. **Constructor Property Promotion**: Always type-hint service classes with `private` constructor property promotion using standard naming `${module}Class` (e.g., `private ProveedorClass $proveedorClass`, `private CuentaPorCobrarClass $cuentaPorCobrarClass`).
-2. **Active Company Scoping Helper**: Every company-scoped controller MUST implement the standard `obtenerEmpresaId()` method:
-   ```php
-   private function obtenerEmpresaId(): int
-   {
-       $empresa = Auth::user()?->empresaActiva();
-
-       if (! $empresa) {
-           abort(403, 'No tienes una empresa activa asignada.');
-       }
-
-       return $empresa->id;
-   }
-   ```
+2. **Centralized Active Company Scoping (`App\Traits\HasEmpresaActiva`)**:
+   - The base controller `App\Http\Controllers\Controller` uses `App\Traits\HasEmpresaActiva`.
+   - **DO NOT redefine `obtenerEmpresaId()` in individual controllers**. It is inherited directly:
+     - `$this->obtenerEmpresaId(): int` (resolves active company ID or aborts 403).
+     - `$this->obtenerEmpresaActiva(): ?Empresa` (resolves active Empresa model instance).
 3. **HTTP Responses**: Return consistent JSON payloads (`{ success: bool, message?: string, data?: mixed }`) and use proper status codes (e.g., 200, 403, 404, 422, 500).
 
-### 2.3 Form Request Rules & Multi-Tenancy Scoping
+### 2.3 Form Request Standards & BaseRequest Architecture
+- **Base Form Request (`App\Http\Requests\BaseRequest`)**:
+  - All company-scoped Form Requests must extend `App\Http\Requests\BaseRequest`.
+  - Inherits `$this->empresaId()` and `$this->obtenerEmpresaId()` directly.
 - **Rule Syntax Convention**: Always write validation rules using **array format** `['required', 'string', 'min:2', 'max:100']`. Never use pipe strings (avoid `required|string|max:100`).
 - **Spanish Error Messages**: Always override `messages(): array` in every `FormRequest` to return clear, user-friendly Spanish error messages.
 - **Tenant-Scoped Entities vs Global Catalogs**:
   - **Tenant Entities** (`proveedores`, `cuentas_por_cobrar`, `cuentas_por_pagar`, `productos`, `almacenes`, `ventas`, `kardex`, `motos`):
-    `Rule::unique` and `Rule::exists` MUST include `where('empresa_id', $empresaId)` and `where('estado', true)`.
+    `Rule::unique` and `Rule::exists` MUST include `where('empresa_id', $this->empresaId())` and `where('estado', true)`.
     ```php
-    $empresaId = $this->user()?->empresaActiva()?->id ?? session('empresa_activa_id');
-
     // In CrearRequest / AbonarRequest:
     'cuenta_id' => [
         'required',
         'integer',
-        Rule::exists('cuentas_por_cobrar', 'id')->where(fn ($q) => $q->where('empresa_id', $empresaId)),
+        Rule::exists('cuentas_por_cobrar', 'id')->where(fn ($q) => $q->where('empresa_id', $this->empresaId())),
     ],
     'proveedor_id' => [
         'required',
         'integer',
-        Rule::exists('proveedores', 'id')->where(fn ($q) => $q->where('empresa_id', $empresaId)->where('estado', true)),
+        Rule::exists('proveedores', 'id')->where(fn ($q) => $q->where('empresa_id', $this->empresaId())->where('estado', true)),
     ],
     ```
   - **Global Catalogs** (`metodos_pago`, `clientes`):
