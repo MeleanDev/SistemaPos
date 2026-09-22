@@ -207,7 +207,24 @@ class PosController extends Controller
         }
     }
 
-    public function imprimir(string $id): View
+    public function imprimir(Request $request, string $id): View
+    {
+        $formato = $request->query('formato', 'carta');
+        if ($formato === 'ticket') {
+            return $this->imprimirTicket($id);
+        }
+
+        return $this->imprimirCarta($id);
+    }
+
+    public function imprimirCarta(string $id): View
+    {
+        $venta = $this->ventaService->obtenerVentaParaImpresion($id, $this->obtenerEmpresaId());
+
+        return view('Sistema.pages.empresa.factura-carta', compact('venta'));
+    }
+
+    public function imprimirTicket(string $id): View
     {
         $venta = $this->ventaService->obtenerVentaParaImpresion($id, $this->obtenerEmpresaId());
 

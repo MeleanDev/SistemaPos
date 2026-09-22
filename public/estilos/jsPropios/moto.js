@@ -299,18 +299,30 @@ const editarMoto = async function (id) {
             const m = respuesta.data;
             $('#edit_moto_id').val(m.id);
             $('#subtituloEditarMoto').text(`${m.marca} ${m.modelo} - NIV: ${m.numero_niv}`);
+            $('#edit_marca').val(m.marca);
+            $('#edit_modelo').val(m.modelo);
+            $('#edit_referencia').val(m.referencia || '');
+            $('#edit_anio').val(m.anio);
+            $('#edit_cilindrada').val(m.cilindrada || '');
+            $('#edit_numero_niv').val(m.numero_niv);
+            $('#edit_numero_chasis').val(m.numero_chasis);
+            $('#edit_numero_motor').val(m.numero_motor);
+            $('#edit_certificado_origen').val(m.certificado_origen || '');
+            $('#edit_color').val(m.color || '');
+            $('#edit_placa').val(m.placa || '');
             $('#edit_almacen_id').val(m.almacen_id);
             $('#edit_estado').val(m.estado);
-            $('#edit_color').val(m.color);
-            $('#edit_placa').val(m.placa || '');
-            $('#edit_precio_detal_usd').val(parseFloat(m.precio_detal_usd).toFixed(2));
-            $('#edit_precio_mayorista_usd').val(parseFloat(m.precio_mayorista_usd).toFixed(2));
+            $('#edit_precio_costo_usd').val(parseFloat(m.precio_costo_usd || 0).toFixed(2));
+            $('#edit_precio_detal_usd').val(parseFloat(m.precio_detal_usd || 0).toFixed(2));
+            $('#edit_precio_mayorista_usd').val(parseFloat(m.precio_mayorista_usd || 0).toFixed(2));
             $('#edit_observaciones').val(m.observaciones || '');
 
             $('#modalEditarMoto').modal('show');
         }
     } catch (e) {
-        notificacion.fire({ icon: 'error', title: 'Error al cargar datos para edición.' });
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: 'error', title: 'Error al cargar datos para edición.' });
+        }
     }
 };
 
@@ -318,10 +330,20 @@ const guardarEdicionMoto = async function () {
     const id = $('#edit_moto_id').val();
     const payload = {
         _token: $('meta[name="csrf-token"]').attr('content'),
-        almacen_id: $('#edit_almacen_id').val(),
-        estado: $('#edit_estado').val(),
+        marca: $('#edit_marca').val().trim(),
+        modelo: $('#edit_modelo').val().trim(),
+        referencia: $('#edit_referencia').val().trim(),
+        anio: parseInt($('#edit_anio').val()) || new Date().getFullYear(),
+        cilindrada: $('#edit_cilindrada').val().trim(),
+        numero_niv: $('#edit_numero_niv').val().trim(),
+        numero_chasis: $('#edit_numero_chasis').val().trim(),
+        numero_motor: $('#edit_numero_motor').val().trim(),
+        certificado_origen: $('#edit_certificado_origen').val().trim(),
         color: $('#edit_color').val().trim(),
         placa: $('#edit_placa').val().trim(),
+        almacen_id: $('#edit_almacen_id').val(),
+        estado: $('#edit_estado').val(),
+        precio_costo_usd: $('#edit_precio_costo_usd').val(),
         precio_detal_usd: $('#edit_precio_detal_usd').val(),
         precio_mayorista_usd: $('#edit_precio_mayorista_usd').val(),
         observaciones: $('#edit_observaciones').val().trim(),
@@ -340,10 +362,16 @@ const guardarEdicionMoto = async function () {
 
         if (respuesta.success) {
             $('#modalEditarMoto').modal('hide');
-            notificacion.fire({ icon: 'success', title: 'Vehículo Actualizado', text: respuesta.message });
-            datatableMotos.ajax.reload();
+            if (window.notificacion) {
+                window.notificacion.fire({ icon: 'success', title: 'Vehículo Actualizado', text: respuesta.message });
+            }
+            if (datatableMotos) {
+                datatableMotos.ajax.reload();
+            }
         }
     } catch (e) {
-        notificacion.fire({ icon: 'error', title: 'Error al actualizar moto', text: e.responseJSON?.message || 'Verifica los campos ingresados.' });
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: 'error', title: 'Error al actualizar moto', text: e.responseJSON?.message || 'Verifica los campos ingresados.' });
+        }
     }
 };

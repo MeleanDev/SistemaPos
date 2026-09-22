@@ -35,8 +35,17 @@ class MotoClass
         $moto = Moto::where('empresa_id', $empresaId)->findOrFail($id);
 
         $moto->update([
-            'almacen_id' => $datos['almacen_id'] ?? $moto->almacen_id,
+            'marca' => $datos['marca'] ?? $moto->marca,
+            'modelo' => $datos['modelo'] ?? $moto->modelo,
+            'referencia' => ! empty($datos['referencia']) ? trim($datos['referencia']) : $moto->referencia,
+            'anio' => $datos['anio'] ?? $moto->anio,
             'color' => $datos['color'] ?? $moto->color,
+            'cilindrada' => $datos['cilindrada'] ?? $moto->cilindrada,
+            'numero_niv' => $datos['numero_niv'] ?? $moto->numero_niv,
+            'numero_chasis' => $datos['numero_chasis'] ?? $moto->numero_chasis,
+            'numero_motor' => $datos['numero_motor'] ?? $moto->numero_motor,
+            'certificado_origen' => $datos['certificado_origen'] ?? $moto->certificado_origen,
+            'almacen_id' => $datos['almacen_id'] ?? $moto->almacen_id,
             'placa' => ! empty($datos['placa']) ? strtoupper(trim($datos['placa'])) : $moto->placa,
             'precio_costo_usd' => $datos['precio_costo_usd'] ?? $moto->precio_costo_usd,
             'precio_costo_bs' => $datos['precio_costo_bs'] ?? $moto->precio_costo_bs,

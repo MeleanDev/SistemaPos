@@ -405,10 +405,9 @@ class CuentaPorPagarClass
     public function catalogos(int $empresaId): array
     {
         $empresa = Empresa::findOrFail($empresaId);
-        $metodosPago = MetodoPago::where('empresa_id', $empresaId)
-            ->where('estado', true)
+        $metodosPago = MetodoPago::where('estado', true)
             ->orderBy('nombre', 'asc')
-            ->get(['id', 'nombre', 'tipo', 'icono']);
+            ->get(['id', 'nombre', 'descripcion']);
 
         return [
             'metodos_pago' => $metodosPago,

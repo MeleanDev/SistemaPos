@@ -24,11 +24,16 @@ class GuardarEnEsperaRequest extends BaseRequest
     {
         return [
             'cliente_id' => ['nullable', 'integer'],
+            'cliente' => ['nullable', 'array'],
+            'cliente.*' => ['nullable'],
             'tipo_venta' => ['nullable', 'string'],
             'nota_referencia' => ['nullable', 'string', 'max:150'],
             'total_usd' => ['nullable', 'numeric', 'min:0'],
             'total_bs' => ['nullable', 'numeric', 'min:0'],
+            'carrito' => ['nullable', 'array'],
+            'carrito.*' => ['nullable'],
             'items' => ['nullable', 'array'],
+            'items.*' => ['nullable'],
         ];
     }
 

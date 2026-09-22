@@ -232,10 +232,7 @@
                                 <span class="input-group-text bg-white text-primary border-end-0 rounded-start-pill ps-3">
                                     <i class="fas fa-barcode fs-4"></i>
                                 </span>
-                                <input type="text" id="posInputBuscadorProducto" class="form-control form-control-executive border-start-0 font-monospace ps-2" placeholder="Escanear código / serial (NIV, Chasis, Motor) o escribir *código para elegir cantidad y almacén... [Enter]" autocomplete="off">
-                                <button type="button" class="btn btn-outline-secondary rounded-end-pill px-3" onclick="abrirModalConsultaProducto()" title="Verificar Precio y Stock [F8]">
-                                    <i class="fas fa-search me-1"></i> <span class="d-none d-sm-inline">Consultar</span> <span class="kbd-shortcut ms-1">F8</span>
-                                </button>
+                                <input type="text" id="posInputBuscadorProducto" class="form-control form-control-executive border-start-0 rounded-end-pill font-monospace ps-2" placeholder="Escanear código / serial (NIV, Chasis, Motor) o escribir *código para elegir cantidad y almacén... [Enter]" autocomplete="off">
                             </div>
                             <!-- RESULTADOS FLOTANTES DE BÚSQUEDA INTERACTIVA -->
                             <div id="dropdownProductosPos" class="list-group position-absolute w-100 start-0 mt-1 shadow-lg rounded-4" style="z-index: 1070; display: none; max-height: 320px; overflow-y: auto; background: #ffffff; border: 1px solid #cbd5e1;"></div>
@@ -553,9 +550,17 @@
                                 <h6 class="fw-bold text-dark mb-0" id="devFacturaCodigo">VEN-00001</h6>
                                 <span class="text-muted small" id="devFacturaCliente">Cliente: --</span>
                             </div>
-                            <div class="text-end">
-                                <span class="badge bg-success rounded-pill px-3 py-1 font-monospace fw-bold" id="devFacturaTotal">$ 0.00</span>
-                                <small class="text-muted d-block" id="devFacturaFecha">Fecha: --</small>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1 font-monospace fw-bold" onclick="marcarTodoDevolucion()">
+                                    <i class="fas fa-check-double me-1"></i> Devolver Todo
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-2.5 py-1 font-monospace" onclick="desmarcarTodoDevolucion()">
+                                    <i class="fas fa-times me-1"></i> Limpiar
+                                </button>
+                                <div class="text-end ms-2">
+                                    <span class="badge bg-success rounded-pill px-3 py-1 font-monospace fw-bold" id="devFacturaTotal">$ 0.00</span>
+                                    <small class="text-muted d-block" id="devFacturaFecha">Fecha: --</small>
+                                </div>
                             </div>
                         </div>
 
@@ -581,7 +586,7 @@
                     <!-- MOTIVO DE DEVOLUCIÓN -->
                     <div class="card border rounded-4 p-3 bg-white shadow-xs">
                         <label class="form-label-executive mb-1"><i class="fas fa-comment text-secondary me-1"></i> Motivo de la Devolución <span class="text-danger">*</span></label>
-                        <input type="text" id="devInputMotivo" class="form-control form-control-executive" placeholder="Ej. Producto defectuoso, cambio de talla, error en pedido...">
+                        <input type="text" id="devInputMotivo" class="form-control form-control-executive" placeholder="Ej. Devolución de cliente en mostrador..." value="Devolución de cliente en mostrador">
                     </div>
                 </div>
 
@@ -884,9 +889,14 @@
                 <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">
                     <i class="fas fa-times me-1"></i> Cancelar
                 </button>
-                <button type="button" class="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-sm" onclick="ejecutarReimpresionTicket()">
-                    <i class="fas fa-print me-1"></i> Imprimir Ticket
-                </button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary rounded-pill px-3.5 py-2 fw-bold shadow-sm" onclick="ejecutarReimpresionCarta()">
+                        <i class="fas fa-file-invoice me-1"></i> Factura Carta
+                    </button>
+                    <button type="button" class="btn btn-success rounded-pill px-3.5 py-2 fw-bold shadow-sm" onclick="ejecutarReimpresionTicket()">
+                        <i class="fas fa-receipt me-1"></i> Ticket Térmico
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -900,24 +910,24 @@
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header bg-dark text-white border-0 py-3 px-4 rounded-top-4">
                 <div class="d-flex align-items-center gap-2">
-                    <i class="fas fa-user-plus text-warning fs-4"></i>
+                    <i class="fas fa-user-tag text-warning fs-4"></i>
                     <div>
-                        <h5 class="modal-title fw-bold mb-0 text-white" id="modalRapidoClientePosLabel">Cliente Rápido</h5>
-                        <small class="text-white-50">Registra o modifica el cliente sin salir del POS</small>
+                        <h5 class="modal-title fw-bold mb-0 text-white" id="modalRapidoClientePosLabel">Cliente</h5>
+                        <small class="text-white-50">Ingresa los datos fiscales para emitir la factura</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
             <form id="formRapidoClientePos" onsubmit="guardarClienteRapidoPos(event)">
+                <input type="hidden" name="cliente_id" id="rapidoClienteId">
                 <div class="modal-body p-4 bg-light-subtle">
-                    <input type="hidden" id="rapidoClienteId">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <x-input name="cedula" id="rapido_cli_cedula" label="Cédula / RIF" icon="fas fa-id-card" placeholder="Ej. V-12345678" required maxlength="20" />
+                            <x-input name="cedula" id="rapido_cli_cedula" label="Cédula / RIF" icon="fas fa-id-card" placeholder="Ej. V-12345678 o J-12345678-0" required maxlength="20" />
                         </div>
                         <div class="col-md-6">
-                            <x-select name="tipo_cliente" id="rapido_cli_tipo" label="Tipo de Cliente" icon="fas fa-tag">
+                            <x-select name="tipo_cliente" id="rapido_cli_tipo" label="Tipo de Cliente" icon="fas fa-tags" required>
                                 <option value="detal" selected>Cliente al Detal</option>
                                 <option value="mayorista">Cliente Mayorista</option>
                             </x-select>
@@ -969,6 +979,8 @@
     const urlPosDevolucionBuscar = "{{ url('/pos/devolucion/buscar') }}";
     const urlPosDevolucionProcesar = "{{ url('/pos/devolucion/procesar') }}";
     const urlPosImprimir = "{{ url('/pos/imprimir') }}";
+    const urlPosImprimirCarta = "{{ url('/pos/imprimir-carta') }}";
+    const urlPosImprimirTicket = "{{ url('/pos/imprimir-ticket') }}";
 </script>
 <script src="{{ asset('estilos/jsPropios/pos.js') }}"></script>
 @endsection

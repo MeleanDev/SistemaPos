@@ -14,6 +14,7 @@ use App\Models\Proveedor;
 use App\Models\Servicio;
 use App\Models\User;
 use App\Models\Venta;
+use App\Models\VentaDetalle;
 use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
@@ -840,4 +841,191 @@ test('pos procesa servicio exento de iva con 0 impuestos', function () {
     expect($det->aplica_iva)->toBeFalse();
     expect((float) $det->iva_monto_usd)->toBe(0.00);
     expect((float) $det->subtotal_usd)->toBe(40.00);
+});
+
+test('pos puede pausar venta en espera, listarla y recuperarla con cliente y productos completos', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-99911122-1',
+        'nombre' => 'Empresa Cuentas Espera Test',
+        'razon_social' => 'Empresa Cuentas Espera Test C.A.',
+        'direccion' => 'Av. Principal',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $user = User::factory()->create();
+    $user->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $cliente = Cliente::create([
+        'empresa_id' => $empresa->id,
+        'cedula' => 'V-99887766',
+        'nombre' => 'María',
+        'apellido' => 'González',
+        'telefono' => '04121112233',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    $payload = [
+        'cliente_id' => $cliente->id,
+        'cliente' => $cliente->toArray(),
+        'tipo_venta' => 'detal',
+        'nota_referencia' => 'Cliente María González',
+        'total_usd' => 150.00,
+        'total_bs' => 6000.00,
+        'carrito' => [
+            [
+                'producto_id' => 10,
+                'tipo_item' => 'producto',
+                'almacen_id' => 1,
+                'codigo' => 'PROD-001',
+                'nombre' => 'Taladro Percutor',
+                'unidad' => 'UND',
+                'cantidad' => 2,
+                'precio_unitario_usd' => 75.00,
+                'precio_detal_usd' => 75.00,
+                'precio_mayorista_usd' => 65.00,
+                'aplica_iva' => true,
+                'iva_porcentaje' => 16.0,
+                'descuento_porcentaje' => 0,
+                'subtotal_usd' => 150.00,
+                'subtotal_bs' => 6000.00,
+            ],
+        ],
+    ];
+
+    // 1. Guardar en espera
+    $resGuardar = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/en-espera/guardar', $payload);
+
+    $resGuardar->assertOk()->assertJsonPath('success', true);
+    $esperaId = $resGuardar->json('data.id');
+
+    // 2. Listar cuentas en espera
+    $resLista = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/pos/en-espera/lista');
+
+    $resLista->assertOk()
+        ->assertJsonPath('success', true)
+        ->assertJsonCount(1, 'data');
+
+    // 3. Recuperar cuenta en espera
+    $resRecuperar = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson("/pos/en-espera/{$esperaId}/recuperar");
+
+    $resRecuperar->assertOk()->assertJsonPath('success', true);
+    $recuperado = $resRecuperar->json('data');
+
+    expect($recuperado['cliente']['nombre'])->toBe('María');
+    expect($recuperado['carrito'])->toHaveCount(1);
+    expect($recuperado['carrito'][0]['nombre'])->toBe('Taladro Percutor');
+    expect((int) $recuperado['carrito'][0]['cantidad'])->toBe(2);
+});
+
+test('pos puede renderizar formato factura carta y formato ticket termico', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-507699633',
+        'nombre' => 'MULTIREPUESTOS LA LIMPIA 2024, C.A.',
+        'razon_social' => 'MULTIREPUESTOS LA LIMPIA 2024, C.A.',
+        'direccion' => 'Av. 28 LOCAL NRO 59-120 SECTOR LA LIMPIA',
+        'telefono' => '0424-6747438',
+        'maneja_motos' => true,
+        'estado' => true,
+    ]);
+
+    $user = User::factory()->create();
+    $user->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $cliente = Cliente::create([
+        'empresa_id' => $empresa->id,
+        'cedula' => 'V-20442702',
+        'nombre' => 'Karla Andreina',
+        'apellido' => 'Pérez Briceño',
+        'direccion' => 'Av Ppal Casa S/N La Concepción',
+        'telefono' => '0424-6747438',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'ALM-01',
+        'nombre' => 'Almacén Principal',
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $venta = Venta::create([
+        'empresa_id' => $empresa->id,
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'user_id' => $user->id,
+        'codigo' => 'VEN-01494',
+        'numero_control' => '00001607',
+        'tipo_venta' => 'detal',
+        'moneda' => 'USD',
+        'tasa_cambio' => 592.5200,
+        'fecha_emision' => '2026-06-16',
+        'hora_emision' => '10:30:00',
+        'monto_bruto_usd' => 900.13,
+        'monto_bruto_bs' => 533346.54,
+        'subtotal_neto_usd' => 900.13,
+        'subtotal_neto_bs' => 533346.54,
+        'iva_monto_usd' => 139.87,
+        'iva_monto_bs' => 82874.26,
+        'total_usd' => 1040.00,
+        'total_bs' => 616220.80,
+        'condicion_pago' => 'contado',
+        'monto_pagado_usd' => 1040.00,
+        'monto_pagado_bs' => 616220.80,
+        'estado' => 'completada',
+    ]);
+
+    VentaDetalle::create([
+        'venta_id' => $venta->id,
+        'almacen_id' => $almacen->id,
+        'tipo_item' => 'producto',
+        'nombre_item' => 'Derecho de Registro',
+        'serial_identificador' => '01',
+        'cantidad' => 1,
+        'costo_unitario_usd' => 20.00,
+        'costo_unitario_bs' => 11850.40,
+        'precio_unitario_usd' => 25.96,
+        'precio_unitario_bs' => 15382.40,
+        'aplica_iva' => false,
+        'iva_porcentaje' => 0.00,
+        'iva_monto_usd' => 0.00,
+        'iva_monto_bs' => 0.00,
+        'subtotal_usd' => 25.96,
+        'subtotal_bs' => 15382.40,
+    ]);
+
+    // 1. Probar Factura Carta
+    $resCarta = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get("/pos/imprimir-carta/{$venta->id}");
+
+    $resCarta->assertOk()
+        ->assertSee('MULTIREPUESTOS LA LIMPIA 2024, C.A.')
+        ->assertSee('N° CONTROL 00-')
+        ->assertSee('00001607')
+        ->assertSee('Karla Andreina')
+        ->assertSee('Subtotal USD:')
+        ->assertSee('Subtotal BS:')
+        ->assertSee('Monto Exento USD:')
+        ->assertSee('ESTA FACTURA VA SIN TACHADURAS NI ENMENDADURAS');
+
+    // 2. Probar Ticket Térmico
+    $resTicket = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get("/pos/imprimir-ticket/{$venta->id}");
+
+    $resTicket->assertOk()
+        ->assertSee('MULTIREPUESTOS LA LIMPIA 2024, C.A.')
+        ->assertSee('FACTURA NRO:')
+        ->assertSee('TOTAL USD:')
+        ->assertSee('TOTAL BS:');
 });

@@ -8,6 +8,7 @@ use App\Http\Controllers\Empresa\ClienteController;
 use App\Http\Controllers\Empresa\ConfiguracionController;
 use App\Http\Controllers\Empresa\CuentaPorCobrarController;
 use App\Http\Controllers\Empresa\CuentaPorPagarController;
+use App\Http\Controllers\Empresa\FacturaController;
 use App\Http\Controllers\Empresa\MetodoPagoController;
 use App\Http\Controllers\Empresa\MotoController;
 use App\Http\Controllers\Empresa\PosController;
@@ -39,6 +40,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/pos/devolucion/buscar', 'buscarFacturaDevolucion');
         Route::post('/pos/devolucion/procesar', 'procesarDevolucion');
         Route::get('/pos/imprimir/{id}', 'imprimir')->name('pos.imprimir');
+        Route::get('/pos/imprimir-carta/{id}', 'imprimirCarta')->name('pos.imprimir_carta');
+        Route::get('/pos/imprimir-ticket/{id}', 'imprimirTicket')->name('pos.imprimir_ticket');
+    });
+
+    Route::controller(FacturaController::class)->group(function () {
+        Route::get('/facturas', 'index')->name('factura');
+        Route::get('/facturas/kpis', 'kpis');
+        Route::get('/facturas/lista', 'lista');
+        Route::get('/facturas/{id}', 'detalle');
     });
 
     Route::controller(ConfiguracionController::class)->group(function () {

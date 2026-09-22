@@ -782,8 +782,15 @@ const renderizarCarritoPos = function () {
     let totalUnidades = 0;
 
     posCarrito.forEach((item, idx) => {
-        totalUnidades += parseFloat(item.cantidad);
-        const precioUnitBs = (item.precio_unitario_usd * posTasaDia).toFixed(2);
+        const cant = parseFloat(item.cantidad) || 0;
+        const precioUnitUsd = parseFloat(item.precio_unitario_usd) || 0;
+        const precioUnitBs = (precioUnitUsd * posTasaDia).toFixed(2);
+        const subtotalUsd = parseFloat(item.subtotal_usd) || 0;
+        const subtotalBs = parseFloat(item.subtotal_bs) || (subtotalUsd * posTasaDia);
+        const aplicaIva = item.aplica_iva === true || item.aplica_iva === 'true' || item.aplica_iva === 1 || item.aplica_iva === '1';
+        const ivaPorcentaje = parseFloat(item.iva_porcentaje) || 0;
+
+        totalUnidades += cant;
         const esSeleccionado = posIndiceRenglonSeleccionado === idx;
 
         let itemIcon = '<i class="fas fa-box text-primary me-1"></i>';
@@ -802,7 +809,7 @@ const renderizarCarritoPos = function () {
             : `
                 <div class="input-group input-group-sm justify-content-center" style="max-width: 110px; margin: 0 auto;">
                     <button class="btn btn-outline-secondary px-2" type="button" onclick="event.stopPropagation(); alterarCantidadItem(${idx}, -1);">-</button>
-                    <input type="number" step="any" min="0.001" class="form-control text-center font-monospace fw-bold px-1" value="${item.cantidad}" onchange="event.stopPropagation(); actualizarCantidadItem(${idx}, this.value);" onclick="event.stopPropagation(); this.select();">
+                    <input type="number" step="any" min="0.001" class="form-control text-center font-monospace fw-bold px-1" value="${cant}" onchange="event.stopPropagation(); actualizarCantidadItem(${idx}, this.value);" onclick="event.stopPropagation(); this.select();">
                     <button class="btn btn-outline-secondary px-2" type="button" onclick="event.stopPropagation(); alterarCantidadItem(${idx}, 1);">+</button>
                 </div>
             `;
@@ -830,7 +837,7 @@ const renderizarCarritoPos = function () {
 
                 <!-- Precio Unitario -->
                 <td class="text-end font-monospace">
-                    <strong class="text-primary d-block" style="font-size: 0.92rem;">$ ${item.precio_unitario_usd.toFixed(2)}</strong>
+                    <strong class="text-primary d-block" style="font-size: 0.92rem;">$ ${precioUnitUsd.toFixed(2)}</strong>
                     <small class="badge rounded-pill px-2 py-0.5 fw-bold" style="font-size: 0.72rem; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">
                         Bs. ${precioUnitBs}
                     </small>
@@ -838,16 +845,16 @@ const renderizarCarritoPos = function () {
 
                 <!-- IVA -->
                 <td class="text-center font-monospace small">
-                    <span class="badge rounded-pill ${item.aplica_iva ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-light text-secondary border'} px-2 py-1">
-                        ${item.aplica_iva ? `IVA ${item.iva_porcentaje}%` : 'Exento'}
+                    <span class="badge rounded-pill ${aplicaIva ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-light text-secondary border'} px-2 py-1">
+                        ${aplicaIva ? `IVA ${ivaPorcentaje}%` : 'Exento'}
                     </span>
                 </td>
 
                 <!-- Total Renglón -->
                 <td class="text-end font-monospace">
-                    <strong class="text-dark d-block" style="font-size: 0.96rem;">$ ${item.subtotal_usd.toFixed(2)}</strong>
+                    <strong class="text-dark d-block" style="font-size: 0.96rem;">$ ${subtotalUsd.toFixed(2)}</strong>
                     <small class="badge rounded-pill px-2 py-0.5 fw-bold" style="font-size: 0.72rem; background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">
-                        Bs. ${item.subtotal_bs.toFixed(2)}
+                        Bs. ${subtotalBs.toFixed(2)}
                     </small>
                 </td>
 
@@ -877,9 +884,13 @@ const recalcularTotalesPos = function () {
     let totalIvaUsd = 0;
 
     posCarrito.forEach((item) => {
-        subtotalNetoUsd += item.subtotal_usd;
-        if (item.aplica_iva && item.iva_porcentaje > 0) {
-            totalIvaUsd += item.subtotal_usd * (item.iva_porcentaje / 100);
+        const subUsd = parseFloat(item.subtotal_usd) || 0;
+        const ivaPct = parseFloat(item.iva_porcentaje) || 0;
+        const aplicaIva = item.aplica_iva === true || item.aplica_iva === 'true' || item.aplica_iva === 1 || item.aplica_iva === '1';
+
+        subtotalNetoUsd += subUsd;
+        if (aplicaIva && ivaPct > 0) {
+            totalIvaUsd += subUsd * (ivaPct / 100);
         }
     });
 
@@ -1118,6 +1129,7 @@ const procesarVentaFinal = async function () {
                 text: `El monto pagado ($${pagado.toFixed(2)}) es menor al total ($${total.toFixed(2)}). Para registrar saldo pendiente, selecciona condición 'Crédito'.`,
             });
         }
+        return;
     }
 
     if (cond === "credito" && (posClienteActual.cedula === "V-00000000" || posClienteActual.cedula === "J-00000000")) {
@@ -1128,6 +1140,7 @@ const procesarVentaFinal = async function () {
                 text: "No se puede otorgar crédito al cliente 'Consumidor Final'. Por favor registra o selecciona un cliente identificado.",
             });
         }
+        return;
     }
 
     const $btn = $("#btnConfirmarVentaFinal");
@@ -1147,7 +1160,7 @@ const procesarVentaFinal = async function () {
             cantidad: it.cantidad,
             precio_unitario_usd: it.precio_unitario_usd,
             descuento_porcentaje: it.descuento_porcentaje,
-            almacen_id: posAlmacenActualId,
+            almacen_id: it.almacen_id || posAlmacenActualId,
         })),
         pagos: posPagos.map((p) => ({
             metodo_pago_id: p.metodo_pago_id,
@@ -1170,29 +1183,48 @@ const procesarVentaFinal = async function () {
         });
 
         if (res.success && res.data) {
-            bootstrap.Modal.getInstance(document.getElementById("modalCobroVenta")).hide();
+            const modalEl = document.getElementById("modalCobroVenta");
+            if (modalEl) {
+                const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+                if (modalInst) modalInst.hide();
+            }
 
-            // Abrir ventana de impresión térmica
-            const winPrint = window.open(`${urlPosImprimir}/${res.data.id}`, "_blank", "width=400,height=600");
+            const ventaId = res.data.id;
+            const ventaCodigo = res.data.codigo;
 
             if (window.Swal) {
                 Swal.fire({
                     icon: "success",
                     title: "¡Venta Completada!",
-                    text: `Comprobante #${res.data.codigo} generado exitosamente.`,
-                    timer: 2500,
+                    html: `
+                        <div class="text-center">
+                            <p class="mb-3">Comprobante <strong>#${ventaCodigo}</strong> emitido con éxito.${cond === 'credito' ? ' <br><span class="badge bg-warning text-dark">Registrado en Cuentas por Cobrar</span>' : ''}</p>
+                            <p class="small text-muted mb-3">Selecciona el formato de impresión que deseas utilizar:</p>
+                            <div class="d-flex flex-column gap-2">
+                                <button type="button" class="btn btn-primary rounded-pill py-2 fw-bold" onclick="window.open('${urlPosImprimirCarta}/${ventaId}', '_blank'); Swal.close();">
+                                    <i class="fas fa-file-invoice me-1"></i> Imprimir Factura Carta (Hoja Blanca)
+                                </button>
+                                <button type="button" class="btn btn-success rounded-pill py-2 fw-bold" onclick="window.open('${urlPosImprimirTicket}/${ventaId}', '_blank', 'width=400,height=600'); Swal.close();">
+                                    <i class="fas fa-receipt me-1"></i> Imprimir Ticket Térmico (Tiquera)
+                                </button>
+                            </div>
+                        </div>
+                    `,
                     showConfirmButton: false,
+                    showCloseButton: true,
+                    timer: 15000,
                 });
+            } else {
+                window.open(`${urlPosImprimirCarta}/${ventaId}`, "_blank");
             }
 
-            // Resetear POS para la siguiente venta
             posCarrito = [];
             posPagos = [];
             posIndiceRenglonSeleccionado = null;
             resetearClienteDefecto();
             renderizarCarritoPos();
             recalcularTotalesPos();
-            cargarDatosInicialesPos(); // Recargar stock en memoria
+            cargarDatosInicialesPos();
             $("#posInputBuscadorProducto").val("").focus();
         }
     } catch (xhr) {
@@ -1206,9 +1238,6 @@ const procesarVentaFinal = async function () {
 };
 window.procesarVentaFinal = procesarVentaFinal;
 
-/**
- * 9. Cuentas en Espera (Pausar / Recuperar Pedidos)
- */
 const abrirModalCuentasEspera = async function () {
     $("#inputNotaEspera").val(posClienteActual ? `Cliente ${posClienteActual.nombre}` : "");
     await cargarListaCuentasEspera();
@@ -1224,7 +1253,7 @@ const guardarCarritoEnEspera = async function () {
         return;
     }
 
-    const nota = $("#inputNotaEspera").val().trim() || "Cuenta en espera";
+    const nota = $("#inputNotaEspera").val().trim() || (posClienteActual ? `Cliente ${posClienteActual.nombre}` : "Cuenta en espera");
     const totalUsd = obtenerTotalVentaUsd();
     const totalBs = roundDecimals(totalUsd * posTasaDia, 2);
 
@@ -1234,6 +1263,7 @@ const guardarCarritoEnEspera = async function () {
         tipo_venta: posTipoVentaActual,
         nota_referencia: nota,
         carrito: posCarrito,
+        items: posCarrito,
         total_usd: totalUsd,
         total_bs: totalBs,
     };
@@ -1242,7 +1272,8 @@ const guardarCarritoEnEspera = async function () {
         const res = await $.ajax({
             url: urlPosEnEsperaGuardar,
             type: "POST",
-            data: payload,
+            data: JSON.stringify(payload),
+            contentType: "application/json",
             dataType: "json",
             headers: {
                 "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
@@ -1252,11 +1283,16 @@ const guardarCarritoEnEspera = async function () {
         if (res.success) {
             posCarrito = [];
             posPagos = [];
+            posIndiceRenglonSeleccionado = null;
             resetearClienteDefecto();
             renderizarCarritoPos();
             recalcularTotalesPos();
             await cargarListaCuentasEspera();
-            bootstrap.Modal.getInstance(document.getElementById("modalCuentasEspera")).hide();
+            const modalEl = document.getElementById("modalCuentasEspera");
+            if (modalEl) {
+                const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+                if (modalInst) modalInst.hide();
+            }
 
             if (window.notificacion) {
                 window.notificacion.fire({ icon: "success", title: "Venta en Espera", text: res.message });
@@ -1323,24 +1359,89 @@ const recuperarCuentaEspera = async function (id) {
 
         if (res.success && res.data) {
             const data = res.data;
-            if (data.cliente) {
+
+            // 1. Restaurar Cliente
+            if (data.cliente && typeof data.cliente === "object") {
                 establecerClienteActual(data.cliente);
+            } else if (data.cliente_id) {
+                const cli = posCatalogos.clientes?.find((c) => c.id == data.cliente_id);
+                if (cli) {
+                    establecerClienteActual(cli);
+                }
             }
+
+            // 2. Restaurar Modalidad de Venta
             if (data.tipo_venta) {
                 posTipoVentaActual = data.tipo_venta;
-                $(`#tipoVenta${data.tipo_venta === 'mayor' ? 'Mayor' : 'Detal'}`).prop("checked", true);
+                if (data.tipo_venta === "mayor") {
+                    $("#tipoVentaMayor").prop("checked", true);
+                } else {
+                    $("#tipoVentaDetal").prop("checked", true);
+                }
             }
-            posCarrito = data.carrito || [];
+
+            // 3. Restaurar Carrito normalizando estrictamente todos los tipos numéricos
+            const rawCarrito = Array.isArray(data.carrito) ? data.carrito : (Array.isArray(data.items) ? data.items : []);
+            posCarrito = rawCarrito.map((item) => {
+                const cant = parseFloat(item.cantidad) || 1;
+                const pUnit = parseFloat(item.precio_unitario_usd) || 0;
+                const pDetal = parseFloat(item.precio_detal_usd || item.precio_unitario_usd) || 0;
+                const pMayor = parseFloat(item.precio_mayorista_usd || item.precio_unitario_usd) || 0;
+                const desc = parseFloat(item.descuento_porcentaje) || 0;
+                const subUsd = parseFloat(item.subtotal_usd) || roundDecimals(cant * pUnit * (1 - desc / 100), 2);
+                const subBs = parseFloat(item.subtotal_bs) || roundDecimals(subUsd * posTasaDia, 2);
+                const aplicaIva = item.aplica_iva === true || item.aplica_iva === "true" || item.aplica_iva === 1 || item.aplica_iva === "1";
+                const ivaPct = parseFloat(item.iva_porcentaje) || (aplicaIva ? 16 : 0);
+
+                return {
+                    producto_id: parseInt(item.producto_id || item.id),
+                    tipo_item: item.tipo_item || "producto",
+                    almacen_id: parseInt(item.almacen_id) || posAlmacenActualId,
+                    codigo: item.codigo || "--",
+                    nombre: item.nombre || "Artículo",
+                    unidad: item.unidad || "UND",
+                    numero_niv: item.numero_niv || null,
+                    numero_motor: item.numero_motor || null,
+                    numero_chasis: item.numero_chasis || null,
+                    cantidad: cant,
+                    precio_detal_usd: pDetal,
+                    precio_mayorista_usd: pMayor,
+                    precio_unitario_usd: pUnit > 0 ? pUnit : (posTipoVentaActual === "mayor" ? pMayor : pDetal),
+                    aplica_iva: aplicaIva,
+                    iva_porcentaje: ivaPct,
+                    descuento_porcentaje: desc,
+                    subtotal_usd: subUsd,
+                    subtotal_bs: subBs,
+                    stock_disponible: parseFloat(item.stock_disponible) || 0,
+                };
+            });
+
+            posIndiceRenglonSeleccionado = posCarrito.length > 0 ? 0 : null;
+
+            // 4. Renderizar y recalcular
             renderizarCarritoPos();
             recalcularTotalesPos();
-            bootstrap.Modal.getInstance(document.getElementById("modalCuentasEspera")).hide();
+
+            // 5. Cerrar modal de cuentas en espera
+            const modalEl = document.getElementById("modalCuentasEspera");
+            if (modalEl) {
+                const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+                if (modalInst) modalInst.hide();
+            }
 
             if (window.notificacion) {
-                window.notificacion.fire({ icon: "success", title: "Cuenta Recuperada", text: "El pedido ha sido restaurado en pantalla." });
+                window.notificacion.fire({
+                    icon: "success",
+                    title: "Cuenta Recuperada",
+                    text: `Se recuperó el pedido de "${data.nota_referencia || 'Cliente'}" con ${posCarrito.length} ítems.`,
+                });
             }
         }
     } catch (e) {
         console.error("Error al recuperar cuenta en espera:", e);
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: "error", title: "Error", text: "No se pudo recuperar la cuenta en espera." });
+        }
     }
 };
 window.recuperarCuentaEspera = recuperarCuentaEspera;
@@ -1362,9 +1463,6 @@ const descartarCuentaEspera = async function (id) {
 };
 window.descartarCuentaEspera = descartarCuentaEspera;
 
-/**
- * 10. Devolución de Factura
- */
 let facturaDevolucionActual = null;
 
 const abrirModalDevolucion = function () {
@@ -1411,7 +1509,6 @@ const buscarFacturaParaDevolucion = async function () {
                     const prodNombre = det.nombre_item || (det.producto ? det.producto.nombre : (det.moto ? (det.moto.marca + ' ' + det.moto.modelo) : (det.servicio ? det.servicio.nombre : "Artículo")));
                     const precioUnit = parseFloat(det.precio_unitario_usd).toFixed(2);
 
-                    // Calcular previamente devueltos si existen
                     let cantDevueltaPrevia = 0;
                     if (Array.isArray(res.data.devoluciones)) {
                         res.data.devoluciones.forEach((dev) => {
@@ -1436,13 +1533,17 @@ const buscarFacturaParaDevolucion = async function () {
                             <td class="text-center font-monospace">${parseFloat(det.cantidad)} ${cantDevueltaPrevia > 0 ? `<small class="text-danger">(-${cantDevueltaPrevia} dev)</small>` : ''}</td>
                             <td class="text-end font-monospace">$ ${precioUnit}</td>
                             <td class="text-center font-monospace">
-                                <input type="number" step="any" min="0" max="${cantDisponible}" class="form-control form-control-sm text-center font-monospace fw-bold input-cant-dev" data-id="${det.id}" data-precio="${det.precio_unitario_usd}" value="0" oninput="calcularTotalRenglonDevolucion(this)">
+                                <input type="number" step="any" min="0" max="${cantDisponible}" class="form-control form-control-sm text-center font-monospace fw-bold input-cant-dev" data-id="${det.id}" data-precio="${det.precio_unitario_usd}" value="${cantDisponible}" oninput="calcularTotalRenglonDevolucion(this)">
                             </td>
-                            <td class="text-end font-monospace fw-bold text-danger subtotal-dev-row">$ 0.00</td>
+                            <td class="text-end font-monospace fw-bold text-danger subtotal-dev-row">$ ${(cantDisponible * parseFloat(det.precio_unitario_usd)).toFixed(2)}</td>
                         </tr>
                     `;
                     $tbody.append(filaHtml);
                 });
+            }
+
+            if (!$("#devInputMotivo").val()) {
+                $("#devInputMotivo").val("Devolución de cliente en mostrador");
             }
 
             $("#contenedorDetallesFacturaDevolucion").slideDown(150);
@@ -1454,6 +1555,23 @@ const buscarFacturaParaDevolucion = async function () {
     }
 };
 window.buscarFacturaParaDevolucion = buscarFacturaParaDevolucion;
+
+const marcarTodoDevolucion = function () {
+    $(".input-cant-dev").each(function () {
+        const max = parseFloat($(this).attr("max")) || 0;
+        $(this).val(max);
+        calcularTotalRenglonDevolucion(this);
+    });
+};
+window.marcarTodoDevolucion = marcarTodoDevolucion;
+
+const desmarcarTodoDevolucion = function () {
+    $(".input-cant-dev").each(function () {
+        $(this).val(0);
+        calcularTotalRenglonDevolucion(this);
+    });
+};
+window.desmarcarTodoDevolucion = desmarcarTodoDevolucion;
 
 const calcularTotalRenglonDevolucion = function (input) {
     const $input = $(input);
@@ -1514,8 +1632,13 @@ const ejecutarDevolucion = async function () {
         });
 
         if (res.success) {
-            bootstrap.Modal.getInstance(document.getElementById("modalDevolucion")).hide();
-            cargarDatosInicialesPos(); // Recargar stock en memoria
+            const modalEl = document.getElementById("modalDevolucion");
+            if (modalEl) {
+                const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+                if (modalInst) modalInst.hide();
+            }
+
+            cargarDatosInicialesPos();
             if (window.Swal) {
                 Swal.fire({
                     icon: "success",
@@ -1662,9 +1785,23 @@ const ejecutarReimpresionTicket = function () {
     }
 
     bootstrap.Modal.getInstance(document.getElementById("modalReimprimirTicket")).hide();
-    window.open(`${urlPosImprimir}/${cod}`, "_blank", "width=400,height=600");
+    window.open(`${urlPosImprimirTicket}/${cod}`, "_blank", "width=400,height=600");
 };
 window.ejecutarReimpresionTicket = ejecutarReimpresionTicket;
+
+const ejecutarReimpresionCarta = function () {
+    const cod = $("#inputCodigoReimprimir").val().trim();
+    if (!cod) {
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: "warning", title: "Ingresa el código", text: "Por favor escribe el número o código de comprobante (Ej. VEN-00001)." });
+        }
+        return;
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById("modalReimprimirTicket")).hide();
+    window.open(`${urlPosImprimirCarta}/${cod}`, "_blank");
+};
+window.ejecutarReimpresionCarta = ejecutarReimpresionCarta;
 
 /**
  * 13. Modificar Renglón Seleccionado

@@ -81,17 +81,26 @@
         <script>
             function toggleSidebarMenu() {
                 const $wrapper = $("#main-wrapper");
-                const currentType = $wrapper.attr("data-sidebartype");
-                const newType = currentType === "mini-sidebar" ? "full" : "mini-sidebar";
-                $wrapper.attr("data-sidebartype", newType);
-                localStorage.setItem("sidebar_state", newType);
-                
-                const $icon = $("#iconToggleSidebarGlobal");
-                if ($icon.length) {
+                if (window.innerWidth < 1170) {
+                    $wrapper.toggleClass("show-sidebar");
+                } else {
+                    const currentType = $wrapper.attr("data-sidebartype");
+                    const newType = currentType === "mini-sidebar" ? "full" : "mini-sidebar";
+                    $wrapper.attr("data-sidebartype", newType);
                     if (newType === "mini-sidebar") {
-                        $icon.removeClass("fa-bars").addClass("fa-indent");
+                        $wrapper.addClass("mini-sidebar");
                     } else {
-                        $icon.removeClass("fa-indent").addClass("fa-bars");
+                        $wrapper.removeClass("mini-sidebar");
+                    }
+                    localStorage.setItem("sidebar_state", newType);
+                    
+                    const $icon = $("#iconToggleSidebarGlobal");
+                    if ($icon.length) {
+                        if (newType === "mini-sidebar") {
+                            $icon.removeClass("fa-bars").addClass("fa-indent");
+                        } else {
+                            $icon.removeClass("fa-indent").addClass("fa-bars");
+                        }
                     }
                 }
             }
@@ -99,14 +108,14 @@
 
             $(document).ready(function() {
                 const savedState = localStorage.getItem("sidebar_state");
-                if (savedState) {
+                if (savedState && window.innerWidth >= 1170) {
                     $("#main-wrapper").attr("data-sidebartype", savedState);
                     if (savedState === "mini-sidebar") {
+                        $("#main-wrapper").addClass("mini-sidebar");
                         $("#iconToggleSidebarGlobal").removeClass("fa-bars").addClass("fa-indent");
                     }
                 }
 
-                // Atajo de teclado global Ctrl + B para abrir/cerrar sidebar
                 $(document).on("keydown", function(e) {
                     if (e.ctrlKey && (e.key === "b" || e.key === "B")) {
                         e.preventDefault();
