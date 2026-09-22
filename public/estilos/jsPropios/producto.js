@@ -1,4 +1,3 @@
-// URL limpia independiente de query parameters en la barra de navegación
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
 const urlLista = urlBase + "/lista";
 const urlCatalogos = urlBase + "/catalogos";
@@ -22,19 +21,12 @@ let catalogosSistema = {
 let contadorFilasCodigos = 0;
 let contadorFilasProveedores = 0;
 
-/**
- * Auto-cálculo bidireccional en tiempo real de precios (USD <-> Bs.) según la tasa activa de la empresa
- */
-/**
- * Auto-cálculo bidireccional en tiempo real de precios (USD <-> Bs.) y márgenes
- */
 const alCambiarCostoUsd = function () {
     const costoUsd = parseFloat($("#precio_costo_usd").val()) || 0;
     const tasa = tasaUsdActual > 0 ? tasaUsdActual : 1.0;
 
     $("#precio_costo_bs").val(costoUsd > 0 ? (costoUsd * tasa).toFixed(2) : "");
 
-    // Recalcular precios de venta según márgenes configurados
     calcularPrecioDetalDesdeMargenForm();
     calcularPrecioMayorDesdeMargenForm();
 };
@@ -106,14 +98,18 @@ window.calcularPrecioMayorDesdeMargenForm = calcularPrecioMayorDesdeMargenForm;
 window.calcularMargenMayorDesdePrecioForm = calcularMargenMayorDesdePrecioForm;
 
 $(document).ready(function () {
+    crearSelect2({
+        selector: "#categoria_id",
+        modalSelector: "#modalProducto",
+        placeholder: "Seleccione una categoría...",
+    });
+
     cargarCatalogos();
 
-    // Restricción a solo números para código interno
     $("#codigo_interno").on("input", function () {
         this.value = this.value.replace(/[^0-9]/g, "");
     });
 
-    // Inicializar DataTable
     crearDataTable({
         selector: "#datatable_productos",
         url: urlLista,
@@ -153,22 +149,6 @@ $(document).ready(function () {
                     return data
                         ? `<span class="badge rounded-pill px-3 py-1 fw-semibold" style="font-size: 0.78rem; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;"><i class="fas fa-tag text-primary me-1"></i>${data.nombre}</span>`
                         : '<span class="badge rounded-pill px-2 py-1" style="font-size: 0.72rem; background-color: #f8fafc; color: #94a3b8; border: 1px dashed #cbd5e1;"><i class="fas fa-minus me-1"></i>Sin categoría</span>';
-                },
-            },
-            {
-                data: "codigos_barra",
-                name: "codigosBarra.codigo_barra",
-                className: "text-center align-middle",
-                orderable: false,
-                render: function (data, type, row) {
-                    if (!data || data.length === 0) {
-                        return '<span class="badge rounded-pill px-2 py-1" style="font-size: 0.72rem; background-color: #f8fafc; color: #64748b; border: 1px dashed #cbd5e1;"><i class="fas fa-minus me-1"></i>Sin código</span>';
-                    }
-
-                    const principal = data[0].codigo_barra;
-                    const extras = data.length > 1 ? `<span class="badge bg-primary text-white rounded-pill ms-1 px-2 py-0" style="font-size: 0.68rem; font-weight: 700;">+${data.length - 1}</span>` : '';
-
-                    return `<span class="badge-documento font-monospace py-1 shadow-xs" style="background-color: #f8fafc; color: #0f172a; border: 1px solid #cbd5e1; font-weight: 700;"><i class="fas fa-barcode text-primary me-1"></i>${principal}</span>${extras}`;
                 },
             },
             {
@@ -263,9 +243,6 @@ $(document).ready(function () {
     aplicarRestriccionesInput();
 });
 
-/**
- * Cargar catálogos (Categorías, Proveedores, Almacenes)
- */
 const cargarCatalogos = async function () {
     try {
         const res = await $.ajax({
@@ -297,6 +274,7 @@ const poblarSelectCategorias = function () {
             $select.append(`<option value="${cat.id}">[${cat.codigo}] ${cat.nombre}</option>`);
         });
     }
+    $select.trigger("change");
 };
 
 const toggleIvaInput = function () {
@@ -319,26 +297,25 @@ const toggleIgtfInput = function () {
     }
 };
 
-/**
- * Filas dinámicas: Códigos de Barra / QR
- */
 const agregarFilaCodigoBarra = function (codigo = "", descripcion = "") {
     contadorFilasCodigos++;
     const idFila = `fila_cb_${contadorFilasCodigos}`;
+    const valCodigo = (codigo === null || codigo === undefined) ? "" : String(codigo);
+    const valDesc = (descripcion === null || descripcion === undefined) ? "" : String(descripcion);
 
     const filaHtml = `
         <tr id="${idFila}">
-            <td>
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-white"><i class="fas fa-qrcode text-primary"></i></span>
-                    <input type="text" class="form-control" name="codigos_barra[${contadorFilasCodigos}][codigo]" value="${codigo}" placeholder="Ej. 759123456789 o QR-PROD-001" maxlength="100">
+            <td class="px-3 py-2">
+                <div class="input-group input-group-executive">
+                    <span class="input-group-text"><i class="fas fa-qrcode text-primary"></i></span>
+                    <input type="text" class="form-control form-control-executive font-monospace" name="codigos_barra[${contadorFilasCodigos}][codigo]" value="${valCodigo}" placeholder="Ej. 759123456789 o QR-PROD-001" maxlength="100">
                 </div>
             </td>
-            <td>
-                <input type="text" class="form-control form-control-sm" name="codigos_barra[${contadorFilasCodigos}][descripcion]" value="${descripcion}" placeholder="Ej. Empaque individual, QR etiqueta, Caja x12" maxlength="100">
+            <td class="px-3 py-2">
+                <input type="text" class="form-control form-control-executive" name="codigos_barra[${contadorFilasCodigos}][descripcion]" value="${valDesc}" placeholder="Ej. Empaque individual, QR etiqueta, Caja x12" maxlength="100">
             </td>
-            <td class="text-center">
-                <button type="button" class="btn btn-outline-danger btn-sm rounded-circle" onclick="$('#${idFila}').remove()" style="width: 28px; height: 28px; padding: 0;">
+            <td class="text-center px-2 py-2">
+                <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-xs" onclick="$('#${idFila}').remove()" title="Eliminar fila" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                     <i class="fas fa-trash-alt"></i>
                 </button>
             </td>
@@ -348,33 +325,33 @@ const agregarFilaCodigoBarra = function (codigo = "", descripcion = "") {
     $("#contenedorFilasCodigos").append(filaHtml);
 };
 
-/**
- * Filas dinámicas: Proveedores
- */
 const agregarFilaProveedor = function (proveedorId = "", codigoProveedor = "") {
     contadorFilasProveedores++;
     const idFila = `fila_prov_${contadorFilasProveedores}`;
+    const idSelect = `select_prov_${contadorFilasProveedores}`;
+    const valCodigo = (codigoProveedor === null || codigoProveedor === undefined) ? "" : String(codigoProveedor);
+    const valProvId = (proveedorId === null || proveedorId === undefined) ? "" : String(proveedorId);
 
     let opcionesProveedores = '<option value="">Seleccione proveedor...</option>';
     if (Array.isArray(catalogosSistema.proveedores)) {
         catalogosSistema.proveedores.forEach((p) => {
-            const selected = String(p.id) === String(proveedorId) ? "selected" : "";
+            const selected = String(p.id) === valProvId ? "selected" : "";
             opcionesProveedores += `<option value="${p.id}" ${selected}>${p.nombre} (${p.rif})</option>`;
         });
     }
 
     const filaHtml = `
         <tr id="${idFila}">
-            <td>
-                <select class="form-select form-select-sm select-proveedor-fila" name="proveedores[${contadorFilasProveedores}][proveedor_id]">
+            <td class="px-3 py-2">
+                <select class="form-select select-proveedor-fila" id="${idSelect}" name="proveedores[${contadorFilasProveedores}][proveedor_id]">
                     ${opcionesProveedores}
                 </select>
             </td>
-            <td>
-                <input type="text" class="form-control form-control-sm" name="proveedores[${contadorFilasProveedores}][codigo_proveedor]" value="${codigoProveedor}" placeholder="Código / SKU del proveedor" maxlength="100">
+            <td class="px-3 py-2">
+                <input type="text" class="form-control form-control-executive font-monospace" name="proveedores[${contadorFilasProveedores}][codigo_proveedor]" value="${valCodigo}" placeholder="Código / Ref. del proveedor (Ej. REF-PROV-1234)" maxlength="100">
             </td>
-            <td class="text-center">
-                <button type="button" class="btn btn-outline-danger btn-sm rounded-circle" onclick="$('#${idFila}').remove()" style="width: 28px; height: 28px; padding: 0;">
+            <td class="text-center px-2 py-2">
+                <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-xs" onclick="destruirSelect2('#${idSelect}'); $('#${idFila}').remove()" title="Eliminar fila" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                     <i class="fas fa-trash-alt"></i>
                 </button>
             </td>
@@ -382,24 +359,24 @@ const agregarFilaProveedor = function (proveedorId = "", codigoProveedor = "") {
     `;
 
     $("#contenedorFilasProveedores").append(filaHtml);
+
+    crearSelect2({
+        selector: `#${idSelect}`,
+        modalSelector: "#modalProducto",
+        placeholder: "Seleccione proveedor...",
+    });
 };
 
-/**
- * Modal rápido para crear proveedor sin salir del modal de productos
- */
 const abrirModalRapidoProveedor = function () {
     $("#formularioRapidoProveedor")[0].reset();
-    $("#formularioRapidoProveedor .is-invalid").removeClass("is-invalid");
-    $("#formularioRapidoProveedor .invalid-feedback").remove();
+    $("#formularioRapidoProveedor").find(".is-invalid").removeClass("is-invalid");
+    $("#formularioRapidoProveedor").find(".invalid-feedback").remove();
 
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRapidoProveedor"));
     modal.show();
 };
 window.abrirModalRapidoProveedor = abrirModalRapidoProveedor;
 
-/**
- * Guardar proveedor rápido vía AJAX y agregarlo automáticamente
- */
 $("#formularioRapidoProveedor").on("submit", async function (e) {
     e.preventDefault();
 
@@ -422,13 +399,11 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
         if (res.success && res.data) {
             const nuevoProv = res.data;
 
-            // Actualizar catálogo local
             if (!Array.isArray(catalogosSistema.proveedores)) {
                 catalogosSistema.proveedores = [];
             }
             catalogosSistema.proveedores.push(nuevoProv);
 
-            // Actualizar opciones en selects existentes de proveedores
             $(".select-proveedor-fila").each(function () {
                 const valorActual = $(this).val();
                 let opciones = '<option value="">Seleccione proveedor...</option>';
@@ -436,13 +411,11 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
                     const sel = String(p.id) === String(valorActual) ? "selected" : "";
                     opciones += `<option value="${p.id}" ${sel}>${p.nombre} (${p.rif})</option>`;
                 });
-                $(this).html(opciones);
+                $(this).html(opciones).trigger("change");
             });
 
-            // Agregar una nueva fila vinculando automáticamente este proveedor
             agregarFilaProveedor(nuevoProv.id, "");
 
-            // Cerrar modal de proveedor rápido
             const modal = bootstrap.Modal.getInstance(document.getElementById("modalRapidoProveedor"));
             if (modal) {
                 modal.hide();
@@ -480,34 +453,32 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
     }
 });
 
-/**
- * Abrir modal para crear nuevo producto
- */
 const crear = function () {
     isEditar = false;
     idProductoActual = null;
     urlAccion = urlGuardar;
 
     $("#formularioProducto")[0].reset();
-    $("#formularioProducto .is-invalid").removeClass("is-invalid");
-    $("#formularioProducto .invalid-feedback").remove();
+    $("#formularioProducto").find(".is-invalid").removeClass("is-invalid");
+    $("#formularioProducto").find(".invalid-feedback").remove();
 
     $("#contenedorFilasCodigos").empty();
     $("#contenedorFilasProveedores").empty();
 
-    // Resetear a pestaña inicial
-    $("#tab-basicos-btn").tab("show");
+    const tabEl = document.getElementById("tab-basicos-btn");
+    if (tabEl) {
+        bootstrap.Tab.getOrCreateInstance(tabEl).show();
+    }
 
     $("#modalProductoTitulo").text("Nuevo Producto");
     $("#modalProductoSubtitulo").text("Completa la información del producto físico");
     $("#modalProductoIcono").attr("class", "fas fa-boxes-stacked text-warning fs-5");
     $("#modalProductoTextoGuardar").text("Guardar");
 
-    // Código interno automático
     $("#codigo_interno").val("").attr("placeholder", "[Generado automáticamente]");
 
-    // Valores por defecto
     $("#tipo").val("producto");
+    limpiarSelect2("#categoria_id");
     $("#unidad_medida").val("unidad");
     $("#precio_costo_usd").val("");
     $("#precio_costo_bs").val("");
@@ -530,9 +501,6 @@ const crear = function () {
     modal.show();
 };
 
-/**
- * Abrir modal para editar producto
- */
 const editar = async function (id) {
     try {
         isEditar = true;
@@ -544,28 +512,29 @@ const editar = async function (id) {
         const prod = res.data;
 
         $("#formularioProducto")[0].reset();
-        $("#formularioProducto .is-invalid").removeClass("is-invalid");
-        $("#formularioProducto .invalid-feedback").remove();
+        $("#formularioProducto").find(".is-invalid").removeClass("is-invalid");
+        $("#formularioProducto").find(".invalid-feedback").remove();
 
         $("#contenedorFilasCodigos").empty();
         $("#contenedorFilasProveedores").empty();
 
-        $("#tab-basicos-btn").tab("show");
+        const tabEl = document.getElementById("tab-basicos-btn");
+        if (tabEl) {
+            bootstrap.Tab.getOrCreateInstance(tabEl).show();
+        }
 
         $("#modalProductoTitulo").text(`Editar: ${prod.nombre}`);
         $("#modalProductoSubtitulo").text("Modifica los datos del producto físico");
         $("#modalProductoIcono").attr("class", "fas fa-edit text-warning fs-5");
         $("#modalProductoTextoGuardar").text("Actualizar Cambios");
 
-        // Llenar campos básicos
         $("#tipo").val("producto");
-        $("#categoria_id").val(prod.categoria_id || "");
+        establecerValorSelect2("#categoria_id", prod.categoria_id);
         $("#codigo_interno").val(prod.codigo_interno || "");
         $("#nombre").val(prod.nombre || "");
         $("#descripcion").val(prod.descripcion || "");
         $("#unidad_medida").val(prod.unidad_medida || "unidad");
 
-        // Precios, Costos y Márgenes
         const costoUsd = parseFloat(prod.precio_costo_usd || 0);
         const costoBs = parseFloat(prod.precio_costo_bs || 0);
         const margenDetal = prod.ultimo_margen_detal !== null && prod.ultimo_margen_detal !== undefined ? parseFloat(prod.ultimo_margen_detal) : 30.00;
@@ -588,20 +557,17 @@ const editar = async function (id) {
         $("#stock_maximo").val(prod.stock_maximo || "");
         $("#badgeTasaUsdModal").text(tasaUsdActual.toFixed(4));
 
-        // Impuestos
         $("#aplica_iva").prop("checked", prod.aplica_iva);
         $("#iva_porcentaje").val(prod.iva_porcentaje || "16.00").prop("disabled", !prod.aplica_iva);
         $("#aplica_igtf").prop("checked", prod.aplica_igtf);
         $("#igtf_porcentaje").val(prod.igtf_porcentaje || "3.00").prop("disabled", !prod.aplica_igtf);
 
-        // Códigos de barra
         if (Array.isArray(prod.codigos_barra)) {
             prod.codigos_barra.forEach((cb) => {
                 agregarFilaCodigoBarra(cb.codigo_barra, cb.descripcion);
             });
         }
 
-        // Proveedores
         if (Array.isArray(prod.producto_proveedores)) {
             prod.producto_proveedores.forEach((pp) => {
                 agregarFilaProveedor(pp.proveedor_id, pp.codigo_proveedor);
@@ -621,9 +587,6 @@ const editar = async function (id) {
     }
 };
 
-/**
- * Ficha Técnica 360° (Ver Detalles con Kardex)
- */
 const verFicha = async function (id) {
     try {
         const res = await consultarRegistro(urlDetalles, id);
@@ -709,7 +672,6 @@ const verFicha = async function (id) {
             proveedoresHtml = '<div class="col-12 text-muted fst-italic py-2"><i class="fas fa-info-circle me-1"></i> No posee proveedores registrados. Se vinculan automáticamente al procesar recepciones.</div>';
         }
 
-        // Histórico de Kardex
         let kardexHtml = "";
         if (Array.isArray(prod.movimientos_kardex) && prod.movimientos_kardex.length > 0) {
             prod.movimientos_kardex.forEach((mov) => {
@@ -749,7 +711,6 @@ const verFicha = async function (id) {
 
         const fichaHtml = `
             <div class="row g-4">
-                <!-- ENCABEZADO 360 -->
                 <div class="col-12">
                     <div class="card card-executive border-0 shadow-sm p-4" style="border-radius: 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #ffffff;">
                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -778,7 +739,6 @@ const verFicha = async function (id) {
                     </div>
                 </div>
 
-                <!-- PRECIOS Y FISCAL -->
                 <div class="col-md-5">
                     <div class="card border rounded-4 p-3 h-100 shadow-sm">
                         <h6 class="fw-bold text-dark mb-3"><i class="fas fa-coins text-warning me-2"></i> Estructura de Precios & Fiscal</h6>
@@ -811,7 +771,6 @@ const verFicha = async function (id) {
                     </div>
                 </div>
 
-                <!-- DISTRIBUCION EN ALMACENES -->
                 <div class="col-md-7">
                     <div class="card border rounded-4 p-3 h-100 shadow-sm">
                         <h6 class="fw-bold text-dark mb-3"><i class="fas fa-warehouse text-primary me-2"></i> Existencias por Almacén</h6>
@@ -832,7 +791,6 @@ const verFicha = async function (id) {
                     </div>
                 </div>
 
-                <!-- PROVEEDORES VINCULADOS -->
                 <div class="col-12">
                     <div class="card border rounded-4 p-3 shadow-sm">
                         <h6 class="fw-bold text-dark mb-2"><i class="fas fa-truck text-primary me-2"></i> Proveedores Suministradores</h6>
@@ -842,7 +800,6 @@ const verFicha = async function (id) {
                     </div>
                 </div>
 
-                <!-- CODIGOS DE BARRA -->
                 <div class="col-12">
                     <div class="card border rounded-4 p-3 shadow-sm">
                         <h6 class="fw-bold text-dark mb-2"><i class="fas fa-barcode text-primary me-2"></i> Códigos de Barra Registrados</h6>
@@ -852,7 +809,6 @@ const verFicha = async function (id) {
                     </div>
                 </div>
 
-                <!-- HISTÓRICO DE MOVIMIENTOS KARDEX -->
                 <div class="col-12">
                     <div class="card border rounded-4 p-3 shadow-sm">
                         <div class="d-flex align-items-center justify-content-between mb-3">
@@ -897,9 +853,6 @@ const verFicha = async function (id) {
     }
 };
 
-/**
- * Guardar o Actualizar Producto
- */
 $("#formularioProducto").on("submit", function (e) {
     e.preventDefault();
 
@@ -935,9 +888,6 @@ $("#formularioProducto").on("submit", function (e) {
     });
 });
 
-/**
- * Desactivar Producto (Borrado Lógico)
- */
 const eliminar = function (id, nombreProducto) {
     cambiarEstadoRegistro({
         url: urlEliminar,

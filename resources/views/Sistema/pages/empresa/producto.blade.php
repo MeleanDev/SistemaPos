@@ -24,7 +24,6 @@
         :headers="[
             'Producto',
             'Categoría',
-            'Códigos de Barra',
             'Stock Total',
             'Precios (USD / Bs.)',
             'Impuestos',
@@ -76,21 +75,32 @@
                 <!-- PESTAÑA 1: INFORMACIÓN GENERAL -->
                 <div class="tab-pane fade show active" id="tab-basicos" role="tabpanel">
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label-executive"><i class="fas fa-tags text-primary"></i> Categoría <span class="text-danger">*</span></label>
-                            <select name="categoria_id" id="categoria_id" class="form-select form-select-executive" required>
-                                <option value="">Seleccione una categoría...</option>
-                            </select>
-                        </div>
+                        <x-select2
+                            name="categoria_id"
+                            id="categoria_id"
+                            label="Categoría"
+                            icon="fas fa-tags text-primary"
+                            placeholder="Seleccione una categoría..."
+                            modalParent="#modalProducto"
+                            required
+                            col="col-md-6"
+                        >
+                            <option value="">Seleccione una categoría...</option>
+                        </x-select2>
 
-                        <div class="col-md-6">
-                            <label class="form-label-executive"><i class="fas fa-hashtag text-primary"></i> Código Interno / SKU <small class="text-muted fw-normal">(Autoincrementable)</small></label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light text-secondary font-monospace"><i class="fas fa-lock text-muted"></i></span>
-                                <input type="text" name="codigo_interno" id="codigo_interno" class="form-control form-control-executive font-monospace bg-light fw-bold text-dark" placeholder="[Generado automáticamente]" readonly>
-                            </div>
-                            <small class="text-muted font-monospace" style="font-size: 0.72rem;">Código correlativo único generado por el sistema.</small>
-                        </div>
+                        <x-input
+                            name="codigo_interno"
+                            id="codigo_interno"
+                            label="Código Interno / SKU"
+                            icon="fas fa-hashtag text-primary"
+                            addonIcon="fas fa-lock text-muted"
+                            placeholder="[Generado automáticamente]"
+                            col="col-md-6"
+                            readonly
+                            class="font-monospace fw-bold"
+                            optionalText="Autoincrementable"
+                            helpText="Código correlativo único generado por el sistema."
+                        />
 
                         <div class="col-md-8">
                             <x-input name="nombre" id="nombre" label="Nombre del Producto" icon="fas fa-box"
@@ -132,20 +142,32 @@
                                     </span>
                                 </div>
                                 <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label-executive">Costo Unitario ($ USD)</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-white text-success fw-bold font-monospace">$</span>
-                                            <input type="number" step="any" min="0" name="precio_costo_usd" id="precio_costo_usd" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.00" oninput="alCambiarCostoUsd()">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label-executive">Costo Unitario (Bs. VES)</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light text-dark fw-bold font-monospace">Bs.</span>
-                                            <input type="number" step="any" min="0" name="precio_costo_bs" id="precio_costo_bs" class="form-control form-control-executive font-monospace text-end bg-light" placeholder="0.00" readonly>
-                                        </div>
-                                    </div>
+                                    <x-input 
+                                        type="number" 
+                                        step="any" 
+                                        min="0" 
+                                        name="precio_costo_usd" 
+                                        id="precio_costo_usd" 
+                                        label="Costo Unitario ($ USD)" 
+                                        addonText="$" 
+                                        placeholder="0.00" 
+                                        col="col-md-6" 
+                                        class="font-monospace fw-bold text-end" 
+                                        oninput="alCambiarCostoUsd()" 
+                                    />
+                                    <x-input 
+                                        type="number" 
+                                        step="any" 
+                                        min="0" 
+                                        name="precio_costo_bs" 
+                                        id="precio_costo_bs" 
+                                        label="Costo Unitario (Bs. VES)" 
+                                        addonText="Bs." 
+                                        placeholder="0.00" 
+                                        col="col-md-6" 
+                                        readonly 
+                                        class="font-monospace fw-bold text-end" 
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -155,27 +177,46 @@
                             <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
                                 <h6 class="fw-bold text-primary mb-3"><i class="fas fa-store me-1"></i> Precio Venta al Detal</h6>
                                 <div class="row g-2">
-                                    <div class="col-12">
-                                        <label class="form-label-executive">Margen de Ganancia Detal (%)</label>
-                                        <div class="input-group mb-2">
-                                            <input type="number" step="any" min="0" name="ultimo_margen_detal" id="ultimo_margen_detal" class="form-control form-control-executive font-monospace text-center fw-bold" value="30.00" oninput="calcularPrecioDetalDesdeMargenForm()">
-                                            <span class="input-group-text bg-white fw-bold">%</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label-executive">PVP Detal ($ USD)</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-white text-primary fw-bold font-monospace">$</span>
-                                            <input type="number" step="any" min="0" name="precio_detal_usd" id="precio_detal_usd" class="form-control form-control-executive font-monospace fw-bold text-end text-primary" placeholder="0.00" oninput="calcularMargenDetalDesdePrecioForm()">
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label-executive">PVP Detal (Bs.)</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light text-dark fw-bold font-monospace">Bs.</span>
-                                            <input type="number" step="any" min="0" name="precio_detal_bs" id="precio_detal_bs" class="form-control form-control-executive font-monospace text-end bg-light" placeholder="0.00" readonly>
-                                        </div>
-                                    </div>
+                                    <x-input 
+                                        type="number" 
+                                        step="any" 
+                                        min="0" 
+                                        name="ultimo_margen_detal" 
+                                        id="ultimo_margen_detal" 
+                                        label="Margen de Ganancia Detal (%)" 
+                                        addonText="%" 
+                                        addonPosition="right" 
+                                        value="30.00" 
+                                        col="col-12" 
+                                        class="font-monospace fw-bold text-center" 
+                                        oninput="calcularPrecioDetalDesdeMargenForm()" 
+                                    />
+                                    <x-input 
+                                        type="number" 
+                                        step="any" 
+                                        min="0" 
+                                        name="precio_detal_usd" 
+                                        id="precio_detal_usd" 
+                                        label="PVP Detal ($ USD)" 
+                                        addonText="$" 
+                                        placeholder="0.00" 
+                                        col="col-6" 
+                                        class="font-monospace fw-bold text-end text-primary" 
+                                        oninput="calcularMargenDetalDesdePrecioForm()" 
+                                    />
+                                    <x-input 
+                                        type="number" 
+                                        step="any" 
+                                        min="0" 
+                                        name="precio_detal_bs" 
+                                        id="precio_detal_bs" 
+                                        label="PVP Detal (Bs.)" 
+                                        addonText="Bs." 
+                                        placeholder="0.00" 
+                                        col="col-6" 
+                                        readonly 
+                                        class="font-monospace fw-bold text-end" 
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -185,27 +226,47 @@
                             <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
                                 <h6 class="fw-bold mb-3" style="color: #7e22ce;"><i class="fas fa-boxes-stacked me-1"></i> Precio Venta al Mayor</h6>
                                 <div class="row g-2">
-                                    <div class="col-12">
-                                        <label class="form-label-executive">Margen de Ganancia Mayorista (%)</label>
-                                        <div class="input-group mb-2">
-                                            <input type="number" step="any" min="0" name="ultimo_margen_mayorista" id="ultimo_margen_mayorista" class="form-control form-control-executive font-monospace text-center fw-bold" value="15.00" oninput="calcularPrecioMayorDesdeMargenForm()">
-                                            <span class="input-group-text bg-white fw-bold">%</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label-executive">PVP Mayor ($ USD)</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-white fw-bold font-monospace" style="color: #7e22ce;">$</span>
-                                            <input type="number" step="any" min="0" name="precio_mayorista_usd" id="precio_mayorista_usd" class="form-control form-control-executive font-monospace fw-bold text-end" style="color: #7e22ce;" placeholder="0.00" oninput="calcularMargenMayorDesdePrecioForm()">
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label-executive">PVP Mayor (Bs.)</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light text-dark fw-bold font-monospace">Bs.</span>
-                                            <input type="number" step="any" min="0" name="precio_mayorista_bs" id="precio_mayorista_bs" class="form-control form-control-executive font-monospace text-end bg-light" placeholder="0.00" readonly>
-                                        </div>
-                                    </div>
+                                    <x-input 
+                                        type="number" 
+                                        step="any" 
+                                        min="0" 
+                                        name="ultimo_margen_mayorista" 
+                                        id="ultimo_margen_mayorista" 
+                                        label="Margen de Ganancia Mayorista (%)" 
+                                        addonText="%" 
+                                        addonPosition="right" 
+                                        value="15.00" 
+                                        col="col-12" 
+                                        class="font-monospace fw-bold text-center" 
+                                        oninput="calcularPrecioMayorDesdeMargenForm()" 
+                                    />
+                                    <x-input 
+                                        type="number" 
+                                        step="any" 
+                                        min="0" 
+                                        name="precio_mayorista_usd" 
+                                        id="precio_mayorista_usd" 
+                                        label="PVP Mayor ($ USD)" 
+                                        addonText="$" 
+                                        placeholder="0.00" 
+                                        col="col-6" 
+                                        class="font-monospace fw-bold text-end" 
+                                        style="color: #7e22ce;" 
+                                        oninput="calcularMargenMayorDesdePrecioForm()" 
+                                    />
+                                    <x-input 
+                                        type="number" 
+                                        step="any" 
+                                        min="0" 
+                                        name="precio_mayorista_bs" 
+                                        id="precio_mayorista_bs" 
+                                        label="PVP Mayor (Bs.)" 
+                                        addonText="Bs." 
+                                        placeholder="0.00" 
+                                        col="col-6" 
+                                        readonly 
+                                        class="font-monospace fw-bold text-end" 
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -234,14 +295,14 @@
                                 <div class="row g-2">
                                     <!-- IVA -->
                                     <div class="col-12">
-                                        <div class="d-flex align-items-center justify-content-between border rounded-3 p-2 bg-light-subtle">
+                                        <div class="d-flex align-items-center justify-content-between border rounded-3 p-2.5 bg-white shadow-xs">
                                             <div class="form-check form-switch mb-0">
                                                 <input class="form-check-input" type="checkbox" role="switch" id="aplica_iva" name="aplica_iva" value="1" checked onchange="toggleIvaInput()">
-                                                <label class="form-check-label fw-bold text-dark small" for="aplica_iva">Aplica IVA</label>
+                                                <label class="form-check-label fw-bold text-dark small ms-1" for="aplica_iva">Aplica IVA</label>
                                             </div>
-                                            <div style="width: 100px;">
-                                                <div class="input-group input-group-sm">
-                                                    <input type="number" step="0.01" min="0" max="100" class="form-control text-end fw-bold font-monospace" id="iva_porcentaje" name="iva_porcentaje" value="16.00">
+                                            <div style="width: 125px;">
+                                                <div class="input-group input-group-executive">
+                                                    <input type="number" step="0.01" min="0" max="100" class="form-control form-control-executive text-end fw-bold font-monospace" id="iva_porcentaje" name="iva_porcentaje" value="16.00">
                                                     <span class="input-group-text">%</span>
                                                 </div>
                                             </div>
@@ -249,14 +310,14 @@
                                     </div>
                                     <!-- IGTF -->
                                     <div class="col-12">
-                                        <div class="d-flex align-items-center justify-content-between border rounded-3 p-2 bg-light-subtle">
+                                        <div class="d-flex align-items-center justify-content-between border rounded-3 p-2.5 bg-white shadow-xs">
                                             <div class="form-check form-switch mb-0">
                                                 <input class="form-check-input" type="checkbox" role="switch" id="aplica_igtf" name="aplica_igtf" value="1" checked onchange="toggleIgtfInput()">
-                                                <label class="form-check-label fw-bold text-dark small" for="aplica_igtf">Aplica IGTF</label>
+                                                <label class="form-check-label fw-bold text-dark small ms-1" for="aplica_igtf">Aplica IGTF</label>
                                             </div>
-                                            <div style="width: 100px;">
-                                                <div class="input-group input-group-sm">
-                                                    <input type="number" step="0.01" min="0" max="100" class="form-control text-end fw-bold font-monospace" id="igtf_porcentaje" name="igtf_porcentaje" value="3.00">
+                                            <div style="width: 125px;">
+                                                <div class="input-group input-group-executive">
+                                                    <input type="number" step="0.01" min="0" max="100" class="form-control form-control-executive text-end fw-bold font-monospace" id="igtf_porcentaje" name="igtf_porcentaje" value="3.00">
                                                     <span class="input-group-text">%</span>
                                                 </div>
                                             </div>
@@ -271,63 +332,51 @@
 
                 <!-- PESTAÑA 3: CÓDIGOS DE BARRA / QR OPCIONALES -->
                 <div class="tab-pane fade" id="tab-codigos" role="tabpanel">
-                    <div class="alert alert-light border rounded-4 d-flex align-items-center justify-content-between p-3 mb-3">
-                        <div>
-                            <h6 class="mb-0 fw-bold"><i class="fas fa-qrcode text-primary me-2"></i> Códigos de Barra / QR Escaneables (Opcionales)</h6>
-                            <small class="text-muted">Un producto puede tener múltiples códigos QR o de barra. Cada código debe ser único en tu empresa.</small>
-                        </div>
-                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold" onclick="agregarFilaCodigoBarra()">
+                    <x-section-header
+                        title="Códigos de Barra / QR Escaneables (Opcionales)"
+                        description="Un producto puede tener múltiples códigos QR o de barra. Cada código debe ser único en tu empresa."
+                        icon="fas fa-qrcode"
+                    >
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold shadow-xs" onclick="agregarFilaCodigoBarra()">
                             <i class="fas fa-plus me-1"></i> Agregar Código / QR
                         </button>
-                    </div>
+                    </x-section-header>
 
-                    <div class="table-responsive border rounded-4">
-                        <table class="table table-hover align-middle mb-0" id="tablaCodigosBarra">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 45%;">Código de Barra / QR</th>
-                                    <th style="width: 45%;">Descripción / Presentación</th>
-                                    <th style="width: 10%;" class="text-center">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody id="contenedorFilasCodigos">
-                                <!-- Filas dinámicas -->
-                            </tbody>
-                        </table>
-                    </div>
+                    <x-table-dynamic
+                        id="tablaCodigosBarra"
+                        bodyId="contenedorFilasCodigos"
+                        :headers="[
+                            ['label' => 'Código de Barra / QR', 'width' => '45%'],
+                            ['label' => 'Descripción / Presentación', 'width' => '45%'],
+                            ['label' => 'Acción', 'width' => '10%', 'class' => 'text-center']
+                        ]"
+                    />
                 </div>
 
                 <!-- PESTAÑA 4: PROVEEDORES ASOCIADOS -->
                 <div class="tab-pane fade" id="tab-proveedores" role="tabpanel">
-                    <div class="alert alert-light border rounded-4 d-flex flex-wrap align-items-center justify-content-between gap-2 p-3 mb-3">
-                        <div>
-                            <h6 class="mb-0 fw-bold"><i class="fas fa-truck-moving text-primary me-2"></i> Proveedores Sugeridos (Opcional)</h6>
-                            <small class="text-muted">Vincula los proveedores que surten este producto con sus códigos y últimos costos.</small>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 fw-bold" onclick="abrirModalRapidoProveedor()">
-                                <i class="fas fa-plus-circle me-1"></i> Crear Proveedor
-                            </button>
-                            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold" onclick="agregarFilaProveedor()">
-                                <i class="fas fa-plus me-1"></i> Vincular Proveedor
-                            </button>
-                        </div>
-                    </div>
+                    <x-section-header
+                        title="Proveedores Sugeridos (Opcional)"
+                        description="Vincula los proveedores que surten este producto con sus códigos y últimos costos."
+                        icon="fas fa-truck-moving"
+                    >
+                        <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 fw-bold shadow-xs" onclick="abrirModalRapidoProveedor()">
+                            <i class="fas fa-plus-circle me-1"></i> Crear Proveedor
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold shadow-xs" onclick="agregarFilaProveedor()">
+                            <i class="fas fa-plus me-1"></i> Vincular Proveedor
+                        </button>
+                    </x-section-header>
 
-                    <div class="table-responsive border rounded-4">
-                        <table class="table table-hover align-middle mb-0" id="tablaProveedores">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 45%;">Proveedor</th>
-                                    <th style="width: 45%;">Código del Proveedor</th>
-                                    <th style="width: 10%;" class="text-center">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody id="contenedorFilasProveedores">
-                                <!-- Filas dinámicas -->
-                            </tbody>
-                        </table>
-                    </div>
+                    <x-table-dynamic
+                        id="tablaProveedores"
+                        bodyId="contenedorFilasProveedores"
+                        :headers="[
+                            ['label' => 'Proveedor', 'width' => '45%'],
+                            ['label' => 'Código de Referencia del Proveedor', 'width' => '45%'],
+                            ['label' => 'Acción', 'width' => '10%', 'class' => 'text-center']
+                        ]"
+                    />
                 </div>
 
             </div>

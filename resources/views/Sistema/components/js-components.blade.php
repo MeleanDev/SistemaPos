@@ -27,5 +27,7 @@
 <script src="{{ asset('estilos/jsPropios/components/consultor.component.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/components/consultor.component.js')) ?: time() }}"></script>
 <script src="{{ asset('estilos/jsPropios/components/datatable.component.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/components/datatable.component.js')) ?: time() }}"></script>
 <script src="{{ asset('estilos/jsPropios/components/formulario.component.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/components/formulario.component.js')) ?: time() }}"></script>
+<script src="{{ asset('estilos/jsPropios/components/select2.component.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/components/select2.component.js')) ?: time() }}"></script>
 <script src="{{ asset('estilos/jsPropios/components/utilidades.component.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/components/utilidades.component.js')) ?: time() }}"></script>
+
 
