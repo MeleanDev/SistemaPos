@@ -58,7 +58,9 @@
                     <select class="form-select form-control-executive" name="rol" id="rol" required>
                         <option value="Operador" selected>Operador (POS, Ventas y Operaciones)</option>
                         <option value="Admin">Administrador (Gestión de Empresa)</option>
-                        <option value="SuperAdmin">SuperAdministrador (Acceso Global Total)</option>
+                        @if (auth()->user()?->hasRole('SuperAdmin'))
+                            <option value="SuperAdmin">SuperAdministrador (Acceso Global Total)</option>
+                        @endif
                     </select>
                 </div>
 

@@ -57,6 +57,18 @@ class RolesYPermisosSeeder extends Seeder
             'metodos_pago.editar',
             'metodos_pago.eliminar',
 
+            // Categorías
+            'categorias.ver',
+            'categorias.crear',
+            'categorias.editar',
+            'categorias.eliminar',
+
+            // Servicios
+            'servicios.ver',
+            'servicios.crear',
+            'servicios.editar',
+            'servicios.eliminar',
+
             // Inventario, Productos & Kardex
             'productos.ver',
             'productos.crear',
@@ -66,6 +78,13 @@ class RolesYPermisosSeeder extends Seeder
             'inventario.kardex',
             'inventario.traslados',
             'compras.recepcion',
+
+            // Motos & Vehículos
+            'motos.ver',
+            'motos.crear',
+            'motos.editar',
+            'motos.eliminar',
+            'motos.recepcion',
 
             // Cajas y Turnos
             'cajas.ver',
@@ -87,7 +106,9 @@ class RolesYPermisosSeeder extends Seeder
             'cxp.ver',
             'cxp.abonar',
 
-            // Reportes y Auditoría
+            // Reportes, Auditoría y Configuración
+            'configuracion.ver',
+            'configuracion.editar',
             'reportes.ver',
             'logs.ver',
         ];
@@ -104,48 +125,12 @@ class RolesYPermisosSeeder extends Seeder
 
         // B. Admin: Acceso integral a su empresa asignada
         $adminRole = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
-        $adminPermissions = [
-            'almacenes.ver',
-            'usuarios.ver',
-            'usuarios.crear',
-            'usuarios.editar',
-            'usuarios.eliminar',
-            'usuarios.permisos',
-            'clientes.ver',
-            'clientes.crear',
-            'clientes.editar',
-            'clientes.eliminar',
-            'proveedores.ver',
-            'proveedores.crear',
-            'proveedores.editar',
-            'proveedores.eliminar',
-            'metodos_pago.ver',
-            'productos.ver',
-            'productos.crear',
-            'productos.editar',
-            'productos.eliminar',
-            'inventario.ajustar_stock',
-            'inventario.kardex',
-            'inventario.traslados',
-            'compras.recepcion',
-            'cajas.ver',
-            'cajas.aperturar',
-            'cajas.cerrar',
-            'cajas.movimientos',
-            'cajas.arqueo',
-            'pos.acceso',
-            'ventas.ver',
-            'ventas.crear',
-            'ventas.anular',
-            'ventas.descuentos',
-            'cxc.ver',
-            'cxc.abonar',
-            'cxp.ver',
-            'cxp.abonar',
-            'reportes.ver',
-            'logs.ver',
-        ];
-        $adminRole->syncPermissions($adminPermissions);
+        $adminRole->syncPermissions(Permission::whereNotIn('name', [
+            'empresas.ver',
+            'empresas.crear',
+            'empresas.editar',
+            'empresas.eliminar',
+        ])->get());
 
         // C. Operador: Rol base cuyas facultades modulares se asignan granularmente
         $operadorRole = Role::firstOrCreate(['name' => 'Operador', 'guard_name' => 'web']);

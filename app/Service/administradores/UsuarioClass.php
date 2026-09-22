@@ -5,6 +5,7 @@ namespace App\Service\Administradores;
 use App\Models\Empresa;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
@@ -62,11 +63,30 @@ class UsuarioClass
     /**
      * Catálogos para formularios de usuarios y permisos
      */
-    public function obtenerRolesYEmpresas(): array
+    public function obtenerRolesYEmpresas(?User $usuarioAutenticado = null): array
     {
+        $usuario = $usuarioAutenticado ?? Auth::user();
+        $esSuperAdmin = $usuario ? $usuario->hasRole('SuperAdmin') : true;
+
+        $rolesQuery = Role::where('guard_name', 'web');
+        if (! $esSuperAdmin) {
+            $rolesQuery->whereIn('name', ['Admin', 'Operador']);
+        }
+        $roles = $rolesQuery->get(['id', 'name']);
+
+        if (! $esSuperAdmin && $usuario) {
+            $empresas = $usuario->empresas()
+                ->wherePivot('estado', true)
+                ->where('empresas.estado', true)
+                ->orderBy('nombre')
+                ->get(['empresas.id', 'empresas.nombre', 'empresas.rif', 'empresas.razon_social']);
+        } else {
+            $empresas = Empresa::where('estado', true)->orderBy('nombre')->get(['id', 'nombre', 'rif', 'razon_social']);
+        }
+
         return [
-            'roles' => Role::where('guard_name', 'web')->get(['id', 'name']),
-            'empresas' => Empresa::where('estado', true)->orderBy('nombre')->get(['id', 'nombre', 'rif', 'razon_social']),
+            'roles' => $roles,
+            'empresas' => $empresas,
             'permisos_modulos' => [
                 [
                     'modulo' => 'Clientes',
@@ -99,6 +119,115 @@ class UsuarioClass
                         ['name' => 'metodos_pago.crear', 'label' => 'Crear nuevas formas'],
                         ['name' => 'metodos_pago.editar', 'label' => 'Editar formas'],
                         ['name' => 'metodos_pago.eliminar', 'label' => 'Eliminar formas'],
+                    ],
+                ],
+                [
+                    'modulo' => 'Categorías',
+                    'icono' => 'fas fa-tags text-primary',
+                    'descripcion' => 'Clasificación y rubros de inventario',
+                    'permisos' => [
+                        ['name' => 'categorias.ver', 'label' => 'Ver categorías'],
+                        ['name' => 'categorias.crear', 'label' => 'Crear categorías'],
+                        ['name' => 'categorias.editar', 'label' => 'Editar categorías'],
+                        ['name' => 'categorias.eliminar', 'label' => 'Eliminar / Desactivar'],
+                    ],
+                ],
+                [
+                    'modulo' => 'Servicios',
+                    'icono' => 'fas fa-concierge-bell text-info',
+                    'descripcion' => 'Catálogo de servicios y mano de obra',
+                    'permisos' => [
+                        ['name' => 'servicios.ver', 'label' => 'Ver catálogo de servicios'],
+                        ['name' => 'servicios.crear', 'label' => 'Registrar servicios'],
+                        ['name' => 'servicios.editar', 'label' => 'Editar información y precios'],
+                        ['name' => 'servicios.eliminar', 'label' => 'Eliminar / Desactivar'],
+                    ],
+                ],
+                [
+                    'modulo' => 'Productos & Inventario',
+                    'icono' => 'fas fa-boxes-stacked text-primary',
+                    'descripcion' => 'Catálogo de artículos y códigos de barra',
+                    'permisos' => [
+                        ['name' => 'productos.ver', 'label' => 'Ver catálogo de productos'],
+                        ['name' => 'productos.crear', 'label' => 'Registrar nuevos productos'],
+                        ['name' => 'productos.editar', 'label' => 'Editar ficha técnica y precios'],
+                        ['name' => 'productos.eliminar', 'label' => 'Eliminar / Desactivar'],
+                    ],
+                ],
+                [
+                    'modulo' => 'Almacenes & Sedes',
+                    'icono' => 'fas fa-warehouse text-secondary',
+                    'descripcion' => 'Depósitos, bodegas y sucursales',
+                    'permisos' => [
+                        ['name' => 'almacenes.ver', 'label' => 'Ver listado de almacenes'],
+                        ['name' => 'almacenes.crear', 'label' => 'Crear almacenes'],
+                        ['name' => 'almacenes.editar', 'label' => 'Editar información de sede'],
+                        ['name' => 'almacenes.eliminar', 'label' => 'Eliminar almacenes'],
+                    ],
+                ],
+                [
+                    'modulo' => 'Motos & Seriales',
+                    'icono' => 'fas fa-motorcycle text-danger',
+                    'descripcion' => 'Control de vehículos, NIV, Chasis y Motor',
+                    'permisos' => [
+                        ['name' => 'motos.ver', 'label' => 'Ver catálogo de motos'],
+                        ['name' => 'motos.crear', 'label' => 'Registrar datos de motos'],
+                        ['name' => 'motos.editar', 'label' => 'Editar seriales y ficha'],
+                        ['name' => 'motos.eliminar', 'label' => 'Eliminar / Desactivar'],
+                        ['name' => 'motos.recepcion', 'label' => 'Recepción por lotes y seriales'],
+                    ],
+                ],
+                [
+                    'modulo' => 'Recepción & Movimientos',
+                    'icono' => 'fas fa-dolly-flatbed text-success',
+                    'descripcion' => 'Ingreso de mercancía, traslados y kardex',
+                    'permisos' => [
+                        ['name' => 'compras.recepcion', 'label' => 'Registrar recepciones de mercancía'],
+                        ['name' => 'inventario.kardex', 'label' => 'Consultar libro mayor de Kardex'],
+                        ['name' => 'inventario.traslados', 'label' => 'Realizar traslados entre almacenes'],
+                        ['name' => 'inventario.ajustar_stock', 'label' => 'Realizar ajustes de inventario'],
+                    ],
+                ],
+                [
+                    'modulo' => 'Punto de Venta (POS)',
+                    'icono' => 'fas fa-cash-register text-success',
+                    'descripcion' => 'Facturación rápida, tickets y cobros',
+                    'permisos' => [
+                        ['name' => 'pos.acceso', 'label' => 'Acceso al Punto de Venta (POS)'],
+                        ['name' => 'ventas.ver', 'label' => 'Ver historial de ventas y facturas'],
+                        ['name' => 'ventas.crear', 'label' => 'Procesar y facturar ventas'],
+                        ['name' => 'ventas.anular', 'label' => 'Anular ventas y devoluciones'],
+                        ['name' => 'ventas.descuentos', 'label' => 'Aplicar descuentos en ventas'],
+                    ],
+                ],
+                [
+                    'modulo' => 'Cajas & Turnos',
+                    'icono' => 'fas fa-vault text-warning',
+                    'descripcion' => 'Aperturas, arqueos y cierres de turno',
+                    'permisos' => [
+                        ['name' => 'cajas.ver', 'label' => 'Ver estado de cajas'],
+                        ['name' => 'cajas.aperturar', 'label' => 'Aperturar turnos de caja'],
+                        ['name' => 'cajas.cerrar', 'label' => 'Cerrar caja y arqueo final'],
+                        ['name' => 'cajas.movimientos', 'label' => 'Registrar entradas/salidas de caja'],
+                        ['name' => 'cajas.arqueo', 'label' => 'Realizar arqueos de efectivo'],
+                    ],
+                ],
+                [
+                    'modulo' => 'Cuentas por Cobrar (CXC)',
+                    'icono' => 'fas fa-file-invoice-dollar text-primary',
+                    'descripcion' => 'Gestión de créditos de clientes y abonos',
+                    'permisos' => [
+                        ['name' => 'cxc.ver', 'label' => 'Ver cuentas por cobrar'],
+                        ['name' => 'cxc.abonar', 'label' => 'Registrar abonos de clientes'],
+                    ],
+                ],
+                [
+                    'modulo' => 'Cuentas por Pagar (CXP)',
+                    'icono' => 'fas fa-hand-holding-usd text-danger',
+                    'descripcion' => 'Control de deudas con proveedores',
+                    'permisos' => [
+                        ['name' => 'cxp.ver', 'label' => 'Ver cuentas por pagar'],
+                        ['name' => 'cxp.abonar', 'label' => 'Registrar abonos a proveedores'],
                     ],
                 ],
             ],

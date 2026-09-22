@@ -216,33 +216,94 @@ This configuration is automatically synchronized to:
    - Global root platform access across all companies and warehouses.
    - All permissions synced automatically.
    - No company assignment restriction (sees all companies via Navbar switcher).
+   - **User Creation Hierarchy**: Can create and assign all 3 roles (`SuperAdmin`, `Admin`, `Operador`) across all registered companies.
 2. **Administrador (`Admin`)**:
    - Assigned to 1 or more specific companies by the SuperAdmin.
    - Standard administrative permissions for their assigned companies.
+   - **User Creation Hierarchy (STRICT RULE)**: An `Admin` can create and manage users with roles `Admin` (para sus empresas asignadas) and `Operador`. They **CANNOT** create or assign `SuperAdmin` users.
 3. **Operador (`Operador`)**:
    - Operates POS, cash register, customer transactions, and sales.
    - **Granular Module Permissions**: Allows administrators to selectively grant or revoke specific module permissions (`ver`, `crear`, `editar`, `eliminar`) for active modules.
 
-### 6.2 Active Modules Permission Matrix
+### 6.2 Active Modules Permission Matrix (13 Core Modules)
 ```php
 'permisos_modulos' => [
     'Clientes' => [
-        ['name' => 'clientes.ver', 'label' => 'Ver clientes y detalles'],
+        ['name' => 'clientes.ver', 'label' => 'Ver listado y detalles'],
         ['name' => 'clientes.crear', 'label' => 'Registrar clientes'],
         ['name' => 'clientes.editar', 'label' => 'Editar información'],
         ['name' => 'clientes.eliminar', 'label' => 'Eliminar / Desactivar'],
     ],
     'Proveedores' => [
-        ['name' => 'proveedores.ver', 'label' => 'Ver proveedores y detalles'],
+        ['name' => 'proveedores.ver', 'label' => 'Ver listado y detalles'],
         ['name' => 'proveedores.crear', 'label' => 'Registrar proveedores'],
         ['name' => 'proveedores.editar', 'label' => 'Editar información'],
         ['name' => 'proveedores.eliminar', 'label' => 'Eliminar / Desactivar'],
     ],
     'Métodos de Pago' => [
-        ['name' => 'metodos_pago.ver', 'label' => 'Ver métodos de pago'],
-        ['name' => 'metodos_pago.crear', 'label' => 'Crear nuevas formas de pago'],
-        ['name' => 'metodos_pago.editar', 'label' => 'Modificar métodos'],
-        ['name' => 'metodos_pago.eliminar', 'label' => 'Eliminar formas de pago'],
+        ['name' => 'metodos_pago.ver', 'label' => 'Ver formas de pago'],
+        ['name' => 'metodos_pago.crear', 'label' => 'Crear nuevas formas'],
+        ['name' => 'metodos_pago.editar', 'label' => 'Editar formas'],
+        ['name' => 'metodos_pago.eliminar', 'label' => 'Eliminar formas'],
+    ],
+    'Categorías' => [
+        ['name' => 'categorias.ver', 'label' => 'Ver categorías'],
+        ['name' => 'categorias.crear', 'label' => 'Crear categorías'],
+        ['name' => 'categorias.editar', 'label' => 'Editar categorías'],
+        ['name' => 'categorias.eliminar', 'label' => 'Eliminar / Desactivar'],
+    ],
+    'Servicios' => [
+        ['name' => 'servicios.ver', 'label' => 'Ver catálogo de servicios'],
+        ['name' => 'servicios.crear', 'label' => 'Registrar servicios'],
+        ['name' => 'servicios.editar', 'label' => 'Editar información y precios'],
+        ['name' => 'servicios.eliminar', 'label' => 'Eliminar / Desactivar'],
+    ],
+    'Productos & Inventario' => [
+        ['name' => 'productos.ver', 'label' => 'Ver catálogo de productos'],
+        ['name' => 'productos.crear', 'label' => 'Registrar nuevos productos'],
+        ['name' => 'productos.editar', 'label' => 'Editar ficha técnica y precios'],
+        ['name' => 'productos.eliminar', 'label' => 'Eliminar / Desactivar'],
+    ],
+    'Almacenes & Sedes' => [
+        ['name' => 'almacenes.ver', 'label' => 'Ver listado de almacenes'],
+        ['name' => 'almacenes.crear', 'label' => 'Crear almacenes'],
+        ['name' => 'almacenes.editar', 'label' => 'Editar información de sede'],
+        ['name' => 'almacenes.eliminar', 'label' => 'Eliminar almacenes'],
+    ],
+    'Motos & Seriales' => [
+        ['name' => 'motos.ver', 'label' => 'Ver catálogo de motos'],
+        ['name' => 'motos.crear', 'label' => 'Registrar datos de motos'],
+        ['name' => 'motos.editar', 'label' => 'Editar seriales y ficha'],
+        ['name' => 'motos.eliminar', 'label' => 'Eliminar / Desactivar'],
+        ['name' => 'motos.recepcion', 'label' => 'Recepción por lotes y seriales'],
+    ],
+    'Recepción & Movimientos' => [
+        ['name' => 'compras.recepcion', 'label' => 'Registrar recepciones de mercancía'],
+        ['name' => 'inventario.kardex', 'label' => 'Consultar libro mayor de Kardex'],
+        ['name' => 'inventario.traslados', 'label' => 'Realizar traslados entre almacenes'],
+        ['name' => 'inventario.ajustar_stock', 'label' => 'Realizar ajustes de inventario'],
+    ],
+    'Punto de Venta (POS)' => [
+        ['name' => 'pos.acceso', 'label' => 'Acceso al Punto de Venta (POS)'],
+        ['name' => 'ventas.ver', 'label' => 'Ver historial de ventas y facturas'],
+        ['name' => 'ventas.crear', 'label' => 'Procesar y facturar ventas'],
+        ['name' => 'ventas.anular', 'label' => 'Anular ventas y devoluciones'],
+        ['name' => 'ventas.descuentos', 'label' => 'Aplicar descuentos en ventas'],
+    ],
+    'Cajas & Turnos' => [
+        ['name' => 'cajas.ver', 'label' => 'Ver estado de cajas'],
+        ['name' => 'cajas.aperturar', 'label' => 'Aperturar turnos de caja'],
+        ['name' => 'cajas.cerrar', 'label' => 'Cerrar caja y arqueo final'],
+        ['name' => 'cajas.movimientos', 'label' => 'Registrar entradas/salidas de caja'],
+        ['name' => 'cajas.arqueo', 'label' => 'Realizar arqueos de efectivo'],
+    ],
+    'Cuentas por Cobrar (CXC)' => [
+        ['name' => 'cxc.ver', 'label' => 'Ver cuentas por cobrar'],
+        ['name' => 'cxc.abonar', 'label' => 'Registrar abonos de clientes'],
+    ],
+    'Cuentas por Pagar (CXP)' => [
+        ['name' => 'cxp.ver', 'label' => 'Ver cuentas por pagar'],
+        ['name' => 'cxp.abonar', 'label' => 'Registrar abonos a proveedores'],
     ],
 ]
 ```

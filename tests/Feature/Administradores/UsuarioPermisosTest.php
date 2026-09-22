@@ -108,3 +108,82 @@ test('users collection list returns data for cards view', function () {
         ],
     ]);
 });
+
+test('user catalog returns all 13 modular permission groups', function () {
+    $response = $this->actingAs($this->superAdmin)->getJson('/usuarios/catalogos');
+
+    $response->assertStatus(200);
+    $data = $response->json();
+
+    expect($data)->toHaveKey('permisos_modulos');
+    expect(count($data['permisos_modulos']))->toBe(13);
+});
+
+test('admin cannot create users with role SuperAdmin', function () {
+    $admin = User::create([
+        'name' => 'V-88888888',
+        'nombre' => 'Admin',
+        'apellido' => 'Empresa',
+        'email' => 'admin@empresa.com',
+        'password' => bcrypt('password123'),
+        'estado' => true,
+    ]);
+    $admin->assignRole('Admin');
+    $admin->empresas()->attach($this->empresa->id, ['estado' => true]);
+
+    $payload = [
+        'name' => 'V-88888889',
+        'nombre' => 'Nuevo',
+        'apellido' => 'Super',
+        'email' => 'nuevo_super@empresa.com',
+        'password' => 'superadmin123',
+        'rol' => 'SuperAdmin',
+        'empresas' => [$this->empresa->id],
+    ];
+
+    $response = $this->actingAs($admin)->postJson('/usuarios', $payload);
+    $response->assertStatus(422);
+    $response->assertJsonValidationErrors(['rol']);
+});
+
+test('admin can create users with role Admin and Operador', function () {
+    $admin = User::create([
+        'name' => 'V-77777777',
+        'nombre' => 'Admin',
+        'apellido' => 'Empresa',
+        'email' => 'admin2@empresa.com',
+        'password' => bcrypt('password123'),
+        'estado' => true,
+    ]);
+    $admin->assignRole('Admin');
+    $admin->empresas()->attach($this->empresa->id, ['estado' => true]);
+
+    // 1. Crear otro Admin
+    $payloadAdmin = [
+        'name' => 'V-77777778',
+        'nombre' => 'Admin',
+        'apellido' => 'Secundario',
+        'email' => 'admin_secundario@empresa.com',
+        'password' => 'admin123',
+        'rol' => 'Admin',
+        'empresas' => [$this->empresa->id],
+    ];
+    $responseAdmin = $this->actingAs($admin)->postJson('/usuarios', $payloadAdmin);
+    $responseAdmin->assertStatus(200);
+    $responseAdmin->assertJson(['success' => true]);
+
+    // 2. Crear un Operador
+    $payloadOperador = [
+        'name' => 'V-77777779',
+        'nombre' => 'Operador',
+        'apellido' => 'Valido',
+        'email' => 'operador_valido@empresa.com',
+        'password' => 'operador123',
+        'rol' => 'Operador',
+        'empresas' => [$this->empresa->id],
+        'permisos' => ['clientes.ver'],
+    ];
+    $responseOperador = $this->actingAs($admin)->postJson('/usuarios', $payloadOperador);
+    $responseOperador->assertStatus(200);
+    $responseOperador->assertJson(['success' => true]);
+});

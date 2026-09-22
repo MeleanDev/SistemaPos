@@ -57,6 +57,9 @@ class CrearRequest extends FormRequest
                 'required',
                 'string',
                 'exists:roles,name',
+                $this->user()?->hasRole('SuperAdmin')
+                    ? Rule::in(['SuperAdmin', 'Admin', 'Operador'])
+                    : Rule::in(['Admin', 'Operador']),
             ],
             'empresas' => [
                 'nullable',
@@ -102,6 +105,7 @@ class CrearRequest extends FormRequest
             'password.min' => 'La contraseña debe tener al menos 6 caracteres.',
             'rol.required' => 'Debe seleccionar un rol para el usuario.',
             'rol.exists' => 'El rol seleccionado no es válido en el sistema.',
+            'rol.in' => 'No tienes autorización para asignar el rol SuperAdministrador. Solo puedes gestionar usuarios con rol Administrador u Operador.',
             'empresas.array' => 'El formato de empresas seleccionadas es inválido.',
             'empresas.*.exists' => 'Una de las empresas seleccionadas no existe en el sistema.',
         ];
