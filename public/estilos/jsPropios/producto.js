@@ -1,4 +1,5 @@
-const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
+const urlBase =
+    window.location.origin + window.location.pathname.replace(/\/$/, "");
 const urlLista = urlBase + "/lista";
 const urlCatalogos = urlBase + "/catalogos";
 const urlDetalles = urlBase + "/";
@@ -15,7 +16,7 @@ let catalogosSistema = {
     categorias: [],
     proveedores: [],
     almacenes: [],
-    monedas: {}
+    monedas: {},
 };
 
 let contadorFilasCodigos = 0;
@@ -23,12 +24,12 @@ let contadorFilasProveedores = 0;
 
 const obtenerTasaCompraModal = function () {
     const val = parseFloat($("#tasa_compra").val());
-    return (val && val > 0) ? val : (tasaUsdActual > 0 ? tasaUsdActual : 1.0);
+    return val && val > 0 ? val : tasaUsdActual > 0 ? tasaUsdActual : 1.0;
 };
 
 const obtenerTasaVentaModal = function () {
     const val = parseFloat($("#tasa_venta").val());
-    return (val && val > 0) ? val : (tasaUsdActual > 0 ? tasaUsdActual : 1.0);
+    return val && val > 0 ? val : tasaUsdActual > 0 ? tasaUsdActual : 1.0;
 };
 
 const alCambiarCostoUsd = function () {
@@ -122,7 +123,9 @@ const calcularMargenDetalDesdePrecioForm = function () {
     const tasaCompra = obtenerTasaCompraModal();
     const tasaVenta = obtenerTasaVentaModal();
 
-    $("#precio_detal_bs").val(pvpUsd > 0 ? (pvpUsd * tasaVenta).toFixed(2) : "");
+    $("#precio_detal_bs").val(
+        pvpUsd > 0 ? (pvpUsd * tasaVenta).toFixed(2) : "",
+    );
 
     if (costoUsd > 0 && pvpUsd > 0 && tasaCompra > 0) {
         const factor = (pvpUsd * tasaVenta) / (costoUsd * tasaCompra);
@@ -176,7 +179,9 @@ const calcularMargenMayorDesdePrecioForm = function () {
     const tasaCompra = obtenerTasaCompraModal();
     const tasaVenta = obtenerTasaVentaModal();
 
-    $("#precio_mayorista_bs").val(pvpUsd > 0 ? (pvpUsd * tasaVenta).toFixed(2) : "");
+    $("#precio_mayorista_bs").val(
+        pvpUsd > 0 ? (pvpUsd * tasaVenta).toFixed(2) : "",
+    );
 
     if (costoUsd > 0 && pvpUsd > 0 && tasaCompra > 0) {
         const factor = (pvpUsd * tasaVenta) / (costoUsd * tasaCompra);
@@ -197,20 +202,6 @@ const calcularMargenMayorDesdePrecioBsForm = function () {
         $("#precio_mayorista_usd").val("");
     }
 };
-
-window.alCambiarCostoUsd = alCambiarCostoUsd;
-window.alCambiarCostoBs = alCambiarCostoBs;
-window.alCambiarTasasModal = alCambiarTasasModal;
-window.restablecerTasasModal = restablecerTasasModal;
-window.restablecerTasaCompraModal = restablecerTasaCompraModal;
-window.restablecerTasaVentaModal = restablecerTasaVentaModal;
-window.calcularPrecioDetalDesdeMargenForm = calcularPrecioDetalDesdeMargenForm;
-window.calcularMargenDetalDesdePrecioForm = calcularMargenDetalDesdePrecioForm;
-window.calcularMargenDetalDesdePrecioBsForm = calcularMargenDetalDesdePrecioBsForm;
-window.calcularPrecioMayorDesdeMargenForm = calcularPrecioMayorDesdeMargenForm;
-window.calcularMargenMayorDesdePrecioForm = calcularMargenMayorDesdePrecioForm;
-window.calcularMargenMayorDesdePrecioBsForm = calcularMargenMayorDesdePrecioBsForm;
-
 
 $(document).ready(function () {
     crearSelect2({
@@ -278,7 +269,11 @@ $(document).ready(function () {
 
                     let stockTotal = 0;
                     if (Array.isArray(data)) {
-                        stockTotal = data.reduce((total, item) => total + parseFloat(item.cantidad_actual || 0), 0);
+                        stockTotal = data.reduce(
+                            (total, item) =>
+                                total + parseFloat(item.cantidad_actual || 0),
+                            0,
+                        );
                     }
 
                     const unidad = row.unidad_medida || "und";
@@ -299,7 +294,9 @@ $(document).ready(function () {
                 className: "text-start align-middle",
                 render: function (data, type, row) {
                     const detalUsd = parseFloat(row.precio_detal_usd || 0);
-                    const mayoristaUsd = parseFloat(row.precio_mayorista_usd || 0);
+                    const mayoristaUsd = parseFloat(
+                        row.precio_mayorista_usd || 0,
+                    );
 
                     if (detalUsd <= 0 && mayoristaUsd <= 0) {
                         return '<span class="badge rounded-pill px-2 py-1 fw-semibold" style="font-size: 0.74rem; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a;"><i class="fas fa-truck-loading me-1"></i>Por Recepción</span>';
@@ -326,7 +323,7 @@ $(document).ready(function () {
 
                     const igtfBadge = row.aplica_igtf
                         ? `<span class="badge rounded-pill px-2 py-1 fw-semibold ms-1" style="font-size: 0.72rem; background-color: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;">IGTF</span>`
-                        : '';
+                        : "";
 
                     return `<div class="d-flex justify-content-center align-items-center">${ivaBadge}${igtfBadge}</div>`;
                 },
@@ -337,7 +334,10 @@ $(document).ready(function () {
                 className: "text-center align-middle",
                 orderable: false,
                 render: function (data, type, row) {
-                    const nombreEscapado = (row.nombre || "").replace(/'/g, "\\'");
+                    const nombreEscapado = (row.nombre || "").replace(
+                        /'/g,
+                        "\\'",
+                    );
                     return `
                     <div class="d-flex justify-content-center gap-1">
                         <button type="button" class="btn btn-outline-info btn-sm rounded-circle shadow-sm" onclick="verFicha(${row.id});" title="Ficha Técnica 360°" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
@@ -382,11 +382,15 @@ const cargarCatalogos = async function () {
 
 const poblarSelectCategorias = function () {
     const $select = $("#categoria_id");
-    $select.empty().append('<option value="">Seleccione una categoría...</option>');
+    $select
+        .empty()
+        .append('<option value="">Seleccione una categoría...</option>');
 
     if (Array.isArray(catalogosSistema.categorias)) {
         catalogosSistema.categorias.forEach((cat) => {
-            $select.append(`<option value="${cat.id}">[${cat.codigo}] ${cat.nombre}</option>`);
+            $select.append(
+                `<option value="${cat.id}">[${cat.codigo}] ${cat.nombre}</option>`,
+            );
         });
     }
     $select.trigger("change");
@@ -415,8 +419,12 @@ const toggleIgtfInput = function () {
 const agregarFilaCodigoBarra = function (codigo = "", descripcion = "") {
     contadorFilasCodigos++;
     const idFila = `fila_cb_${contadorFilasCodigos}`;
-    const valCodigo = (codigo === null || codigo === undefined) ? "" : String(codigo);
-    const valDesc = (descripcion === null || descripcion === undefined) ? "" : String(descripcion);
+    const valCodigo =
+        codigo === null || codigo === undefined ? "" : String(codigo);
+    const valDesc =
+        descripcion === null || descripcion === undefined
+            ? ""
+            : String(descripcion);
 
     const filaHtml = `
         <tr id="${idFila}" class="align-middle">
@@ -441,9 +449,13 @@ const agregarFilaProveedor = function (proveedorId = "", codigoProveedor = "") {
     contadorFilasProveedores++;
     const idFila = `fila_prov_${contadorFilasProveedores}`;
     const idSelect = `select_prov_${contadorFilasProveedores}`;
-    const valCodigo = (codigoProveedor === null || codigoProveedor === undefined) ? "" : String(codigoProveedor);
+    const valCodigo =
+        codigoProveedor === null || codigoProveedor === undefined
+            ? ""
+            : String(codigoProveedor);
 
-    let opcionesProveedores = '<option value="">Seleccione proveedor...</option>';
+    let opcionesProveedores =
+        '<option value="">Seleccione proveedor...</option>';
     if (Array.isArray(catalogosSistema.proveedores)) {
         catalogosSistema.proveedores.forEach((p) => {
             const sel = String(p.id) === String(proveedorId) ? "selected" : "";
@@ -480,10 +492,14 @@ const agregarFilaProveedor = function (proveedorId = "", codigoProveedor = "") {
 
 const abrirModalRapidoProveedor = function () {
     $("#formularioRapidoProveedor")[0].reset();
-    $("#formularioRapidoProveedor").find(".is-invalid").removeClass("is-invalid");
+    $("#formularioRapidoProveedor")
+        .find(".is-invalid")
+        .removeClass("is-invalid");
     $("#formularioRapidoProveedor").find(".invalid-feedback").remove();
 
-    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRapidoProveedor"));
+    const modal = bootstrap.Modal.getOrCreateInstance(
+        document.getElementById("modalRapidoProveedor"),
+    );
     modal.show();
 };
 window.abrirModalRapidoProveedor = abrirModalRapidoProveedor;
@@ -495,7 +511,9 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
     const $btn = $("#modalRapidoProveedorBtnGuardar");
     const textoOriginal = $btn.html();
 
-    $btn.prop("disabled", true).html('<i class="fas fa-spinner fa-spin me-1"></i> Guardando...');
+    $btn.prop("disabled", true).html(
+        '<i class="fas fa-spinner fa-spin me-1"></i> Guardando...',
+    );
     $form.find(".is-invalid").removeClass("is-invalid");
     $form.find(".invalid-feedback").remove();
 
@@ -517,9 +535,11 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
 
             $(".select-proveedor-fila").each(function () {
                 const valorActual = $(this).val();
-                let opciones = '<option value="">Seleccione proveedor...</option>';
+                let opciones =
+                    '<option value="">Seleccione proveedor...</option>';
                 catalogosSistema.proveedores.forEach((p) => {
-                    const sel = String(p.id) === String(valorActual) ? "selected" : "";
+                    const sel =
+                        String(p.id) === String(valorActual) ? "selected" : "";
                     opciones += `<option value="${p.id}" ${sel}>${p.nombre} (${p.rif})</option>`;
                 });
                 $(this).html(opciones).trigger("change");
@@ -527,7 +547,9 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
 
             agregarFilaProveedor(nuevoProv.id, "");
 
-            const modal = bootstrap.Modal.getInstance(document.getElementById("modalRapidoProveedor"));
+            const modal = bootstrap.Modal.getInstance(
+                document.getElementById("modalRapidoProveedor"),
+            );
             if (modal) {
                 modal.hide();
             }
@@ -547,7 +569,9 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
                 const input = $(`#rapido_prov_${campo}`);
                 if (input.length) {
                     input.addClass("is-invalid");
-                    input.after(`<div class="invalid-feedback d-block">${errors[campo][0]}</div>`);
+                    input.after(
+                        `<div class="invalid-feedback d-block">${errors[campo][0]}</div>`,
+                    );
                 }
             });
         } else {
@@ -555,7 +579,9 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
                 window.notificacion.fire({
                     icon: "error",
                     title: "Error",
-                    text: xhr.responseJSON?.message || "No se pudo registrar el proveedor.",
+                    text:
+                        xhr.responseJSON?.message ||
+                        "No se pudo registrar el proveedor.",
                 });
             }
         }
@@ -582,11 +608,18 @@ const crear = function () {
     }
 
     $("#modalProductoTitulo").text("Nuevo Producto");
-    $("#modalProductoSubtitulo").text("Completa la información del producto físico");
-    $("#modalProductoIcono").attr("class", "fas fa-boxes-stacked text-warning fs-5");
+    $("#modalProductoSubtitulo").text(
+        "Completa la información del producto físico",
+    );
+    $("#modalProductoIcono").attr(
+        "class",
+        "fas fa-boxes-stacked text-warning fs-5",
+    );
     $("#modalProductoTextoGuardar").text("Guardar");
 
-    $("#codigo_interno").val("").attr("placeholder", "[Generado automáticamente]");
+    $("#codigo_interno")
+        .val("")
+        .attr("placeholder", "[Generado automáticamente]");
 
     $("#tipo").val("producto");
     limpiarSelect2("#categoria_id");
@@ -610,7 +643,9 @@ const crear = function () {
     $("#aplica_igtf").prop("checked", true);
     $("#igtf_porcentaje").val("3.00").prop("disabled", false);
 
-    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalProducto"));
+    const modal = bootstrap.Modal.getOrCreateInstance(
+        document.getElementById("modalProducto"),
+    );
     modal.show();
 };
 
@@ -637,7 +672,9 @@ const editar = async function (id) {
         }
 
         $("#modalProductoTitulo").text(`Editar: ${prod.nombre}`);
-        $("#modalProductoSubtitulo").text("Modifica los datos del producto físico");
+        $("#modalProductoSubtitulo").text(
+            "Modifica los datos del producto físico",
+        );
         $("#modalProductoIcono").attr("class", "fas fa-edit text-warning fs-5");
         $("#modalProductoTextoGuardar").text("Actualizar Cambios");
 
@@ -648,8 +685,14 @@ const editar = async function (id) {
         $("#descripcion").val(prod.descripcion || "");
         $("#unidad_medida").val(prod.unidad_medida || "unidad");
 
-        const tasaCompraProd = prod.tasa_compra && parseFloat(prod.tasa_compra) > 0 ? parseFloat(prod.tasa_compra) : tasaUsdActual;
-        const tasaVentaProd = prod.tasa_venta && parseFloat(prod.tasa_venta) > 0 ? parseFloat(prod.tasa_venta) : tasaUsdActual;
+        const tasaCompraProd =
+            prod.tasa_compra && parseFloat(prod.tasa_compra) > 0
+                ? parseFloat(prod.tasa_compra)
+                : tasaUsdActual;
+        const tasaVentaProd =
+            prod.tasa_venta && parseFloat(prod.tasa_venta) > 0
+                ? parseFloat(prod.tasa_venta)
+                : tasaUsdActual;
 
         $("#tasa_compra").val(tasaCompraProd.toFixed(4));
         $("#tasa_venta").val(tasaVentaProd.toFixed(4));
@@ -657,29 +700,59 @@ const editar = async function (id) {
 
         const costoUsd = parseFloat(prod.precio_costo_usd || 0);
         const costoBs = parseFloat(prod.precio_costo_bs || 0);
-        const margenDetal = prod.ultimo_margen_detal !== null && prod.ultimo_margen_detal !== undefined ? parseFloat(prod.ultimo_margen_detal) : 30.00;
+        const margenDetal =
+            prod.ultimo_margen_detal !== null &&
+            prod.ultimo_margen_detal !== undefined
+                ? parseFloat(prod.ultimo_margen_detal)
+                : 30.0;
         const detalUsd = parseFloat(prod.precio_detal_usd || 0);
         const detalBs = parseFloat(prod.precio_detal_bs || 0);
-        const margenMayor = prod.ultimo_margen_mayorista !== null && prod.ultimo_margen_mayorista !== undefined ? parseFloat(prod.ultimo_margen_mayorista) : 15.00;
+        const margenMayor =
+            prod.ultimo_margen_mayorista !== null &&
+            prod.ultimo_margen_mayorista !== undefined
+                ? parseFloat(prod.ultimo_margen_mayorista)
+                : 15.0;
         const mayorUsd = parseFloat(prod.precio_mayorista_usd || 0);
         const mayorBs = parseFloat(prod.precio_mayorista_bs || 0);
 
         $("#precio_costo_usd").val(costoUsd > 0 ? costoUsd.toFixed(2) : "");
-        $("#precio_costo_bs").val(costoBs > 0 ? costoBs.toFixed(2) : (costoUsd > 0 ? (costoUsd * tasaCompraProd).toFixed(2) : ""));
+        $("#precio_costo_bs").val(
+            costoBs > 0
+                ? costoBs.toFixed(2)
+                : costoUsd > 0
+                  ? (costoUsd * tasaCompraProd).toFixed(2)
+                  : "",
+        );
         $("#ultimo_margen_detal").val(margenDetal.toFixed(2));
         $("#precio_detal_usd").val(detalUsd > 0 ? detalUsd.toFixed(2) : "");
-        $("#precio_detal_bs").val(detalBs > 0 ? detalBs.toFixed(2) : (detalUsd > 0 ? (detalUsd * tasaVentaProd).toFixed(2) : ""));
+        $("#precio_detal_bs").val(
+            detalBs > 0
+                ? detalBs.toFixed(2)
+                : detalUsd > 0
+                  ? (detalUsd * tasaVentaProd).toFixed(2)
+                  : "",
+        );
         $("#ultimo_margen_mayorista").val(margenMayor.toFixed(2));
         $("#precio_mayorista_usd").val(mayorUsd > 0 ? mayorUsd.toFixed(2) : "");
-        $("#precio_mayorista_bs").val(mayorBs > 0 ? mayorBs.toFixed(2) : (mayorUsd > 0 ? (mayorUsd * tasaVentaProd).toFixed(2) : ""));
+        $("#precio_mayorista_bs").val(
+            mayorBs > 0
+                ? mayorBs.toFixed(2)
+                : mayorUsd > 0
+                  ? (mayorUsd * tasaVentaProd).toFixed(2)
+                  : "",
+        );
 
         $("#stock_minimo").val(prod.stock_minimo || 0);
         $("#stock_maximo").val(prod.stock_maximo || "");
 
         $("#aplica_iva").prop("checked", prod.aplica_iva);
-        $("#iva_porcentaje").val(prod.iva_porcentaje || "16.00").prop("disabled", !prod.aplica_iva);
+        $("#iva_porcentaje")
+            .val(prod.iva_porcentaje || "16.00")
+            .prop("disabled", !prod.aplica_iva);
         $("#aplica_igtf").prop("checked", prod.aplica_igtf);
-        $("#igtf_porcentaje").val(prod.igtf_porcentaje || "3.00").prop("disabled", !prod.aplica_igtf);
+        $("#igtf_porcentaje")
+            .val(prod.igtf_porcentaje || "3.00")
+            .prop("disabled", !prod.aplica_igtf);
 
         if (Array.isArray(prod.codigos_barra)) {
             prod.codigos_barra.forEach((cb) => {
@@ -693,7 +766,9 @@ const editar = async function (id) {
             });
         }
 
-        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalProducto"));
+        const modal = bootstrap.Modal.getOrCreateInstance(
+            document.getElementById("modalProducto"),
+        );
         modal.show();
     } catch (error) {
         if (window.notificacion) {
@@ -715,13 +790,20 @@ const verFicha = async function (id) {
         let totalStock = 0;
         let tablaAlmacenesHtml = "";
 
-        if (Array.isArray(prod.stock_almacenes) && prod.stock_almacenes.length > 0) {
+        if (
+            Array.isArray(prod.stock_almacenes) &&
+            prod.stock_almacenes.length > 0
+        ) {
             prod.stock_almacenes.forEach((stk) => {
                 const cantidad = parseFloat(stk.cantidad_actual || 0);
                 totalStock += cantidad;
-                const nombreAlmacen = stk.almacen ? stk.almacen.nombre : "Almacén";
+                const nombreAlmacen = stk.almacen
+                    ? stk.almacen.nombre
+                    : "Almacén";
                 const codigoAlmacen = stk.almacen ? stk.almacen.codigo : "";
-                const pasillo = stk.ubicacion_pasillo || '<span class="text-muted fst-italic">No asignado</span>';
+                const pasillo =
+                    stk.ubicacion_pasillo ||
+                    '<span class="text-muted fst-italic">No asignado</span>';
 
                 tablaAlmacenesHtml += `
                     <tr>
@@ -735,38 +817,50 @@ const verFicha = async function (id) {
                             </div>
                         </td>
                         <td class="text-center font-monospace">${pasillo}</td>
-                        <td class="text-end fw-bold font-monospace ${cantidad > 0 ? 'text-success' : 'text-danger'}">
+                        <td class="text-end fw-bold font-monospace ${cantidad > 0 ? "text-success" : "text-danger"}">
                             ${cantidad} ${prod.unidad_medida}
                         </td>
                     </tr>
                 `;
             });
         } else {
-            tablaAlmacenesHtml = '<tr><td colspan="3" class="text-center text-muted py-3">No hay registros de almacén disponibles.</td></tr>';
+            tablaAlmacenesHtml =
+                '<tr><td colspan="3" class="text-center text-muted py-3">No hay registros de almacén disponibles.</td></tr>';
         }
 
         let codigosHtml = "";
-        if (Array.isArray(prod.codigos_barra) && prod.codigos_barra.length > 0) {
+        if (
+            Array.isArray(prod.codigos_barra) &&
+            prod.codigos_barra.length > 0
+        ) {
             prod.codigos_barra.forEach((cb) => {
                 codigosHtml += `
                     <div class="col-md-6">
                         <div class="border rounded-3 p-2 d-flex align-items-center justify-content-between bg-light">
                             <span class="badge-documento font-monospace"><i class="fas fa-barcode"></i> ${cb.codigo_barra}</span>
-                            <small class="text-secondary">${cb.descripcion || 'General'}</small>
+                            <small class="text-secondary">${cb.descripcion || "General"}</small>
                         </div>
                     </div>
                 `;
             });
         } else {
-            codigosHtml = '<div class="col-12 text-muted fst-italic py-2"><i class="fas fa-info-circle me-1"></i> Este producto no posee códigos de barra registrados. Se identifica por SKU/Nombre.</div>';
+            codigosHtml =
+                '<div class="col-12 text-muted fst-italic py-2"><i class="fas fa-info-circle me-1"></i> Este producto no posee códigos de barra registrados. Se identifica por SKU/Nombre.</div>';
         }
 
         let proveedoresHtml = "";
-        if (Array.isArray(prod.producto_proveedores) && prod.producto_proveedores.length > 0) {
+        if (
+            Array.isArray(prod.producto_proveedores) &&
+            prod.producto_proveedores.length > 0
+        ) {
             prod.producto_proveedores.forEach((pp) => {
                 const prov = pp.proveedor || {};
-                const costoUsd = pp.ultimo_costo_usd ? `$ ${parseFloat(pp.ultimo_costo_usd).toFixed(2)}` : '--';
-                const costoBs = pp.ultimo_costo_bs ? `Bs. ${parseFloat(pp.ultimo_costo_bs).toFixed(2)}` : '--';
+                const costoUsd = pp.ultimo_costo_usd
+                    ? `$ ${parseFloat(pp.ultimo_costo_usd).toFixed(2)}`
+                    : "--";
+                const costoBs = pp.ultimo_costo_bs
+                    ? `Bs. ${parseFloat(pp.ultimo_costo_bs).toFixed(2)}`
+                    : "--";
                 proveedoresHtml += `
                     <div class="col-md-6">
                         <div class="border rounded-3 p-2.5 d-flex align-items-center justify-content-between bg-white shadow-xs">
@@ -775,8 +869,8 @@ const verFicha = async function (id) {
                                     <i class="fas fa-truck text-primary" style="font-size: 0.9rem;"></i>
                                 </div>
                                 <div>
-                                    <strong class="text-dark d-block" style="font-size: 0.88rem;">${prov.nombre || 'Proveedor'}</strong>
-                                    <small class="text-muted font-monospace"><i class="fas fa-id-card me-1"></i>${prov.rif || 'N/A'}</small>
+                                    <strong class="text-dark d-block" style="font-size: 0.88rem;">${prov.nombre || "Proveedor"}</strong>
+                                    <small class="text-muted font-monospace"><i class="fas fa-id-card me-1"></i>${prov.rif || "N/A"}</small>
                                 </div>
                             </div>
                             <div class="text-end">
@@ -788,26 +882,37 @@ const verFicha = async function (id) {
                 `;
             });
         } else {
-            proveedoresHtml = '<div class="col-12 text-muted fst-italic py-2"><i class="fas fa-info-circle me-1"></i> No posee proveedores registrados. Se vinculan automáticamente al procesar recepciones.</div>';
+            proveedoresHtml =
+                '<div class="col-12 text-muted fst-italic py-2"><i class="fas fa-info-circle me-1"></i> No posee proveedores registrados. Se vinculan automáticamente al procesar recepciones.</div>';
         }
 
         let kardexHtml = "";
-        if (Array.isArray(prod.movimientos_kardex) && prod.movimientos_kardex.length > 0) {
+        if (
+            Array.isArray(prod.movimientos_kardex) &&
+            prod.movimientos_kardex.length > 0
+        ) {
             prod.movimientos_kardex.forEach((mov) => {
-                const esEntrada = ['entrada_recepcion', 'entrada_ajuste', 'entrada_traslado', 'entrada_anulacion'].includes(mov.tipo_movimiento);
+                const esEntrada = [
+                    "entrada_recepcion",
+                    "entrada_ajuste",
+                    "entrada_traslado",
+                    "entrada_anulacion",
+                ].includes(mov.tipo_movimiento);
                 const badgeTipo = esEntrada
-                    ? `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 font-monospace"><i class="fas fa-arrow-down me-1"></i>${mov.tipo_movimiento.replace(/_/g, ' ')}</span>`
-                    : `<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1 font-monospace"><i class="fas fa-arrow-up me-1"></i>${mov.tipo_movimiento.replace(/_/g, ' ')}</span>`;
+                    ? `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 font-monospace"><i class="fas fa-arrow-down me-1"></i>${mov.tipo_movimiento.replace(/_/g, " ")}</span>`
+                    : `<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1 font-monospace"><i class="fas fa-arrow-up me-1"></i>${mov.tipo_movimiento.replace(/_/g, " ")}</span>`;
 
-                const cantFormateada = esEntrada ? `+${mov.cantidad}` : `-${mov.cantidad}`;
-                const cantClass = esEntrada ? 'text-success' : 'text-danger';
+                const cantFormateada = esEntrada
+                    ? `+${mov.cantidad}`
+                    : `-${mov.cantidad}`;
+                const cantClass = esEntrada ? "text-success" : "text-danger";
 
                 kardexHtml += `
                     <tr>
                         <td class="small text-muted font-monospace">${mov.fecha}</td>
                         <td class="fw-semibold small">${mov.almacen_nombre}</td>
                         <td class="text-capitalize small">${badgeTipo}</td>
-                        <td class="small text-muted font-monospace">${mov.motivo || mov.documento_tipo || '--'}</td>
+                        <td class="small text-muted font-monospace">${mov.motivo || mov.documento_tipo || "--"}</td>
                         <td class="text-end font-monospace fw-bold ${cantClass}">${cantFormateada}</td>
                         <td class="text-end font-monospace small text-muted">${mov.stock_anterior} ➔ <span class="fw-bold text-dark">${mov.stock_nuevo}</span></td>
                         <td class="text-end font-monospace small">$ ${mov.costo_unitario_usd.toFixed(2)}</td>
@@ -816,7 +921,8 @@ const verFicha = async function (id) {
                 `;
             });
         } else {
-            kardexHtml = '<tr><td colspan="8" class="text-center text-muted py-3"><i class="fas fa-history me-1"></i> No se registran movimientos de Kardex para este producto aún.</td></tr>';
+            kardexHtml =
+                '<tr><td colspan="8" class="text-center text-muted py-3"><i class="fas fa-history me-1"></i> No se registran movimientos de Kardex para este producto aún.</td></tr>';
         }
 
         const costoBaseUsd = parseFloat(prod.precio_costo_usd || 0);
@@ -825,8 +931,16 @@ const verFicha = async function (id) {
         const detalBs = parseFloat(prod.precio_detal_bs || 0);
         const mayoristaUsd = parseFloat(prod.precio_mayorista_usd || 0);
         const mayoristaBs = parseFloat(prod.precio_mayorista_bs || 0);
-        const margenDetal = prod.ultimo_margen_detal !== null && prod.ultimo_margen_detal !== undefined ? parseFloat(prod.ultimo_margen_detal) : 30.00;
-        const margenMayor = prod.ultimo_margen_mayorista !== null && prod.ultimo_margen_mayorista !== undefined ? parseFloat(prod.ultimo_margen_mayorista) : 15.00;
+        const margenDetal =
+            prod.ultimo_margen_detal !== null &&
+            prod.ultimo_margen_detal !== undefined
+                ? parseFloat(prod.ultimo_margen_detal)
+                : 30.0;
+        const margenMayor =
+            prod.ultimo_margen_mayorista !== null &&
+            prod.ultimo_margen_mayorista !== undefined
+                ? parseFloat(prod.ultimo_margen_mayorista)
+                : 15.0;
 
         const fichaHtml = `
             <div class="row g-4">
@@ -844,7 +958,7 @@ const verFicha = async function (id) {
                                     <div class="d-flex flex-wrap gap-2 small text-white-50">
                                         <span><i class="fas fa-hashtag me-1"></i>SKU: <strong>${prod.codigo_interno}</strong></span>
                                         <span>•</span>
-                                        <span><i class="fas fa-tag me-1"></i>Categoría: <strong>${prod.categoria ? prod.categoria.nombre : 'N/A'}</strong></span>
+                                        <span><i class="fas fa-tag me-1"></i>Categoría: <strong>${prod.categoria ? prod.categoria.nombre : "N/A"}</strong></span>
                                         <span>•</span>
                                         <span><i class="fas fa-balance-scale me-1"></i>Unidad: <strong>${prod.unidad_medida}</strong></span>
                                     </div>
@@ -876,7 +990,7 @@ const verFicha = async function (id) {
                             </li>
                             <li class="list-group-item d-flex justify-content-between px-0">
                                 <span class="text-muted">Stock Mínimo / Máximo:</span>
-                                <strong class="font-monospace text-dark">${prod.stock_minimo || 0} / ${prod.stock_maximo || 'Sin límite'}</strong>
+                                <strong class="font-monospace text-dark">${prod.stock_minimo || 0} / ${prod.stock_maximo || "Sin límite"}</strong>
                             </li>
                             <li class="list-group-item d-flex justify-content-between px-0">
                                 <span class="text-muted">IVA:</span>
@@ -959,7 +1073,9 @@ const verFicha = async function (id) {
         `;
 
         $("#contenidoFichaProducto").html(fichaHtml);
-        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalFichaProducto"));
+        const modal = bootstrap.Modal.getOrCreateInstance(
+            document.getElementById("modalFichaProducto"),
+        );
         modal.show();
     } catch (e) {
         if (window.notificacion) {
@@ -1015,6 +1131,7 @@ const eliminar = function (id, nombreProducto) {
         tablaSelector: "#datatable_productos",
         titulo: "¿Desactivar Ítem?",
         mensaje: `Se modificará el estado de "${nombreProducto}". Podrás reactivarlo en cualquier momento.`,
-        confirmButtonText: '<i class="fas fa-sync-alt me-1"></i> Sí, desactivar',
+        confirmButtonText:
+            '<i class="fas fa-sync-alt me-1"></i> Sí, desactivar',
     });
 };
