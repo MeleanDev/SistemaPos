@@ -64,8 +64,7 @@
 
                 <!-- SECCIÓN: EMPRESAS AUTORIZADAS (EXECUTIVE SELECTABLE CARDS) -->
                 <div class="col-12" id="contenedorSeccionEmpresas">
-                    <div class="card border border-primary-subtle rounded-4 p-3 mt-1 shadow-none"
-                        style="background: #f8faff;">
+                    <div class="card bg-white shadow-xs border rounded-4 p-3 mt-1">
                         <div
                             class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 pb-2 border-bottom">
                             <div>
@@ -139,8 +138,8 @@
             <input type="hidden" id="permisos_usuario_id" name="usuario_id">
 
             <!-- BANNER DEL OPERADOR -->
-            <div class="card border rounded-4 p-3 mb-4 d-flex flex-row align-items-center justify-content-between flex-wrap gap-3"
-                style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-color: #e2e8f0 !important;">
+            <div class="card bg-white border rounded-4 shadow-xs p-3 mb-4 d-flex flex-row align-items-center justify-content-between flex-wrap gap-3"
+                style="border-color: #e2e8f0 !important;">
                 <div class="d-flex align-items-center gap-3">
                     <div class="avatar-executive-sm text-white fw-bold rounded-4 d-flex align-items-center justify-content-center shadow-sm"
                         id="permisos_avatar_display"
@@ -181,7 +180,7 @@
                         <div class="col-12 col-md-6 col-xl-4">
                             <div class="card h-100 border rounded-4 bg-white shadow-sm card-modulo-permiso">
                                 <!-- HEADER DEL MÓDULO -->
-                                <div class="card-header bg-light-subtle border-bottom px-3 py-2.5 d-flex align-items-center justify-content-between gap-2"
+                                <div class="card-header bg-white border-bottom px-3 py-2.5 d-flex align-items-center justify-content-between gap-2"
                                     style="border-color: #e2e8f0 !important;">
                                     <div class="d-flex align-items-center gap-2.5 overflow-hidden">
                                         <div class="rounded-3 bg-white border p-2 d-flex align-items-center justify-content-center shadow-xs"
