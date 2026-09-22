@@ -4,12 +4,16 @@ namespace App\Service\Administradores;
 
 use App\Models\Empresa;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
 class UsuarioClass
 {
-    public function lista()
+    /**
+     * Listado de usuarios activos con roles y empresas
+     */
+    public function lista(): Collection
     {
         return User::with(['roles', 'empresas', 'permissions'])
             ->select('id', 'name', 'nombre', 'apellido', 'email', 'estado', 'created_at')
@@ -35,7 +39,10 @@ class UsuarioClass
             });
     }
 
-    public function detalle($id)
+    /**
+     * Detalle completo de un usuario
+     */
+    public function detalle(int $id): array
     {
         $usuario = User::with(['roles', 'empresas', 'permissions'])->findOrFail($id);
 
@@ -52,7 +59,10 @@ class UsuarioClass
         ];
     }
 
-    public function obtenerRolesYEmpresas()
+    /**
+     * Catálogos para formularios de usuarios y permisos
+     */
+    public function obtenerRolesYEmpresas(): array
     {
         return [
             'roles' => Role::where('guard_name', 'web')->get(['id', 'name']),
@@ -95,7 +105,10 @@ class UsuarioClass
         ];
     }
 
-    public function guardar(array $datos)
+    /**
+     * Guardar nuevo usuario o reactivar existente
+     */
+    public function guardar(array $datos): User
     {
         $rol = $datos['rol'] ?? 'Operador';
         $empresas = $datos['empresas'] ?? [];
@@ -153,7 +166,10 @@ class UsuarioClass
         return $usuario;
     }
 
-    public function actualizar(array $datos, $id)
+    /**
+     * Actualizar datos y asignaciones de un usuario
+     */
+    public function actualizar(array $datos, int $id): User
     {
         $usuario = User::findOrFail($id);
         $rol = $datos['rol'] ?? 'Operador';
@@ -183,7 +199,10 @@ class UsuarioClass
         return $usuario;
     }
 
-    public function actualizarPermisos($id, array $permisos)
+    /**
+     * Actualizar permisos granulares de un operador
+     */
+    public function actualizarPermisos(int $id, array $permisos): User
     {
         $usuario = User::findOrFail($id);
         $usuario->syncPermissions($permisos);
@@ -191,7 +210,10 @@ class UsuarioClass
         return $usuario;
     }
 
-    public function eliminar($id)
+    /**
+     * Borrado lógico de un usuario
+     */
+    public function eliminar(int $id): User
     {
         $usuario = User::findOrFail($id);
         $usuario->estado = false;
@@ -200,7 +222,10 @@ class UsuarioClass
         return $usuario;
     }
 
-    public function cambiarEmpresaActiva($empresaId, User $user): bool
+    /**
+     * Cambiar empresa activa en sesión
+     */
+    public function cambiarEmpresaActiva(int $empresaId, User $user): bool
     {
         $empresa = Empresa::where('id', $empresaId)->where('estado', true)->first();
 

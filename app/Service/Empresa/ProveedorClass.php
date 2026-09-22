@@ -3,10 +3,14 @@
 namespace App\Service\Empresa;
 
 use App\Models\Proveedor;
+use Illuminate\Database\Eloquent\Builder;
 
 class ProveedorClass
 {
-    public function lista(int $empresaId)
+    /**
+     * Listado de proveedores activos por empresa (Query para DataTables)
+     */
+    public function lista(int $empresaId): Builder
     {
         return Proveedor::select(
             'id',
@@ -23,12 +27,18 @@ class ProveedorClass
             ->where('empresa_id', $empresaId);
     }
 
-    public function detalle($id, int $empresaId)
+    /**
+     * Detalle de un proveedor por ID y empresa
+     */
+    public function detalle(int $id, int $empresaId): Proveedor
     {
         return Proveedor::where('empresa_id', $empresaId)->findOrFail($id);
     }
 
-    public function guardar(array $datos, int $empresaId)
+    /**
+     * Guardar nuevo proveedor o reactivar existente
+     */
+    public function guardar(array $datos, int $empresaId): Proveedor
     {
         $datos['empresa_id'] = $empresaId;
 
@@ -53,7 +63,10 @@ class ProveedorClass
         return Proveedor::create($datos);
     }
 
-    public function actualizar(array $datos, $id, int $empresaId)
+    /**
+     * Actualizar proveedor existente
+     */
+    public function actualizar(array $datos, int $id, int $empresaId): Proveedor
     {
         $proveedor = Proveedor::where('empresa_id', $empresaId)->findOrFail($id);
         $proveedor->update($datos);
@@ -61,7 +74,10 @@ class ProveedorClass
         return $proveedor;
     }
 
-    public function eliminar($id, int $empresaId)
+    /**
+     * Borrado lógico de un proveedor
+     */
+    public function eliminar(int $id, int $empresaId): Proveedor
     {
         $proveedor = Proveedor::where('empresa_id', $empresaId)->findOrFail($id);
         $proveedor->estado = false;

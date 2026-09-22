@@ -28,17 +28,17 @@ class VentaClass
         protected KardexClass $kardexService
     ) {}
 
-    protected function empresaId(): int
+    protected function empresaId(?int $empresaId = null): int
     {
-        return (int) (Auth::user()?->empresaActiva()?->id ?? session('empresa_activa_id') ?? 1);
+        return $empresaId ?? (int) (Auth::user()?->empresaActiva()?->id ?? session('empresa_activa_id') ?? 1);
     }
 
     /**
      * Cargar todos los catálogos y datos iniciales para el arranque del POS
      */
-    public function datosInicialesPos(): array
+    public function datosInicialesPos(?int $empresaId = null): array
     {
-        $empresaId = $this->empresaId();
+        $empresaId = $this->empresaId($empresaId);
 
         // 1. Cliente por defecto (Consumidor Final)
         $clienteDefecto = Cliente::firstOrCreate(
@@ -284,11 +284,11 @@ class VentaClass
     /**
      * Procesar y emitir una venta atómica con pagos, Kardex y CXC
      */
-    public function procesarVenta(array $datos): Venta
+    public function procesarVenta(array $datos, ?int $empresaId = null, ?int $userId = null): Venta
     {
-        return DB::transaction(function () use ($datos) {
-            $empresaId = $this->empresaId();
-            $userId = Auth::id() ?? 1;
+        return DB::transaction(function () use ($datos, $empresaId, $userId) {
+            $empresaId = $this->empresaId($empresaId);
+            $userId = $userId ?? Auth::id() ?? 1;
 
             $monedaUsd = EmpresaMoneda::where('empresa_id', $empresaId)->where('codigo', 'USD')->first();
             $tasaOficial = $monedaUsd ? (float) $monedaUsd->tasa_cambio : 1.0000;
@@ -615,10 +615,10 @@ class VentaClass
     /**
      * Guardar venta en espera (pausar carrito)
      */
-    public function guardarEnEspera(array $datos): VentaEnEspera
+    public function guardarEnEspera(array $datos, ?int $empresaId = null, ?int $userId = null): VentaEnEspera
     {
-        $empresaId = $this->empresaId();
-        $userId = Auth::id() ?? 1;
+        $empresaId = $this->empresaId($empresaId);
+        $userId = $userId ?? Auth::id() ?? 1;
 
         return VentaEnEspera::create([
             'empresa_id' => $empresaId,
@@ -635,9 +635,9 @@ class VentaClass
     /**
      * Listar ventas en espera activas
      */
-    public function listarEnEspera(): array
+    public function listarEnEspera(?int $empresaId = null): array
     {
-        $empresaId = $this->empresaId();
+        $empresaId = $this->empresaId($empresaId);
 
         return VentaEnEspera::with(['cliente'])
             ->where('empresa_id', $empresaId)
@@ -649,9 +649,9 @@ class VentaClass
     /**
      * Recuperar y eliminar venta en espera
      */
-    public function recuperarEnEspera(int $id): array
+    public function recuperarEnEspera(int $id, ?int $empresaId = null): array
     {
-        $empresaId = $this->empresaId();
+        $empresaId = $this->empresaId($empresaId);
         $espera = VentaEnEspera::where('id', $id)
             ->where('empresa_id', $empresaId)
             ->firstOrFail();
@@ -665,9 +665,9 @@ class VentaClass
     /**
      * Eliminar venta en espera
      */
-    public function eliminarEnEspera(int $id): bool
+    public function eliminarEnEspera(int $id, ?int $empresaId = null): bool
     {
-        $empresaId = $this->empresaId();
+        $empresaId = $this->empresaId($empresaId);
         $espera = VentaEnEspera::where('id', $id)
             ->where('empresa_id', $empresaId)
             ->firstOrFail();
@@ -678,9 +678,9 @@ class VentaClass
     /**
      * Buscar factura para devolución por código o ID
      */
-    public function buscarFacturaDevolucion(string $busqueda): array
+    public function buscarFacturaDevolucion(string $busqueda, ?int $empresaId = null): array
     {
-        $empresaId = $this->empresaId();
+        $empresaId = $this->empresaId($empresaId);
         $busqueda = trim($busqueda);
 
         $venta = Venta::with(['cliente', 'almacen', 'detalles.producto', 'detalles.moto', 'detalles.servicio', 'pagos.metodoPago', 'devoluciones.detalles'])
@@ -705,11 +705,11 @@ class VentaClass
     /**
      * Procesar devolución de venta y reversión de inventario
      */
-    public function procesarDevolucion(array $datos): DevolucionVenta
+    public function procesarDevolucion(array $datos, ?int $empresaId = null, ?int $userId = null): DevolucionVenta
     {
-        return DB::transaction(function () use ($datos) {
-            $empresaId = $this->empresaId();
-            $userId = Auth::id() ?? 1;
+        return DB::transaction(function () use ($datos, $empresaId, $userId) {
+            $empresaId = $this->empresaId($empresaId);
+            $userId = $userId ?? Auth::id() ?? 1;
 
             $ventaId = (int) ($datos['venta_id'] ?? 0);
             $venta = Venta::with(['detalles'])->where('id', $ventaId)->where('empresa_id', $empresaId)->firstOrFail();
@@ -853,9 +853,9 @@ class VentaClass
     /**
      * Buscar factura para reimpresión
      */
-    public function obtenerVentaParaImpresion(int|string $idOcodigo): Venta
+    public function obtenerVentaParaImpresion(int|string $idOcodigo, ?int $empresaId = null): Venta
     {
-        $empresaId = $this->empresaId();
+        $empresaId = $this->empresaId($empresaId);
 
         return Venta::with(['empresa', 'cliente', 'almacen', 'usuario', 'detalles.producto', 'detalles.moto', 'detalles.servicio', 'pagos.metodoPago'])
             ->where('empresa_id', $empresaId)

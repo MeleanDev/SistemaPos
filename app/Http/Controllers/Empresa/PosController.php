@@ -3,10 +3,15 @@
 namespace App\Http\Controllers\Empresa;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Pos\ClienteRapidoRequest;
+use App\Http\Requests\Pos\GuardarEnEsperaRequest;
+use App\Http\Requests\Pos\GuardarVentaRequest;
+use App\Http\Requests\Pos\ProcesarDevolucionRequest;
 use App\Service\Ventas\VentaClass;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class PosController extends Controller
@@ -23,7 +28,7 @@ class PosController extends Controller
     public function datos(): JsonResponse
     {
         try {
-            $datos = $this->ventaService->datosInicialesPos();
+            $datos = $this->ventaService->datosInicialesPos($this->obtenerEmpresaId());
 
             return response()->json([
                 'success' => true,
@@ -48,20 +53,10 @@ class PosController extends Controller
         ]);
     }
 
-    public function guardarClienteRapido(Request $request): JsonResponse
+    public function guardarClienteRapido(ClienteRapidoRequest $request): JsonResponse
     {
-        $request->validate([
-            'cedula' => ['required', 'string', 'max:20'],
-            'nombre' => ['required', 'string', 'max:100'],
-            'apellido' => ['required', 'string', 'max:100'],
-            'telefono' => ['nullable', 'string', 'max:25'],
-            'correo' => ['nullable', 'email', 'max:150'],
-            'direccion' => ['nullable', 'string', 'max:255'],
-            'tipo_cliente' => ['nullable', 'string', 'in:detal,mayorista'],
-        ]);
-
         try {
-            $cliente = $this->ventaService->guardarClienteRapido($request->all());
+            $cliente = $this->ventaService->guardarClienteRapido($request->validated());
 
             return response()->json([
                 'success' => true,
@@ -76,22 +71,14 @@ class PosController extends Controller
         }
     }
 
-    public function guardar(Request $request): JsonResponse
+    public function guardar(GuardarVentaRequest $request): JsonResponse
     {
-        $request->validate([
-            'cliente_id' => ['required', 'integer', 'exists:clientes,id'],
-            'almacen_id' => ['required', 'integer', 'exists:almacenes,id'],
-            'tipo_venta' => ['required', 'string', 'in:detal,mayor'],
-            'tasa_cambio' => ['required', 'numeric', 'min:0.0001'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.producto_id' => ['required', 'integer'],
-            'items.*.cantidad' => ['required', 'numeric', 'min:0.001'],
-            'items.*.precio_unitario_usd' => ['required', 'numeric', 'min:0.0001'],
-            'pagos' => ['nullable', 'array'],
-        ]);
-
         try {
-            $venta = $this->ventaService->procesarVenta($request->all());
+            $venta = $this->ventaService->procesarVenta(
+                $request->validated(),
+                $this->obtenerEmpresaId(),
+                (int) Auth::id()
+            );
 
             return response()->json([
                 'success' => true,
@@ -106,10 +93,14 @@ class PosController extends Controller
         }
     }
 
-    public function guardarEnEspera(Request $request): JsonResponse
+    public function guardarEnEspera(GuardarEnEsperaRequest $request): JsonResponse
     {
         try {
-            $espera = $this->ventaService->guardarEnEspera($request->all());
+            $espera = $this->ventaService->guardarEnEspera(
+                $request->validated(),
+                $this->obtenerEmpresaId(),
+                (int) Auth::id()
+            );
 
             return response()->json([
                 'success' => true,
@@ -127,7 +118,7 @@ class PosController extends Controller
     public function listarEnEspera(): JsonResponse
     {
         try {
-            $lista = $this->ventaService->listarEnEspera();
+            $lista = $this->ventaService->listarEnEspera($this->obtenerEmpresaId());
 
             return response()->json([
                 'success' => true,
@@ -144,7 +135,7 @@ class PosController extends Controller
     public function recuperarEnEspera(int $id): JsonResponse
     {
         try {
-            $datos = $this->ventaService->recuperarEnEspera($id);
+            $datos = $this->ventaService->recuperarEnEspera($id, $this->obtenerEmpresaId());
 
             return response()->json([
                 'success' => true,
@@ -161,7 +152,7 @@ class PosController extends Controller
     public function eliminarEnEspera(int $id): JsonResponse
     {
         try {
-            $this->ventaService->eliminarEnEspera($id);
+            $this->ventaService->eliminarEnEspera($id, $this->obtenerEmpresaId());
 
             return response()->json([
                 'success' => true,
@@ -180,7 +171,7 @@ class PosController extends Controller
         $busqueda = (string) $request->input('busqueda', '');
 
         try {
-            $venta = $this->ventaService->buscarFacturaDevolucion($busqueda);
+            $venta = $this->ventaService->buscarFacturaDevolucion($busqueda, $this->obtenerEmpresaId());
 
             return response()->json([
                 'success' => true,
@@ -194,18 +185,14 @@ class PosController extends Controller
         }
     }
 
-    public function procesarDevolucion(Request $request): JsonResponse
+    public function procesarDevolucion(ProcesarDevolucionRequest $request): JsonResponse
     {
-        $request->validate([
-            'venta_id' => ['required', 'integer'],
-            'motivo' => ['required', 'string', 'max:255'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.venta_detalle_id' => ['required', 'integer'],
-            'items.*.cantidad' => ['required', 'numeric', 'min:0.001'],
-        ]);
-
         try {
-            $devolucion = $this->ventaService->procesarDevolucion($request->all());
+            $devolucion = $this->ventaService->procesarDevolucion(
+                $request->validated(),
+                $this->obtenerEmpresaId(),
+                (int) Auth::id()
+            );
 
             return response()->json([
                 'success' => true,
@@ -222,7 +209,7 @@ class PosController extends Controller
 
     public function imprimir(string $id): View
     {
-        $venta = $this->ventaService->obtenerVentaParaImpresion($id);
+        $venta = $this->ventaService->obtenerVentaParaImpresion($id, $this->obtenerEmpresaId());
 
         return view('Sistema.pages.empresa.ticket-venta', compact('venta'));
     }

@@ -26,7 +26,7 @@ class RecepcionController extends Controller
     public function catalogos(): JsonResponse
     {
         try {
-            $data = $this->recepcionService->catalogos();
+            $data = $this->recepcionService->catalogos($this->obtenerEmpresaId());
 
             return response()->json([
                 'success' => true,
@@ -42,7 +42,7 @@ class RecepcionController extends Controller
 
     public function lista(): JsonResponse
     {
-        $recepciones = $this->recepcionService->lista();
+        $recepciones = $this->recepcionService->lista($this->obtenerEmpresaId());
 
         return datatables()->of($recepciones)
             ->filter(function ($query) {
@@ -66,7 +66,11 @@ class RecepcionController extends Controller
     public function guardar(CrearRequest $request): JsonResponse
     {
         try {
-            $recepcion = $this->recepcionService->guardar($request->validated());
+            $recepcion = $this->recepcionService->guardar(
+                $request->validated(),
+                $this->obtenerEmpresaId(),
+                (int) Auth::id()
+            );
 
             return response()->json([
                 'success' => true,
@@ -84,7 +88,7 @@ class RecepcionController extends Controller
     public function detalle($id): JsonResponse
     {
         try {
-            $recepcion = $this->recepcionService->detalles((int) $id);
+            $recepcion = $this->recepcionService->detalles((int) $id, $this->obtenerEmpresaId());
 
             return response()->json([
                 'success' => true,
@@ -100,8 +104,9 @@ class RecepcionController extends Controller
 
     public function imprimir($id): View
     {
-        $recepcion = $this->recepcionService->detalles((int) $id);
-        $empresa = Auth::user()?->empresaActiva() ?? Empresa::first();
+        $empresaId = $this->obtenerEmpresaId();
+        $recepcion = $this->recepcionService->detalles((int) $id, $empresaId);
+        $empresa = Auth::user()?->empresaActiva() ?? Empresa::find($empresaId);
 
         return view('Sistema.pages.empresa.recepcion-imprimir', compact('recepcion', 'empresa'));
     }
@@ -110,7 +115,12 @@ class RecepcionController extends Controller
     {
         try {
             $motivo = $request->input('motivo', 'Anulación administrativa');
-            $recepcion = $this->recepcionService->anular((int) $id, $motivo);
+            $recepcion = $this->recepcionService->anular(
+                (int) $id,
+                $motivo,
+                $this->obtenerEmpresaId(),
+                (int) Auth::id()
+            );
 
             return response()->json([
                 'success' => true,

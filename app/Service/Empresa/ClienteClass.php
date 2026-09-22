@@ -3,10 +3,14 @@
 namespace App\Service\Empresa;
 
 use App\Models\Cliente;
+use Illuminate\Database\Eloquent\Builder;
 
 class ClienteClass
 {
-    public function lista()
+    /**
+     * Listado de clientes activos (Query para DataTables)
+     */
+    public function lista(): Builder
     {
         return Cliente::select(
             'id',
@@ -21,12 +25,18 @@ class ClienteClass
         )->where('estado', true);
     }
 
-    public function detalle($id)
+    /**
+     * Detalle de un cliente por ID
+     */
+    public function detalle(int $id): Cliente
     {
         return Cliente::findOrFail($id);
     }
 
-    public function guardar(array $datos)
+    /**
+     * Guardar nuevo cliente o reactivar existente
+     */
+    public function guardar(array $datos): Cliente
     {
         $clienteExistente = Cliente::where('cedula', $datos['cedula'])->first();
 
@@ -42,7 +52,10 @@ class ClienteClass
         return Cliente::create($datos);
     }
 
-    public function actualizar(array $datos, $id)
+    /**
+     * Actualizar cliente existente
+     */
+    public function actualizar(array $datos, int $id): Cliente
     {
         $cliente = Cliente::findOrFail($id);
         $cliente->update($datos);
@@ -50,7 +63,10 @@ class ClienteClass
         return $cliente;
     }
 
-    public function eliminar($id)
+    /**
+     * Borrado lógico de un cliente
+     */
+    public function eliminar(int $id): Cliente
     {
         $cliente = Cliente::findOrFail($id);
         $cliente->estado = false;

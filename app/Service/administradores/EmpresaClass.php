@@ -3,12 +3,16 @@
 namespace App\Service\Administradores;
 
 use App\Models\Empresa;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 class EmpresaClass
 {
-    public function lista()
+    /**
+     * Listado de empresas activas
+     */
+    public function lista(): Builder
     {
         return Empresa::select(
             'id',
@@ -25,12 +29,18 @@ class EmpresaClass
         )->where('estado', true);
     }
 
-    public function detalle($id)
+    /**
+     * Detalle de una empresa por ID
+     */
+    public function detalle(int $id): Empresa
     {
         return Empresa::findOrFail($id);
     }
 
-    public function guardar(array $datos)
+    /**
+     * Guardar nueva empresa o reactivar existente
+     */
+    public function guardar(array $datos): Empresa
     {
         if (isset($datos['logo']) && $datos['logo'] instanceof UploadedFile) {
             $datos['logo'] = $datos['logo']->store('empresas', 'public');
@@ -55,7 +65,10 @@ class EmpresaClass
         return Empresa::create($datos);
     }
 
-    public function actualizar(array $datos, $id)
+    /**
+     * Actualizar empresa existente
+     */
+    public function actualizar(array $datos, int $id): Empresa
     {
         $empresa = Empresa::findOrFail($id);
 
@@ -75,7 +88,10 @@ class EmpresaClass
         return $empresa;
     }
 
-    public function eliminar($id)
+    /**
+     * Borrado lógico de una empresa
+     */
+    public function eliminar(int $id): Empresa
     {
         $empresa = Empresa::findOrFail($id);
         $empresa->estado = false;

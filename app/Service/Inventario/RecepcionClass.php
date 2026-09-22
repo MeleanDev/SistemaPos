@@ -26,27 +26,27 @@ class RecepcionClass
     /**
      * Empresa ID activa de la sesión
      */
-    protected function empresaId(): int
+    protected function empresaId(?int $empresaId = null): int
     {
-        return (int) (Auth::user()?->empresaActiva()?->id ?? session('empresa_activa_id', 1));
+        return $empresaId ?? (int) (Auth::user()?->empresaActiva()?->id ?? session('empresa_activa_id', 1));
     }
 
     /**
      * Query de lista para DataTable
      */
-    public function lista(): Builder
+    public function lista(?int $empresaId = null): Builder
     {
         return Recepcion::with(['proveedor', 'almacen', 'usuario', 'detalles.producto'])
-            ->where('empresa_id', $this->empresaId())
+            ->where('empresa_id', $this->empresaId($empresaId))
             ->orderByDesc('id');
     }
 
     /**
      * Catálogos requeridos para el formulario de recepción
      */
-    public function catalogos(): array
+    public function catalogos(?int $empresaId = null): array
     {
-        $empresaId = $this->empresaId();
+        $empresaId = $this->empresaId($empresaId);
 
         $proveedores = Proveedor::where('empresa_id', $empresaId)
             ->where('estado', true)
@@ -133,11 +133,11 @@ class RecepcionClass
     /**
      * Procesar y registrar una recepción de mercancía atómica
      */
-    public function guardar(array $datos): Recepcion
+    public function guardar(array $datos, ?int $empresaId = null, ?int $userId = null): Recepcion
     {
-        return DB::transaction(function () use ($datos) {
-            $empresaId = $this->empresaId();
-            $userId = Auth::id();
+        return DB::transaction(function () use ($datos, $empresaId, $userId) {
+            $empresaId = $this->empresaId($empresaId);
+            $userId = $userId ?? Auth::id();
 
             $monedaUsd = EmpresaMoneda::where('empresa_id', $empresaId)->where('codigo', 'USD')->first();
             $tasaOficial = $monedaUsd ? (float) $monedaUsd->tasa_cambio : 1.0000;
@@ -441,7 +441,7 @@ class RecepcionClass
     /**
      * Consultar detalles 360° de una recepción
      */
-    public function detalles(int $id): Recepcion
+    public function detalles(int $id, ?int $empresaId = null): Recepcion
     {
         return Recepcion::with([
             'proveedor',
@@ -451,18 +451,18 @@ class RecepcionClass
             'detalles.almacen',
             'cuentaPorPagar',
         ])
-            ->where('empresa_id', $this->empresaId())
+            ->where('empresa_id', $this->empresaId($empresaId))
             ->findOrFail($id);
     }
 
     /**
      * Anular una recepción de mercancía y revertir el stock en almacén y Kardex
      */
-    public function anular(int $id, ?string $motivo = null): Recepcion
+    public function anular(int $id, ?string $motivo = null, ?int $empresaId = null, ?int $userId = null): Recepcion
     {
-        return DB::transaction(function () use ($id, $motivo) {
-            $empresaId = $this->empresaId();
-            $userId = Auth::id();
+        return DB::transaction(function () use ($id, $motivo, $empresaId, $userId) {
+            $empresaId = $this->empresaId($empresaId);
+            $userId = $userId ?? Auth::id();
 
             $recepcion = Recepcion::with('detalles.producto')
                 ->where('empresa_id', $empresaId)

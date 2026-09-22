@@ -3,10 +3,14 @@
 namespace App\Service\Empresa;
 
 use App\Models\MetodoPago;
+use Illuminate\Database\Eloquent\Builder;
 
 class MetodoPagoClass
 {
-    public function lista()
+    /**
+     * Listado de métodos de pago activos
+     */
+    public function lista(): Builder
     {
         return MetodoPago::select(
             'id',
@@ -17,12 +21,18 @@ class MetodoPagoClass
         )->where('estado', true);
     }
 
-    public function detalle($id)
+    /**
+     * Detalle de un método de pago por ID
+     */
+    public function detalle(int $id): MetodoPago
     {
         return MetodoPago::findOrFail($id);
     }
 
-    public function guardar(array $datos)
+    /**
+     * Guardar nuevo método de pago o reactivar existente
+     */
+    public function guardar(array $datos): MetodoPago
     {
         $existenteInactivo = MetodoPago::where('nombre', $datos['nombre'])->first();
 
@@ -38,7 +48,10 @@ class MetodoPagoClass
         return MetodoPago::create($datos);
     }
 
-    public function actualizar(array $datos, $id)
+    /**
+     * Actualizar método de pago existente
+     */
+    public function actualizar(array $datos, int $id): MetodoPago
     {
         $metodo = MetodoPago::findOrFail($id);
         $metodo->update($datos);
@@ -46,7 +59,10 @@ class MetodoPagoClass
         return $metodo;
     }
 
-    public function eliminar($id)
+    /**
+     * Borrado lógico de un método de pago
+     */
+    public function eliminar(int $id): MetodoPago
     {
         $metodo = MetodoPago::findOrFail($id);
         $metodo->estado = false;

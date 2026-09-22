@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Empresa;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Moto\ActualizarRequest;
 use App\Service\Inventario\MotoClass;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class MotoController extends Controller
@@ -23,8 +23,7 @@ class MotoController extends Controller
 
     public function lista(): JsonResponse
     {
-        $empresaId = Auth::user()->empresaActiva()->id;
-        $motos = $this->motoService->lista($empresaId);
+        $motos = $this->motoService->lista($this->obtenerEmpresaId());
 
         return datatables()->of($motos)
             ->filter(function ($query) {
@@ -51,8 +50,7 @@ class MotoController extends Controller
     public function detalle($id): JsonResponse
     {
         try {
-            $empresaId = Auth::user()->empresaActiva()->id;
-            $moto = $this->motoService->detalle((int) $id, $empresaId);
+            $moto = $this->motoService->detalle((int) $id, $this->obtenerEmpresaId());
 
             return response()->json([
                 'success' => true,
@@ -66,11 +64,10 @@ class MotoController extends Controller
         }
     }
 
-    public function actualizar(Request $request, $id): JsonResponse
+    public function actualizar(ActualizarRequest $request, $id): JsonResponse
     {
         try {
-            $empresaId = Auth::user()->empresaActiva()->id;
-            $moto = $this->motoService->actualizar($request->all(), (int) $id, $empresaId);
+            $moto = $this->motoService->actualizar($request->validated(), (int) $id, $this->obtenerEmpresaId());
 
             return response()->json([
                 'success' => true,
@@ -88,9 +85,8 @@ class MotoController extends Controller
     public function cambiarEstado(Request $request, $id): JsonResponse
     {
         try {
-            $empresaId = Auth::user()->empresaActiva()->id;
-            $estado = $request->input('estado', 'disponible');
-            $moto = $this->motoService->cambiarEstado((int) $id, $estado, $empresaId);
+            $estado = (string) $request->input('estado', 'disponible');
+            $moto = $this->motoService->cambiarEstado((int) $id, $estado, $this->obtenerEmpresaId());
 
             return response()->json([
                 'success' => true,
