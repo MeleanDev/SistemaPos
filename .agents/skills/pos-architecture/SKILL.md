@@ -10,15 +10,16 @@ Elite Senior Full Stack Engineer and Frontend UI/UX Specialist with advanced mas
 Every designed, written, reviewed, or refactored module MUST be **magnificent, highly aesthetic, clean, modern, executive, and production-ready**.
 
 ### 🎨 Mandatory UI/UX & Aesthetic Design Directives
-1. **Rounded Borders**: Every UI element, card, button, modal, badge, input, and container MUST feature smooth, polished, rounded borders (e.g., Bootstrap `.rounded-4`, `.rounded-pill`, `.rounded-3`, or custom clean curves). No sharp square edges are allowed unless explicitly specified.
-2. **Visual Hierarchy & Executive Feel**: Prioritize clean layouts, high contrast, proper whitespace, smooth micro-interactions, subtle shadows (`shadow-sm`, `shadow-hover`), and modern color harmonies.
-3. **Dark Mode & Palette Alignment**: Prefer sleek dark visual themes for code editors, previews, or specialized interfaces when requested, maintaining a pristine, professional enterprise aesthetic.
-4. **Consistency**: Always leverage reusable design tokens, font weights (`fw-bold`, `fw-semibold`), and standard FontAwesome 6 icon sets according to the module domain.
-5. **Modern Typography**: Use clean, modern fonts like **Plus Jakarta Sans** or **Inter** with legible weights (400 to 800) and avoid forced micro-uppercase in form labels.
-6. **Flawless Code & Execution**: Write clean, maintainable code following established directory conventions, single source of truth (`config/pos.php`), and reusable JavaScript helpers (`enviarFormulario`, `crearDataTable`, `consultarRegistro`).
-7. **🚨 Strict Database Preservation Policy (MANDATORY)**: NEVER execute `php artisan migrate:fresh` or wipe/reset the database for routine/small changes, styling fixes, or standard tests. Always preserve the user's active session, configured companies, and registered data. You may ONLY run `migrate:fresh` when strictly unavoidable AND you have asked the user for explicit permission and received their confirmation ("pídeme permiso antes").
-8. **📖 Mandatory Skill Consultation**: Always review and strictly follow this skill (`pos-architecture`) and `AGENTS.md` before executing any architectural decision or terminal command.
-9. **🏢 Multi-Tenancy & Empresa Scoping (MANDATORY)**: All transactional and catalog entities (`Proveedores`, `Clientes`, `Productos`, `Ventas`, `Cajas`, etc.) MUST include `empresa_id`. All CRUD queries, unique validation rules (`Rule::unique`), and logical reactivations must be scoped to the active company `empresa_id` (`Auth::user()->empresaActiva()->id`).
+1. **No Gray Containers Policy (MANDATORY)**: NEVER use `bg-light`, `alert-light`, `bg-light-subtle`, or dull gray panels for sub-cards, switch toggles, preview containers, or form sub-sections. Always use crisp, clean white containers with soft borders and subtle elevation: `bg-white shadow-xs border rounded-4` (or `rounded-3`).
+2. **Rounded Borders**: Every UI element, card, button, modal, badge, input, and container MUST feature smooth, polished, rounded borders (e.g., Bootstrap `.rounded-4`, `.rounded-pill`, `.rounded-3`, or custom clean curves). No sharp square edges are allowed unless explicitly specified.
+3. **Visual Hierarchy & Executive Feel**: Prioritize clean layouts, high contrast, proper whitespace, smooth micro-interactions, subtle shadows (`shadow-sm`, `shadow-hover`, `shadow-xs`), and modern color harmonies.
+4. **Dark Mode & Palette Alignment**: Prefer sleek dark visual themes for code editors, previews, or specialized interfaces when requested, maintaining a pristine, professional enterprise aesthetic.
+5. **Consistency**: Always leverage reusable design tokens, font weights (`fw-bold`, `fw-semibold`), and standard FontAwesome 6 icon sets according to the module domain.
+6. **Modern Typography**: Use clean, modern fonts like **Plus Jakarta Sans** or **Inter** with legible weights (400 to 800) and avoid forced micro-uppercase in form labels.
+7. **Flawless Code & Component Reuse (MANDATORY)**: Write clean, maintainable code. NEVER rewrite repetitive custom `$.ajax` calls or build ad-hoc dialogs. ALWAYS reuse the standard Blade components (`<x-modal>`, `<x-select2>`, `<x-section-header>`, `<x-table-dynamic>`) and JavaScript helpers (`enviarFormulario`, `cambiarEstadoRegistro`, `consultarRegistro`, `peticionAjax`, `crearSelect2`, `crearDataTable`).
+8. **🚨 Strict Database Preservation Policy (MANDATORY)**: NEVER execute `php artisan migrate:fresh` or wipe/reset the database for routine/small changes, styling fixes, or standard tests. Always preserve the user's active session, configured companies, and registered data. You may ONLY run `migrate:fresh` when strictly unavoidable AND you have asked the user for explicit permission and received their confirmation ("pídeme permiso antes").
+9. **📖 Mandatory Skill Consultation**: Always review and strictly follow this skill (`pos-architecture`) and `AGENTS.md` before executing any architectural decision or terminal command.
+10. **🏢 Multi-Tenancy & Empresa Scoping (MANDATORY)**: All transactional and catalog entities (`Proveedores`, `Clientes`, `Productos`, `Ventas`, `Cajas`, etc.) MUST include `empresa_id`. All CRUD queries, unique validation rules (`Rule::unique`), and logical reactivations must be scoped to the active company `empresa_id` (`Auth::user()->empresaActiva()->id`).
 
 ---
 
@@ -189,7 +190,7 @@ This configuration is automatically synchronized to:
 ## 5. UI Architecture: Card Grids vs DataTables
 
 ### 5.1 When to Use Executive Card Grids
-- **Modules**: `Empresas`, `Usuarios / Administradores`.
+- **Modules**: `Empresas`, `Usuarios / Administradores`, `Almacenes`.
 - **Reasoning**: These entities are created in low/moderate volumes where visual depth, logo/avatar identity, status badges, authorized company pills, and granular permission counters create a far superior executive user experience.
 - **Card Grid Architecture**:
   1. **Search Header Card**: Clean input group with live text filter and dynamic counter badge.
@@ -203,7 +204,7 @@ This configuration is automatically synchronized to:
   6. **Skeleton Loading**: Visual placeholder animation while AJAX loads.
 
 ### 5.2 When to Use DataTables
-- **Modules**: `Clientes`, `Proveedores`, `Productos / Inventario`, `Ventas`, `Kardex`.
+- **Modules**: `Clientes`, `Proveedores`, `Productos / Inventario`, `Ventas`, `Kardex`, `Categorías`, `Servicios`, `Métodos de Pago`.
 - **Reasoning**: Massive volume of transactional records requiring fast pagination, column sorting, and server-side processing.
 
 ---
@@ -248,7 +249,9 @@ This configuration is automatically synchronized to:
 
 ---
 
-## 7. Reusable Blade Components Summary
+## 7. Reusable Blade Components & Exact DOM Selectors
+
+### 7.1 Component Catalog
 
 | Component | Description | Example Usage |
 |---|---|---|
@@ -261,29 +264,95 @@ This configuration is automatically synchronized to:
 | `<x-select2>` | Executive Select2 dropdown with search & modal-parent support | `<x-select2 name="categoria_id" label="Categoría" modalParent="#modalX" placeholder="Seleccione..."><option>...</option></x-select2>` |
 | `<x-section-header>` | Executive banner header for subforms/sections (replaces dull alerts) | `<x-section-header title="Códigos" description="..." icon="fas fa-qrcode"><button>...</button></x-section-header>` |
 | `<x-table-dynamic>` | Executive dynamic subform table with clean header & rounded borders | `<x-table-dynamic id="tablaX" bodyId="contenedorX" :headers="[['label' => 'Col1', 'width' => '50%']]" />` |
-| `<x-modal>` | Modal with dynamic header, cancel & submit buttons | `<x-modal id="modalX" title="Título" submitText="Guardar">...</x-modal>` |
+| `<x-modal>` | Executive modal with dynamic header, icon, subtitle & action buttons | `<x-modal id="modalX" title="Título" subtitle="..." submitText="Guardar">...</x-modal>` |
 | `<x-search-filter>` | Executive live search & counter filter bar | `<x-search-filter inputId="buscador" counterId="contador" placeholder="Buscar..." />` |
+
+### 7.2 Strict `<x-modal>` Generated DOM Selectors (MANDATORY)
+When `<x-modal id="modalX">` is rendered, the component automatically generates the following child element IDs:
+- **Title Element**: `#modalXTitulo` (e.g. `$('#modalEmpresaTitulo').text('Editar Empresa')`)
+- **Subtitle Element**: `#modalXSubtitulo` (e.g. `$('#modalEmpresaSubtitulo').text('Modifique los campos...')`)
+- **Header Icon**: `#modalXIcono` (e.g. `$('#modalEmpresaIcono').attr('class', 'fas fa-building')`)
+- **Submit Button**: `#modalXBtnGuardar` (e.g. `$('#modalEmpresaBtnGuardar')`)
+- **Submit Button Text**: `#modalXTextoGuardar` (e.g. `$('#modalEmpresaTextoGuardar').text('Guardar Cambios')`)
+
+> [!CAUTION]
+> **NEVER** invent ad-hoc selector names like `#modalXTituloTexto`, `#modalXHeaderTitle`, or `#btnGuardarX`. Always use the exact IDs defined above.
+
+### 7.3 Native Bootstrap 5 Modal Management
+Always open and close modals using the official Bootstrap 5 API:
+```javascript
+const modalEl = document.getElementById('modalX');
+const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+modalInstance.show(); // or modalInstance.hide();
+```
 
 ---
 
-## 8. Frontend JavaScript Standards & Reusable Helpers
+## 8. Frontend JavaScript Standards & Mandatory Component Reuse
 
-### 8.1 Code Cleanliness & Zero-Comments Policy
-- **No Comments in JS**: All JavaScript files under `public/estilos/jsPropios/` must be 100% comment-free (no `//` or `/* */`). Write clean, self-descriptive function and variable names.
-- **Function Declaration Style**: Standard `const crear = function () { ... }`, `const editar = async function (id) { ... }`.
+### 8.1 Code Cleanliness & Strict Zero-Comments Policy
+- **Zero Comments in JS (MANDATORY)**: All JavaScript module files under `public/estilos/jsPropios/` MUST BE 100% comment-free (NO `//` or `/* */`). Code must be self-explanatory with clean, descriptive variable and function names.
+- **No Artificial Global Window Pollution**: Do NOT add `window.xxx = xxx` assignments inside module JS files. Declare functions locally with `const funcion = function () { ... }` or `const funcion = async function () { ... }`.
+- **Global Toast Notification**: `toast.blade.php` exposes `window.notificacion = notificacion;` globally so that `formulario.component.js` and all helpers trigger SweetAlert2 toasts seamlessly.
 
-### 8.2 Reusable Helpers
-All module JS files consume standard components from `public/estilos/jsPropios/components/` (injected automatically via `js-components.blade.php`):
-1. **`crearDataTable(opciones)`**: Standard DataTables initializer.
-2. **`crearSelect2(opciones)`**: Standard Select2 initializer with Bootstrap 5 theme, placeholder, and `dropdownParent` modal binding.
-3. **`limpiarSelect2(selector)`**: Resets Select2 value to empty and triggers change.
-4. **`establecerValorSelect2(selector, valor)`**: Sets Select2 value programmatically and triggers change.
-5. **`destruirSelect2(selector)`**: Safely destroys active Select2 instance.
-6. **`consultarRegistro(urlDetalles, id)`**: Fetches record data via AJAX GET.
-7. **`enviarFormulario(opciones)`**: Handles `FormData`, method `PUT`, spinner states, SweetAlert2 notifications, modal closing, table/card reloading, and 422 error highlighting.
-8. **`cambiarEstadoRegistro(opciones)`**: SweetAlert2 confirmation dialog with DELETE request and live view reload.
-9. **`desglosarCedula(cedula)` & `desglosarTelefono(telefono)`**: Extracts prefix and clean numbers.
-10. **`aplicarRestriccionesInput()`**: Automatically sanitizes input lengths and patterns in real-time.
+### 8.2 Mandatory Reuse of Frontend Helper Functions
+**NEVER write repetitive raw `$.ajax` calls for standard operations.** Always use the established helpers:
+
+1. **`enviarFormulario(opciones)` (Submitting Forms / AJAX POST & PUT)**:
+   ```javascript
+   enviarFormulario({
+       formId: 'formX',
+       url: urlGuardar,
+       esActualizacion: Boolean(id),
+       urlActualizar: urlActualizar,
+       modalId: 'modalX',
+       tablaId: 'datatable_x', // or funcionActualizar: cargarCards
+       antesDeEnviar: function (formData) {
+           // Optional: custom mutations or appending extra fields to formData
+           return formData;
+       },
+       onSuccess: function (res) {
+           // Optional post-success logic
+       }
+   });
+   ```
+2. **`cambiarEstadoRegistro(opciones)` (Soft Deleting / Deactivating Records)**:
+   ```javascript
+   cambiarEstadoRegistro({
+       url: urlEliminar,
+       id: id,
+       tablaId: 'datatable_x', // or funcionActualizar: cargarCards
+       titulo: '¿Está seguro de eliminar este registro?',
+       texto: 'El registro quedará inactivo en el sistema.'
+   });
+   ```
+3. **`consultarRegistro(urlDetalles, id)` (Fetching Single Record Data)**:
+   ```javascript
+   const res = await consultarRegistro(urlDetalles, id);
+   if (res && res.success && res.data) {
+       const datos = res.data;
+       // Populate form fields...
+   }
+   ```
+4. **`peticionAjax(opciones)` (Generic GET / POST / PUT / DELETE Calls)**:
+   ```javascript
+   const res = await peticionAjax({
+       url: urlEndpoint,
+       type: 'POST',
+       data: payload,
+       mensajeCarga: 'Procesando información...'
+   });
+   ```
+5. **Select2 Helpers (`select2.component.js`)**:
+   - `crearSelect2({ selector: '#selectX', modalParent: '#modalX', placeholder: 'Seleccione...' })`
+   - `limpiarSelect2('#selectX')`
+   - `establecerValorSelect2('#selectX', valor)`
+   - `destruirSelect2('#selectX')`
+6. **DataTable Helper (`datatable.component.js`)**:
+   - `crearDataTable({ tablaId: 'datatable_x', url: urlLista, columnas: [...] })`
+7. **Document & Phone Utilities**:
+   - `desglosarCedula(cedula)` / `desglosarTelefono(telefono)`
+   - `aplicarRestriccionesInput()`
 
 ---
 
@@ -434,5 +503,42 @@ This section defines the end-to-end operational flow and relational contract bet
     - Invoice voiding re-credits stock/serial to the originating warehouse and records `Entrada por Anulación` in Kardex.
 13. **Ajustes de Inventario**:
     - Audit count discrepancies logged to Kardex as `Ajuste de Inventario` (Mermas / Sobrantes).
+
+---
+
+## 12. Standard Module Refactoring & Verification Protocol (MANDATORY)
+
+Every module review, refactoring, or creation must strictly adhere to the following 3-step workflow:
+
+### Step 1: Pre-Execution Diagnosis & User Alignment
+1. **Deep Code Inspection**:
+   - Blade View: Inspect container classes, check for prohibited gray backgrounds (`bg-light`, `alert-light`), verify `<x-modal>` configuration and input components.
+   - JavaScript Module: Identify manual `$.ajax` calls, check `<x-modal>` generated child element selectors (`#modalX{Titulo,Subtitulo,Icono,BtnGuardar,TextoGuardar}`), verify comments presence (must be 0), and check for unnecessary `window.xxx` assignments.
+   - Backend: Inspect Controller, FormRequests, and Service classes for Multi-Tenancy scoping (`empresa_id`) and absence of inline validation.
+2. **User Alignment**:
+   - Always formulate a concise diagnostic summary to the user before making large destructive changes, and ask for confirmation when appropriate.
+
+### Step 2: Code Standard Refactoring
+1. **Blade Architecture**:
+   - Replace any gray backgrounds with `bg-white shadow-xs border rounded-4` (or `rounded-3`).
+   - Ensure all subforms use `<x-section-header>` and `<x-table-dynamic>`.
+   - Use `<x-input-documento>`, `<x-input-telefono>`, and `<x-select2>` where applicable.
+2. **JavaScript Architecture**:
+   - Replace raw form submissions with `enviarFormulario({ formId, url, modalId, tablaId/funcionActualizar, antesDeEnviar })`.
+   - Replace soft-delete/deactivation calls with `cambiarEstadoRegistro({ url, id, tablaId/funcionActualizar })`.
+   - Replace single record fetches with `const res = await consultarRegistro(urlDetalles, id)`.
+   - Replace miscellaneous AJAX calls with `peticionAjax({ url, type, data, mensajeCarga })`.
+   - Use native `bootstrap.Modal.getOrCreateInstance(document.getElementById('modalX'))`.
+   - Strip **all** comments (100% comment-free JS).
+3. **Backend Architecture**:
+   - Ensure all validation lives inside dedicated `FormRequest` classes extending `BaseRequest`.
+   - Ensure company scoping via `$this->obtenerEmpresaId()` / `$this->empresaId()`.
+
+### Step 3: Automated Verification & Formatting
+1. **Pint Code Formatting**:
+   - Run `vendor/bin/pint --format agent` on modified PHP files.
+2. **Feature & Unit Testing**:
+   - Run targeted tests via `php artisan test --filter={ModuleName}Test`.
+   - Ensure all assertions pass with 100% green status.
 
 
