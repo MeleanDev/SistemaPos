@@ -1,9 +1,9 @@
-const urlCompleta = window.location.href;
-const urlLista = urlCompleta + "/lista";
-const urlDetalles = urlCompleta + "/";
-const urlEliminar = urlCompleta + "/";
-const urlGuardar = urlCompleta;
-const urlEditar = urlCompleta + "/actualizar/";
+const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
+const urlLista = urlBase + "/lista";
+const urlDetalles = urlBase + "/";
+const urlEliminar = urlBase + "/";
+const urlGuardar = urlBase;
+const urlEditar = urlBase + "/actualizar/";
 
 let urlAccion = urlGuardar;
 let isEditar = false;
@@ -20,15 +20,12 @@ $(document).ready(function () {
                 name: "nombre",
                 className: "text-start align-middle",
                 render: function (data, type, row) {
-                    const nombreCompleto =
-                        `${row.nombre || ""} ${row.apellido || ""}`.trim();
+                    const nombreCompleto = `${row.nombre || ""} ${row.apellido || ""}`.trim();
                     const n = (row.nombre || "").trim();
                     const a = (row.apellido || "").trim();
-                    const iniciales =
-                        (n.charAt(0) + (a ? a.charAt(0) : "")).toUpperCase() ||
-                        "CL";
+                    const iniciales = (n.charAt(0) + (a ? a.charAt(0) : "")).toUpperCase() || "CL";
                     const cedula = row.cedula
-                        ? `<span class="badge-documento"><i class="fas fa-id-card"></i>${row.cedula}</span>`
+                        ? `<span class="badge-documento"><i class="fas fa-id-card"></i> ${row.cedula}</span>`
                         : '<span class="text-muted small">Sin documento</span>';
 
                     return `
@@ -81,6 +78,7 @@ $(document).ready(function () {
                 className: "text-center align-middle",
                 orderable: false,
                 render: function (data, type, row) {
+                    const nombreEscapado = `${row.nombre || ""} ${row.apellido || ""}`.trim().replace(/'/g, "\\'");
                     return `
                     <div class="d-flex justify-content-center gap-1">
                         <button type="button" class="btn btn-outline-info btn-sm rounded-circle shadow-sm" onclick="ver(${row.id});" title="Ver detalles" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
@@ -89,7 +87,7 @@ $(document).ready(function () {
                         <button type="button" class="btn btn-outline-primary btn-sm rounded-circle shadow-sm" onclick="editar(${row.id});" title="Editar" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="eliminar(${row.id}, '${row.nombre} ${row.apellido}');" title="Eliminar cliente" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="eliminar(${row.id}, '${nombreEscapado}');" title="Eliminar cliente" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>`;
@@ -106,52 +104,61 @@ const crear = function () {
     idClienteActual = null;
     urlAccion = urlGuardar;
 
-    $("#modalCliente").modal("show");
-    $("#modalClienteTituloTexto").text("Nuevo Cliente");
-    $("#modalClienteSubtituloTexto").text(
-        "Completa la información del cliente",
-    );
-    $("#modalClienteIcono").attr(
-        "class",
-        "fas fa-user-plus me-2 text-warning fs-5",
-    );
-
     $("#formularioCliente")[0].reset();
+    $("#formularioCliente .is-invalid").removeClass("is-invalid");
+    $("#formularioCliente .invalid-feedback").remove();
+
     $("#formularioCliente")
         .find("input, select, textarea")
         .prop("disabled", false);
+
     $("#tipo_cedula").val("V-");
     $("#codigo_pais").val("+58");
     $("#tipo_cliente").val("detal");
 
+    $("#modalClienteTitulo").text("Nuevo Cliente");
+    $("#modalClienteSubtitulo").text("Completa la información del cliente");
+    $("#modalClienteIcono").attr("class", "fas fa-user-plus text-warning fs-5");
+
     $("#modalClienteBtnGuardar").prop("hidden", false).prop("disabled", false);
     $("#modalClienteTextoGuardar").text("Guardar");
+
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalCliente"));
+    modal.show();
 };
 
 const ver = async function (id) {
     try {
         idClienteActual = id;
         const cliente = await consultarRegistro(urlDetalles, id);
+        if (!cliente) return;
 
-        $("#modalCliente").modal("show");
-        $("#modalClienteTituloTexto").text("Detalles del Cliente");
-        $("#modalClienteSubtituloTexto").text(
-            "Consulta la información del cliente",
-        );
-        $("#modalClienteIcono").attr("class", "fas fa-eye me-2 text-info fs-5");
+        $("#formularioCliente")[0].reset();
+        $("#formularioCliente .is-invalid").removeClass("is-invalid");
+        $("#formularioCliente .invalid-feedback").remove();
 
         llenarFormularioCliente(cliente);
 
         $("#formularioCliente")
             .find("input, select, textarea")
             .prop("disabled", true);
+
+        $("#modalClienteTitulo").text("Detalles del Cliente");
+        $("#modalClienteSubtitulo").text("Consulta la información del cliente");
+        $("#modalClienteIcono").attr("class", "fas fa-eye text-info fs-5");
+
         $("#modalClienteBtnGuardar").prop("hidden", true);
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalCliente"));
+        modal.show();
     } catch (error) {
-        notificacion.fire({
-            icon: "error",
-            title: "Error",
-            text: "No se pudieron cargar los datos del cliente.",
-        });
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "error",
+                title: "Error",
+                text: "No se pudieron cargar los datos del cliente.",
+            });
+        }
     }
 };
 
@@ -161,32 +168,37 @@ const editar = async function (id) {
         idClienteActual = id;
         urlAccion = urlEditar + id;
         const cliente = await consultarRegistro(urlDetalles, id);
+        if (!cliente) return;
 
-        $("#modalCliente").modal("show");
-        $("#modalClienteTituloTexto").text(
-            `Editar Cliente: ${cliente.nombre} ${cliente.apellido}`,
-        );
-        $("#modalClienteSubtituloTexto").text("Modifica los datos del cliente");
-        $("#modalClienteIcono").attr(
-            "class",
-            "fas fa-user-edit me-2 text-warning fs-5",
-        );
+        $("#formularioCliente")[0].reset();
+        $("#formularioCliente .is-invalid").removeClass("is-invalid");
+        $("#formularioCliente .invalid-feedback").remove();
+
+        llenarFormularioCliente(cliente);
 
         $("#formularioCliente")
             .find("input, select, textarea")
             .prop("disabled", false);
-        llenarFormularioCliente(cliente);
+
+        $("#modalClienteTitulo").text(`Editar Cliente: ${cliente.nombre} ${cliente.apellido}`);
+        $("#modalClienteSubtitulo").text("Modifica los datos del cliente");
+        $("#modalClienteIcono").attr("class", "fas fa-user-edit text-warning fs-5");
 
         $("#modalClienteBtnGuardar")
             .prop("hidden", false)
             .prop("disabled", false);
         $("#modalClienteTextoGuardar").text("Actualizar Cambios");
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalCliente"));
+        modal.show();
     } catch (error) {
-        notificacion.fire({
-            icon: "error",
-            title: "Error",
-            text: "No se pudo cargar la información del cliente.",
-        });
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "error",
+                title: "Error",
+                text: "No se pudo cargar la información del cliente.",
+            });
+        }
     }
 };
 
@@ -198,12 +210,12 @@ const llenarFormularioCliente = (data) => {
     $("#tipo_cliente").val(data.tipo_cliente || "detal");
 
     const cedula = desglosarCedula(data.cedula);
-    $("#tipo_cedula").val(cedula.tipo);
-    $("#cedula_numero").val(cedula.numero);
+    $("#tipo_cedula").val(cedula.tipo || "V-");
+    $("#cedula_numero").val(cedula.numero || "");
 
     const telefono = desglosarTelefono(data.telefono);
-    $("#codigo_pais").val(telefono.codigo);
-    $("#telefono_numero").val(telefono.numero);
+    $("#codigo_pais").val(telefono.codigo || "+58");
+    $("#telefono_numero").val(telefono.numero || "");
 };
 
 const eliminar = function (id, nombreCliente) {
@@ -212,6 +224,9 @@ const eliminar = function (id, nombreCliente) {
         id: id,
         nombre: nombreCliente,
         tablaSelector: "#datatable_clientes",
+        titulo: "¿Desactivar Cliente?",
+        mensaje: `Se modificará el estado de "${nombreCliente}". Podrás reactivarlo en cualquier momento.`,
+        confirmButtonText: '<i class="fas fa-sync-alt me-1"></i> Sí, desactivar',
     });
 };
 
@@ -223,17 +238,21 @@ $("#formularioCliente").on("submit", function (e) {
     const cedulaNum = $("#cedula_numero").val().trim();
 
     if (nombre.length < 2 || apellido.length < 2) {
-        return notificacion.fire({
-            icon: "warning",
-            title: "Nombre o Apellido demasiado corto",
-        });
+        if (window.notificacion) {
+            return window.notificacion.fire({
+                icon: "warning",
+                title: "Nombre o Apellido demasiado corto",
+            });
+        }
     }
 
     if (cedulaNum.length < 5) {
-        return notificacion.fire({
-            icon: "warning",
-            title: "Número de Cédula/RIF incompleto",
-        });
+        if (window.notificacion) {
+            return window.notificacion.fire({
+                icon: "warning",
+                title: "Número de Cédula/RIF incompleto",
+            });
+        }
     }
 
     enviarFormulario({

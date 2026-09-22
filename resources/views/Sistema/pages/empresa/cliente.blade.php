@@ -4,6 +4,8 @@
 @section('subtitulo', 'Directorio y administración de clientes para compras al detal y mayoristas')
 
 @section('rutas')
+    <a href="{{ route('dashboard') }}">Sistema</a>
+    <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
     <span class="active">Clientes</span>
 @endsection
 
