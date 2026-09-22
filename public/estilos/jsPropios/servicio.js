@@ -1,4 +1,3 @@
-// URL limpia independiente de query parameters en la barra de navegación
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
 const urlLista = urlBase + "/lista";
 const urlCatalogos = urlBase + "/catalogos";
@@ -18,7 +17,12 @@ let catalogosSistema = {
 $(document).ready(function () {
     cargarCatalogos();
 
-    // Inicializar DataTable
+    crearSelect2({
+        selector: "#categoria_id",
+        modalSelector: "#modalServicio",
+        placeholder: "Seleccione una categoría...",
+    });
+
     crearDataTable({
         selector: "#datatable_servicios",
         url: urlLista,
@@ -112,9 +116,6 @@ $(document).ready(function () {
     aplicarRestriccionesInput();
 });
 
-/**
- * Cargar catálogos de categorías y tasa activa
- */
 const cargarCatalogos = async function () {
     try {
         const res = await $.ajax({
@@ -143,11 +144,14 @@ const poblarSelectCategorias = function () {
             $select.append(`<option value="${cat.id}">[${cat.codigo}] ${cat.nombre}</option>`);
         });
     }
+
+    crearSelect2({
+        selector: "#categoria_id",
+        modalSelector: "#modalServicio",
+        placeholder: "Seleccione una categoría...",
+    });
 };
 
-/**
- * Alternar visibilidad del porcentaje de IVA según el switch
- */
 const toggleIvaInput = function () {
     const aplicaIva = $("#aplica_iva").is(":checked");
     if (aplicaIva) {
@@ -159,30 +163,19 @@ const toggleIvaInput = function () {
         $("#contenedorIvaPorcentaje").hide();
     }
 };
-window.toggleIvaInput = toggleIvaInput;
 
-/**
- * Cálculo bidireccional en tiempo real de precios (USD <-> Bs.) según la tasa activa
- */
 const calcularPreciosBsDesdeUsd = function () {
     if (!tasaUsdActual || tasaUsdActual <= 0) return;
     const ventaUsd = parseFloat($("#precio_venta_usd").val()) || 0;
-    $("#precio_venta_bs").val(ventaUsd > 0 ? (ventaUsd * tasaUsdActual).toFixed(4) : '');
+    $("#precio_venta_bs").val(ventaUsd > 0 ? (ventaUsd * tasaUsdActual).toFixed(4) : "");
 };
 
 const calcularPreciosUsdDesdeBs = function () {
     if (!tasaUsdActual || tasaUsdActual <= 0) return;
     const ventaBs = parseFloat($("#precio_venta_bs").val()) || 0;
-    $("#precio_venta_usd").val(ventaBs > 0 ? (ventaBs / tasaUsdActual).toFixed(4) : '');
+    $("#precio_venta_usd").val(ventaBs > 0 ? (ventaBs / tasaUsdActual).toFixed(4) : "");
 };
 
-window.calcularPreciosBs = calcularPreciosBsDesdeUsd;
-window.calcularPreciosBsDesdeUsd = calcularPreciosBsDesdeUsd;
-window.calcularPreciosUsdDesdeBs = calcularPreciosUsdDesdeBs;
-
-/**
- * Abrir modal para crear nuevo servicio
- */
 const crear = function () {
     isEditar = false;
     idServicioActual = null;
@@ -192,7 +185,8 @@ const crear = function () {
     $("#formularioServicio .is-invalid").removeClass("is-invalid");
     $("#formularioServicio .invalid-feedback").remove();
 
-    // Default IVA
+    limpiarSelect2("#categoria_id");
+
     $("#aplica_iva").prop("checked", false);
     $("#iva_porcentaje").val("16.00");
     toggleIvaInput();
@@ -207,9 +201,6 @@ const crear = function () {
     modal.show();
 };
 
-/**
- * Abrir modal para editar servicio
- */
 const editar = async function (id) {
     try {
         isEditar = true;
@@ -230,17 +221,14 @@ const editar = async function (id) {
         $("#modalServicioIcono").attr("class", "fas fa-edit text-warning fs-5");
         $("#modalServicioTextoGuardar").text("Actualizar Cambios");
 
-        // Llenar campos
-        $("#categoria_id").val(srv.categoria_id || "");
+        establecerValorSelect2("#categoria_id", srv.categoria_id);
         $("#codigo").val(srv.codigo || "");
         $("#nombre").val(srv.nombre || "");
         $("#descripcion").val(srv.descripcion || "");
 
-        // Precios en USD y auto-cálculo en Bs.
         $("#precio_venta_usd").val(srv.precio_venta_usd || "");
-        calcularPreciosBs();
+        calcularPreciosBsDesdeUsd();
 
-        // Régimen Fiscal (IVA)
         const aplicaIva = !!srv.aplica_iva;
         $("#aplica_iva").prop("checked", aplicaIva);
         $("#iva_porcentaje").val(srv.iva_porcentaje !== null && srv.iva_porcentaje !== undefined ? parseFloat(srv.iva_porcentaje).toFixed(2) : "16.00");
@@ -259,9 +247,6 @@ const editar = async function (id) {
     }
 };
 
-/**
- * Guardar o Actualizar Servicio
- */
 $("#formularioServicio").on("submit", function (e) {
     e.preventDefault();
 
@@ -307,9 +292,6 @@ $("#formularioServicio").on("submit", function (e) {
     });
 });
 
-/**
- * Desactivar Servicio (Borrado Lógico)
- */
 const eliminar = function (id, nombreServicio) {
     cambiarEstadoRegistro({
         url: urlEliminar,

@@ -46,16 +46,22 @@
             
             <div class="row g-3">
                 <!-- CATEGORÍA Y CÓDIGO -->
-                <div class="col-md-6">
-                    <label class="form-label-executive"><i class="fas fa-tags text-primary me-1"></i> Categoría <span class="text-danger">*</span></label>
-                    <select name="categoria_id" id="categoria_id" class="form-select form-select-executive" required>
-                        <option value="">Seleccione una categoría...</option>
-                    </select>
-                </div>
+                <x-select2
+                    name="categoria_id"
+                    id="categoria_id"
+                    label="Categoría"
+                    icon="fas fa-tags text-primary"
+                    placeholder="Seleccione una categoría..."
+                    modalParent="#modalServicio"
+                    required
+                    col="col-md-6"
+                >
+                    <option value="">Seleccione una categoría...</option>
+                </x-select2>
 
                 <div class="col-md-6">
                     <x-input name="codigo" id="codigo" label="Código / SKU del Servicio" icon="fas fa-hashtag"
-                        placeholder="Ej. SRV-001, MAN-01" required maxlength="50" />
+                        placeholder="Ej. SRV-001, MAN-01" required maxlength="50" class="font-monospace fw-bold" />
                 </div>
 
                 <!-- NOMBRE DEL SERVICIO -->
@@ -72,7 +78,7 @@
 
                 <!-- ESTRUCTURA DE PRECIOS -->
                 <div class="col-md-7">
-                    <div class="card border rounded-4 p-3 bg-light-subtle h-100">
+                    <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <h6 class="fw-bold text-dark mb-0"><i class="fas fa-coins text-warning me-2"></i> Precio del Servicio</h6>
                             <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill font-monospace px-2.5 py-1" style="font-size: 0.75rem;">
@@ -80,14 +86,33 @@
                             </span>
                         </div>
                         <div class="row g-2">
-                            <div class="col-6">
-                                <label class="form-label-executive"><i class="fas fa-dollar-sign text-primary me-1"></i> Precio ($ USD) <span class="text-danger">*</span></label>
-                                <input type="number" step="0.0001" min="0" class="form-control form-control-executive text-end fw-bold text-dark" id="precio_venta_usd" name="precio_venta_usd" placeholder="0.00" required oninput="calcularPreciosBsDesdeUsd()">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label-executive"><i class="fas fa-coins text-success me-1"></i> Precio (Bs.)</label>
-                                <input type="number" step="0.0001" min="0" class="form-control form-control-executive text-end fw-bold text-dark" id="precio_venta_bs" name="precio_venta_bs" placeholder="0.00" oninput="calcularPreciosUsdDesdeBs()">
-                            </div>
+                            <x-input 
+                                type="number" 
+                                step="any" 
+                                min="0" 
+                                name="precio_venta_usd" 
+                                id="precio_venta_usd" 
+                                label="Precio ($ USD)" 
+                                addonText="$" 
+                                placeholder="0.00" 
+                                required 
+                                col="col-6" 
+                                class="font-monospace fw-bold text-end text-primary" 
+                                oninput="calcularPreciosBsDesdeUsd()" 
+                            />
+                            <x-input 
+                                type="number" 
+                                step="any" 
+                                min="0" 
+                                name="precio_venta_bs" 
+                                id="precio_venta_bs" 
+                                label="Precio (Bs.)" 
+                                addonText="Bs." 
+                                placeholder="0.00" 
+                                col="col-6" 
+                                class="font-monospace fw-bold text-end" 
+                                oninput="calcularPreciosUsdDesdeBs()" 
+                            />
                         </div>
                     </div>
                 </div>
@@ -98,19 +123,19 @@
                         <h6 class="fw-bold text-dark mb-2"><i class="fas fa-file-invoice-dollar text-warning me-1"></i> Régimen Fiscal</h6>
                         <div class="row g-2">
                             <div class="col-12">
-                                <div class="d-flex align-items-center justify-content-between border rounded-3 p-2 bg-light-subtle">
+                                <div class="d-flex align-items-center justify-content-between border rounded-3 p-2.5 bg-white shadow-xs">
                                     <div class="form-check form-switch mb-0">
                                         <input class="form-check-input" type="checkbox" role="switch" id="aplica_iva" name="aplica_iva" value="1" onchange="toggleIvaInput()">
-                                        <label class="form-check-label fw-bold text-dark small" for="aplica_iva">Aplica IVA</label>
+                                        <label class="form-check-label fw-bold text-dark small ms-1" for="aplica_iva">Aplica IVA</label>
                                     </div>
-                                    <div style="width: 100px;" id="contenedorIvaPorcentaje">
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" step="0.01" min="0" max="100" class="form-control text-end fw-bold font-monospace" id="iva_porcentaje" name="iva_porcentaje" value="16.00">
+                                    <div style="width: 125px;" id="contenedorIvaPorcentaje">
+                                        <div class="input-group input-group-executive">
+                                            <input type="number" step="0.01" min="0" max="100" class="form-control form-control-executive text-end fw-bold font-monospace" id="iva_porcentaje" name="iva_porcentaje" value="16.00">
                                             <span class="input-group-text">%</span>
                                         </div>
                                     </div>
                                 </div>
-                                <small class="text-muted d-block mt-1 ps-1" style="font-size: 0.73rem;">
+                                <small class="text-muted d-block mt-2 ps-1" style="font-size: 0.73rem;">
                                     Si se desactiva, el servicio quedará <strong>Exento de IVA</strong>.
                                 </small>
                             </div>

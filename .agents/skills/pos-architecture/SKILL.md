@@ -256,22 +256,34 @@ This configuration is automatically synchronized to:
 | `<x-btn-action>` | Gradient executive header button / link | `<x-btn-action icon="fas fa-plus" text="Nuevo" onclick="crear()" />` |
 | `<x-input-documento>` | Identity / Cédula / RIF select + input + numeric sanitize | `<x-input-documento selectName="tipo_cedula" inputName="cedula_numero" required />` |
 | `<x-input-telefono>` | Flag country code select + phone input | `<x-input-telefono selectName="codigo_pais" inputName="telefono_numero" />` |
-| `<x-input>` | Standard executive input with icon | `<x-input name="nombre" label="Nombre" icon="fas fa-user" required />` |
+| `<x-input>` | Standard executive input with icon, addons & prefix/suffix | `<x-input name="nombre" label="Nombre" icon="fas fa-user" addonText="$" required />` |
 | `<x-select>` | Executive dropdown select | `<x-select name="tipo" label="Tipo" icon="fas fa-tag"><option>...</option></x-select>` |
+| `<x-select2>` | Executive Select2 dropdown with search & modal-parent support | `<x-select2 name="categoria_id" label="Categoría" modalParent="#modalX" placeholder="Seleccione..."><option>...</option></x-select2>` |
+| `<x-section-header>` | Executive banner header for subforms/sections (replaces dull alerts) | `<x-section-header title="Códigos" description="..." icon="fas fa-qrcode"><button>...</button></x-section-header>` |
+| `<x-table-dynamic>` | Executive dynamic subform table with clean header & rounded borders | `<x-table-dynamic id="tablaX" bodyId="contenedorX" :headers="[['label' => 'Col1', 'width' => '50%']]" />` |
 | `<x-modal>` | Modal with dynamic header, cancel & submit buttons | `<x-modal id="modalX" title="Título" submitText="Guardar">...</x-modal>` |
 | `<x-search-filter>` | Executive live search & counter filter bar | `<x-search-filter inputId="buscador" counterId="contador" placeholder="Buscar..." />` |
 
 ---
 
-## 8. Frontend JavaScript Reusable Helpers
+## 8. Frontend JavaScript Standards & Reusable Helpers
 
-All module JS files consume standard components from `public/estilos/jsPropios/components/`:
+### 8.1 Code Cleanliness & Zero-Comments Policy
+- **No Comments in JS**: All JavaScript files under `public/estilos/jsPropios/` must be 100% comment-free (no `//` or `/* */`). Write clean, self-descriptive function and variable names.
+- **Function Declaration Style**: Standard `const crear = function () { ... }`, `const editar = async function (id) { ... }`.
+
+### 8.2 Reusable Helpers
+All module JS files consume standard components from `public/estilos/jsPropios/components/` (injected automatically via `js-components.blade.php`):
 1. **`crearDataTable(opciones)`**: Standard DataTables initializer.
-2. **`consultarRegistro(urlDetalles, id)`**: Fetches record data via AJAX GET.
-3. **`enviarFormulario(opciones)`**: Handles `FormData`, method `PUT`, spinner states, SweetAlert2 notifications, modal closing, table/card reloading, and 422 error highlighting.
-4. **`cambiarEstadoRegistro(opciones)`**: SweetAlert2 confirmation dialog with DELETE request and live view reload.
-5. **`desglosarCedula(cedula)` & `desglosarTelefono(telefono)`**: Extracts prefix and clean numbers.
-6. **`aplicarRestriccionesInput()`**: Automatically sanitizes input lengths and patterns in real-time.
+2. **`crearSelect2(opciones)`**: Standard Select2 initializer with Bootstrap 5 theme, placeholder, and `dropdownParent` modal binding.
+3. **`limpiarSelect2(selector)`**: Resets Select2 value to empty and triggers change.
+4. **`establecerValorSelect2(selector, valor)`**: Sets Select2 value programmatically and triggers change.
+5. **`destruirSelect2(selector)`**: Safely destroys active Select2 instance.
+6. **`consultarRegistro(urlDetalles, id)`**: Fetches record data via AJAX GET.
+7. **`enviarFormulario(opciones)`**: Handles `FormData`, method `PUT`, spinner states, SweetAlert2 notifications, modal closing, table/card reloading, and 422 error highlighting.
+8. **`cambiarEstadoRegistro(opciones)`**: SweetAlert2 confirmation dialog with DELETE request and live view reload.
+9. **`desglosarCedula(cedula)` & `desglosarTelefono(telefono)`**: Extracts prefix and clean numbers.
+10. **`aplicarRestriccionesInput()`**: Automatically sanitizes input lengths and patterns in real-time.
 
 ---
 
