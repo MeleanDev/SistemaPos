@@ -131,15 +131,53 @@
                 <!-- PESTAÑA 2: PRECIOS, COSTOS & MÁRGENES (DATOS DE RECEPCIÓN / VENTA) -->
                 <div class="tab-pane fade" id="tab-precios" role="tabpanel">
                     <div class="row g-3">
+
+                        <!-- TASAS DE CAMBIO (COMPRA & VENTA) -->
+                        <div class="col-12">
+                            <div class="card border rounded-4 p-3 bg-white shadow-xs">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <h6 class="fw-bold text-dark mb-0"><i class="fas fa-calculator text-primary me-2"></i> Tasas de Conversión para Fijación de Precios</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 font-monospace" onclick="restablecerTasasModal()" title="Restablecer a tasa oficial de la empresa">
+                                        <i class="fas fa-sync-alt me-1"></i> Tasa Oficial: <span id="badgeTasaOficialEmpresa">1.0000</span> Bs./$
+                                    </button>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label-executive">
+                                            <i class="fas fa-shopping-cart text-warning me-1"></i> Tasa de Compra (Bs. / $)
+                                            <small class="text-muted fw-normal">(Tasa del proveedor)</small>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light text-dark fw-bold font-monospace">Bs.</span>
+                                            <input type="number" step="any" min="0.0001" name="tasa_compra" id="tasa_compra" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="1.0000" oninput="alCambiarTasasModal()">
+                                            <button type="button" class="btn btn-outline-secondary rounded-end-pill px-3" onclick="restablecerTasaCompraModal()" title="Restablecer a tasa oficial">
+                                                <i class="fas fa-sync-alt small"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label-executive">
+                                            <i class="fas fa-cash-register text-success me-1"></i> Tasa de Venta (Bs. / $)
+                                            <small class="text-muted fw-normal">(Tasa para fijación de PVP)</small>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light text-success fw-bold font-monospace">Bs.</span>
+                                            <input type="number" step="any" min="0.0001" name="tasa_venta" id="tasa_venta" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="1.0000" oninput="alCambiarTasasModal()">
+                                            <button type="button" class="btn btn-outline-secondary rounded-end-pill px-3" onclick="restablecerTasaVentaModal()" title="Restablecer a tasa oficial">
+                                                <i class="fas fa-sync-alt small"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         
                         <!-- COSTO DE COMPRA -->
                         <div class="col-12">
                             <div class="card border rounded-4 p-3 bg-light-subtle">
                                 <div class="d-flex align-items-center justify-content-between mb-2">
                                     <h6 class="fw-bold text-dark mb-0"><i class="fas fa-tag text-success me-2"></i> Costo Base de Compra</h6>
-                                    <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold" style="background-color: #ecfdf5; color: #047857; border: 1px solid #6ee7b7;">
-                                        Tasa: <span id="badgeTasaUsdModal">1.0000</span> Bs. / $
-                                    </span>
+                                    <small class="text-muted">Ingresa el costo en $ o en Bs. para calcular automáticamente</small>
                                 </div>
                                 <div class="row g-3">
                                     <x-input 
@@ -165,8 +203,8 @@
                                         addonText="Bs." 
                                         placeholder="0.00" 
                                         col="col-md-6" 
-                                        readonly 
                                         class="font-monospace fw-bold text-end" 
+                                        oninput="alCambiarCostoBs()" 
                                     />
                                 </div>
                             </div>
@@ -214,8 +252,8 @@
                                         addonText="Bs." 
                                         placeholder="0.00" 
                                         col="col-6" 
-                                        readonly 
                                         class="font-monospace fw-bold text-end" 
+                                        oninput="calcularMargenDetalDesdePrecioBsForm()" 
                                     />
                                 </div>
                             </div>
@@ -264,8 +302,8 @@
                                         addonText="Bs." 
                                         placeholder="0.00" 
                                         col="col-6" 
-                                        readonly 
                                         class="font-monospace fw-bold text-end" 
+                                        oninput="calcularMargenMayorDesdePrecioBsForm()" 
                                     />
                                 </div>
                             </div>

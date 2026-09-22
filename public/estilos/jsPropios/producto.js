@@ -21,12 +21,71 @@ let catalogosSistema = {
 let contadorFilasCodigos = 0;
 let contadorFilasProveedores = 0;
 
+const obtenerTasaCompraModal = function () {
+    const val = parseFloat($("#tasa_compra").val());
+    return (val && val > 0) ? val : (tasaUsdActual > 0 ? tasaUsdActual : 1.0);
+};
+
+const obtenerTasaVentaModal = function () {
+    const val = parseFloat($("#tasa_venta").val());
+    return (val && val > 0) ? val : (tasaUsdActual > 0 ? tasaUsdActual : 1.0);
+};
+
 const alCambiarCostoUsd = function () {
     const costoUsd = parseFloat($("#precio_costo_usd").val()) || 0;
-    const tasa = tasaUsdActual > 0 ? tasaUsdActual : 1.0;
+    const tasaCompra = obtenerTasaCompraModal();
 
-    $("#precio_costo_bs").val(costoUsd > 0 ? (costoUsd * tasa).toFixed(2) : "");
+    if (costoUsd > 0) {
+        $("#precio_costo_bs").val((costoUsd * tasaCompra).toFixed(2));
+    } else {
+        $("#precio_costo_bs").val("");
+    }
 
+    recalcularPreciosDesdeMargenes();
+};
+
+const alCambiarCostoBs = function () {
+    const costoBs = parseFloat($("#precio_costo_bs").val()) || 0;
+    const tasaCompra = obtenerTasaCompraModal();
+
+    if (costoBs > 0 && tasaCompra > 0) {
+        const costoUsd = costoBs / tasaCompra;
+        $("#precio_costo_usd").val(costoUsd.toFixed(2));
+    } else {
+        $("#precio_costo_usd").val("");
+    }
+
+    recalcularPreciosDesdeMargenes();
+};
+
+const alCambiarTasasModal = function () {
+    const costoUsd = parseFloat($("#precio_costo_usd").val()) || 0;
+    const tasaCompra = obtenerTasaCompraModal();
+
+    if (costoUsd > 0) {
+        $("#precio_costo_bs").val((costoUsd * tasaCompra).toFixed(2));
+    }
+
+    recalcularPreciosDesdeMargenes();
+};
+
+const restablecerTasasModal = function () {
+    $("#tasa_compra").val(tasaUsdActual.toFixed(4));
+    $("#tasa_venta").val(tasaUsdActual.toFixed(4));
+    alCambiarTasasModal();
+};
+
+const restablecerTasaCompraModal = function () {
+    $("#tasa_compra").val(tasaUsdActual.toFixed(4));
+    alCambiarTasasModal();
+};
+
+const restablecerTasaVentaModal = function () {
+    $("#tasa_venta").val(tasaUsdActual.toFixed(4));
+    alCambiarTasasModal();
+};
+
+const recalcularPreciosDesdeMargenes = function () {
     calcularPrecioDetalDesdeMargenForm();
     calcularPrecioMayorDesdeMargenForm();
 };
@@ -34,16 +93,25 @@ const alCambiarCostoUsd = function () {
 const calcularPrecioDetalDesdeMargenForm = function () {
     const costoUsd = parseFloat($("#precio_costo_usd").val()) || 0;
     const margen = parseFloat($("#ultimo_margen_detal").val()) || 0;
-    const tasa = tasaUsdActual > 0 ? tasaUsdActual : 1.0;
+    const tasaCompra = obtenerTasaCompraModal();
+    const tasaVenta = obtenerTasaVentaModal();
 
     if (costoUsd > 0) {
-        const precioUsd = costoUsd * (1 + margen / 100);
+        // Costo con margen
+        const costoConMargenUsd = costoUsd * (1 + margen / 100);
+        // Multiplicado por tasa de compra
+        const montoCompraBs = costoConMargenUsd * tasaCompra;
+        // Dividido por tasa de venta para obtener precio en USD
+        const precioUsd = montoCompraBs / tasaVenta;
+        // Precio en Bs = precio USD * tasa de venta
+        const precioBs = precioUsd * tasaVenta;
+
         $("#precio_detal_usd").val(precioUsd.toFixed(2));
-        $("#precio_detal_bs").val((precioUsd * tasa).toFixed(2));
+        $("#precio_detal_bs").val(precioBs.toFixed(2));
     } else {
         const pvpUsd = parseFloat($("#precio_detal_usd").val()) || 0;
         if (pvpUsd > 0) {
-            $("#precio_detal_bs").val((pvpUsd * tasa).toFixed(2));
+            $("#precio_detal_bs").val((pvpUsd * tasaVenta).toFixed(2));
         }
     }
 };
@@ -51,29 +119,53 @@ const calcularPrecioDetalDesdeMargenForm = function () {
 const calcularMargenDetalDesdePrecioForm = function () {
     const costoUsd = parseFloat($("#precio_costo_usd").val()) || 0;
     const pvpUsd = parseFloat($("#precio_detal_usd").val()) || 0;
-    const tasa = tasaUsdActual > 0 ? tasaUsdActual : 1.0;
+    const tasaCompra = obtenerTasaCompraModal();
+    const tasaVenta = obtenerTasaVentaModal();
 
-    $("#precio_detal_bs").val(pvpUsd > 0 ? (pvpUsd * tasa).toFixed(2) : "");
+    $("#precio_detal_bs").val(pvpUsd > 0 ? (pvpUsd * tasaVenta).toFixed(2) : "");
 
-    if (costoUsd > 0 && pvpUsd > 0) {
-        const margen = ((pvpUsd - costoUsd) / costoUsd) * 100;
+    if (costoUsd > 0 && pvpUsd > 0 && tasaCompra > 0) {
+        const factor = (pvpUsd * tasaVenta) / (costoUsd * tasaCompra);
+        const margen = (factor - 1) * 100;
         $("#ultimo_margen_detal").val(margen.toFixed(2));
+    }
+};
+
+const calcularMargenDetalDesdePrecioBsForm = function () {
+    const pvpBs = parseFloat($("#precio_detal_bs").val()) || 0;
+    const tasaVenta = obtenerTasaVentaModal();
+
+    if (pvpBs > 0 && tasaVenta > 0) {
+        const pvpUsd = pvpBs / tasaVenta;
+        $("#precio_detal_usd").val(pvpUsd.toFixed(2));
+        calcularMargenDetalDesdePrecioForm();
+    } else {
+        $("#precio_detal_usd").val("");
     }
 };
 
 const calcularPrecioMayorDesdeMargenForm = function () {
     const costoUsd = parseFloat($("#precio_costo_usd").val()) || 0;
     const margen = parseFloat($("#ultimo_margen_mayorista").val()) || 0;
-    const tasa = tasaUsdActual > 0 ? tasaUsdActual : 1.0;
+    const tasaCompra = obtenerTasaCompraModal();
+    const tasaVenta = obtenerTasaVentaModal();
 
     if (costoUsd > 0) {
-        const precioUsd = costoUsd * (1 + margen / 100);
+        // Costo con margen mayorista
+        const costoConMargenUsd = costoUsd * (1 + margen / 100);
+        // Multiplicado por tasa de compra
+        const montoCompraBs = costoConMargenUsd * tasaCompra;
+        // Dividido por tasa de venta para obtener precio en USD
+        const precioUsd = montoCompraBs / tasaVenta;
+        // Precio en Bs = precio USD * tasa de venta
+        const precioBs = precioUsd * tasaVenta;
+
         $("#precio_mayorista_usd").val(precioUsd.toFixed(2));
-        $("#precio_mayorista_bs").val((precioUsd * tasa).toFixed(2));
+        $("#precio_mayorista_bs").val(precioBs.toFixed(2));
     } else {
         const pvpUsd = parseFloat($("#precio_mayorista_usd").val()) || 0;
         if (pvpUsd > 0) {
-            $("#precio_mayorista_bs").val((pvpUsd * tasa).toFixed(2));
+            $("#precio_mayorista_bs").val((pvpUsd * tasaVenta).toFixed(2));
         }
     }
 };
@@ -81,21 +173,44 @@ const calcularPrecioMayorDesdeMargenForm = function () {
 const calcularMargenMayorDesdePrecioForm = function () {
     const costoUsd = parseFloat($("#precio_costo_usd").val()) || 0;
     const pvpUsd = parseFloat($("#precio_mayorista_usd").val()) || 0;
-    const tasa = tasaUsdActual > 0 ? tasaUsdActual : 1.0;
+    const tasaCompra = obtenerTasaCompraModal();
+    const tasaVenta = obtenerTasaVentaModal();
 
-    $("#precio_mayorista_bs").val(pvpUsd > 0 ? (pvpUsd * tasa).toFixed(2) : "");
+    $("#precio_mayorista_bs").val(pvpUsd > 0 ? (pvpUsd * tasaVenta).toFixed(2) : "");
 
-    if (costoUsd > 0 && pvpUsd > 0) {
-        const margen = ((pvpUsd - costoUsd) / costoUsd) * 100;
+    if (costoUsd > 0 && pvpUsd > 0 && tasaCompra > 0) {
+        const factor = (pvpUsd * tasaVenta) / (costoUsd * tasaCompra);
+        const margen = (factor - 1) * 100;
         $("#ultimo_margen_mayorista").val(margen.toFixed(2));
     }
 };
 
+const calcularMargenMayorDesdePrecioBsForm = function () {
+    const pvpBs = parseFloat($("#precio_mayorista_bs").val()) || 0;
+    const tasaVenta = obtenerTasaVentaModal();
+
+    if (pvpBs > 0 && tasaVenta > 0) {
+        const pvpUsd = pvpBs / tasaVenta;
+        $("#precio_mayorista_usd").val(pvpUsd.toFixed(2));
+        calcularMargenMayorDesdePrecioForm();
+    } else {
+        $("#precio_mayorista_usd").val("");
+    }
+};
+
 window.alCambiarCostoUsd = alCambiarCostoUsd;
+window.alCambiarCostoBs = alCambiarCostoBs;
+window.alCambiarTasasModal = alCambiarTasasModal;
+window.restablecerTasasModal = restablecerTasasModal;
+window.restablecerTasaCompraModal = restablecerTasaCompraModal;
+window.restablecerTasaVentaModal = restablecerTasaVentaModal;
 window.calcularPrecioDetalDesdeMargenForm = calcularPrecioDetalDesdeMargenForm;
 window.calcularMargenDetalDesdePrecioForm = calcularMargenDetalDesdePrecioForm;
+window.calcularMargenDetalDesdePrecioBsForm = calcularMargenDetalDesdePrecioBsForm;
 window.calcularPrecioMayorDesdeMargenForm = calcularPrecioMayorDesdeMargenForm;
 window.calcularMargenMayorDesdePrecioForm = calcularMargenMayorDesdePrecioForm;
+window.calcularMargenMayorDesdePrecioBsForm = calcularMargenMayorDesdePrecioBsForm;
+
 
 $(document).ready(function () {
     crearSelect2({
@@ -256,7 +371,7 @@ const cargarCatalogos = async function () {
             if (res.data.tasa_usd) {
                 tasaUsdActual = parseFloat(res.data.tasa_usd) || 1.0;
                 $("#badgeTasaUsd").text(tasaUsdActual.toFixed(4));
-                $("#badgeTasaUsdModal").text(tasaUsdActual.toFixed(4));
+                $("#badgeTasaOficialEmpresa").text(tasaUsdActual.toFixed(4));
             }
             poblarSelectCategorias();
         }
@@ -304,15 +419,12 @@ const agregarFilaCodigoBarra = function (codigo = "", descripcion = "") {
     const valDesc = (descripcion === null || descripcion === undefined) ? "" : String(descripcion);
 
     const filaHtml = `
-        <tr id="${idFila}">
+        <tr id="${idFila}" class="align-middle">
             <td class="px-3 py-2">
-                <div class="input-group input-group-executive">
-                    <span class="input-group-text"><i class="fas fa-qrcode text-primary"></i></span>
-                    <input type="text" class="form-control form-control-executive font-monospace" name="codigos_barra[${contadorFilasCodigos}][codigo]" value="${valCodigo}" placeholder="Ej. 759123456789 o QR-PROD-001" maxlength="100">
-                </div>
+                <input type="text" class="form-control form-control-executive font-monospace" name="codigos_barra[${contadorFilasCodigos}][codigo]" value="${valCodigo}" placeholder="Ej. 7591234567890" maxlength="100">
             </td>
             <td class="px-3 py-2">
-                <input type="text" class="form-control form-control-executive" name="codigos_barra[${contadorFilasCodigos}][descripcion]" value="${valDesc}" placeholder="Ej. Empaque individual, QR etiqueta, Caja x12" maxlength="100">
+                <input type="text" class="form-control form-control-executive" name="codigos_barra[${contadorFilasCodigos}][descripcion]" value="${valDesc}" placeholder="Ej. Paquete x12, Presentación 1kg" maxlength="100">
             </td>
             <td class="text-center px-2 py-2">
                 <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-xs" onclick="$('#${idFila}').remove()" title="Eliminar fila" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
@@ -330,20 +442,19 @@ const agregarFilaProveedor = function (proveedorId = "", codigoProveedor = "") {
     const idFila = `fila_prov_${contadorFilasProveedores}`;
     const idSelect = `select_prov_${contadorFilasProveedores}`;
     const valCodigo = (codigoProveedor === null || codigoProveedor === undefined) ? "" : String(codigoProveedor);
-    const valProvId = (proveedorId === null || proveedorId === undefined) ? "" : String(proveedorId);
 
     let opcionesProveedores = '<option value="">Seleccione proveedor...</option>';
     if (Array.isArray(catalogosSistema.proveedores)) {
         catalogosSistema.proveedores.forEach((p) => {
-            const selected = String(p.id) === valProvId ? "selected" : "";
-            opcionesProveedores += `<option value="${p.id}" ${selected}>${p.nombre} (${p.rif})</option>`;
+            const sel = String(p.id) === String(proveedorId) ? "selected" : "";
+            opcionesProveedores += `<option value="${p.id}" ${sel}>${p.nombre} (${p.rif})</option>`;
         });
     }
 
     const filaHtml = `
-        <tr id="${idFila}">
+        <tr id="${idFila}" class="align-middle">
             <td class="px-3 py-2">
-                <select class="form-select select-proveedor-fila" id="${idSelect}" name="proveedores[${contadorFilasProveedores}][proveedor_id]">
+                <select class="form-select form-select-executive select-proveedor-fila" name="proveedores[${contadorFilasProveedores}][proveedor_id]" id="${idSelect}">
                     ${opcionesProveedores}
                 </select>
             </td>
@@ -480,6 +591,9 @@ const crear = function () {
     $("#tipo").val("producto");
     limpiarSelect2("#categoria_id");
     $("#unidad_medida").val("unidad");
+    $("#tasa_compra").val(tasaUsdActual.toFixed(4));
+    $("#tasa_venta").val(tasaUsdActual.toFixed(4));
+    $("#badgeTasaOficialEmpresa").text(tasaUsdActual.toFixed(4));
     $("#precio_costo_usd").val("");
     $("#precio_costo_bs").val("");
     $("#ultimo_margen_detal").val("30.00");
@@ -490,7 +604,6 @@ const crear = function () {
     $("#precio_mayorista_bs").val("");
     $("#stock_minimo").val("0");
     $("#stock_maximo").val("");
-    $("#badgeTasaUsdModal").text(tasaUsdActual.toFixed(4));
 
     $("#aplica_iva").prop("checked", true);
     $("#iva_porcentaje").val("16.00").prop("disabled", false);
@@ -535,6 +648,13 @@ const editar = async function (id) {
         $("#descripcion").val(prod.descripcion || "");
         $("#unidad_medida").val(prod.unidad_medida || "unidad");
 
+        const tasaCompraProd = prod.tasa_compra && parseFloat(prod.tasa_compra) > 0 ? parseFloat(prod.tasa_compra) : tasaUsdActual;
+        const tasaVentaProd = prod.tasa_venta && parseFloat(prod.tasa_venta) > 0 ? parseFloat(prod.tasa_venta) : tasaUsdActual;
+
+        $("#tasa_compra").val(tasaCompraProd.toFixed(4));
+        $("#tasa_venta").val(tasaVentaProd.toFixed(4));
+        $("#badgeTasaOficialEmpresa").text(tasaUsdActual.toFixed(4));
+
         const costoUsd = parseFloat(prod.precio_costo_usd || 0);
         const costoBs = parseFloat(prod.precio_costo_bs || 0);
         const margenDetal = prod.ultimo_margen_detal !== null && prod.ultimo_margen_detal !== undefined ? parseFloat(prod.ultimo_margen_detal) : 30.00;
@@ -545,17 +665,16 @@ const editar = async function (id) {
         const mayorBs = parseFloat(prod.precio_mayorista_bs || 0);
 
         $("#precio_costo_usd").val(costoUsd > 0 ? costoUsd.toFixed(2) : "");
-        $("#precio_costo_bs").val(costoBs > 0 ? costoBs.toFixed(2) : (costoUsd > 0 ? (costoUsd * tasaUsdActual).toFixed(2) : ""));
+        $("#precio_costo_bs").val(costoBs > 0 ? costoBs.toFixed(2) : (costoUsd > 0 ? (costoUsd * tasaCompraProd).toFixed(2) : ""));
         $("#ultimo_margen_detal").val(margenDetal.toFixed(2));
         $("#precio_detal_usd").val(detalUsd > 0 ? detalUsd.toFixed(2) : "");
-        $("#precio_detal_bs").val(detalBs > 0 ? detalBs.toFixed(2) : (detalUsd > 0 ? (detalUsd * tasaUsdActual).toFixed(2) : ""));
+        $("#precio_detal_bs").val(detalBs > 0 ? detalBs.toFixed(2) : (detalUsd > 0 ? (detalUsd * tasaVentaProd).toFixed(2) : ""));
         $("#ultimo_margen_mayorista").val(margenMayor.toFixed(2));
         $("#precio_mayorista_usd").val(mayorUsd > 0 ? mayorUsd.toFixed(2) : "");
-        $("#precio_mayorista_bs").val(mayorBs > 0 ? mayorBs.toFixed(2) : (mayorUsd > 0 ? (mayorUsd * tasaUsdActual).toFixed(2) : ""));
+        $("#precio_mayorista_bs").val(mayorBs > 0 ? mayorBs.toFixed(2) : (mayorUsd > 0 ? (mayorUsd * tasaVentaProd).toFixed(2) : ""));
 
         $("#stock_minimo").val(prod.stock_minimo || 0);
         $("#stock_maximo").val(prod.stock_maximo || "");
-        $("#badgeTasaUsdModal").text(tasaUsdActual.toFixed(4));
 
         $("#aplica_iva").prop("checked", prod.aplica_iva);
         $("#iva_porcentaje").val(prod.iva_porcentaje || "16.00").prop("disabled", !prod.aplica_iva);

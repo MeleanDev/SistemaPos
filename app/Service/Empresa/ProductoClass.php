@@ -288,32 +288,35 @@ class ProductoClass
             ->where('codigo', 'USD')
             ->value('tasa_cambio') ?? 1.0000;
 
+        $tasaCompra = ! empty($datos['tasa_compra']) && (float) $datos['tasa_compra'] > 0 ? (float) $datos['tasa_compra'] : (float) $tasaUsd;
+        $tasaVenta = ! empty($datos['tasa_venta']) && (float) $datos['tasa_venta'] > 0 ? (float) $datos['tasa_venta'] : (float) $tasaUsd;
+
         $datos['empresa_id'] = $empresaId;
         $datos['tipo'] = 'producto';
 
         $datos['precio_costo_usd'] = ! empty($datos['precio_costo_usd']) ? (float) $datos['precio_costo_usd'] : 0;
-        $datos['precio_costo_bs'] = round($datos['precio_costo_usd'] * $tasaUsd, 4);
+        $datos['precio_costo_bs'] = round($datos['precio_costo_usd'] * $tasaCompra, 4);
 
         $datos['precio_detal_usd'] = ! empty($datos['precio_detal_usd']) ? (float) $datos['precio_detal_usd'] : 0;
         $datos['precio_detal_bs'] = ! empty($datos['precio_detal_bs']) ? (float) $datos['precio_detal_bs'] : 0;
         if ($datos['precio_detal_usd'] > 0) {
-            $datos['precio_detal_bs'] = round($datos['precio_detal_usd'] * $tasaUsd, 4);
+            $datos['precio_detal_bs'] = round($datos['precio_detal_usd'] * $tasaVenta, 4);
         } elseif ($datos['precio_detal_bs'] > 0) {
-            $datos['precio_detal_usd'] = round($datos['precio_detal_bs'] / $tasaUsd, 4);
+            $datos['precio_detal_usd'] = round($datos['precio_detal_bs'] / $tasaVenta, 4);
         }
 
         $datos['precio_mayorista_usd'] = ! empty($datos['precio_mayorista_usd']) ? (float) $datos['precio_mayorista_usd'] : 0;
         $datos['precio_mayorista_bs'] = ! empty($datos['precio_mayorista_bs']) ? (float) $datos['precio_mayorista_bs'] : 0;
         if ($datos['precio_mayorista_usd'] > 0) {
-            $datos['precio_mayorista_bs'] = round($datos['precio_mayorista_usd'] * $tasaUsd, 4);
+            $datos['precio_mayorista_bs'] = round($datos['precio_mayorista_usd'] * $tasaVenta, 4);
         } elseif ($datos['precio_mayorista_bs'] > 0) {
-            $datos['precio_mayorista_usd'] = round($datos['precio_mayorista_bs'] / $tasaUsd, 4);
+            $datos['precio_mayorista_usd'] = round($datos['precio_mayorista_bs'] / $tasaVenta, 4);
         }
 
         $datos['ultimo_margen_detal'] = isset($datos['ultimo_margen_detal']) && $datos['ultimo_margen_detal'] !== '' ? (float) $datos['ultimo_margen_detal'] : 30.00;
         $datos['ultimo_margen_mayorista'] = isset($datos['ultimo_margen_mayorista']) && $datos['ultimo_margen_mayorista'] !== '' ? (float) $datos['ultimo_margen_mayorista'] : 15.00;
 
-        $datos['tasa_cambio'] = $tasaUsd;
+        $datos['tasa_cambio'] = $tasaVenta;
 
         $datos['aplica_iva'] = filter_var($datos['aplica_iva'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $datos['iva_porcentaje'] = $datos['aplica_iva'] ? ($datos['iva_porcentaje'] ?? 16.00) : 0;

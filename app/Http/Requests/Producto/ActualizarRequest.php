@@ -69,6 +69,8 @@ class ActualizarRequest extends BaseRequest
             'precio_mayorista_usd' => ['nullable', 'numeric', 'min:0'],
             'precio_mayorista_bs' => ['nullable', 'numeric', 'min:0'],
             'tasa_cambio' => ['nullable', 'numeric', 'min:0.0001'],
+            'tasa_compra' => ['nullable', 'numeric', 'min:0.0001'],
+            'tasa_venta' => ['nullable', 'numeric', 'min:0.0001'],
 
             // Fiscal (IVA e IGTF)
             'aplica_iva' => ['required', 'boolean'],
