@@ -14,7 +14,7 @@
     
     <!-- COLUMNA 1: IDENTIDAD Y DATOS DE LA EMPRESA -->
     <div class="col-lg-7">
-        <div class="card card-executive border rounded-4 shadow-sm p-4 h-100">
+        <div class="card card-executive border rounded-4 shadow-sm p-4 h-100 bg-white">
             <div class="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
                 <div class="d-flex align-items-center gap-3">
                     <div class="avatar-executive-sm rounded-circle bg-primary-subtle text-primary p-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
@@ -34,8 +34,8 @@
                     <!-- LOGO DE LA EMPRESA -->
                     <div class="col-12">
                         <label class="form-label-executive"><i class="fas fa-image text-primary me-1"></i> Logo Corporativo</label>
-                        <div class="d-flex align-items-center gap-3 p-3 border rounded-4 bg-light-subtle">
-                            <div id="contenedorPreviewLogo" class="border rounded-4 bg-white p-2 d-flex align-items-center justify-content-center shadow-xs" style="width: 80px; height: 80px; min-width: 80px; overflow: hidden;">
+                        <div class="d-flex align-items-center gap-3 p-3 border rounded-4 bg-white shadow-xs">
+                            <div id="contenedorPreviewLogo" class="border rounded-4 bg-white p-2 d-flex align-items-center justify-content-center shadow-xs" style="width: 80px; height: 80px; min-width: 80px; overflow: hidden; background-color: #f8fafc;">
                                 <i class="fas fa-building text-muted fs-2" id="placeholderLogo"></i>
                                 <img id="previewLogo" src="" alt="Logo" class="img-fluid rounded-3 d-none" style="max-height: 100%; object-fit: contain;">
                             </div>
@@ -96,7 +96,7 @@
 
     <!-- COLUMNA 2: GESTIÓN MULTI-MONEDA & TASAS DE CAMBIO -->
     <div class="col-lg-5">
-        <div class="card card-executive border rounded-4 shadow-sm p-4 h-100">
+        <div class="card card-executive border rounded-4 shadow-sm p-4 h-100 bg-white">
             <div class="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
                 <div class="d-flex align-items-center gap-3">
                     <div class="avatar-executive-sm rounded-circle bg-success-subtle text-success p-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
@@ -110,12 +110,12 @@
             </div>
 
             <!-- MONEDA BASE FIJA -->
-            <div class="alert alert-light border rounded-4 p-3 mb-4 d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-success rounded-circle p-2"><i class="fas fa-lock"></i></span>
+            <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs d-flex flex-row align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2.5">
+                    <span class="badge bg-success rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;"><i class="fas fa-lock text-white"></i></span>
                     <div>
-                        <span class="fw-bold text-dark d-block">Moneda Base: Bolívares (VES)</span>
-                        <small class="text-muted">Moneda oficial del sistema (Tasa fija: 1.0000 Bs.)</small>
+                        <span class="fw-bold text-dark d-block" style="font-size: 0.90rem;">Moneda Base: Bolívares (VES)</span>
+                        <small class="text-muted" style="font-size: 0.75rem;">Moneda oficial del sistema (Tasa fija: 1.0000 Bs.)</small>
                     </div>
                 </div>
                 <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1 font-monospace fw-bold">1.00 Bs.</span>

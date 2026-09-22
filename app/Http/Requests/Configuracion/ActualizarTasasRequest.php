@@ -2,16 +2,11 @@
 
 namespace App\Http\Requests\Configuracion;
 
+use App\Http\Requests\BaseRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
-class ActualizarTasasRequest extends FormRequest
+class ActualizarTasasRequest extends BaseRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
