@@ -50,10 +50,10 @@
 
                 <div class="col-12">
                     <label class="form-label-executive">
-                        <i class="fas fa-image"></i> Logo de la Empresa <span class="badge bg-light text-muted ms-1">Opcional</span>
+                        <i class="fas fa-image"></i> Logo de la Empresa <span class="badge bg-light-subtle text-secondary border ms-1">Opcional</span>
                     </label>
-                    <div class="d-flex align-items-center gap-3">
-                        <div id="contenedorPreviewLogo" class="border rounded-3 p-1 bg-light d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; min-width: 56px; overflow: hidden;">
+                    <div class="d-flex align-items-center gap-3 p-2.5 border rounded-4 bg-white shadow-xs">
+                        <div id="contenedorPreviewLogo" class="border rounded-3 p-1 bg-white shadow-xs d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; min-width: 56px; overflow: hidden; background-color: #f8fafc;">
                             <i class="fas fa-building text-muted fs-4" id="iconoPlaceholderLogo"></i>
                             <img id="previewLogo" src="" alt="Logo preview" class="img-fluid rounded-2 d-none" style="max-height: 100%; object-fit: contain;">
                         </div>
@@ -66,9 +66,9 @@
 
                 <!-- Switch: Módulo de Motos y Seriales Únicos -->
                 <div class="col-12">
-                    <div class="p-3 rounded-4 border bg-light d-flex align-items-center justify-content-between">
+                    <div class="p-3 rounded-4 border bg-white shadow-xs d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center bg-white shadow-sm text-primary" style="width: 40px; height: 40px; font-size: 1.15rem;">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center bg-primary-subtle text-primary border border-primary-subtle" style="width: 42px; height: 42px; min-width: 42px; font-size: 1.15rem;">
                                 <i class="fas fa-motorcycle"></i>
                             </div>
                             <div>

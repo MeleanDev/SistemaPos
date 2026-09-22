@@ -1,9 +1,9 @@
-const urlCompleta = window.location.href;
-const urlLista = urlCompleta + "/lista";
-const urlDetalles = urlCompleta + "/";
-const urlEliminar = urlCompleta + "/";
-const urlGuardar = urlCompleta;
-const urlEditar = urlCompleta + "/actualizar/";
+const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
+const urlLista = urlBase + "/lista";
+const urlDetalles = urlBase + "/";
+const urlEliminar = urlBase + "/";
+const urlGuardar = urlBase;
+const urlEditar = urlBase + "/actualizar/";
 
 let urlAccion = urlGuardar;
 let isEditar = false;
@@ -40,7 +40,6 @@ $(document).ready(function () {
         renderizarEmpresas(filtradas, true);
     });
 
-    // Preview en vivo al seleccionar logo
     $("#logo").on("change", function () {
         const archivo = this.files[0];
         if (archivo) {
@@ -64,15 +63,40 @@ const resetPreviewLogo = function () {
     $("#logo").val("");
 };
 
+const mostrarSkeletonLoading = function () {
+    let skeletons = "";
+    for (let i = 0; i < 3; i++) {
+        skeletons += `
+            <div class="col-md-6 col-xl-4">
+                <div class="card card-executive h-100 border-0 shadow-sm p-4 bg-white" style="border-radius: 16px;">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <div class="placeholder-glow" style="width: 48px; height: 48px;"><span class="placeholder col-12 h-100 rounded-3"></span></div>
+                        <div class="placeholder-glow w-75">
+                            <span class="placeholder col-8 mb-1"></span>
+                            <span class="placeholder col-5"></span>
+                        </div>
+                    </div>
+                    <hr class="my-3 opacity-10">
+                    <div class="placeholder-glow mb-3">
+                        <span class="placeholder col-10 mb-2"></span>
+                        <span class="placeholder col-12 mb-2"></span>
+                    </div>
+                    <div class="placeholder-glow d-flex gap-2">
+                        <span class="placeholder col-4 rounded-pill"></span>
+                        <span class="placeholder col-6 rounded-pill"></span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    $("#contenedorEmpresas").html(skeletons);
+};
+
 const cargarEmpresas = async function () {
     mostrarSkeletonLoading();
 
     try {
-        const respuesta = await $.ajax({
-            url: urlLista,
-            type: "GET",
-            dataType: "json",
-        });
+        const respuesta = await peticionAjax({ url: urlLista });
 
         if (respuesta.success && Array.isArray(respuesta.data)) {
             listaEmpresas = respuesta.data;
@@ -129,7 +153,7 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
         if (esFiltrado) {
             $contenedor.html(`
                 <div class="col-12 text-center py-5">
-                    <div class="card card-executive border-0 shadow-sm p-5 mx-auto" style="max-width: 500px;">
+                    <div class="card card-executive border-0 shadow-sm p-5 mx-auto bg-white" style="max-width: 500px;">
                         <i class="fas fa-search text-muted opacity-50 mb-3" style="font-size: 3.5rem;"></i>
                         <h5 class="fw-bold text-dark mb-1">Sin resultados</h5>
                         <p class="text-muted small mb-0">No se encontraron empresas que coincidan con tu búsqueda.</p>
@@ -139,7 +163,7 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
         } else {
             $contenedor.html(`
                 <div class="col-12 text-center py-5">
-                    <div class="card card-executive border-0 shadow-sm p-5 mx-auto" style="max-width: 520px;">
+                    <div class="card card-executive border-0 shadow-sm p-5 mx-auto bg-white" style="max-width: 520px;">
                         <div class="avatar-executive mx-auto mb-3" style="width: 70px; height: 70px; font-size: 1.8rem; background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); color: #4338ca;">
                             <i class="fas fa-building"></i>
                         </div>
@@ -179,15 +203,14 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
             : '<span class="text-muted small fst-italic" style="font-size: 0.78rem;"><i class="fas fa-minus text-muted opacity-50 me-1"></i>Sin correo</span>';
 
         const motoBadgeHtml = empresa.maneja_motos
-            ? `<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fw-bold" style="font-size: 0.72rem;"><i class="fas fa-motorcycle me-1"></i>Motos & Seriales</span>`
-            : `<span class="badge rounded-pill bg-light text-muted border px-2 py-1" style="font-size: 0.72rem;"><i class="fas fa-boxes-stacked me-1"></i>Retail Estándar</span>`;
+            ? `<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 fw-bold" style="font-size: 0.72rem;"><i class="fas fa-motorcycle me-1"></i>Motos & Seriales</span>`
+            : `<span class="badge rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1 font-monospace" style="font-size: 0.72rem;"><i class="fas fa-boxes-stacked me-1"></i>Retail Estándar</span>`;
 
         const cardHtml = `
             <div class="col-md-6 col-xl-4">
-                <div class="card card-executive h-100 border-0 shadow-sm hover-lift transition-all" style="border-radius: 16px; overflow: hidden; border-top: 4px solid #4f46e5 !important;">
+                <div class="card card-executive h-100 border-0 shadow-sm hover-lift transition-all bg-white" style="border-radius: 16px; overflow: hidden; border-top: 4px solid #4f46e5 !important;">
                     <div class="card-body p-4 d-flex flex-column justify-content-between">
                         <div>
-                            <!-- ENCABEZADO DE LA CARD -->
                             <div class="d-flex align-items-start justify-content-between gap-2 mb-3">
                                 <div class="d-flex align-items-center gap-3">
                                     ${logoHtml}
@@ -204,7 +227,6 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
 
                             <hr class="my-3 opacity-10">
 
-                            <!-- DETALLES DE LA EMPRESA -->
                             <div class="mb-3">
                                 <div class="d-flex align-items-center mb-2">
                                     <i class="fas fa-landmark text-primary me-2 opacity-75" style="width: 16px;"></i>
@@ -216,14 +238,12 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
                                 </div>
                             </div>
 
-                            <!-- CONTACTO -->
                             <div class="d-flex flex-wrap align-items-center gap-2 mb-3 pt-1">
                                 ${telefonoHtml}
                                 ${correoHtml}
                             </div>
                         </div>
 
-                        <!-- FOOTER Y BOTONES DE ACCIÓN -->
                         <div class="pt-3 border-top mt-2 d-flex justify-content-end align-items-center gap-2">
                             <button type="button" class="btn btn-outline-info btn-sm rounded-pill px-3 shadow-sm d-inline-flex align-items-center" onclick="ver(${empresa.id})" title="Ver detalles completos">
                                 <i class="fas fa-eye me-1"></i> Ver
@@ -231,7 +251,7 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
                             <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 shadow-sm d-inline-flex align-items-center" onclick="editar(${empresa.id})" title="Editar empresa">
                                 <i class="fas fa-edit me-1"></i> Editar
                             </button>
-                            <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 shadow-sm d-inline-flex align-items-center" onclick="eliminar(${empresa.id}, '${nombre}')" title="Eliminar empresa">
+                            <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 shadow-sm d-inline-flex align-items-center" onclick="eliminar(${empresa.id}, '${nombre.replace(/'/g, "\\'")}')" title="Eliminar empresa">
                                 <i class="fas fa-trash-alt me-1"></i> Eliminar
                             </button>
                         </div>
@@ -244,51 +264,15 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
     });
 };
 
-const mostrarSkeletonLoading = function () {
-    let skeletons = "";
-    for (let i = 0; i < 3; i++) {
-        skeletons += `
-            <div class="col-md-6 col-xl-4">
-                <div class="card card-executive h-100 border-0 shadow-sm p-4" style="border-radius: 16px;">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <div class="placeholder-glow" style="width: 48px; height: 48px;"><span class="placeholder col-12 h-100 rounded-3"></span></div>
-                        <div class="placeholder-glow w-75">
-                            <span class="placeholder col-8 mb-1"></span>
-                            <span class="placeholder col-5"></span>
-                        </div>
-                    </div>
-                    <hr class="my-3 opacity-10">
-                    <div class="placeholder-glow mb-3">
-                        <span class="placeholder col-10 mb-2"></span>
-                        <span class="placeholder col-12 mb-2"></span>
-                    </div>
-                    <div class="placeholder-glow d-flex gap-2">
-                        <span class="placeholder col-4 rounded-pill"></span>
-                        <span class="placeholder col-6 rounded-pill"></span>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    $("#contenedorEmpresas").html(skeletons);
-};
-
 const crear = function () {
     isEditar = false;
     idEmpresaActual = null;
     urlAccion = urlGuardar;
 
-    $("#modalEmpresa").modal("show");
-    $("#modalEmpresaTituloTexto").text("Nueva Empresa");
-    $("#modalEmpresaSubtituloTexto").text(
-        "Completa la información de la empresa o sede",
-    );
-    $("#modalEmpresaIcono").attr(
-        "class",
-        "fas fa-building me-2 text-warning fs-5",
-    );
-
     $("#formularioEmpresa")[0].reset();
+    $("#modalEmpresa .is-invalid").removeClass("is-invalid");
+    $("#modalEmpresa .invalid-feedback").remove();
+
     resetPreviewLogo();
     $("#maneja_motos").prop("checked", false);
     $("#formularioEmpresa")
@@ -297,21 +281,30 @@ const crear = function () {
     $("#tipo_cedula").val("J-");
     $("#codigo_pais").val("+58");
 
+    $("#modalEmpresaTitulo").text("Nueva Empresa");
+    $("#modalEmpresaSubtitulo").text("Completa la información de la empresa o sede");
+    $("#modalEmpresaIcono").attr("class", "fas fa-building text-warning fs-5");
+
     $("#modalEmpresaBtnGuardar").prop("hidden", false).prop("disabled", false);
     $("#modalEmpresaTextoGuardar").text("Guardar");
+
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalEmpresa"));
+    modal.show();
 };
 
 const ver = async function (id) {
     try {
         idEmpresaActual = id;
         const empresa = await consultarRegistro(urlDetalles, id);
+        if (!empresa) return;
 
-        $("#modalEmpresa").modal("show");
-        $("#modalEmpresaTituloTexto").text("Detalles de la Empresa");
-        $("#modalEmpresaSubtituloTexto").text(
-            "Consulta la información de la empresa",
-        );
-        $("#modalEmpresaIcono").attr("class", "fas fa-eye me-2 text-info fs-5");
+        $("#formularioEmpresa")[0].reset();
+        $("#modalEmpresa .is-invalid").removeClass("is-invalid");
+        $("#modalEmpresa .invalid-feedback").remove();
+
+        $("#modalEmpresaTitulo").text("Detalles de la Empresa");
+        $("#modalEmpresaSubtitulo").text("Consulta la información de la empresa");
+        $("#modalEmpresaIcono").attr("class", "fas fa-eye text-info fs-5");
 
         llenarFormularioEmpresa(empresa);
 
@@ -319,6 +312,9 @@ const ver = async function (id) {
             .find("input, select, textarea")
             .prop("disabled", true);
         $("#modalEmpresaBtnGuardar").prop("hidden", true);
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalEmpresa"));
+        modal.show();
     } catch (error) {
         notificacion.fire({
             icon: "error",
@@ -334,16 +330,15 @@ const editar = async function (id) {
         idEmpresaActual = id;
         urlAccion = urlEditar + id;
         const empresa = await consultarRegistro(urlDetalles, id);
+        if (!empresa) return;
 
-        $("#modalEmpresa").modal("show");
-        $("#modalEmpresaTituloTexto").text(`Editar Empresa: ${empresa.nombre}`);
-        $("#modalEmpresaSubtituloTexto").text(
-            "Modifica los datos de la empresa",
-        );
-        $("#modalEmpresaIcono").attr(
-            "class",
-            "fas fa-edit me-2 text-warning fs-5",
-        );
+        $("#formularioEmpresa")[0].reset();
+        $("#modalEmpresa .is-invalid").removeClass("is-invalid");
+        $("#modalEmpresa .invalid-feedback").remove();
+
+        $("#modalEmpresaTitulo").text(`Editar Empresa: ${empresa.nombre}`);
+        $("#modalEmpresaSubtitulo").text("Modifica los datos de la empresa");
+        $("#modalEmpresaIcono").attr("class", "fas fa-edit text-warning fs-5");
 
         $("#formularioEmpresa")
             .find("input, select, textarea")
@@ -354,6 +349,9 @@ const editar = async function (id) {
             .prop("hidden", false)
             .prop("disabled", false);
         $("#modalEmpresaTextoGuardar").text("Actualizar Cambios");
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalEmpresa"));
+        modal.show();
     } catch (error) {
         notificacion.fire({
             icon: "error",
@@ -363,7 +361,7 @@ const editar = async function (id) {
     }
 };
 
-const llenarFormularioEmpresa = (data) => {
+const llenarFormularioEmpresa = function (data) {
     $("#nombre").val(data.nombre || "");
     $("#razon_social").val(data.razon_social || "");
     $("#correo").val(data.correo || "");
