@@ -1,9 +1,9 @@
-const urlCompleta = window.location.href;
-const urlLista = urlCompleta + "/lista";
-const urlDetalles = urlCompleta + "/";
-const urlEliminar = urlCompleta + "/";
-const urlGuardar = urlCompleta;
-const urlEditar = urlCompleta + "/actualizar/";
+const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
+const urlLista = urlBase + "/lista";
+const urlDetalles = urlBase + "/";
+const urlEliminar = urlBase + "/";
+const urlGuardar = urlBase;
+const urlEditar = urlBase + "/actualizar/";
 
 let urlAccion = urlGuardar;
 let isEditar = false;
@@ -85,6 +85,7 @@ $(document).ready(function () {
                 className: "text-center align-middle",
                 orderable: false,
                 render: function (data, type, row) {
+                    const nombreEscapado = (row.nombre || "").replace(/'/g, "\\'");
                     return `
                     <div class="d-flex justify-content-center gap-1">
                         <button type="button" class="btn btn-outline-info btn-sm rounded-circle shadow-sm" onclick="ver(${row.id});" title="Ver detalles" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
@@ -93,7 +94,7 @@ $(document).ready(function () {
                         <button type="button" class="btn btn-outline-primary btn-sm rounded-circle shadow-sm" onclick="editar(${row.id});" title="Editar" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="eliminar(${row.id}, '${row.nombre}');" title="Eliminar proveedor" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="eliminar(${row.id}, '${nombreEscapado}');" title="Eliminar proveedor" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>`;
@@ -110,38 +111,40 @@ const crear = function () {
     idProveedorActual = null;
     urlAccion = urlGuardar;
 
-    $("#modalProveedor").modal("show");
-    $("#modalProveedorTituloTexto").text("Nuevo Proveedor");
-    $("#modalProveedorSubtituloTexto").text(
-        "Completa la información del proveedor",
-    );
-    $("#modalProveedorIcono").attr(
-        "class",
-        "fas fa-truck-loading me-2 text-warning fs-5",
-    );
-
     $("#formularioProveedor")[0].reset();
+    $("#formularioProveedor .is-invalid").removeClass("is-invalid");
+    $("#formularioProveedor .invalid-feedback").remove();
+
     $("#formularioProveedor")
         .find("input, select, textarea")
         .prop("disabled", false);
     $("#tipo_cedula").val("J-");
     $("#codigo_pais").val("+58");
 
+    $("#modalProveedorTitulo").text("Nuevo Proveedor");
+    $("#modalProveedorSubtitulo").text("Completa la información del proveedor");
+    $("#modalProveedorIcono").attr("class", "fas fa-truck text-warning fs-5");
+
     $("#modalProveedorBtnGuardar").prop("hidden", false).prop("disabled", false);
     $("#modalProveedorTextoGuardar").text("Guardar");
+
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalProveedor"));
+    modal.show();
 };
 
 const ver = async function (id) {
     try {
         idProveedorActual = id;
         const proveedor = await consultarRegistro(urlDetalles, id);
+        if (!proveedor) return;
 
-        $("#modalProveedor").modal("show");
-        $("#modalProveedorTituloTexto").text("Detalles del Proveedor");
-        $("#modalProveedorSubtituloTexto").text(
-            "Consulta la información del proveedor",
-        );
-        $("#modalProveedorIcono").attr("class", "fas fa-eye me-2 text-info fs-5");
+        $("#formularioProveedor")[0].reset();
+        $("#formularioProveedor .is-invalid").removeClass("is-invalid");
+        $("#formularioProveedor .invalid-feedback").remove();
+
+        $("#modalProveedorTitulo").text("Detalles del Proveedor");
+        $("#modalProveedorSubtitulo").text("Consulta la información del proveedor");
+        $("#modalProveedorIcono").attr("class", "fas fa-eye text-info fs-5");
 
         llenarFormularioProveedor(proveedor);
 
@@ -149,12 +152,17 @@ const ver = async function (id) {
             .find("input, select, textarea")
             .prop("disabled", true);
         $("#modalProveedorBtnGuardar").prop("hidden", true);
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalProveedor"));
+        modal.show();
     } catch (error) {
-        notificacion.fire({
-            icon: "error",
-            title: "Error",
-            text: "No se pudieron cargar los datos del proveedor.",
-        });
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "error",
+                title: "Error",
+                text: "No se pudieron cargar los datos del proveedor.",
+            });
+        }
     }
 };
 
@@ -164,16 +172,15 @@ const editar = async function (id) {
         idProveedorActual = id;
         urlAccion = urlEditar + id;
         const proveedor = await consultarRegistro(urlDetalles, id);
+        if (!proveedor) return;
 
-        $("#modalProveedor").modal("show");
-        $("#modalProveedorTituloTexto").text(
-            `Editar Proveedor: ${proveedor.nombre}`,
-        );
-        $("#modalProveedorSubtituloTexto").text("Modifica los datos del proveedor");
-        $("#modalProveedorIcono").attr(
-            "class",
-            "fas fa-edit me-2 text-warning fs-5",
-        );
+        $("#formularioProveedor")[0].reset();
+        $("#formularioProveedor .is-invalid").removeClass("is-invalid");
+        $("#formularioProveedor .invalid-feedback").remove();
+
+        $("#modalProveedorTitulo").text(`Editar Proveedor: ${proveedor.nombre}`);
+        $("#modalProveedorSubtitulo").text("Modifica los datos del proveedor");
+        $("#modalProveedorIcono").attr("class", "fas fa-edit text-warning fs-5");
 
         $("#formularioProveedor")
             .find("input, select, textarea")
@@ -184,16 +191,21 @@ const editar = async function (id) {
             .prop("hidden", false)
             .prop("disabled", false);
         $("#modalProveedorTextoGuardar").text("Actualizar Cambios");
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalProveedor"));
+        modal.show();
     } catch (error) {
-        notificacion.fire({
-            icon: "error",
-            title: "Error",
-            text: "No se pudo cargar la información del proveedor.",
-        });
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "error",
+                title: "Error",
+                text: "No se pudo cargar la información del proveedor.",
+            });
+        }
     }
 };
 
-const llenarFormularioProveedor = (data) => {
+const llenarFormularioProveedor = function (data) {
     $("#nombre").val(data.nombre || "");
     $("#razon_social").val(data.razon_social || "");
     $("#nombre_contacto").val(data.nombre_contacto || "");
@@ -215,6 +227,9 @@ const eliminar = function (id, nombreProveedor) {
         id: id,
         nombre: nombreProveedor,
         tablaSelector: "#datatable_proveedores",
+        titulo: "¿Desactivar Proveedor?",
+        mensaje: `Se modificará el estado del proveedor "${nombreProveedor}". Podrás reactivarlo en cualquier momento.`,
+        confirmButtonText: '<i class="fas fa-sync-alt me-1"></i> Sí, desactivar',
     });
 };
 
@@ -226,24 +241,30 @@ $("#formularioProveedor").on("submit", function (e) {
     const rifNum = $("#cedula_numero").val().trim();
 
     if (nombre.length < 2) {
-        return notificacion.fire({
-            icon: "warning",
-            title: "El nombre comercial debe tener al menos 2 caracteres",
-        });
+        if (window.notificacion) {
+            return window.notificacion.fire({
+                icon: "warning",
+                title: "El nombre comercial debe tener al menos 2 caracteres",
+            });
+        }
     }
 
     if (razonSocial.length < 2) {
-        return notificacion.fire({
-            icon: "warning",
-            title: "La razón social debe tener al menos 2 caracteres",
-        });
+        if (window.notificacion) {
+            return window.notificacion.fire({
+                icon: "warning",
+                title: "La razón social debe tener al menos 2 caracteres",
+            });
+        }
     }
 
     if (rifNum.length < 5) {
-        return notificacion.fire({
-            icon: "warning",
-            title: "Número de RIF / Identificación incompleto",
-        });
+        if (window.notificacion) {
+            return window.notificacion.fire({
+                icon: "warning",
+                title: "Número de RIF / Identificación incompleto",
+            });
+        }
     }
 
     enviarFormulario({
