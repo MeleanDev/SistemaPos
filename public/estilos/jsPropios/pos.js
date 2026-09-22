@@ -1,9 +1,3 @@
-/**
- * ============================================================================
- * SISTEMA POS ENTERPRISE - CONTROLADOR JAVASCRIPT DE PUNTO DE VENTA & FACTURACIÓN
- * ============================================================================
- */
-
 let posCatalogos = {
     cliente_defecto: null,
     almacenes: [],
@@ -14,7 +8,7 @@ let posCatalogos = {
 };
 
 let posClienteActual = null;
-let posTipoVentaActual = "detal"; // 'detal' o 'mayor'
+let posTipoVentaActual = "detal";
 let posAlmacenActualId = 1;
 let posTasaDia = 1.0000;
 let posCarrito = [];
@@ -28,10 +22,15 @@ $(document).ready(function () {
     configurarBuscadorClientesPos();
 });
 
-/**
- * 1. Cargar Datos y Catálogos Iniciales del POS
- */
-const cargarDatosInicialesPos = async function () {
+function formatearMonto(monto, decimales = 2) {
+    const num = parseFloat(monto) || 0;
+    return num.toLocaleString("es-VE", {
+        minimumFractionDigits: decimales,
+        maximumFractionDigits: decimales,
+    });
+};
+
+async function cargarDatosInicialesPos() {
     try {
         const res = await $.ajax({
             url: urlPosDatos,
@@ -42,10 +41,9 @@ const cargarDatosInicialesPos = async function () {
         if (res.success && res.data) {
             posCatalogos = res.data;
             posTasaDia = parseFloat(res.data.tasa_usd) || 1.0000;
-            $("#posBadgeTasaDia").text(posTasaDia.toFixed(4));
-            $("#cobroModalTasa").text(posTasaDia.toFixed(4));
+            $("#posBadgeTasaDia").text(formatearMonto(posTasaDia, 2));
+            $("#cobroModalTasa").text(formatearMonto(posTasaDia, 2));
 
-            // Poblar selector de almacenes
             const $selAlm = $("#posSelectAlmacen");
             $selAlm.empty();
             if (Array.isArray(res.data.almacenes) && res.data.almacenes.length > 0) {
@@ -55,12 +53,10 @@ const cargarDatosInicialesPos = async function () {
                 posAlmacenActualId = parseInt(res.data.almacenes[0].id);
             }
 
-            // Establecer cliente por defecto
             if (res.data.cliente_defecto) {
                 establecerClienteActual(res.data.cliente_defecto);
             }
 
-            // Poblar selector de métodos de pago en el modal de cobro
             poblarSelectMetodosPago();
         }
     } catch (e) {
@@ -68,10 +64,7 @@ const cargarDatosInicialesPos = async function () {
     }
 };
 
-/**
- * Poblar opciones de métodos de pago
- */
-const poblarSelectMetodosPago = function () {
+function poblarSelectMetodosPago() {
     const $selMetodo = $("#cobroSelectMetodo");
     $selMetodo.empty();
 
@@ -85,20 +78,13 @@ const poblarSelectMetodosPago = function () {
     actualizarMonedaPagoSeleccionada();
 };
 
-/**
- * Actualizar símbolo según el método de pago seleccionado
- */
-const actualizarMonedaPagoSeleccionada = function () {
+function actualizarMonedaPagoSeleccionada() {
     const $opt = $("#cobroSelectMetodo option:selected");
     const moneda = $opt.data("moneda") || "USD";
     $("#cobroSimboloMonedaPago").text(moneda === "VES" ? "Bs." : "$");
 };
-window.actualizarMonedaPagoSeleccionada = actualizarMonedaPagoSeleccionada;
 
-/**
- * 2. Manejo de Clientes
- */
-const establecerClienteActual = function (cliente) {
+function establecerClienteActual(cliente) {
     posClienteActual = cliente;
     const nombreCompleto = `${cliente.nombre} ${cliente.apellido || ""}`.trim();
     $("#posClienteNombre").text(nombreCompleto);
@@ -107,25 +93,22 @@ const establecerClienteActual = function (cliente) {
 
     const tipo = cliente.tipo_cliente || "detal";
     $("#posClienteTipoBadge").text(tipo === "mayorista" ? "Mayorista" : "Detal")
-        .removeClass("bg-secondary-subtle text-secondary bg-purple-subtle text-purple-emphasis")
-        .addClass(tipo === "mayorista" ? "bg-purple-subtle text-purple-emphasis" : "bg-secondary-subtle text-secondary");
+        .removeClass("bg-primary-subtle text-primary border-primary-subtle bg-purple-subtle text-purple-emphasis border-purple-subtle bg-secondary-subtle text-secondary")
+        .addClass(tipo === "mayorista" ? "bg-purple-subtle text-purple-emphasis border border-purple-subtle" : "bg-primary-subtle text-primary border border-primary-subtle");
 
-    // Si el cliente es mayorista y estamos en detal, sugerir o auto-cambiar
     if (tipo === "mayorista" && posTipoVentaActual !== "mayor") {
-        $("#tipoVentaMayor").prop("checked", true);
         cambiarTipoVenta("mayor");
     }
 };
 
-const resetearClienteDefecto = function () {
+function resetearClienteDefecto() {
     if (posCatalogos.cliente_defecto) {
         establecerClienteActual(posCatalogos.cliente_defecto);
         $("#posInputCliente").val("");
     }
 };
-window.resetearClienteDefecto = resetearClienteDefecto;
 
-const configurarBuscadorClientesPos = function () {
+function configurarBuscadorClientesPos() {
     const $input = $("#posInputCliente");
     const $dropdown = $("#dropdownClientesPos");
     let debounceTimer = null;
@@ -195,45 +178,120 @@ const configurarBuscadorClientesPos = function () {
     });
 };
 
-const abrirModalNuevoCliente = function (cedulaInicial = "") {
+function abrirModalNuevoCliente(cedulaInicial = "") {
     $("#formRapidoClientePos")[0].reset();
     $("#rapidoClienteId").val("");
-    if (cedulaInicial) {
-        $("#rapido_cli_cedula").val(cedulaInicial);
-    }
-    $("#modalRapidoClientePosLabel").html('<i class="fas fa-user-plus text-warning me-1"></i> Registrar Nuevo Cliente');
-    bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRapidoClientePos")).show();
-};
-window.abrirModalNuevoCliente = abrirModalNuevoCliente;
 
-const abrirModalEditarCliente = function () {
+    if (cedulaInicial) {
+        const desglosada = typeof desglosarCedula === "function" ? desglosarCedula(cedulaInicial) : { tipo: "V-", numero: cedulaInicial.replace(/^[VJEGPvjegp]-?/, "") };
+        $("#rapido_tipo_cedula").val(desglosada.tipo || "V-");
+        $("#rapido_cedula_numero").val(desglosada.numero || "");
+    } else {
+        $("#rapido_tipo_cedula").val("V-");
+        $("#rapido_cedula_numero").val("");
+    }
+
+    $("#rapido_codigo_pais").val("+58");
+    $("#rapido_telefono_numero").val("");
+    $("#rapido_tipo_cliente").val("detal");
+
+    $("#modalRapidoClientePosTitulo").text("Nuevo Cliente");
+    $("#modalRapidoClientePosSubtitulo").text("Completa la información del cliente");
+    $("#modalRapidoClientePosIcono").attr("class", "fas fa-user-plus text-warning fs-5");
+    $("#modalRapidoClientePosTextoGuardar").text("Guardar Cliente");
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRapidoClientePos")).show();
+    setTimeout(() => {
+        if ($("#rapido_cedula_numero").val()) {
+            $("#rapido_nombre").focus();
+        } else {
+            $("#rapido_cedula_numero").focus();
+        }
+    }, 300);
+};
+
+function abrirModalEditarCliente() {
     if (!posClienteActual || posClienteActual.id === posCatalogos.cliente_defecto?.id) {
         return abrirModalNuevoCliente();
     }
     $("#formRapidoClientePos")[0].reset();
     $("#rapidoClienteId").val(posClienteActual.id);
-    $("#rapido_cli_cedula").val(posClienteActual.cedula);
-    $("#rapido_cli_nombre").val(posClienteActual.nombre);
-    $("#rapido_cli_apellido").val(posClienteActual.apellido);
-    $("#rapido_cli_telefono").val(posClienteActual.telefono);
-    $("#rapido_cli_correo").val(posClienteActual.correo);
-    $("#rapido_cli_direccion").val(posClienteActual.direccion);
-    $("#rapido_cli_tipo").val(posClienteActual.tipo_cliente || "detal");
 
-    $("#modalRapidoClientePosLabel").html('<i class="fas fa-user-edit text-primary me-1"></i> Modificar Datos del Cliente');
+    $("#rapido_nombre").val(posClienteActual.nombre || "");
+    $("#rapido_apellido").val(posClienteActual.apellido || "");
+
+    const cedula = typeof desglosarCedula === "function" ? desglosarCedula(posClienteActual.cedula) : { tipo: "V-", numero: posClienteActual.cedula };
+    $("#rapido_tipo_cedula").val(cedula.tipo || "V-");
+    $("#rapido_cedula_numero").val(cedula.numero || "");
+
+    const telefono = typeof desglosarTelefono === "function" ? desglosarTelefono(posClienteActual.telefono) : { codigo: "+58", numero: posClienteActual.telefono };
+    $("#rapido_codigo_pais").val(telefono.codigo || "+58");
+    $("#rapido_telefono_numero").val(telefono.numero || "");
+
+    $("#rapido_correo").val(posClienteActual.correo || "");
+    $("#rapido_direccion").val(posClienteActual.direccion || "");
+    $("#rapido_tipo_cliente").val(posClienteActual.tipo_cliente || "detal");
+
+    $("#modalRapidoClientePosTitulo").text(`Editar Cliente: ${posClienteActual.nombre} ${posClienteActual.apellido || ''}`);
+    $("#modalRapidoClientePosSubtitulo").text("Modifica los datos fiscales del cliente");
+    $("#modalRapidoClientePosIcono").attr("class", "fas fa-user-edit text-warning fs-5");
+    $("#modalRapidoClientePosTextoGuardar").text("Actualizar Cambios");
+
     bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRapidoClientePos")).show();
 };
-window.abrirModalEditarCliente = abrirModalEditarCliente;
 
-const guardarClienteRapidoPos = async function (e) {
+async function guardarClienteRapidoPos(e) {
     e.preventDefault();
-    const $form = $("#formRapidoClientePos");
+
+    const nombre = $("#rapido_nombre").val().trim();
+    const apellido = $("#rapido_apellido").val().trim();
+    const cedulaNum = $("#rapido_cedula_numero").val().trim();
+
+    if (nombre.length < 2 || apellido.length < 2) {
+        if (window.notificacion) {
+            return window.notificacion.fire({
+                icon: "warning",
+                title: "Nombre o Apellido demasiado corto",
+                text: "El nombre y apellido deben tener al menos 2 caracteres.",
+            });
+        }
+        return;
+    }
+
+    if (cedulaNum.length < 5) {
+        if (window.notificacion) {
+            return window.notificacion.fire({
+                icon: "warning",
+                title: "Documento incompleto",
+                text: "El número de cédula o RIF debe tener al menos 5 dígitos.",
+            });
+        }
+        return;
+    }
+
+    const tipoCedula = $("#rapido_tipo_cedula").val() || "V-";
+    const cedulaCompleta = tipoCedula + cedulaNum;
+
+    const telNum = $("#rapido_telefono_numero").val().trim();
+    const telCodigo = $("#rapido_codigo_pais").val() || "+58";
+    const telefonoCompleto = telNum ? (telCodigo + telNum) : null;
+
+    const payload = {
+        cliente_id: $("#rapidoClienteId").val() || null,
+        cedula: cedulaCompleta,
+        nombre: nombre,
+        apellido: apellido,
+        telefono: telefonoCompleto,
+        correo: $("#rapido_correo").val().trim() || null,
+        direccion: $("#rapido_direccion").val().trim() || null,
+        tipo_cliente: $("#rapido_tipo_cliente").val() || "detal",
+    };
 
     try {
         const res = await $.ajax({
             url: urlPosGuardarCliente,
             type: "POST",
-            data: $form.serialize(),
+            data: payload,
             dataType: "json",
             headers: {
                 "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
@@ -242,7 +300,10 @@ const guardarClienteRapidoPos = async function (e) {
 
         if (res.success && res.data) {
             establecerClienteActual(res.data);
-            bootstrap.Modal.getInstance(document.getElementById("modalRapidoClientePos")).hide();
+            const modalEl = document.getElementById("modalRapidoClientePos");
+            const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+            if (modalInst) modalInst.hide();
+
             if (window.notificacion) {
                 window.notificacion.fire({
                     icon: "success",
@@ -258,15 +319,26 @@ const guardarClienteRapidoPos = async function (e) {
         }
     }
 };
-window.guardarClienteRapidoPos = guardarClienteRapidoPos;
 
-/**
- * 3. Cambio de Almacén y Tipo de Venta (Detal vs Mayor)
- */
-const cambiarTipoVenta = function (tipo) {
+function cambiarTipoVenta(tipo) {
     posTipoVentaActual = tipo;
 
-    // Recalcular precios de todos los productos en el carrito
+    if (tipo === "mayor") {
+        $("#btnTarifaDetal").removeClass("active-detal");
+        $("#btnTarifaMayor").addClass("active-mayor");
+        $("#posTarifaStatusBadge")
+            .text("Tarifa Mayor")
+            .removeClass("bg-primary-subtle text-primary border-primary-subtle")
+            .addClass("bg-purple-subtle text-purple-emphasis border border-purple-subtle");
+    } else {
+        $("#btnTarifaMayor").removeClass("active-mayor");
+        $("#btnTarifaDetal").addClass("active-detal");
+        $("#posTarifaStatusBadge")
+            .text("Tarifa Detal")
+            .removeClass("bg-purple-subtle text-purple-emphasis border-purple-subtle")
+            .addClass("bg-primary-subtle text-primary border border-primary-subtle");
+    }
+
     posCarrito.forEach((item) => {
         const precioUnitUsd = posTipoVentaActual === "mayor" ? item.precio_mayorista_usd : item.precio_detal_usd;
         item.precio_unitario_usd = precioUnitUsd;
@@ -277,17 +349,12 @@ const cambiarTipoVenta = function (tipo) {
     renderizarCarritoPos();
     recalcularTotalesPos();
 };
-window.cambiarTipoVenta = cambiarTipoVenta;
 
-const cambiarAlmacenActivo = function () {
+function cambiarAlmacenActivo() {
     posAlmacenActualId = parseInt($("#posSelectAlmacen").val()) || 1;
 };
-window.cambiarAlmacenActivo = cambiarAlmacenActivo;
 
-/**
- * 4. Buscador / Escáner de Productos & Modo Prefijo *
- */
-const configurarBuscadorProductosPos = function () {
+function configurarBuscadorProductosPos() {
     const $input = $("#posInputBuscadorProducto");
     const $dropdown = $("#dropdownProductosPos");
     let debounceTimer = null;
@@ -302,7 +369,6 @@ const configurarBuscadorProductosPos = function () {
             const query = (requiereModal ? rawVal.substring(1).trim() : rawVal).toLowerCase();
             if (!query) return;
 
-            // 1. Buscar coincidencia exacta por código de barra o SKU
             const prodExacto = posCatalogos.productos.find((p) => {
                 const skuMatch = (p.codigo_interno || "").toLowerCase() === query;
                 const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => cb.toLowerCase() === query);
@@ -320,7 +386,6 @@ const configurarBuscadorProductosPos = function () {
                 return;
             }
 
-            // 2. Coincidencias por nombre
             const coincidencias = posCatalogos.productos.filter((p) =>
                 p.nombre.toLowerCase().includes(query) || (p.codigo_interno || "").toLowerCase().includes(query)
             );
@@ -377,7 +442,7 @@ const configurarBuscadorProductosPos = function () {
     });
 };
 
-const renderizarDropdownProductos = function (productos, requiereModal = false) {
+function renderizarDropdownProductos(productos, requiereModal = false) {
     const $dropdown = $("#dropdownProductosPos");
     $dropdown.empty();
 
@@ -469,12 +534,9 @@ const renderizarDropdownProductos = function (productos, requiereModal = false) 
     $dropdown.show();
 };
 
-/**
- * 5. Modal de Cantidad y Almacén de Despacho (Prefijo *)
- */
 let productoSeleccionadoModalDetalle = null;
 
-const abrirModalSeleccionCantidadAlmacen = function (prod) {
+function abrirModalSeleccionCantidadAlmacen(prod) {
     if (!prod) return;
     productoSeleccionadoModalDetalle = prod;
 
@@ -493,7 +555,6 @@ const abrirModalSeleccionCantidadAlmacen = function (prod) {
         .removeClass("bg-primary-subtle text-primary bg-light text-secondary")
         .addClass(prod.aplica_iva ? "bg-primary-subtle text-primary" : "bg-light text-secondary");
 
-    // Configurar icono
     let iconHtml = '<i class="fas fa-box"></i>';
     let iconBg = 'bg-primary bg-opacity-10 text-primary';
     if (prod.tipo_item === 'moto') {
@@ -516,7 +577,6 @@ const abrirModalSeleccionCantidadAlmacen = function (prod) {
     }
     $("#modalDetalleIcono").html(iconHtml).attr("class", `avatar-executive-sm rounded-3 ${iconBg} d-flex align-items-center justify-content-center`);
 
-    // Poblar almacenes con stock
     const $selAlm = $("#modalDetalleSelectAlmacen");
     $selAlm.empty();
 
@@ -533,7 +593,7 @@ const abrirModalSeleccionCantidadAlmacen = function (prod) {
     }
 
     $("#modalDetalleInputDescuento").val(0);
-    $("#modalDetalleTasa").text(posTasaDia.toFixed(4));
+    $("#modalDetalleTasa").text(formatearMonto(posTasaDia, 2));
 
     actualizarStockAlmacenModalDetalle();
     actualizarSubtotalModalDetalle();
@@ -543,9 +603,8 @@ const abrirModalSeleccionCantidadAlmacen = function (prod) {
         $("#modalDetalleInputCantidad").focus().select();
     }, 300);
 };
-window.abrirModalSeleccionCantidadAlmacen = abrirModalSeleccionCantidadAlmacen;
 
-const actualizarStockAlmacenModalDetalle = function () {
+function actualizarStockAlmacenModalDetalle() {
     const $opt = $("#modalDetalleSelectAlmacen option:selected");
     const stock = parseFloat($opt.data("stock")) || 0;
     const unidad = productoSeleccionadoModalDetalle ? (productoSeleccionadoModalDetalle.unidad_medida || 'UND') : 'UND';
@@ -554,9 +613,8 @@ const actualizarStockAlmacenModalDetalle = function () {
         .removeClass("bg-success bg-danger")
         .addClass(stock <= 0 && productoSeleccionadoModalDetalle?.tipo_item === 'producto' ? "bg-danger" : "bg-success");
 };
-window.actualizarStockAlmacenModalDetalle = actualizarStockAlmacenModalDetalle;
 
-const actualizarSubtotalModalDetalle = function () {
+function actualizarSubtotalModalDetalle() {
     if (!productoSeleccionadoModalDetalle) return;
     const prod = productoSeleccionadoModalDetalle;
     const cant = parseFloat($("#modalDetalleInputCantidad").val()) || 0;
@@ -569,26 +627,23 @@ const actualizarSubtotalModalDetalle = function () {
     $("#modalDetalleSubtotalUsd").text(`$ ${subtotalUsd.toFixed(2)}`);
     $("#modalDetalleSubtotalBs").text(`Bs. ${subtotalBs.toFixed(2)}`);
 };
-window.actualizarSubtotalModalDetalle = actualizarSubtotalModalDetalle;
 
-const alterarCantidadModalDetalle = function (delta) {
+function alterarCantidadModalDetalle(delta) {
     if (productoSeleccionadoModalDetalle?.tipo_item === 'moto') return;
     const actual = parseFloat($("#modalDetalleInputCantidad").val()) || 1;
     const nueva = Math.max(0.001, actual + delta);
     $("#modalDetalleInputCantidad").val(nueva);
     actualizarSubtotalModalDetalle();
 };
-window.alterarCantidadModalDetalle = alterarCantidadModalDetalle;
 
-const sumarPresetModalDetalle = function (cant) {
+function sumarPresetModalDetalle(cant) {
     if (productoSeleccionadoModalDetalle?.tipo_item === 'moto') return;
     const actual = parseFloat($("#modalDetalleInputCantidad").val()) || 0;
     $("#modalDetalleInputCantidad").val(actual + cant);
     actualizarSubtotalModalDetalle();
 };
-window.sumarPresetModalDetalle = sumarPresetModalDetalle;
 
-const confirmarAgregarConDetalle = function (e) {
+function confirmarAgregarConDetalle(e) {
     if (e) e.preventDefault();
     if (!productoSeleccionadoModalDetalle) return;
 
@@ -612,16 +667,11 @@ const confirmarAgregarConDetalle = function (e) {
 
     $("#posInputBuscadorProducto").val("").focus();
 };
-window.confirmarAgregarConDetalle = confirmarAgregarConDetalle;
 
-/**
- * 6. Agregar / Modificar / Eliminar Productos en el Carrito
- */
-const agregarProductoAlCarrito = function (prod, cantidad = 1, almacenId = null, descuentoPorcentaje = 0) {
+function agregarProductoAlCarrito(prod, cantidad = 1, almacenId = null, descuentoPorcentaje = 0) {
     const precioUnitUsd = posTipoVentaActual === "mayor" ? parseFloat(prod.precio_mayorista_usd || 0) : parseFloat(prod.precio_detal_usd || 0);
     const targetAlmId = almacenId || posAlmacenActualId;
 
-    // Verificar si ya existe en el carrito
     const idxExistente = posCarrito.findIndex((item) => item.producto_id === prod.id && item.tipo_item === prod.tipo_item);
 
     if (idxExistente !== -1) {
@@ -688,7 +738,7 @@ const agregarProductoAlCarrito = function (prod, cantidad = 1, almacenId = null,
     recalcularTotalesPos();
 };
 
-const actualizarCantidadItem = function (idx, nuevaCantidad) {
+function actualizarCantidadItem(idx, nuevaCantidad) {
     if (idx < 0 || idx >= posCarrito.length) return;
     const cant = parseFloat(nuevaCantidad) || 1;
 
@@ -707,16 +757,14 @@ const actualizarCantidadItem = function (idx, nuevaCantidad) {
     renderizarCarritoPos();
     recalcularTotalesPos();
 };
-window.actualizarCantidadItem = actualizarCantidadItem;
 
-const alterarCantidadItem = function (idx, delta) {
+function alterarCantidadItem(idx, delta) {
     if (idx < 0 || idx >= posCarrito.length) return;
     const actual = posCarrito[idx].cantidad;
     actualizarCantidadItem(idx, actual + delta);
 };
-window.alterarCantidadItem = alterarCantidadItem;
 
-const eliminarItemCarrito = function (idx) {
+function eliminarItemCarrito(idx) {
     if (idx < 0 || idx >= posCarrito.length) return;
     posCarrito.splice(idx, 1);
     if (posIndiceRenglonSeleccionado === idx) {
@@ -725,9 +773,8 @@ const eliminarItemCarrito = function (idx) {
     renderizarCarritoPos();
     recalcularTotalesPos();
 };
-window.eliminarItemCarrito = eliminarItemCarrito;
 
-const limpiarPantallaPos = function () {
+function limpiarPantallaPos() {
     if (posCarrito.length === 0) return;
 
     if (window.Swal) {
@@ -756,22 +803,22 @@ const limpiarPantallaPos = function () {
         recalcularTotalesPos();
     }
 };
-window.limpiarPantallaPos = limpiarPantallaPos;
 
-/**
- * 6. Renderizar Carrito y Totales
- */
-const renderizarCarritoPos = function () {
+function renderizarCarritoPos() {
     const $tbody = $("#contenedorFilasPos");
     $tbody.empty();
 
     if (posCarrito.length === 0) {
         $tbody.append(`
             <tr id="filaPosVacia">
-                <td colspan="7" class="text-center py-5 text-muted">
-                    <i class="fas fa-cash-register fa-3x mb-3 text-secondary opacity-50 d-block"></i>
-                    <h6 class="fw-bold text-dark mb-1">Carrito de Venta Vacío</h6>
-                    <span class="small">Escanea un código de barras o busca un producto en el campo inferior para comenzar la venta.</span>
+                <td colspan="7" class="text-center py-5">
+                    <div class="avatar-executive-sm rounded-circle bg-primary bg-opacity-10 text-primary mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 64px; height: 64px; font-size: 1.8rem;">
+                        <i class="fas fa-cash-register"></i>
+                    </div>
+                    <h6 class="fw-bold text-dark mb-1" style="font-size: 1.05rem;">Carrito de Venta Vacío</h6>
+                    <p class="mb-0 font-monospace" style="color: #475569; font-size: 0.86rem;">
+                        Escanea un código de barras o escribe <strong class="text-primary fw-bold">*código</strong> para especificar cantidad y almacén.
+                    </p>
                 </td>
             </tr>
         `);
@@ -872,14 +919,13 @@ const renderizarCarritoPos = function () {
     $("#posContadorItems").html(`<i class="fas fa-shopping-basket text-primary me-1"></i> ${posCarrito.length} Ítem${posCarrito.length === 1 ? '' : 's'} (${totalUnidades.toLocaleString()} Unid.)`);
 };
 
-const seleccionarFilaPos = function (idx) {
+function seleccionarFilaPos(idx) {
     posIndiceRenglonSeleccionado = idx;
     $(".fila-pos-item").removeClass("table-active border-primary");
     $(`.fila-pos-item[data-idx="${idx}"]`).addClass("table-active border-primary");
 };
-window.seleccionarFilaPos = seleccionarFilaPos;
 
-const recalcularTotalesPos = function () {
+function recalcularTotalesPos() {
     let subtotalNetoUsd = 0;
     let totalIvaUsd = 0;
 
@@ -912,10 +958,7 @@ const recalcularTotalesPos = function () {
     $("#posTotalVentaBs").text(`Bs. ${totalGeneralBs.toFixed(2)}`);
 };
 
-/**
- * 7. Modal de Cobro & Facturación Multimoneda
- */
-const abrirModalCobro = function () {
+function abrirModalCobro() {
     if (posCarrito.length === 0) {
         if (window.notificacion) {
             window.notificacion.fire({
@@ -946,11 +989,9 @@ const abrirModalCobro = function () {
     $("#cobroCondicionPago").val("contado");
     toggleCondicionPagoCobro();
 
-    // Iniciar con la lista de pagos limpia o con pago sugerido exacto
     posPagos = [];
     renderizarListaPagosCobro();
 
-    // Sugerir monto total en el input de pago
     const $primerMetodo = $("#cobroSelectMetodo option:first");
     const esBs = $primerMetodo.data("moneda") === "VES";
     $("#cobroInputMonto").val(esBs ? totalGeneralBs.toFixed(2) : totalGeneralUsd.toFixed(2));
@@ -962,9 +1003,8 @@ const abrirModalCobro = function () {
         $("#cobroInputMonto").focus().select();
     }, 300);
 };
-window.abrirModalCobro = abrirModalCobro;
 
-const toggleCondicionPagoCobro = function () {
+function toggleCondicionPagoCobro() {
     const cond = $("#cobroCondicionPago").val();
     if (cond === "credito") {
         $("#contenedorDiasCreditoPos").slideDown(150);
@@ -974,18 +1014,16 @@ const toggleCondicionPagoCobro = function () {
     }
     actualizarBalancesCobro();
 };
-window.toggleCondicionPagoCobro = toggleCondicionPagoCobro;
 
-const calcularVencimientoCobro = function () {
+function calcularVencimientoCobro() {
     const dias = parseInt($("#cobroDiasCredito").val()) || 15;
     const fecha = new Date();
     fecha.setDate(fecha.getDate() + dias);
     const fechaStr = fecha.toISOString().split("T")[0];
     $("#cobroFechaVenceBadge").text(`Vence: ${fechaStr}`);
 };
-window.calcularVencimientoCobro = calcularVencimientoCobro;
 
-const agregarPagoALista = function () {
+function agregarPagoALista() {
     const metodoId = parseInt($("#cobroSelectMetodo").val()) || 0;
     const metodoNombre = $("#cobroSelectMetodo option:selected").text();
     const moneda = $("#cobroSelectMetodo option:selected").data("moneda") || "USD";
@@ -1016,7 +1054,6 @@ const agregarPagoALista = function () {
 
     renderizarListaPagosCobro();
 
-    // Limpiar input y recalcular faltante sugerido
     const faltante = obtenerMontoFaltanteUsd();
     if (faltante > 0) {
         const esBs = $("#cobroSelectMetodo option:selected").data("moneda") === "VES";
@@ -1026,16 +1063,14 @@ const agregarPagoALista = function () {
     }
     $("#cobroInputReferencia").val("");
 };
-window.agregarPagoALista = agregarPagoALista;
 
-const eliminarPagoDeLista = function (idx) {
+function eliminarPagoDeLista(idx) {
     if (idx < 0 || idx >= posPagos.length) return;
     posPagos.splice(idx, 1);
     renderizarListaPagosCobro();
 };
-window.eliminarPagoDeLista = eliminarPagoDeLista;
 
-const renderizarListaPagosCobro = function () {
+function renderizarListaPagosCobro() {
     const $tbody = $("#contenedorFilasCobroPagos");
     $tbody.empty();
 
@@ -1069,7 +1104,7 @@ const renderizarListaPagosCobro = function () {
     actualizarBalancesCobro();
 };
 
-const obtenerTotalVentaUsd = function () {
+function obtenerTotalVentaUsd() {
     let subtotalNetoUsd = 0;
     let totalIvaUsd = 0;
     posCarrito.forEach((item) => {
@@ -1081,13 +1116,13 @@ const obtenerTotalVentaUsd = function () {
     return roundDecimals(subtotalNetoUsd + totalIvaUsd, 2);
 };
 
-const obtenerMontoFaltanteUsd = function () {
+function obtenerMontoFaltanteUsd() {
     const total = obtenerTotalVentaUsd();
     const pagado = posPagos.reduce((acc, p) => acc + p.monto_usd, 0);
     return Math.max(0, roundDecimals(total - pagado, 2));
 };
 
-const actualizarBalancesCobro = function () {
+function actualizarBalancesCobro() {
     const total = obtenerTotalVentaUsd();
     const pagado = posPagos.reduce((acc, p) => acc + p.monto_usd, 0);
     const cond = $("#cobroCondicionPago").val();
@@ -1113,10 +1148,7 @@ const actualizarBalancesCobro = function () {
     }
 };
 
-/**
- * 8. Procesar Venta Final
- */
-const procesarVentaFinal = async function () {
+async function procesarVentaFinal() {
     const total = obtenerTotalVentaUsd();
     const pagado = posPagos.reduce((acc, p) => acc + p.monto_usd, 0);
     const cond = $("#cobroCondicionPago").val();
@@ -1236,16 +1268,14 @@ const procesarVentaFinal = async function () {
         $btn.prop("disabled", false).html(textoOriginal);
     }
 };
-window.procesarVentaFinal = procesarVentaFinal;
 
-const abrirModalCuentasEspera = async function () {
+async function abrirModalCuentasEspera() {
     $("#inputNotaEspera").val(posClienteActual ? `Cliente ${posClienteActual.nombre}` : "");
     await cargarListaCuentasEspera();
     bootstrap.Modal.getOrCreateInstance(document.getElementById("modalCuentasEspera")).show();
 };
-window.abrirModalCuentasEspera = abrirModalCuentasEspera;
 
-const guardarCarritoEnEspera = async function () {
+async function guardarCarritoEnEspera() {
     if (posCarrito.length === 0) {
         if (window.notificacion) {
             window.notificacion.fire({ icon: "warning", title: "Carrito Vacío", text: "No hay productos para colocar en espera." });
@@ -1303,9 +1333,8 @@ const guardarCarritoEnEspera = async function () {
         if (window.notificacion) window.notificacion.fire({ icon: "error", title: "Error", text: msg });
     }
 };
-window.guardarCarritoEnEspera = guardarCarritoEnEspera;
 
-const cargarListaCuentasEspera = async function () {
+async function cargarListaCuentasEspera() {
     const $tbody = $("#contenedorFilasCuentasEspera");
     $tbody.empty();
 
@@ -1349,7 +1378,7 @@ const cargarListaCuentasEspera = async function () {
     }
 };
 
-const recuperarCuentaEspera = async function (id) {
+async function recuperarCuentaEspera(id) {
     try {
         const res = await $.ajax({
             url: `${urlPosEnEsperaRecuperar}/${id}/recuperar`,
@@ -1360,7 +1389,6 @@ const recuperarCuentaEspera = async function (id) {
         if (res.success && res.data) {
             const data = res.data;
 
-            // 1. Restaurar Cliente
             if (data.cliente && typeof data.cliente === "object") {
                 establecerClienteActual(data.cliente);
             } else if (data.cliente_id) {
@@ -1370,17 +1398,10 @@ const recuperarCuentaEspera = async function (id) {
                 }
             }
 
-            // 2. Restaurar Modalidad de Venta
             if (data.tipo_venta) {
-                posTipoVentaActual = data.tipo_venta;
-                if (data.tipo_venta === "mayor") {
-                    $("#tipoVentaMayor").prop("checked", true);
-                } else {
-                    $("#tipoVentaDetal").prop("checked", true);
-                }
+                cambiarTipoVenta(data.tipo_venta);
             }
 
-            // 3. Restaurar Carrito normalizando estrictamente todos los tipos numéricos
             const rawCarrito = Array.isArray(data.carrito) ? data.carrito : (Array.isArray(data.items) ? data.items : []);
             posCarrito = rawCarrito.map((item) => {
                 const cant = parseFloat(item.cantidad) || 1;
@@ -1418,11 +1439,9 @@ const recuperarCuentaEspera = async function (id) {
 
             posIndiceRenglonSeleccionado = posCarrito.length > 0 ? 0 : null;
 
-            // 4. Renderizar y recalcular
             renderizarCarritoPos();
             recalcularTotalesPos();
 
-            // 5. Cerrar modal de cuentas en espera
             const modalEl = document.getElementById("modalCuentasEspera");
             if (modalEl) {
                 const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -1444,9 +1463,8 @@ const recuperarCuentaEspera = async function (id) {
         }
     }
 };
-window.recuperarCuentaEspera = recuperarCuentaEspera;
 
-const descartarCuentaEspera = async function (id) {
+async function descartarCuentaEspera(id) {
     try {
         await $.ajax({
             url: `${urlPosEnEsperaEliminar}/${id}`,
@@ -1461,11 +1479,10 @@ const descartarCuentaEspera = async function (id) {
         console.error("Error al descartar cuenta en espera:", e);
     }
 };
-window.descartarCuentaEspera = descartarCuentaEspera;
 
 let facturaDevolucionActual = null;
 
-const abrirModalDevolucion = function () {
+function abrirModalDevolucion() {
     $("#devInputBusquedaFactura").val("");
     $("#contenedorDetallesFacturaDevolucion").hide();
     $("#btnConfirmarDevolucion").hide();
@@ -1475,9 +1492,8 @@ const abrirModalDevolucion = function () {
         $("#devInputBusquedaFactura").focus();
     }, 300);
 };
-window.abrirModalDevolucion = abrirModalDevolucion;
 
-const buscarFacturaParaDevolucion = async function () {
+async function buscarFacturaParaDevolucion() {
     const busqueda = $("#devInputBusquedaFactura").val().trim();
     if (!busqueda) {
         if (window.notificacion) {
@@ -1554,35 +1570,31 @@ const buscarFacturaParaDevolucion = async function () {
         if (window.notificacion) window.notificacion.fire({ icon: "error", title: "Búsqueda Fallida", text: msg });
     }
 };
-window.buscarFacturaParaDevolucion = buscarFacturaParaDevolucion;
 
-const marcarTodoDevolucion = function () {
+function marcarTodoDevolucion() {
     $(".input-cant-dev").each(function () {
         const max = parseFloat($(this).attr("max")) || 0;
         $(this).val(max);
         calcularTotalRenglonDevolucion(this);
     });
 };
-window.marcarTodoDevolucion = marcarTodoDevolucion;
 
-const desmarcarTodoDevolucion = function () {
+function desmarcarTodoDevolucion() {
     $(".input-cant-dev").each(function () {
         $(this).val(0);
         calcularTotalRenglonDevolucion(this);
     });
 };
-window.desmarcarTodoDevolucion = desmarcarTodoDevolucion;
 
-const calcularTotalRenglonDevolucion = function (input) {
+function calcularTotalRenglonDevolucion(input) {
     const $input = $(input);
     const cant = parseFloat($input.val()) || 0;
     const precio = parseFloat($input.data("precio")) || 0;
     const subtotal = roundDecimals(cant * precio, 2);
     $input.closest("tr").find(".subtotal-dev-row").text(`$ ${subtotal.toFixed(2)}`);
 };
-window.calcularTotalRenglonDevolucion = calcularTotalRenglonDevolucion;
 
-const ejecutarDevolucion = async function () {
+async function ejecutarDevolucion() {
     if (!facturaDevolucionActual) return;
 
     const motivo = $("#devInputMotivo").val().trim();
@@ -1652,12 +1664,8 @@ const ejecutarDevolucion = async function () {
         if (window.notificacion) window.notificacion.fire({ icon: "error", title: "Error", text: msg });
     }
 };
-window.ejecutarDevolucion = ejecutarDevolucion;
 
-/**
- * 11. Consulta / Verificador de Productos
- */
-const abrirModalConsultaProducto = function () {
+function abrirModalConsultaProducto() {
     $("#inputConsultaProdFiltro").val("");
     filtrarConsultaProductos();
     bootstrap.Modal.getOrCreateInstance(document.getElementById("modalConsultaProducto")).show();
@@ -1665,9 +1673,8 @@ const abrirModalConsultaProducto = function () {
         $("#inputConsultaProdFiltro").focus();
     }, 300);
 };
-window.abrirModalConsultaProducto = abrirModalConsultaProducto;
 
-const filtrarConsultaProductos = function () {
+function filtrarConsultaProductos() {
     const query = ($("#inputConsultaProdFiltro").val() || "").trim().toLowerCase();
     const $tbody = $("#contenedorFilasConsultaProductos");
     $tbody.empty();
@@ -1747,9 +1754,8 @@ const filtrarConsultaProductos = function () {
         $tbody.append(filaHtml);
     });
 };
-window.filtrarConsultaProductos = filtrarConsultaProductos;
 
-const cargarProductoDesdeConsulta = function (id, tipoItem = 'producto') {
+function cargarProductoDesdeConsulta(id, tipoItem = 'producto') {
     const prod = posCatalogos.productos.find((p) => parseInt(p.id) === parseInt(id) && p.tipo_item === tipoItem);
     if (prod) {
         agregarProductoAlCarrito(prod);
@@ -1761,21 +1767,16 @@ const cargarProductoDesdeConsulta = function (id, tipoItem = 'producto') {
         $("#posInputBuscadorProducto").val("").focus();
     }
 };
-window.cargarProductoDesdeConsulta = cargarProductoDesdeConsulta;
 
-/**
- * 12. Reimpresión de Ticket
- */
-const abrirModalReimprimir = function () {
+function abrirModalReimprimir() {
     $("#inputCodigoReimprimir").val(posCatalogos.proximo_codigo ? `VEN-${String(Math.max(1, parseInt(posCatalogos.proximo_codigo.replace(/\D/g, '')) - 1)).padStart(5, '0')}` : "");
     bootstrap.Modal.getOrCreateInstance(document.getElementById("modalReimprimirTicket")).show();
     setTimeout(() => {
         $("#inputCodigoReimprimir").focus().select();
     }, 300);
 };
-window.abrirModalReimprimir = abrirModalReimprimir;
 
-const ejecutarReimpresionTicket = function () {
+function ejecutarReimpresionTicket() {
     const cod = $("#inputCodigoReimprimir").val().trim();
     if (!cod) {
         if (window.notificacion) {
@@ -1787,9 +1788,8 @@ const ejecutarReimpresionTicket = function () {
     bootstrap.Modal.getInstance(document.getElementById("modalReimprimirTicket")).hide();
     window.open(`${urlPosImprimirTicket}/${cod}`, "_blank", "width=400,height=600");
 };
-window.ejecutarReimpresionTicket = ejecutarReimpresionTicket;
 
-const ejecutarReimpresionCarta = function () {
+function ejecutarReimpresionCarta() {
     const cod = $("#inputCodigoReimprimir").val().trim();
     if (!cod) {
         if (window.notificacion) {
@@ -1801,12 +1801,8 @@ const ejecutarReimpresionCarta = function () {
     bootstrap.Modal.getInstance(document.getElementById("modalReimprimirTicket")).hide();
     window.open(`${urlPosImprimirCarta}/${cod}`, "_blank");
 };
-window.ejecutarReimpresionCarta = ejecutarReimpresionCarta;
 
-/**
- * 13. Modificar Renglón Seleccionado
- */
-const modificarRenglonSeleccionado = function () {
+function modificarRenglonSeleccionado() {
     if (posIndiceRenglonSeleccionado === null || posIndiceRenglonSeleccionado < 0 || posIndiceRenglonSeleccionado >= posCarrito.length) {
         if (posCarrito.length > 0) {
             posIndiceRenglonSeleccionado = 0;
@@ -1850,20 +1846,15 @@ const modificarRenglonSeleccionado = function () {
         });
     }
 };
-window.modificarRenglonSeleccionado = modificarRenglonSeleccionado;
 
-/**
- * 14. Atajos Globales de Teclado (Interceptación Estricta sin Comportamiento Predeterminado de Navegador)
- */
-const configurarAtajosTecladoPos = function () {
+function configurarAtajosTecladoPos() {
     window.addEventListener("keydown", function (e) {
         const key = e.key;
 
-        // Lista de teclas de atajo del POS que deben prevenir totalmente la acción por defecto del navegador
         const teclasInterceptar = ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "Escape", "Esc"];
 
         if (teclasInterceptar.includes(key)) {
-            // Cancelar de inmediato cualquier comportamiento nativo del navegador (como F6 foco a url, F7 caret browsing, F10 barra menú, etc.)
+
             if (key !== "F5" && key !== "F12") {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1930,10 +1921,7 @@ const configurarAtajosTecladoPos = function () {
     }, { capture: true, passive: false });
 };
 
-/**
- * Helper para redondeo decimal exacto
- */
-const roundDecimals = function (num, decimals = 2) {
+function roundDecimals(num, decimals = 2) {
     const factor = Math.pow(10, decimals);
     return Math.round((Number(num) + Number.EPSILON) * factor) / factor;
 };

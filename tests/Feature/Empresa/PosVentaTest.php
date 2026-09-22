@@ -854,6 +854,7 @@ test('pos puede pausar venta en espera, listarla y recuperarla con cliente y pro
     ]);
 
     $user = User::factory()->create();
+    $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id, ['estado' => true]);
 
     $cliente = Cliente::create([
@@ -937,6 +938,7 @@ test('pos puede renderizar formato factura carta y formato ticket termico', func
     ]);
 
     $user = User::factory()->create();
+    $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id, ['estado' => true]);
 
     $cliente = Cliente::create([

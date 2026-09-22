@@ -9,6 +9,8 @@ uses(DatabaseTransactions::class);
 
 beforeEach(function () {
     $this->seed(RolesYPermisosSeeder::class);
+    Empresa::query()->update(['estado' => false]);
+    User::query()->update(['estado' => false]);
 });
 
 test('unconfigured system redirects guests to setup page', function () {
