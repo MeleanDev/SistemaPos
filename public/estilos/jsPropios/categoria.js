@@ -1,4 +1,3 @@
-// URL limpia independiente de query parameters en la barra de navegación
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
 const urlLista = urlBase + "/lista";
 const urlDetalles = urlBase + "/";
@@ -92,9 +91,6 @@ $(document).ready(function () {
     aplicarRestriccionesInput();
 });
 
-/**
- * Abrir modal para crear nueva categoría
- */
 const crear = function () {
     isEditar = false;
     idCategoriaActual = null;
@@ -117,9 +113,6 @@ const crear = function () {
     modal.show();
 };
 
-/**
- * Abrir modal en modo solo lectura (Ver detalles)
- */
 const ver = async function (id) {
     try {
         idCategoriaActual = id;
@@ -155,9 +148,6 @@ const ver = async function (id) {
     }
 };
 
-/**
- * Abrir modal para editar categoría existente
- */
 const editar = async function (id) {
     try {
         isEditar = true;
@@ -197,9 +187,6 @@ const editar = async function (id) {
     }
 };
 
-/**
- * Procesar envío del formulario (Crear / Actualizar)
- */
 $("#formularioCategoria").on("submit", function (e) {
     e.preventDefault();
 
@@ -235,9 +222,6 @@ $("#formularioCategoria").on("submit", function (e) {
     });
 });
 
-/**
- * Desactivar Categoría (Cambio de Estado / Borrado Lógico)
- */
 const eliminar = function (id, nombreCategoria) {
     cambiarEstadoRegistro({
         url: urlEliminar,

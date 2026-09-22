@@ -7,20 +7,14 @@ use App\Http\Requests\Categoria\ActualizarRequest;
 use App\Http\Requests\Categoria\CrearRequest;
 use App\Service\Empresa\CategoriaClass;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 class CategoriaController extends Controller
 {
     public function __construct(private CategoriaClass $categoriaClass) {}
 
-    public function index(): View|RedirectResponse
+    public function index(): View
     {
-        $empresa = $this->obtenerEmpresaActiva();
-        if ($empresa && $empresa->maneja_motos) {
-            return redirect()->route('moto');
-        }
-
         return view('Sistema.pages.empresa.categoria');
     }
 

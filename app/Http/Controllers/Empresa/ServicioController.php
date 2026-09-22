@@ -7,20 +7,14 @@ use App\Http\Requests\Servicio\ActualizarRequest;
 use App\Http\Requests\Servicio\CrearRequest;
 use App\Service\Empresa\ServicioClass;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 class ServicioController extends Controller
 {
     public function __construct(private ServicioClass $servicioClass) {}
 
-    public function index(): View|RedirectResponse
+    public function index(): View
     {
-        $empresa = $this->obtenerEmpresaActiva();
-        if ($empresa && $empresa->maneja_motos) {
-            return redirect()->route('moto');
-        }
-
         return view('Sistema.pages.empresa.servicio');
     }
 
