@@ -347,6 +347,44 @@ const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
 modalInstance.show(); // or modalInstance.hide();
 ```
 
+### 7.4 Mandatory `<x-select2>` Blade Component & Lifecycle Standard (MANDATORY)
+For all searchable catalog dropdowns (Categories, Providers, Products, Clients, etc.):
+
+1. **NEVER use ad-hoc `<select>` tags inside custom `.input-group` wrappers** just to attach creation buttons. That breaks the full-width grid layout, dropdown caret alignment, and `0.75rem` rounded corners.
+2. **Always use `<x-select2>`**:
+   ```blade
+   <x-select2
+       name="proveedor_id"
+       id="proveedor_id"
+       label="Proveedor Emisor"
+       icon="fas fa-truck text-primary"
+       placeholder="Seleccione un proveedor..."
+       modalParent="#modalRecepcion"
+       actionText="Nuevo"
+       actionIcon="fas fa-plus"
+       actionOnClick="abrirModalRapidoProveedor()"
+       required
+       col="col-md-6"
+   >
+       <option value="">Seleccione un proveedor...</option>
+   </x-select2>
+   ```
+3. **Header Action Buttons**:
+   - When a selector needs a quick creation shortcut (e.g. `+ Nuevo Proveedor`), pass `actionText`, `actionIcon`, and `actionOnClick` directly to `<x-select2>`.
+   - The button will render neatly in the top-right corner of the label without breaking the select's geometry.
+4. **JavaScript Lifecycle Contract**:
+   - **Initialization** (in `$(document).ready`):
+     ```javascript
+     crearSelect2({
+         selector: "#selector_id",
+         modalSelector: "#modalPadre", // MANDATORY inside modals to avoid focus-trap and z-index issues
+         placeholder: "Seleccione una opción...",
+     });
+     ```
+   - **Form Reset**: `limpiarSelect2("#selector_id");`
+   - **Programmatic Selection**: `establecerValorSelect2("#selector_id", valorId);`
+   - **Dynamic Repopulation**: After updating `<option>` tags, trigger `$select.trigger("change.select2");` or call `establecerValorSelect2("#selector_id", valorActual);`.
+
 ---
 
 ## 8. Frontend JavaScript Standards & Mandatory Component Reuse
@@ -404,14 +442,21 @@ modalInstance.show(); // or modalInstance.hide();
        mensajeCarga: 'Procesando información...'
    });
    ```
-5. **Select2 Helpers (`select2.component.js`)**:
+5. **Purchase & Cost Calculation Helper (`calculos-compra.component.js` / `window.CalculosCompra`)**:
+   - Centralizes bimonetary ($ USD <-> Bs. VES) asymmetric pricing calculations, retail/wholesale margin calculations, currency equivalents, and credit due dates for reception/purchasing modules (`recepcion.js`, `recepcionMoto.js`).
+   - `CalculosCompra.normalizarNumero(valor)`: Converts formatted strings (with commas/dots) to precise floats.
+   - `CalculosCompra.calcularPreciosDesdeMargen({ costoUnitario, margenDetal, margenMayorista, monedaDocumento, tasaCompra, tasaVenta })`: Computes base cost in USD/VES, retail/wholesale sale prices in document currency and alternate currency with 4-decimal precision.
+   - `CalculosCompra.calcularMargenDesdePrecio({ costoUnitario, precioVenta, tipo, monedaDocumento, tasaCompra, tasaVenta })`: Computes profit margin percentage from a custom entered sale price.
+   - `CalculosCompra.calcularEquivalenteMoneda({ monto, monedaOrigen, tasaCompra, tasaVenta })`: Converts amounts between USD and VES using appropriate buy/sell exchange rates.
+   - `CalculosCompra.calcularFechaVencimientoCredito(fechaEmision, diasCredito)`: Returns formatted `YYYY-MM-DD` due date.
+6. **Select2 Helpers (`select2.component.js`)**:
    - `crearSelect2({ selector: '#selectX', modalParent: '#modalX', placeholder: 'Seleccione...' })`
    - `limpiarSelect2('#selectX')`
    - `establecerValorSelect2('#selectX', valor)`
    - `destruirSelect2('#selectX')`
-6. **DataTable Helper (`datatable.component.js`)**:
+7. **DataTable Helper (`datatable.component.js`)**:
    - `crearDataTable({ tablaId: 'datatable_x', url: urlLista, columnas: [...] })`
-7. **Document & Phone Utilities**:
+8. **Document & Phone Utilities**:
    - `desglosarCedula(cedula)` / `desglosarTelefono(telefono)`
    - `aplicarRestriccionesInput()`
 

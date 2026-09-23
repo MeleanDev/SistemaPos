@@ -18,6 +18,12 @@ let editandoLoteIndex = null;
 let proximaReferenciaSugerida = '1';
 
 $(document).ready(function () {
+    crearSelect2({
+        selector: '#proveedor_id',
+        modalSelector: '#modalRecepcionMoto',
+        placeholder: 'Seleccione un proveedor...',
+    });
+
     inicializarTabla();
     cargarCatalogos();
 
@@ -159,10 +165,9 @@ const inicializarTabla = function () {
 
 const cargarCatalogos = async function () {
     try {
-        const respuesta = await $.ajax({
+        const respuesta = await peticionAjax({
             url: urlCatalogos,
-            type: "GET",
-            dataType: "json",
+            method: "GET",
         });
 
         if (respuesta.success && respuesta.data) {
@@ -229,10 +234,18 @@ const restablecerTasaOficial = function (tipo) {
 window.restablecerTasaOficial = restablecerTasaOficial;
 
 const poblarSelects = function () {
-    const $selectProv = $('#proveedor_id').empty().append('<option value="">Seleccione proveedor...</option>');
+    const $selectProv = $('#proveedor_id');
+    const valorSeleccionado = $selectProv.val();
+    $selectProv.empty().append('<option value="">Seleccione un proveedor...</option>');
     proveedoresLista.forEach(p => {
-        $selectProv.append(`<option value="${p.id}">${p.nombre} (${p.rif})</option>`);
+        $selectProv.append(`<option value="${p.id}">[${p.rif}] ${p.nombre}</option>`);
     });
+
+    if (valorSeleccionado) {
+        establecerValorSelect2('#proveedor_id', valorSeleccionado);
+    } else {
+        $selectProv.trigger('change.select2');
+    }
 
     const $selectAlm = $('#almacen_id').empty().append('<option value="">Seleccione almacén...</option>');
     almacenesLista.forEach((a, idx) => {
@@ -284,18 +297,13 @@ const toggleCondicionPago = function () {
 const calcularFechaVencimiento = function () {
     const fechaEmision = $('#fecha_emision').val();
     const dias = parseInt($('#dias_credito').val()) || 0;
-    if (fechaEmision) {
-        const fecha = new Date(fechaEmision);
-        fecha.setDate(fecha.getDate() + dias);
-        const yyyy = fecha.getFullYear();
-        const mm = String(fecha.getMonth() + 1).padStart(2, '0');
-        const dd = String(fecha.getDate()).padStart(2, '0');
-        $('#labelFechaVencimiento').text(`Vence: ${dd}/${mm}/${yyyy}`);
-    }
+    const res = window.CalculosCompra.calcularFechaVencimientoCredito(fechaEmision, dias);
+    $('#labelFechaVencimiento').text(`Vence: ${res.fechaFormateada}`);
 };
 
 const crear = function () {
     $('#formularioRecepcionMoto')[0].reset();
+    limpiarSelect2('#proveedor_id');
     lotesAgregados = [];
     editandoLoteIndex = null;
     cancelarEdicionLote();
@@ -426,21 +434,12 @@ const generarMatrizSeriales = function (serialesExistentes = []) {
 const recalcularPreciosLote = function () {
     const esVes = monedaSeleccionada === 'VES';
     const costoIngresado = parseFloat($('#lote_costo_unitario').val()) || 0;
-    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
-    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
-    const tasaMenor = tCompra < tVenta;
-
-    let costoUsd = 0;
-    let costoBs = 0;
+    const eq = window.CalculosCompra.calcularEquivalenteMoneda(costoIngresado, monedaSeleccionada, tasaCompraActual, tasaVentaActual);
 
     if (!esVes) {
-        costoUsd = costoIngresado;
-        costoBs = tasaMenor ? (costoUsd * tVenta) : (costoUsd * tCompra);
-        $('#lote_costo_equivalente').text(`Equiv: Bs. ${costoBs.toFixed(2)}`);
+        $('#lote_costo_equivalente').text(`Equiv: Bs. ${eq.bs.toFixed(4)}`);
     } else {
-        costoBs = costoIngresado;
-        costoUsd = tasaMenor ? (tCompra > 0 ? costoBs / tCompra : 0) : (tVenta > 0 ? costoBs / tVenta : 0);
-        $('#lote_costo_equivalente').text(`Equiv: $ ${costoUsd.toFixed(2)}`);
+        $('#lote_costo_equivalente').text(`Equiv: $ ${eq.usd.toFixed(4)}`);
     }
 
     calcularPrecioDetalLote();
@@ -450,62 +449,46 @@ window.recalcularPreciosLote = recalcularPreciosLote;
 
 const calcularPrecioDetalLote = function () {
     const esVes = monedaSeleccionada === 'VES';
-    const costoInput = parseFloat($('#lote_costo_unitario').val()) || 0;
-    const margen = parseFloat($('#lote_margen_detal').val()) || 0;
+    const res = window.CalculosCompra.calcularPreciosDesdeMargen({
+        costo: $('#lote_costo_unitario').val(),
+        margenDetal: $('#lote_margen_detal').val(),
+        margenMayorista: $('#lote_margen_mayorista').val(),
+        tasaCompra: tasaCompraActual,
+        tasaVenta: tasaVentaActual,
+        moneda: monedaSeleccionada,
+    });
 
-    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
-    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
-    const tasaMenor = tCompra < tVenta;
-
-    if (costoInput > 0) {
+    if (res.costoUsd > 0 || res.costoBs > 0) {
         if (!esVes) {
-            const precioDetalUsd = tasaMenor
-                ? (costoInput * (1 + margen / 100))
-                : ((costoInput * (1 + margen / 100) * tCompra) / tVenta);
-            const precioDetalBs = precioDetalUsd * tVenta;
-
-            $('#lote_precio_detal').val(precioDetalUsd.toFixed(2));
-            $('#lote_detal_bs').text(`Bs. ${precioDetalBs.toFixed(2)}`);
+            $('#lote_precio_detal').val(res.precioDetalUsd.toFixed(4));
+            $('#lote_detal_bs').text(`Bs. ${res.precioDetalBs.toFixed(4)}`);
         } else {
-            const costoUsd = tasaMenor ? (costoInput / tCompra) : (costoInput / tVenta);
-            const precioDetalUsd = costoUsd * (1 + margen / 100);
-            const precioDetalBs = precioDetalUsd * tVenta;
-
-            $('#lote_precio_detal').val(precioDetalBs.toFixed(2));
-            $('#lote_detal_bs').text(`$ ${precioDetalUsd.toFixed(2)}`);
+            $('#lote_precio_detal').val(res.precioDetalBs.toFixed(4));
+            $('#lote_detal_bs').text(`$ ${res.precioDetalUsd.toFixed(4)}`);
         }
     } else {
         $('#lote_precio_detal').val('');
-        $('#lote_detal_bs').text(esVes ? '$ 0.00' : 'Bs. 0.00');
+        $('#lote_detal_bs').text(esVes ? '$ 0.0000' : 'Bs. 0.0000');
     }
 };
 window.calcularPrecioDetalLote = calcularPrecioDetalLote;
 
 const calcularMargenDetalLote = function () {
     const esVes = monedaSeleccionada === 'VES';
-    const costoInput = parseFloat($('#lote_costo_unitario').val()) || 0;
-    const precioInput = parseFloat($('#lote_precio_detal').val()) || 0;
+    const res = window.CalculosCompra.calcularMargenDesdePrecio({
+        costo: $('#lote_costo_unitario').val(),
+        precio: $('#lote_precio_detal').val(),
+        tasaCompra: tasaCompraActual,
+        tasaVenta: tasaVentaActual,
+        moneda: monedaSeleccionada,
+    });
 
-    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
-    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
-    const tasaMenor = tCompra < tVenta;
-
-    if (costoInput > 0 && precioInput > 0) {
+    if (res.precioUsd > 0 || res.precioBs > 0) {
+        $('#lote_margen_detal').val(res.margen.toFixed(0));
         if (!esVes) {
-            const nuevoMargen = tasaMenor
-                ? (((precioInput / costoInput) - 1) * 100)
-                : (((precioInput * tVenta) / (costoInput * tCompra) - 1) * 100);
-            const precioBs = precioInput * tVenta;
-
-            $('#lote_margen_detal').val(nuevoMargen.toFixed(0));
-            $('#lote_detal_bs').text(`Bs. ${precioBs.toFixed(2)}`);
+            $('#lote_detal_bs').text(`Bs. ${res.precioBs.toFixed(4)}`);
         } else {
-            const costoUsd = tasaMenor ? (costoInput / tCompra) : (costoInput / tVenta);
-            const precioUsd = precioInput / tVenta;
-            const nuevoMargen = costoUsd > 0 ? (((precioUsd / costoUsd) - 1) * 100) : 0;
-
-            $('#lote_margen_detal').val(nuevoMargen.toFixed(0));
-            $('#lote_detal_bs').text(`$ ${precioUsd.toFixed(2)}`);
+            $('#lote_detal_bs').text(`$ ${res.precioUsd.toFixed(4)}`);
         }
     }
 };
@@ -513,65 +496,50 @@ window.calcularMargenDetalLote = calcularMargenDetalLote;
 
 const calcularPrecioMayoristaLote = function () {
     const esVes = monedaSeleccionada === 'VES';
-    const costoInput = parseFloat($('#lote_costo_unitario').val()) || 0;
-    const margen = parseFloat($('#lote_margen_mayorista').val()) || 0;
+    const res = window.CalculosCompra.calcularPreciosDesdeMargen({
+        costo: $('#lote_costo_unitario').val(),
+        margenDetal: $('#lote_margen_detal').val(),
+        margenMayorista: $('#lote_margen_mayorista').val(),
+        tasaCompra: tasaCompraActual,
+        tasaVenta: tasaVentaActual,
+        moneda: monedaSeleccionada,
+    });
 
-    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
-    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
-    const tasaMenor = tCompra < tVenta;
-
-    if (costoInput > 0) {
+    if (res.costoUsd > 0 || res.costoBs > 0) {
         if (!esVes) {
-            const precioMayorUsd = tasaMenor
-                ? (costoInput * (1 + margen / 100))
-                : ((costoInput * (1 + margen / 100) * tCompra) / tVenta);
-            const precioMayorBs = precioMayorUsd * tVenta;
-
-            $('#lote_precio_mayorista').val(precioMayorUsd.toFixed(2));
-            $('#lote_mayorista_bs').text(`Bs. ${precioMayorBs.toFixed(2)}`);
+            $('#lote_precio_mayorista').val(res.precioMayoristaUsd.toFixed(4));
+            $('#lote_mayorista_bs').text(`Bs. ${res.precioMayoristaBs.toFixed(4)}`);
         } else {
-            const costoUsd = tasaMenor ? (costoInput / tCompra) : (costoInput / tVenta);
-            const precioMayorUsd = costoUsd * (1 + margen / 100);
-            const precioMayorBs = precioMayorUsd * tVenta;
-
-            $('#lote_precio_mayorista').val(precioMayorBs.toFixed(2));
-            $('#lote_mayorista_bs').text(`$ ${precioMayorUsd.toFixed(2)}`);
+            $('#lote_precio_mayorista').val(res.precioMayoristaBs.toFixed(4));
+            $('#lote_mayorista_bs').text(`$ ${res.precioMayoristaUsd.toFixed(4)}`);
         }
     } else {
         $('#lote_precio_mayorista').val('');
-        $('#lote_mayorista_bs').text(esVes ? '$ 0.00' : 'Bs. 0.00');
+        $('#lote_mayorista_bs').text(esVes ? '$ 0.0000' : 'Bs. 0.0000');
     }
 };
 window.calcularPrecioMayoristaLote = calcularPrecioMayoristaLote;
 
 const calcularMargenMayoristaLote = function () {
     const esVes = monedaSeleccionada === 'VES';
-    const costoInput = parseFloat($('#lote_costo_unitario').val()) || 0;
-    const precioInput = parseFloat($('#lote_precio_mayorista').val()) || 0;
+    const res = window.CalculosCompra.calcularMargenDesdePrecio({
+        costo: $('#lote_costo_unitario').val(),
+        precio: $('#lote_precio_mayorista').val(),
+        tasaCompra: tasaCompraActual,
+        tasaVenta: tasaVentaActual,
+        moneda: monedaSeleccionada,
+    });
 
-    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
-    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
-    const tasaMenor = tCompra < tVenta;
-
-    if (costoInput > 0 && precioInput > 0) {
+    if (res.precioUsd > 0 || res.precioBs > 0) {
+        $('#lote_margen_mayorista').val(res.margen.toFixed(0));
         if (!esVes) {
-            const nuevoMargen = tasaMenor
-                ? (((precioInput / costoInput) - 1) * 100)
-                : (((precioInput * tVenta) / (costoInput * tCompra) - 1) * 100);
-            const precioBs = precioInput * tVenta;
-
-            $('#lote_margen_mayorista').val(nuevoMargen.toFixed(0));
-            $('#lote_mayorista_bs').text(`Bs. ${precioBs.toFixed(2)}`);
+            $('#lote_mayorista_bs').text(`Bs. ${res.precioBs.toFixed(4)}`);
         } else {
-            const costoUsd = tasaMenor ? (costoInput / tCompra) : (costoInput / tVenta);
-            const precioUsd = precioInput / tVenta;
-            const nuevoMargen = costoUsd > 0 ? (((precioUsd / costoUsd) - 1) * 100) : 0;
-
-            $('#lote_margen_mayorista').val(nuevoMargen.toFixed(0));
-            $('#lote_mayorista_bs').text(`$ ${precioUsd.toFixed(2)}`);
+            $('#lote_mayorista_bs').text(`$ ${res.precioUsd.toFixed(4)}`);
         }
     }
 };
+window.calcularMargenMayoristaLote = calcularMargenMayoristaLote;
 window.calcularMargenMayoristaLote = calcularMargenMayoristaLote;
 
 const agregarLoteAFactura = function () {
@@ -1260,7 +1228,7 @@ const guardarRapidoProveedor = async function () {
             $('#modalRapidoProveedor').modal('hide');
             notificacion.fire({ icon: 'success', title: 'Proveedor creado exitosamente.' });
             await cargarCatalogos();
-            $('#proveedor_id').val(respuesta.data.id);
+            establecerValorSelect2('#proveedor_id', respuesta.data.id);
         }
     } catch (error) {
         notificacion.fire({

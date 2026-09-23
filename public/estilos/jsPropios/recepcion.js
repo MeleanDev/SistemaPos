@@ -1,4 +1,3 @@
-// URL base para el módulo de Recepciones
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
 const urlLista = urlBase + "/lista";
 const urlCatalogos = urlBase + "/catalogos";
@@ -10,7 +9,7 @@ const urlGuardarProducto = window.location.origin + "/productos";
 let tasaUsdActual = 1.0000;
 let tasaCompraActual = 1.0000;
 let tasaVentaActual = 1.0000;
-let monedaDocumentoActual = "USD"; // 'USD' o 'VES'
+let monedaDocumentoActual = "USD";
 
 let catalogosSistema = {
     proveedores: [],
@@ -24,9 +23,32 @@ let catalogosSistema = {
 };
 
 let contadorFilas = 0;
+let listaProductosCargados = [];
+let productoSeleccionadoActual = null;
+let indiceEdicionActual = null;
 
-// Helper para formatear fechas de manera elegante y consistente (DD/MM/YYYY)
-const formatearFecha = function (fechaStr) {
+function formatearMonto(monto, decimales = 2) {
+    const num = parseFloat(monto) || 0;
+    return num.toLocaleString("es-VE", {
+        minimumFractionDigits: decimales,
+        maximumFractionDigits: decimales,
+    });
+}
+
+function normalizarNumero(val) {
+    if (typeof val === "number") return val;
+    if (!val) return 0;
+    const str = String(val).trim().replace(/\s/g, "");
+    if (str.includes(",") && str.includes(".")) {
+        return parseFloat(str.replace(/\./g, "").replace(",", ".")) || 0;
+    }
+    if (str.includes(",")) {
+        return parseFloat(str.replace(",", ".")) || 0;
+    }
+    return parseFloat(str) || 0;
+}
+
+function formatearFecha(fechaStr) {
     if (!fechaStr) return "";
     try {
         const str = String(fechaStr).trim();
@@ -46,13 +68,17 @@ const formatearFecha = function (fechaStr) {
     } catch (e) {
         return String(fechaStr);
     }
-};
-window.formatearFecha = formatearFecha;
+}
 
 $(document).ready(function () {
+    crearSelect2({
+        selector: "#proveedor_id",
+        modalSelector: "#modalRecepcion",
+        placeholder: "Seleccione un proveedor...",
+    });
+
     cargarCatalogos();
 
-    // Inicializar DataTable de Recepciones
     crearDataTable({
         selector: "#datatable_recepciones",
         url: urlLista,
@@ -138,11 +164,11 @@ $(document).ready(function () {
                 render: function (data) {
                     const cantRenglones = Array.isArray(data) ? data.length : 0;
                     const totalUnidades = Array.isArray(data)
-                        ? data.reduce((acc, d) => acc + parseFloat(d.cantidad || 0), 0)
+                        ? data.reduce((acc, d) => acc + (parseFloat(d.cantidad) || 0), 0)
                         : 0;
                     return `
                         <div class="d-flex flex-column align-items-center gap-1" style="white-space: nowrap;">
-                            <span class="fw-bold text-dark font-monospace" style="font-size: 0.88rem;">${totalUnidades.toLocaleString()} unds</span>
+                            <span class="fw-bold text-dark font-monospace" style="font-size: 0.88rem;">${formatearMonto(totalUnidades, 0)} unds</span>
                             <span class="badge rounded-pill px-2 py-0.5" style="font-size: 0.68rem; background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; font-weight: 600;">${cantRenglones} ${cantRenglones === 1 ? 'ítem' : 'ítems'}</span>
                         </div>
                     `;
@@ -153,17 +179,17 @@ $(document).ready(function () {
                 name: "total_usd",
                 className: "text-start align-middle",
                 render: function (data, type, row) {
-                    const totalUsd = parseFloat(row.total_usd || 0);
-                    const totalBs = parseFloat(row.total_bs || 0);
+                    const totalUsd = parseFloat(row.total_usd) || 0;
+                    const totalBs = parseFloat(row.total_bs) || 0;
                     return `
                         <div class="d-flex flex-column py-1" style="white-space: nowrap; min-width: 125px;">
                             <div class="d-inline-flex align-items-center gap-1">
                                 <span class="badge rounded-pill px-1.5 py-0.5 bg-success text-white fw-bold" style="font-size: 0.70rem; line-height: 1;">$</span>
-                                <span class="fw-bold font-monospace text-dark" style="font-size: 0.95rem; letter-spacing: -0.2px;">${totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span class="fw-bold font-monospace text-dark" style="font-size: 0.95rem; letter-spacing: -0.2px;">${formatearMonto(totalUsd, 2)}</span>
                             </div>
                             <div class="d-inline-flex align-items-center gap-1 mt-0.5">
                                 <span class="badge rounded-pill px-1.5 py-0.5 bg-info-subtle text-info-emphasis fw-bold" style="font-size: 0.65rem; border: 1px solid #bae6fd; line-height: 1;">Bs.</span>
-                                <span class="font-monospace fw-semibold" style="font-size: 0.78rem; color: #0284c7;">${totalBs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span class="font-monospace fw-semibold" style="font-size: 0.78rem; color: #0284c7;">${formatearMonto(totalBs, 2)}</span>
                             </div>
                         </div>
                     `;
@@ -210,7 +236,7 @@ $(document).ready(function () {
 
                     return `
                         <div class="d-flex justify-content-center gap-1" style="white-space: nowrap;">
-                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle shadow-xs" onclick="imprimirRecepcion(${row.id});" title="Imprimir Comprobante Oficial" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease; background-color: #ffffff; color: #475569;">
+                            <button type="button" class="btn btn-sm btn-outline-dark rounded-circle shadow-xs" onclick="imprimirRecepcion(${row.id});" title="Imprimir Comprobante Oficial" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease; background-color: #ffffff;">
                                 <i class="fas fa-print"></i>
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-primary rounded-circle shadow-xs" onclick="verFicha(${row.id});" title="Comprobante 360°" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease; background-color: #ffffff;">
@@ -224,7 +250,6 @@ $(document).ready(function () {
         ],
     });
 
-    // Eventos de escaneo, búsqueda y navegación fluida por teclado
     configurarBuscadorProductos();
     configurarNavegacionTeclado();
     aplicarRestriccionesInput();
@@ -234,15 +259,11 @@ $(document).ready(function () {
     });
 });
 
-/**
- * Cargar catálogos iniciales
- */
-const cargarCatalogos = async function () {
+async function cargarCatalogos() {
     try {
-        const res = await $.ajax({
+        const res = await peticionAjax({
             url: urlCatalogos,
-            type: "GET",
-            dataType: "json",
+            method: "GET",
         });
 
         if (res.success && res.data) {
@@ -254,9 +275,9 @@ const cargarCatalogos = async function () {
             $("#tasa_cambio").val(tasaVentaActual.toFixed(4));
             $("#tasa_compra").val(tasaCompraActual.toFixed(4));
             $("#tasa_venta").val(tasaVentaActual.toFixed(4));
-            $("#badgeTasaCambio").text(tasaUsdActual.toFixed(4));
-            $("#badgeTasaCompraFase2").text(tasaCompraActual.toFixed(4));
-            $("#badgeTasaVentaFase2").text(tasaVentaActual.toFixed(4));
+            $("#badgeTasaCambio").text(formatearMonto(tasaUsdActual, 4));
+            $("#badgeTasaCompraFase2").text(formatearMonto(tasaCompraActual, 4));
+            $("#badgeTasaVentaFase2").text(formatearMonto(tasaVentaActual, 4));
             $("#badgeCodigoRecepcion").html(`<i class="fas fa-hashtag me-1"></i>${res.data.proximo_codigo}`);
 
             poblarSelectProveedores();
@@ -266,46 +287,39 @@ const cargarCatalogos = async function () {
     } catch (e) {
         console.error("Error al cargar catálogos de recepción:", e);
     }
-};
+}
 
-/**
- * Sincronizar cambios en los inputs de Tasa de Compra y Tasa de Venta
- */
-const actualizarTasasDesdeInput = function () {
-    const tCompra = parseFloat($("#tasa_compra").val()) || 0;
-    const tVenta = parseFloat($("#tasa_venta").val()) || 0;
+function actualizarTasasDesdeInput() {
+    const tCompra = normalizarNumero($("#tasa_compra").val());
+    const tVenta = normalizarNumero($("#tasa_venta").val());
 
     if (tCompra > 0) {
         tasaCompraActual = tCompra;
-        $("#badgeTasaCompraFase2").text(tasaCompraActual.toFixed(4));
+        $("#badgeTasaCompraFase2").text(formatearMonto(tasaCompraActual, 4));
     }
     if (tVenta > 0) {
         tasaVentaActual = tVenta;
         $("#tasa_cambio").val(tasaVentaActual.toFixed(4));
-        $("#badgeTasaVentaFase2").text(tasaVentaActual.toFixed(4));
+        $("#badgeTasaVentaFase2").text(formatearMonto(tasaVentaActual, 4));
     }
 
     calcularPrecioDetalDesdeMargen();
     calcularPrecioMayoristaDesdeMargen();
     recalcularFormularioRenglon();
-};
-window.actualizarTasasDesdeInput = actualizarTasasDesdeInput;
+}
 
-/**
- * Restablecer a tasa oficial del sistema
- */
-const restablecerTasaOficial = function (tipo) {
+function restablecerTasaOficial(tipo) {
     if (tipo === "compra") {
         $("#tasa_compra").val(tasaUsdActual.toFixed(4));
     } else if (tipo === "venta") {
         $("#tasa_venta").val(tasaUsdActual.toFixed(4));
     }
     actualizarTasasDesdeInput();
-};
-window.restablecerTasaOficial = restablecerTasaOficial;
+}
 
-const poblarSelectProveedores = function () {
+function poblarSelectProveedores() {
     const $select = $("#proveedor_id");
+    const valorSeleccionado = $select.val();
     $select.empty().append('<option value="">Seleccione un proveedor...</option>');
 
     if (Array.isArray(catalogosSistema.proveedores)) {
@@ -313,9 +327,15 @@ const poblarSelectProveedores = function () {
             $select.append(`<option value="${p.id}">[${p.rif}] ${p.nombre}</option>`);
         });
     }
-};
 
-const poblarSelectAlmacenes = function () {
+    if (valorSeleccionado) {
+        establecerValorSelect2("#proveedor_id", valorSeleccionado);
+    } else {
+        $select.trigger("change.select2");
+    }
+}
+
+function poblarSelectAlmacenes() {
     const $select = $("#almacen_id");
     $select.empty().append('<option value="">Seleccione almacén...</option>');
 
@@ -324,9 +344,9 @@ const poblarSelectAlmacenes = function () {
             $select.append(`<option value="${a.id}">[${a.codigo}] ${a.nombre}</option>`);
         });
     }
-};
+}
 
-const poblarSelectCategoriasRapido = function () {
+function poblarSelectCategoriasRapido() {
     const $select = $("#rapido_prod_categoria_id");
     $select.empty().append('<option value="">Seleccione categoría...</option>');
 
@@ -335,9 +355,9 @@ const poblarSelectCategoriasRapido = function () {
             $select.append(`<option value="${c.id}">${c.nombre}</option>`);
         });
     }
-};
+}
 
-const cambiarAlmacenPredeterminado = function () {
+function cambiarAlmacenPredeterminado() {
     const almacenGlobalId = $("#almacen_id").val();
     if (almacenGlobalId) {
         $(".select-almacen-fila").each(function () {
@@ -346,13 +366,9 @@ const cambiarAlmacenPredeterminado = function () {
             }
         });
     }
-};
-window.cambiarAlmacenPredeterminado = cambiarAlmacenPredeterminado;
+}
 
-/**
- * Selección Obligatoria de Moneda de la Factura (Fase 1)
- */
-const seleccionarMonedaDocumento = function (moneda) {
+function seleccionarMonedaDocumento(moneda) {
     const totalFilas = $("#contenedorFilasRecepcion tr.fila-producto-recepcion").length;
     if (totalFilas > 0 && moneda !== monedaDocumentoActual) {
         if (window.Swal) {
@@ -382,10 +398,9 @@ const seleccionarMonedaDocumento = function (moneda) {
     }
 
     aplicarCambioMoneda(moneda);
-};
-window.seleccionarMonedaDocumento = seleccionarMonedaDocumento;
+}
 
-const aplicarCambioMoneda = function (moneda) {
+function aplicarCambioMoneda(moneda) {
     monedaDocumentoActual = moneda;
     $("#moneda_documento").val(moneda);
 
@@ -402,12 +417,9 @@ const aplicarCambioMoneda = function (moneda) {
     }
 
     recalcularTotalesGenerales();
-};
+}
 
-/**
- * Control de Fases: Fase 1 (Datos Principales) <-> Fase 2 (Productos & Liquidación)
- */
-const avanzarAFase2 = function () {
+function avanzarAFase2() {
     let errores = [];
 
     const numDoc = ($("#numero_documento").val() || "").trim();
@@ -415,9 +427,9 @@ const avanzarAFase2 = function () {
     const almId = $("#almacen_id").val();
     const fechaEmis = $("#fecha_emision").val();
     const fechaRecep = $("#fecha_recepcion").val();
-    const montoBruto = parseFloat($("#monto_bruto_input").val()) || 0;
+    const montoBruto = normalizarNumero($("#monto_bruto_input").val());
 
-    $("#seccionFase1 .form-control, #seccionFase1 .form-select").removeClass("is-invalid");
+    $("#seccionFase1 .form-control, #seccionFase1 .form-select, #seccionFase1 .select2-container").removeClass("is-invalid");
 
     if (!numDoc) {
         $("#numero_documento").addClass("is-invalid");
@@ -425,6 +437,7 @@ const avanzarAFase2 = function () {
     }
     if (!provId) {
         $("#proveedor_id").addClass("is-invalid");
+        $("#proveedor_id").next(".select2-container").addClass("is-invalid");
         errores.push("Proveedor");
     }
     if (!almId) {
@@ -455,7 +468,6 @@ const avanzarAFase2 = function () {
         return false;
     }
 
-    // Actualizar barra de resumen superior en Fase 2
     const provText = $("#proveedor_id option:selected").text();
     const almText = $("#almacen_id option:selected").text();
     const tipoDocText = $("#tipo_documento option:selected").text();
@@ -478,15 +490,12 @@ const avanzarAFase2 = function () {
     $("#badgeProvFase2").html(`<i class="fas fa-truck text-primary me-1"></i> ${provText}`);
     $("#badgeAlmFase2").html(`<i class="fas fa-warehouse text-secondary me-1"></i> ${almText}`);
 
-    // Transición suave entre fases
     $("#seccionFase1").hide();
     $("#seccionFase2").fadeIn(200);
 
-    // Stepper header
     $("#btnPaso1Stepper").removeClass("active").addClass("text-white-50");
     $("#btnPaso2Stepper").addClass("active").removeClass("text-white-50");
 
-    // Botones de footer
     $("#btnAvanzarFase2Footer").hide();
     $("#btnVolverFase1Footer").show();
     $("#btnGuardarRecepcion").show();
@@ -496,28 +505,21 @@ const avanzarAFase2 = function () {
     }, 200);
 
     return true;
-};
-window.avanzarAFase2 = avanzarAFase2;
+}
 
-const volverAFase1 = function () {
+function volverAFase1() {
     $("#seccionFase2").hide();
     $("#seccionFase1").fadeIn(200);
 
-    // Stepper header
     $("#btnPaso2Stepper").removeClass("active").addClass("text-white-50");
     $("#btnPaso1Stepper").addClass("active").removeClass("text-white-50");
 
-    // Botones de footer
     $("#btnAvanzarFase2Footer").show();
     $("#btnVolverFase1Footer").hide();
     $("#btnGuardarRecepcion").hide();
-};
-window.volverAFase1 = volverAFase1;
+}
 
-/**
- * Condición de pago: Contado vs Crédito
- */
-const toggleCondicionPago = function () {
+function toggleCondicionPago() {
     const condicion = $("#condicion_pago").val();
     if (condicion === "credito") {
         $("#contenedorDiasCredito").slideDown(150);
@@ -525,46 +527,28 @@ const toggleCondicionPago = function () {
     } else {
         $("#contenedorDiasCredito").slideUp(150);
     }
-};
-window.toggleCondicionPago = toggleCondicionPago;
+}
 
-const calcularFechaVencimiento = function () {
+function calcularFechaVencimiento() {
     const fechaEmision = $("#fecha_emision").val();
     const dias = parseInt($("#dias_credito").val()) || 0;
+    const res = window.CalculosCompra.calcularFechaVencimientoCredito(fechaEmision, dias);
+    $("#labelFechaVencimiento").text(`Vence: ${res.fechaFormateada}`);
+}
 
-    if (fechaEmision && dias > 0) {
-        const fecha = new Date(fechaEmision);
-        fecha.setDate(fecha.getDate() + dias);
-        const fechaStr = fecha.toISOString().split("T")[0];
-        $("#labelFechaVencimiento").text(`Vence: ${fechaStr}`);
-    } else {
-        $("#labelFechaVencimiento").text("Vence: --");
-    }
-};
-window.calcularFechaVencimiento = calcularFechaVencimiento;
-
-let listaProductosCargados = [];
-let productoSeleccionadoActual = null;
-let indiceEdicionActual = null;
-
-/**
- * Configuración del Buscador / Escáner de Productos
- */
-const configurarBuscadorProductos = function () {
+function configurarBuscadorProductos() {
     const $input = $("#inputEscaneoProducto");
     const $resultados = $("#resultadosBusqueda");
 
-    // Enter / Lector de código de barras
     $input.on("keypress", function (e) {
         if (e.which === 13) {
             e.preventDefault();
             const query = $(this).val().trim().toLowerCase();
             if (!query) return;
 
-            // Buscar coincidencia exacta por código de barra o SKU
             const productoEncontrado = catalogosSistema.productos.find((p) => {
                 const skuMatch = (p.codigo_interno || "").toLowerCase() === query;
-                const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => cb.toLowerCase() === query);
+                const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => (cb || "").toLowerCase() === query);
                 return skuMatch || barcodeMatch;
             });
 
@@ -607,7 +591,6 @@ const configurarBuscadorProductos = function () {
         }
     });
 
-    // Búsqueda interactiva
     let timeoutBusqueda = null;
     $input.on("input", function () {
         clearTimeout(timeoutBusqueda);
@@ -622,7 +605,7 @@ const configurarBuscadorProductos = function () {
             const coincidencias = catalogosSistema.productos.filter((p) => {
                 const nombreMatch = p.nombre.toLowerCase().includes(query);
                 const skuMatch = (p.codigo_interno || "").toLowerCase().includes(query);
-                const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => cb.toLowerCase() === query);
+                const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => (cb || "").toLowerCase() === query);
                 return nombreMatch || skuMatch || barcodeMatch;
             });
 
@@ -635,9 +618,9 @@ const configurarBuscadorProductos = function () {
             $resultados.hide();
         }
     });
-};
+}
 
-const renderizarResultadosBusqueda = function (productos, query = "") {
+function renderizarResultadosBusqueda(productos, query = "") {
     const $resultados = $("#resultadosBusqueda");
     $resultados.empty();
 
@@ -660,9 +643,9 @@ const renderizarResultadosBusqueda = function (productos, query = "") {
     }
 
     productos.slice(0, 8).forEach((p) => {
-        const costoViejoUsd = parseFloat(p.precio_costo_usd || 0).toFixed(2);
-        const costoViejoBs = (parseFloat(p.precio_costo_usd || 0) * tasaUsdActual).toFixed(2);
-        const detalViejoUsd = parseFloat(p.precio_detal_usd || 0).toFixed(2);
+        const costoViejoUsd = parseFloat(p.precio_costo_usd) || 0;
+        const costoViejoBs = costoViejoUsd * tasaCompraActual;
+        const detalViejoUsd = parseFloat(p.precio_detal_usd) || 0;
 
         const itemHtml = `
             <div class="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between item-busqueda-producto bg-white" data-id="${p.id}" style="background-color: #ffffff !important; cursor: pointer; border-bottom: 1px solid #f1f5f9;">
@@ -677,10 +660,10 @@ const renderizarResultadosBusqueda = function (productos, query = "") {
                         </div>
                         <div class="d-flex flex-wrap align-items-center gap-2 small font-monospace">
                             <span class="badge rounded-pill px-2 py-1 fw-semibold" style="background-color: #f8fafc; color: #334155; border: 1px solid #e2e8f0;">
-                                <i class="fas fa-tag text-secondary me-1"></i>Último Costo: <strong class="text-dark">$ ${costoViejoUsd}</strong> <span class="text-muted">(Bs. ${costoViejoBs})</span>
+                                <i class="fas fa-tag text-secondary me-1"></i>Último Costo: <strong class="text-dark">$ ${formatearMonto(costoViejoUsd, 4)}</strong> <span class="text-muted">(Bs. ${formatearMonto(costoViejoBs, 4)})</span>
                             </span>
                             <span class="badge rounded-pill px-2 py-1 fw-bold" style="background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">
-                                <i class="fas fa-store text-primary me-1"></i>Detal: $ ${detalViejoUsd}
+                                <i class="fas fa-store text-primary me-1"></i>Detal: $ ${formatearMonto(detalViejoUsd, 4)}
                             </span>
                         </div>
                     </div>
@@ -707,12 +690,9 @@ const renderizarResultadosBusqueda = function (productos, query = "") {
     });
 
     $resultados.show();
-};
+}
 
-/**
- * Seleccionar Producto para el Formulario Superior Inteligente
- */
-const seleccionarProductoParaCarga = function (prod, datosPrecargados = null) {
+function seleccionarProductoParaCarga(prod, datosPrecargados = null) {
     productoSeleccionadoActual = prod;
     if (datosPrecargados === null) {
         indiceEdicionActual = null;
@@ -721,32 +701,30 @@ const seleccionarProductoParaCarga = function (prod, datosPrecargados = null) {
         $("#btnGuardarRenglonTexto").text("Añadir Artículo");
     }
 
-    const costoAnteriorUsd = parseFloat(prod.precio_costo_usd || 0);
-    const costoAnteriorBs = (costoAnteriorUsd * tasaUsdActual).toFixed(2);
-    const detalAnteriorUsd = parseFloat(prod.precio_detal_usd || 0);
-    const detalAnteriorBs = (detalAnteriorUsd * tasaUsdActual).toFixed(2);
-    const mayoristaAnteriorUsd = parseFloat(prod.precio_mayorista_usd || 0);
-    const mayoristaAnteriorBs = (mayoristaAnteriorUsd * tasaUsdActual).toFixed(2);
+    const costoAnteriorUsd = parseFloat(prod.precio_costo_usd) || 0;
+    const costoAnteriorBs = costoAnteriorUsd * tasaCompraActual;
+    const detalAnteriorUsd = parseFloat(prod.precio_detal_usd) || 0;
+    const detalAnteriorBs = detalAnteriorUsd * tasaVentaActual;
+    const mayoristaAnteriorUsd = parseFloat(prod.precio_mayorista_usd) || 0;
+    const mayoristaAnteriorBs = mayoristaAnteriorUsd * tasaVentaActual;
 
     let stockTotal = 0;
     if (Array.isArray(prod.stock_almacenes)) {
-        stockTotal = prod.stock_almacenes.reduce((acc, s) => acc + parseFloat(s.cantidad_actual || 0), 0);
+        stockTotal = prod.stock_almacenes.reduce((acc, s) => acc + (parseFloat(s.cantidad_actual) || 0), 0);
     }
 
-    // 1. Llenar Ficha Visual (Read-only)
     $("#infoProdNombre").text(prod.nombre);
     $("#infoProdCodigo").text(prod.codigo_interno || "--");
     $("#infoProdUnidad").text(prod.unidad_medida || "UND");
-    $("#infoProdIvaBadge").text(prod.aplica_iva ? `IVA ${parseFloat(prod.iva_porcentaje || 16)}%` : "Exento (0%)");
-    $("#infoProdStockBadge").text(`Stock Total: ${stockTotal} ${prod.unidad_medida || 'und'}`);
+    $("#infoProdIvaBadge").text(prod.aplica_iva ? `IVA ${formatearMonto(prod.iva_porcentaje || 16, 0)}%` : "Exento (0%)");
+    $("#infoProdStockBadge").text(`Stock Total: ${formatearMonto(stockTotal, 0)} ${prod.unidad_medida || 'und'}`);
 
-    $("#infoProdCostoActual").text(`$ ${costoAnteriorUsd.toFixed(2)} / Bs. ${costoAnteriorBs}`);
-    $("#infoProdDetalActual").text(`$ ${detalAnteriorUsd.toFixed(2)} / Bs. ${detalAnteriorBs}`);
-    $("#infoProdMayoristaActual").text(`$ ${mayoristaAnteriorUsd.toFixed(2)} / Bs. ${mayoristaAnteriorBs}`);
+    $("#infoProdCostoActual").text(`$ ${formatearMonto(costoAnteriorUsd, 4)} / Bs. ${formatearMonto(costoAnteriorBs, 4)}`);
+    $("#infoProdDetalActual").text(`$ ${formatearMonto(detalAnteriorUsd, 4)} / Bs. ${formatearMonto(detalAnteriorBs, 4)}`);
+    $("#infoProdMayoristaActual").text(`$ ${formatearMonto(mayoristaAnteriorUsd, 4)} / Bs. ${formatearMonto(mayoristaAnteriorBs, 4)}`);
 
     $("#panelInfoProductoSeleccionado").slideDown(150);
 
-    // 2. Poblar opciones de Almacenes en el formulario de renglón
     const $selectAlm = $("#form_renglon_almacen_id");
     $selectAlm.empty();
     const almDefectoId = $("#almacen_id").val();
@@ -758,16 +736,15 @@ const seleccionarProductoParaCarga = function (prod, datosPrecargados = null) {
         });
     }
 
-    // 3. Llenar valores iniciales en los campos modificables
     const esVes = monedaDocumentoActual === "VES";
     const margenDetalSugerido = parseFloat(datosPrecargados?.margen_detal_porcentaje || prod.ultimo_margen_detal || 30.00);
     const margenMayoristaSugerido = parseFloat(datosPrecargados?.margen_mayorista_porcentaje || prod.ultimo_margen_mayorista || 15.00);
 
     let costoInicial = 0;
     if (datosPrecargados) {
-        costoInicial = esVes ? parseFloat(datosPrecargados.costo_unitario_bs || 0) : parseFloat(datosPrecargados.costo_unitario_usd || 0);
+        costoInicial = esVes ? (parseFloat(datosPrecargados.costo_unitario_bs) || 0) : (parseFloat(datosPrecargados.costo_unitario_usd) || 0);
     } else {
-        costoInicial = esVes ? parseFloat(costoAnteriorBs) : costoAnteriorUsd;
+        costoInicial = esVes ? costoAnteriorBs : costoAnteriorUsd;
     }
 
     const bultosInicial = datosPrecargados?.bultos || 1;
@@ -778,7 +755,7 @@ const seleccionarProductoParaCarga = function (prod, datosPrecargados = null) {
     if (datosPrecargados) {
         costoBultoInicial = esVes ? datosPrecargados.costo_bulto_bs : datosPrecargados.costo_bulto_usd;
     } else if (costoInicial > 0) {
-        costoBultoInicial = (costoInicial * cantidadInicial).toFixed(2);
+        costoBultoInicial = (costoInicial * cantidadInicial).toFixed(4);
     }
 
     $("#form_renglon_bultos").val(bultosInicial);
@@ -802,9 +779,9 @@ const seleccionarProductoParaCarga = function (prod, datosPrecargados = null) {
     setTimeout(() => {
         $("#form_renglon_bultos").focus().select();
     }, 200);
-};
+}
 
-const actualizarStockAlmacenFormulario = function () {
+function actualizarStockAlmacenFormulario() {
     if (!productoSeleccionadoActual) return;
     const almSelId = parseInt($("#form_renglon_almacen_id").val()) || 0;
 
@@ -812,24 +789,20 @@ const actualizarStockAlmacenFormulario = function () {
     if (Array.isArray(productoSeleccionadoActual.stock_almacenes)) {
         const itemStock = productoSeleccionadoActual.stock_almacenes.find((s) => s.almacen_id === almSelId);
         if (itemStock) {
-            stockEncontrado = parseFloat(itemStock.cantidad_actual || 0);
+            stockEncontrado = parseFloat(itemStock.cantidad_actual) || 0;
         }
     }
 
-    $("#form_renglon_stock_actual").text(`${stockEncontrado} ${productoSeleccionadoActual.unidad_medida || 'und'}`);
-};
-window.actualizarStockAlmacenFormulario = actualizarStockAlmacenFormulario;
+    $("#form_renglon_stock_actual").text(`${formatearMonto(stockEncontrado, 0)} ${productoSeleccionadoActual.unidad_medida || 'und'}`);
+}
 
-/**
- * Cálculos del Formulario Superior Inteligente
- */
-const calcularCantidadDesdeBultos = function () {
-    const bultos = parseFloat($("#form_renglon_bultos").val()) || 0;
-    const unidPorBulto = parseFloat($("#form_renglon_unid_bulto").val()) || 1;
+function calcularCantidadDesdeBultos() {
+    const bultos = normalizarNumero($("#form_renglon_bultos").val());
+    const unidPorBulto = normalizarNumero($("#form_renglon_unid_bulto").val()) || 1;
     const cantidadTotal = bultos * unidPorBulto;
     $("#form_renglon_cantidad").val(cantidadTotal > 0 ? cantidadTotal : 0);
 
-    const costoTotal = parseFloat($("#form_renglon_costo_bulto").val()) || 0;
+    const costoTotal = normalizarNumero($("#form_renglon_costo_bulto").val());
     if (costoTotal > 0 && cantidadTotal > 0) {
         $("#form_renglon_costo_unitario").val((costoTotal / cantidadTotal).toFixed(4));
     } else if (costoTotal > 0) {
@@ -839,14 +812,13 @@ const calcularCantidadDesdeBultos = function () {
     calcularPrecioDetalDesdeMargen();
     calcularPrecioMayoristaDesdeMargen();
     recalcularFormularioRenglon();
-};
-window.calcularCantidadDesdeBultos = calcularCantidadDesdeBultos;
+}
 
-const calcularCostoDesdeBulto = function () {
-    const costoTotal = parseFloat($("#form_renglon_costo_bulto").val()) || 0;
-    const bultos = parseFloat($("#form_renglon_bultos").val()) || 0;
-    const unidPorBulto = parseFloat($("#form_renglon_unid_bulto").val()) || 1;
-    let cantidadTotal = parseFloat($("#form_renglon_cantidad").val()) || (bultos * unidPorBulto);
+function calcularCostoDesdeBulto() {
+    const costoTotal = normalizarNumero($("#form_renglon_costo_bulto").val());
+    const bultos = normalizarNumero($("#form_renglon_bultos").val());
+    const unidPorBulto = normalizarNumero($("#form_renglon_unid_bulto").val()) || 1;
+    let cantidadTotal = normalizarNumero($("#form_renglon_cantidad").val()) || (bultos * unidPorBulto);
     if (cantidadTotal <= 0) {
         cantidadTotal = 1;
     }
@@ -860,180 +832,133 @@ const calcularCostoDesdeBulto = function () {
     calcularPrecioDetalDesdeMargen();
     calcularPrecioMayoristaDesdeMargen();
     recalcularFormularioRenglon();
-};
-window.calcularCostoDesdeBulto = calcularCostoDesdeBulto;
+}
 
-const actualizarCostoUnitarioManual = function () {
+function actualizarCostoUnitarioManual() {
     calcularPrecioDetalDesdeMargen();
     calcularPrecioMayoristaDesdeMargen();
     recalcularFormularioRenglon();
-};
-window.actualizarCostoUnitarioManual = actualizarCostoUnitarioManual;
+}
 
-const calcularPrecioDetalDesdeMargen = function () {
-    const esVes = monedaDocumentoActual === "VES";
-    const costoInput = parseFloat($("#form_renglon_costo_unitario").val()) || 0;
-    const margenDetal = parseFloat($("#form_renglon_margen_detal").val()) || 0;
+function calcularPrecioDetalDesdeMargen() {
+    const res = window.CalculosCompra.calcularPreciosDesdeMargen({
+        costo: $("#form_renglon_costo_unitario").val(),
+        margenDetal: $("#form_renglon_margen_detal").val(),
+        margenMayorista: $("#form_renglon_margen_mayorista").val(),
+        tasaCompra: tasaCompraActual,
+        tasaVenta: tasaVentaActual,
+        moneda: monedaDocumentoActual,
+    });
 
-    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
-    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
-    const tasaMenor = tCompra < tVenta;
-
-    if (costoInput > 0) {
-        if (!esVes) {
-            const baseGanancia = costoInput * (1 + margenDetal / 100);
-            const nuevoDetalUsd = tasaMenor ? baseGanancia : ((baseGanancia * tCompra) / tVenta);
-            const nuevoDetalBs = nuevoDetalUsd * tVenta;
-
-            $("#form_renglon_precio_detal").val(nuevoDetalUsd.toFixed(2));
-            $("#form_renglon_detal_bs").text(`Bs. ${nuevoDetalBs.toFixed(2)}`);
+    if (res.costoUsd > 0 || res.costoBs > 0) {
+        if (monedaDocumentoActual === "VES") {
+            $("#form_renglon_precio_detal").val(res.precioDetalBs.toFixed(4));
+            $("#form_renglon_detal_bs").text(`$ ${formatearMonto(res.precioDetalUsd, 4)}`);
         } else {
-            const costoUsd = tasaMenor ? (costoInput / tCompra) : (costoInput / tVenta);
-            const nuevoDetalUsd = costoUsd * (1 + margenDetal / 100);
-            const nuevoDetalBs = nuevoDetalUsd * tVenta;
-
-            $("#form_renglon_precio_detal").val(nuevoDetalBs.toFixed(2));
-            $("#form_renglon_detal_bs").text(`$ ${nuevoDetalUsd.toFixed(2)}`);
+            $("#form_renglon_precio_detal").val(res.precioDetalUsd.toFixed(4));
+            $("#form_renglon_detal_bs").text(`Bs. ${formatearMonto(res.precioDetalBs, 4)}`);
         }
     } else {
         $("#form_renglon_precio_detal").val("");
-        $("#form_renglon_detal_bs").text(esVes ? "$ 0.00" : "Bs. 0.00");
+        $("#form_renglon_detal_bs").text(monedaDocumentoActual === "VES" ? "$ 0,0000" : "Bs. 0,0000");
     }
-};
-window.calcularPrecioDetalDesdeMargen = calcularPrecioDetalDesdeMargen;
+}
 
-const calcularMargenDetalDesdePrecio = function () {
-    const esVes = monedaDocumentoActual === "VES";
-    const costoInput = parseFloat($("#form_renglon_costo_unitario").val()) || 0;
-    const precioInput = parseFloat($("#form_renglon_precio_detal").val()) || 0;
+function calcularMargenDetalDesdePrecio() {
+    const res = window.CalculosCompra.calcularMargenDesdePrecio({
+        costo: $("#form_renglon_costo_unitario").val(),
+        precio: $("#form_renglon_precio_detal").val(),
+        tasaCompra: tasaCompraActual,
+        tasaVenta: tasaVentaActual,
+        moneda: monedaDocumentoActual,
+    });
 
-    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
-    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
-    const tasaMenor = tCompra < tVenta;
-
-    if (costoInput > 0 && precioInput > 0) {
-        if (!esVes) {
-            const nuevoMargen = tasaMenor
-                ? (((precioInput / costoInput) - 1) * 100)
-                : (((precioInput * tVenta) / (costoInput * tCompra) - 1) * 100);
-            const nuevoDetalBs = precioInput * tVenta;
-
-            $("#form_renglon_margen_detal").val(nuevoMargen.toFixed(0));
-            $("#form_renglon_detal_bs").text(`Bs. ${nuevoDetalBs.toFixed(2)}`);
+    if (res.precioUsd > 0 || res.precioBs > 0) {
+        $("#form_renglon_margen_detal").val(res.margen.toFixed(0));
+        if (monedaDocumentoActual === "VES") {
+            $("#form_renglon_detal_bs").text(`$ ${formatearMonto(res.precioUsd, 4)}`);
         } else {
-            const costoUsd = tasaMenor ? (costoInput / tCompra) : (costoInput / tVenta);
-            const precioUsd = precioInput / tVenta;
-            const nuevoMargen = costoUsd > 0 ? (((precioUsd / costoUsd) - 1) * 100) : 0;
-
-            $("#form_renglon_margen_detal").val(nuevoMargen.toFixed(0));
-            $("#form_renglon_detal_bs").text(`$ ${precioUsd.toFixed(2)}`);
+            $("#form_renglon_detal_bs").text(`Bs. ${formatearMonto(res.precioBs, 4)}`);
         }
     }
     recalcularFormularioRenglon();
-};
-window.calcularMargenDetalDesdePrecio = calcularMargenDetalDesdePrecio;
+}
 
-const calcularPrecioMayoristaDesdeMargen = function () {
-    const esVes = monedaDocumentoActual === "VES";
-    const costoInput = parseFloat($("#form_renglon_costo_unitario").val()) || 0;
-    const margenMayor = parseFloat($("#form_renglon_margen_mayorista").val()) || 0;
+function calcularPrecioMayoristaDesdeMargen() {
+    const res = window.CalculosCompra.calcularPreciosDesdeMargen({
+        costo: $("#form_renglon_costo_unitario").val(),
+        margenDetal: $("#form_renglon_margen_detal").val(),
+        margenMayorista: $("#form_renglon_margen_mayorista").val(),
+        tasaCompra: tasaCompraActual,
+        tasaVenta: tasaVentaActual,
+        moneda: monedaDocumentoActual,
+    });
 
-    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
-    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
-    const tasaMenor = tCompra < tVenta;
-
-    if (costoInput > 0) {
-        if (!esVes) {
-            const baseGanancia = costoInput * (1 + margenMayor / 100);
-            const nuevoMayorUsd = tasaMenor ? baseGanancia : ((baseGanancia * tCompra) / tVenta);
-            const nuevoMayorBs = nuevoMayorUsd * tVenta;
-
-            $("#form_renglon_precio_mayorista").val(nuevoMayorUsd.toFixed(2));
-            $("#form_renglon_mayorista_bs").text(`Bs. ${nuevoMayorBs.toFixed(2)}`);
+    if (res.costoUsd > 0 || res.costoBs > 0) {
+        if (monedaDocumentoActual === "VES") {
+            $("#form_renglon_precio_mayorista").val(res.precioMayoristaBs.toFixed(4));
+            $("#form_renglon_mayorista_bs").text(`$ ${formatearMonto(res.precioMayoristaUsd, 4)}`);
         } else {
-            const costoUsd = tasaMenor ? (costoInput / tCompra) : (costoInput / tVenta);
-            const nuevoMayorUsd = costoUsd * (1 + margenMayor / 100);
-            const nuevoMayorBs = nuevoMayorUsd * tVenta;
-
-            $("#form_renglon_precio_mayorista").val(nuevoMayorBs.toFixed(2));
-            $("#form_renglon_mayorista_bs").text(`$ ${nuevoMayorUsd.toFixed(2)}`);
+            $("#form_renglon_precio_mayorista").val(res.precioMayoristaUsd.toFixed(4));
+            $("#form_renglon_mayorista_bs").text(`Bs. ${formatearMonto(res.precioMayoristaBs, 4)}`);
         }
     } else {
         $("#form_renglon_precio_mayorista").val("");
-        $("#form_renglon_mayorista_bs").text(esVes ? "$ 0.00" : "Bs. 0.00");
+        $("#form_renglon_mayorista_bs").text(monedaDocumentoActual === "VES" ? "$ 0,0000" : "Bs. 0,0000");
     }
-};
-window.calcularPrecioMayoristaDesdeMargen = calcularPrecioMayoristaDesdeMargen;
+}
 
-const calcularMargenMayoristaDesdePrecio = function () {
-    const esVes = monedaDocumentoActual === "VES";
-    const costoInput = parseFloat($("#form_renglon_costo_unitario").val()) || 0;
-    const precioMayorInput = parseFloat($("#form_renglon_precio_mayorista").val()) || 0;
+function calcularMargenMayoristaDesdePrecio() {
+    const res = window.CalculosCompra.calcularMargenDesdePrecio({
+        costo: $("#form_renglon_costo_unitario").val(),
+        precio: $("#form_renglon_precio_mayorista").val(),
+        tasaCompra: tasaCompraActual,
+        tasaVenta: tasaVentaActual,
+        moneda: monedaDocumentoActual,
+    });
 
-    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
-    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
-    const tasaMenor = tCompra < tVenta;
-
-    if (costoInput > 0 && precioMayorInput > 0) {
-        if (!esVes) {
-            const nuevoMargen = tasaMenor
-                ? (((precioMayorInput / costoInput) - 1) * 100)
-                : (((precioMayorInput * tVenta) / (costoInput * tCompra) - 1) * 100);
-            const nuevoMayorBs = precioMayorInput * tVenta;
-
-            $("#form_renglon_margen_mayorista").val(nuevoMargen.toFixed(0));
-            $("#form_renglon_mayorista_bs").text(`Bs. ${nuevoMayorBs.toFixed(2)}`);
+    if (res.precioUsd > 0 || res.precioBs > 0) {
+        $("#form_renglon_margen_mayorista").val(res.margen.toFixed(0));
+        if (monedaDocumentoActual === "VES") {
+            $("#form_renglon_mayorista_bs").text(`$ ${formatearMonto(res.precioUsd, 4)}`);
         } else {
-            const costoUsd = tasaMenor ? (costoInput / tCompra) : (costoInput / tVenta);
-            const precioUsd = precioMayorInput / tVenta;
-            const nuevoMargen = costoUsd > 0 ? (((precioUsd / costoUsd) - 1) * 100) : 0;
-
-            $("#form_renglon_margen_mayorista").val(nuevoMargen.toFixed(0));
-            $("#form_renglon_mayorista_bs").text(`$ ${precioUsd.toFixed(2)}`);
+            $("#form_renglon_mayorista_bs").text(`Bs. ${formatearMonto(res.precioBs, 4)}`);
         }
     }
     recalcularFormularioRenglon();
-};
-window.calcularMargenMayoristaDesdePrecio = calcularMargenMayoristaDesdePrecio;
+}
 
-const recalcularFormularioRenglon = function () {
+function recalcularFormularioRenglon() {
     const esVes = monedaDocumentoActual === "VES";
-    const cantidad = parseFloat($("#form_renglon_cantidad").val()) || 0;
-    const costoInput = parseFloat($("#form_renglon_costo_unitario").val()) || 0;
-    const descPorc = parseFloat($("#form_renglon_descuento").val()) || 0;
+    const cantidad = normalizarNumero($("#form_renglon_cantidad").val());
+    const costoInput = normalizarNumero($("#form_renglon_costo_unitario").val());
+    const descPorc = normalizarNumero($("#form_renglon_descuento").val());
 
-    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
-    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
-    const tasaMenor = tCompra < tVenta;
-
-    let costoUsd = 0;
-    let costoBs = 0;
+    const eq = window.CalculosCompra.calcularEquivalenteMoneda(costoInput, monedaDocumentoActual, tasaCompraActual, tasaVentaActual);
+    const costoUsd = eq.usd;
+    const costoBs = eq.bs;
 
     if (!esVes) {
-        costoUsd = costoInput;
-        costoBs = tasaMenor ? (costoUsd * tVenta) : (costoUsd * tCompra);
-        $("#form_renglon_costo_equivalente").text(`Equiv: Bs. ${costoBs.toFixed(2)}`);
+        $("#form_renglon_costo_equivalente").text(`Equiv: Bs. ${formatearMonto(costoBs, 4)}`);
     } else {
-        costoBs = costoInput;
-        costoUsd = tasaMenor ? (tCompra > 0 ? costoBs / tCompra : 0) : (tVenta > 0 ? costoBs / tVenta : 0);
-        $("#form_renglon_costo_equivalente").text(`Equiv: $ ${costoUsd.toFixed(2)}`);
+        $("#form_renglon_costo_equivalente").text(`Equiv: $ ${formatearMonto(costoUsd, 4)}`);
     }
 
+    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
     const subtotalBrutoUsd = cantidad * costoUsd;
     const subtotalNetoUsd = subtotalBrutoUsd * (1 - descPorc / 100);
     const subtotalNetoBs = subtotalNetoUsd * tCompra;
 
     if (!esVes) {
-        $("#form_renglon_subtotal_usd").text(`$ ${subtotalNetoUsd.toFixed(2)}`);
-        $("#form_renglon_subtotal_bs").text(`Bs. ${subtotalNetoBs.toFixed(2)}`);
+        $("#form_renglon_subtotal_usd").text(`$ ${formatearMonto(subtotalNetoUsd, 4)}`);
+        $("#form_renglon_subtotal_bs").text(`Bs. ${formatearMonto(subtotalNetoBs, 4)}`);
     } else {
-        $("#form_renglon_subtotal_usd").text(`Bs. ${subtotalNetoBs.toFixed(2)}`);
-        $("#form_renglon_subtotal_bs").text(`$ ${subtotalNetoUsd.toFixed(2)}`);
+        $("#form_renglon_subtotal_usd").text(`Bs. ${formatearMonto(subtotalNetoBs, 4)}`);
+        $("#form_renglon_subtotal_bs").text(`$ ${formatearMonto(subtotalNetoUsd, 4)}`);
     }
-};
-window.recalcularFormularioRenglon = recalcularFormularioRenglon;
+}
 
-const agregarOActualizarRenglon = function () {
+function agregarOActualizarRenglon() {
     if (!productoSeleccionadoActual) {
         if (window.notificacion) {
             window.notificacion.fire({
@@ -1045,9 +970,9 @@ const agregarOActualizarRenglon = function () {
         return;
     }
 
-    const bultos = parseFloat($("#form_renglon_bultos").val()) || 0;
-    const unidPorBulto = parseFloat($("#form_renglon_unid_bulto").val()) || 1;
-    const costoBultoInput = parseFloat($("#form_renglon_costo_bulto").val()) || 0;
+    const bultos = normalizarNumero($("#form_renglon_bultos").val());
+    const unidPorBulto = normalizarNumero($("#form_renglon_unid_bulto").val()) || 1;
+    const costoBultoInput = normalizarNumero($("#form_renglon_costo_bulto").val());
     const almId = parseInt($("#form_renglon_almacen_id").val()) || 0;
     const almNombre = $("#form_renglon_almacen_id option:selected").text();
 
@@ -1115,10 +1040,10 @@ const agregarOActualizarRenglon = function () {
         costoBultoUsd = tasaMenor ? (costoBultoBs / tCompra) : (costoBultoBs / tVenta);
     }
 
-    const descPorc = parseFloat($("#form_renglon_descuento").val()) || 0;
-    const ivaPorc = parseFloat($("#form_renglon_iva").val()) || 0;
-    const margenDetal = parseFloat($("#form_renglon_margen_detal").val()) || 30;
-    const margenMayor = parseFloat($("#form_renglon_margen_mayorista").val()) || 15;
+    const descPorc = normalizarNumero($("#form_renglon_descuento").val());
+    const ivaPorc = normalizarNumero($("#form_renglon_iva").val());
+    const margenDetal = normalizarNumero($("#form_renglon_margen_detal").val()) || 30;
+    const margenMayor = normalizarNumero($("#form_renglon_margen_mayorista").val()) || 15;
 
     let precioDetalUsd = 0;
     let precioDetalBs = 0;
@@ -1129,21 +1054,21 @@ const agregarOActualizarRenglon = function () {
         const sugeridoDetalUsd = tasaMenor
             ? (costoUsd * (1 + margenDetal / 100))
             : ((costoUsd * (1 + margenDetal / 100) * tCompra) / tVenta);
-        precioDetalUsd = parseFloat($("#form_renglon_precio_detal").val()) || sugeridoDetalUsd;
+        precioDetalUsd = normalizarNumero($("#form_renglon_precio_detal").val()) || sugeridoDetalUsd;
         precioDetalBs = precioDetalUsd * tVenta;
 
         const sugeridoMayorUsd = tasaMenor
             ? (costoUsd * (1 + margenMayor / 100))
             : ((costoUsd * (1 + margenMayor / 100) * tCompra) / tVenta);
-        precioMayorUsd = parseFloat($("#form_renglon_precio_mayorista").val()) || sugeridoMayorUsd;
+        precioMayorUsd = normalizarNumero($("#form_renglon_precio_mayorista").val()) || sugeridoMayorUsd;
         precioMayorBs = precioMayorUsd * tVenta;
     } else {
         const sugeridoDetalUsd = costoUsd * (1 + margenDetal / 100);
-        precioDetalBs = parseFloat($("#form_renglon_precio_detal").val()) || (sugeridoDetalUsd * tVenta);
+        precioDetalBs = normalizarNumero($("#form_renglon_precio_detal").val()) || (sugeridoDetalUsd * tVenta);
         precioDetalUsd = precioDetalBs / tVenta;
 
         const sugeridoMayorUsd = costoUsd * (1 + margenMayor / 100);
-        precioMayorBs = parseFloat($("#form_renglon_precio_mayorista").val()) || (sugeridoMayorUsd * tVenta);
+        precioMayorBs = normalizarNumero($("#form_renglon_precio_mayorista").val()) || (sugeridoMayorUsd * tVenta);
         precioMayorUsd = precioMayorBs / tVenta;
     }
 
@@ -1181,12 +1106,12 @@ const agregarOActualizarRenglon = function () {
         precio_mayorista_bs: precioMayorBs,
         subtotal_usd: subtotalNetoUsd,
         subtotal_bs: subtotalNetoBs,
-        costo_anterior_usd: parseFloat(productoSeleccionadoActual.precio_costo_usd || 0),
-        costo_anterior_bs: parseFloat(productoSeleccionadoActual.precio_costo_usd || 0) * tCompra,
-        precio_detal_anterior_usd: parseFloat(productoSeleccionadoActual.precio_detal_usd || 0),
-        precio_detal_anterior_bs: parseFloat(productoSeleccionadoActual.precio_detal_usd || 0) * tVenta,
-        precio_mayorista_anterior_usd: parseFloat(productoSeleccionadoActual.precio_mayorista_usd || 0),
-        precio_mayorista_anterior_bs: parseFloat(productoSeleccionadoActual.precio_mayorista_usd || 0) * tVenta,
+        costo_anterior_usd: parseFloat(productoSeleccionadoActual.precio_costo_usd) || 0,
+        costo_anterior_bs: (parseFloat(productoSeleccionadoActual.precio_costo_usd) || 0) * tCompra,
+        precio_detal_anterior_usd: parseFloat(productoSeleccionadoActual.precio_detal_usd) || 0,
+        precio_detal_anterior_bs: (parseFloat(productoSeleccionadoActual.precio_detal_usd) || 0) * tVenta,
+        precio_mayorista_anterior_usd: parseFloat(productoSeleccionadoActual.precio_mayorista_usd) || 0,
+        precio_mayorista_anterior_bs: (parseFloat(productoSeleccionadoActual.precio_mayorista_usd) || 0) * tVenta,
     };
 
     if (indiceEdicionActual !== null && indiceEdicionActual >= 0 && indiceEdicionActual < listaProductosCargados.length) {
@@ -1216,13 +1141,9 @@ const agregarOActualizarRenglon = function () {
     recalcularTotalesGenerales();
 
     $("#inputEscaneoProducto").focus();
-};
-window.agregarOActualizarRenglon = agregarOActualizarRenglon;
+}
 
-/**
- * Editar Renglón Cargado
- */
-const editarRenglon = function (indice) {
+function editarRenglon(indice) {
     if (indice < 0 || indice >= listaProductosCargados.length) return;
     const item = listaProductosCargados[indice];
 
@@ -1239,13 +1160,9 @@ const editarRenglon = function (indice) {
         },
         200
     );
-};
-window.editarRenglon = editarRenglon;
+}
 
-/**
- * Eliminar Renglón Cargado
- */
-const eliminarRenglon = function (indice) {
+function eliminarRenglon(indice) {
     if (indice < 0 || indice >= listaProductosCargados.length) return;
     listaProductosCargados.splice(indice, 1);
 
@@ -1255,37 +1172,25 @@ const eliminarRenglon = function (indice) {
 
     renderizarTablaDetalles();
     recalcularTotalesGenerales();
-};
-window.eliminarRenglon = eliminarRenglon;
+}
 
-/**
- * Cancelar selección / edición de renglón
- */
-const cancelarEdicionRenglon = function () {
+function cancelarEdicionRenglon() {
     productoSeleccionadoActual = null;
     indiceEdicionActual = null;
     $("#panelInfoProductoSeleccionado").slideUp(100);
     $("#panelFormularioRenglon").slideUp(100);
     $("#badgeModoEdicion").hide();
     $("#inputEscaneoProducto").val("").focus();
-};
-window.cancelarEdicionRenglon = cancelarEdicionRenglon;
+}
 
-/**
- * Limpiar toda la tabla de productos
- */
-const limpiarTablaProductos = function () {
+function limpiarTablaProductos() {
     listaProductosCargados = [];
     cancelarEdicionRenglon();
     renderizarTablaDetalles();
     recalcularTotalesGenerales();
-};
-window.limpiarTablaProductos = limpiarTablaProductos;
+}
 
-/**
- * Renderizar Tabla Limpia y Renglones Ocultos de Formulario
- */
-const renderizarTablaDetalles = function () {
+function renderizarTablaDetalles() {
     const $tbody = $("#contenedorFilasRecepcion");
     const $hiddenContainer = $("#contenedorInputsHiddenDetalles");
     const esVes = monedaDocumentoActual === "VES";
@@ -1313,97 +1218,76 @@ const renderizarTablaDetalles = function () {
         const prod = item.producto;
         const bultosTexto = item.bultos > 0 ? `<small class="text-muted d-block font-monospace">(${item.bultos} blt x ${item.unidades_por_bulto})</small>` : "";
 
-        const costPrincipal = !esVes ? `$ ${parseFloat(item.costo_unitario_usd).toFixed(2)}` : `Bs. ${parseFloat(item.costo_unitario_bs).toFixed(2)}`;
-        const costSecundario = !esVes ? `Bs. ${parseFloat(item.costo_unitario_bs).toFixed(2)}` : `$ ${parseFloat(item.costo_unitario_usd).toFixed(2)}`;
+        const costPrincipal = !esVes ? `$ ${formatearMonto(item.costo_unitario_usd, 4)}` : `Bs. ${formatearMonto(item.costo_unitario_bs, 4)}`;
+        const costSecundario = !esVes ? `Bs. ${formatearMonto(item.costo_unitario_bs, 4)}` : `$ ${formatearMonto(item.costo_unitario_usd, 4)}`;
 
-        const detalPrincipal = !esVes ? `$ ${parseFloat(item.precio_detal_usd).toFixed(2)}` : `Bs. ${parseFloat(item.precio_detal_bs).toFixed(2)}`;
-        const detalSecundario = !esVes ? `Bs. ${parseFloat(item.precio_detal_bs).toFixed(2)}` : `$ ${parseFloat(item.precio_detal_usd).toFixed(2)}`;
+        const detalPrincipal = !esVes ? `$ ${formatearMonto(item.precio_detal_usd, 4)}` : `Bs. ${formatearMonto(item.precio_detal_bs, 4)}`;
+        const detalSecundario = !esVes ? `Bs. ${formatearMonto(item.precio_detal_bs, 4)}` : `$ ${formatearMonto(item.precio_detal_usd, 4)}`;
 
-        const mayorPrincipal = !esVes ? `$ ${parseFloat(item.precio_mayorista_usd).toFixed(2)}` : `Bs. ${parseFloat(item.precio_mayorista_bs).toFixed(2)}`;
-        const mayorSecundario = !esVes ? `Bs. ${parseFloat(item.precio_mayorista_bs).toFixed(2)}` : `$ ${parseFloat(item.precio_mayorista_usd).toFixed(2)}`;
+        const mayorPrincipal = !esVes ? `$ ${formatearMonto(item.precio_mayorista_usd, 4)}` : `Bs. ${formatearMonto(item.precio_mayorista_bs, 4)}`;
+        const mayorSecundario = !esVes ? `Bs. ${formatearMonto(item.precio_mayorista_bs, 4)}` : `$ ${formatearMonto(item.precio_mayorista_usd, 4)}`;
 
-        const subtotalPrincipal = !esVes ? `$ ${parseFloat(item.subtotal_usd).toFixed(2)}` : `Bs. ${parseFloat(item.subtotal_bs).toFixed(2)}`;
-        const subtotalSecundario = !esVes ? `Bs. ${parseFloat(item.subtotal_bs).toFixed(2)}` : `$ ${parseFloat(item.subtotal_usd).toFixed(2)}`;
+        const subtotalPrincipal = !esVes ? `$ ${formatearMonto(item.subtotal_usd, 4)}` : `Bs. ${formatearMonto(item.subtotal_bs, 4)}`;
+        const subtotalSecundario = !esVes ? `Bs. ${formatearMonto(item.subtotal_bs, 4)}` : `$ ${formatearMonto(item.subtotal_usd, 4)}`;
 
         const filaHtml = `
             <tr class="fila-producto-cargado align-middle">
-                <!-- # -->
                 <td class="text-center font-monospace text-muted small">${idx + 1}</td>
-
-                <!-- Producto / SKU -->
                 <td>
                     <strong class="text-dark d-block text-capitalize" style="font-size: 0.88rem;">${prod.nombre}</strong>
                     <div class="d-flex align-items-center gap-1 small text-muted font-monospace" style="font-size: 0.72rem;">
-                        <span class="badge rounded-pill bg-light text-secondary border px-1 py-0">#${prod.codigo_interno}</span>
+                        <span class="badge rounded-pill bg-light text-secondary border px-1 py-0">#${prod.codigo_interno || ''}</span>
                         <span>•</span>
                         <span>${prod.unidad_medida || 'UND'}</span>
                     </div>
                 </td>
-
-                <!-- Almacén Destino -->
                 <td>
                     <span class="badge rounded-pill px-2 py-1 fw-semibold" style="font-size: 0.74rem; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">
                         <i class="fas fa-warehouse me-1"></i>${item.almacen_nombre}
                     </span>
                 </td>
-
-                <!-- Cantidad -->
                 <td class="text-center font-monospace">
-                    <strong class="text-dark" style="font-size: 0.90rem;">${parseFloat(item.cantidad).toLocaleString()}</strong>
+                    <strong class="text-dark" style="font-size: 0.90rem;">${formatearMonto(item.cantidad, 0)}</strong>
                     ${bultosTexto}
                 </td>
-
-                <!-- Costo Unitario -->
                 <td class="text-end font-monospace">
                     <strong class="text-success d-block" style="font-size: 0.92rem;">${costPrincipal}</strong>
                     <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.78rem; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">
                         ${costSecundario}
                     </span>
                 </td>
-
-                <!-- Descuento -->
                 <td class="text-center font-monospace small">
-                    ${item.descuento_porcentaje > 0 ? `<span class="badge rounded-pill bg-danger-subtle text-danger px-2 py-1 fw-bold">-${parseFloat(item.descuento_porcentaje)}%</span>` : '<span class="text-muted">0%</span>'}
+                    ${item.descuento_porcentaje > 0 ? `<span class="badge rounded-pill bg-danger-subtle text-danger px-2 py-1 fw-bold">-${formatearMonto(item.descuento_porcentaje, 0)}%</span>` : '<span class="text-muted">0%</span>'}
                 </td>
-
-                <!-- IVA -->
                 <td class="text-center font-monospace small">
                     <span class="badge rounded-pill bg-light text-secondary border px-2 py-1 fw-semibold">
-                        ${item.iva_porcentaje > 0 ? `IVA ${parseFloat(item.iva_porcentaje)}%` : 'Exento'}
+                        ${item.iva_porcentaje > 0 ? `IVA ${formatearMonto(item.iva_porcentaje, 0)}%` : 'Exento'}
                     </span>
                 </td>
-
-                <!-- Precio Detal -->
                 <td class="text-end font-monospace">
                     <div class="d-flex align-items-center justify-content-end gap-1">
                         <strong class="text-primary d-block" style="font-size: 0.92rem;">${detalPrincipal}</strong>
-                        <span class="badge rounded-pill bg-light text-secondary border px-1.5 py-0" style="font-size: 0.70rem;">${parseFloat(item.margen_detal_porcentaje)}%</span>
+                        <span class="badge rounded-pill bg-light text-secondary border px-1.5 py-0" style="font-size: 0.70rem;">${formatearMonto(item.margen_detal_porcentaje, 0)}%</span>
                     </div>
                     <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.78rem; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">
                         ${detalSecundario}
                     </span>
                 </td>
-
-                <!-- Precio Mayorista -->
                 <td class="text-end font-monospace">
                     <div class="d-flex align-items-center justify-content-end gap-1">
                         <strong style="color: #7e22ce;" class="d-block" style="font-size: 0.92rem;">${mayorPrincipal}</strong>
-                        <span class="badge rounded-pill bg-light text-secondary border px-1.5 py-0" style="font-size: 0.70rem;">${parseFloat(item.margen_mayorista_porcentaje)}%</span>
+                        <span class="badge rounded-pill bg-light text-secondary border px-1.5 py-0" style="font-size: 0.70rem;">${formatearMonto(item.margen_mayorista_porcentaje, 0)}%</span>
                     </div>
                     <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.78rem; background-color: #faf5ff; color: #6b21a8; border: 1px solid #e9d5ff;">
                         ${mayorSecundario}
                     </span>
                 </td>
-
-                <!-- Subtotal -->
                 <td class="text-end font-monospace">
                     <strong class="text-dark d-block" style="font-size: 0.95rem;">${subtotalPrincipal}</strong>
                     <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.78rem; background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">
                         ${subtotalSecundario}
                     </span>
                 </td>
-
-                <!-- Acciones -->
                 <td class="text-center">
                     <div class="d-flex justify-content-center gap-1">
                         <button type="button" class="btn btn-outline-primary btn-sm rounded-circle shadow-xs" onclick="editarRenglon(${idx})" title="Editar Renglón" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
@@ -1418,7 +1302,6 @@ const renderizarTablaDetalles = function () {
         `;
         $tbody.append(filaHtml);
 
-        // Generar Inputs Hidden para enviar al controlador
         const hiddenHtml = `
             <input type="hidden" name="detalles[${idx}][producto_id]" value="${item.producto_id}">
             <input type="hidden" name="detalles[${idx}][almacen_id]" value="${item.almacen_id}">
@@ -1438,12 +1321,9 @@ const renderizarTablaDetalles = function () {
         `;
         $hiddenContainer.append(hiddenHtml);
     });
-};
+}
 
-/**
- * Recalcular Resumen Global de Liquidación
- */
-const recalcularTotalesGenerales = function () {
+function recalcularTotalesGenerales() {
     let totalUnidades = 0;
     let montoBrutoUsd = 0;
     let totalDescuentosItemsUsd = 0;
@@ -1461,8 +1341,7 @@ const recalcularTotalesGenerales = function () {
         totalIvaUsd += ivaUsd;
     });
 
-    // Descuento global
-    const descGlobalPorc = parseFloat($("#descuento_global_porcentaje").val()) || 0;
+    const descGlobalPorc = normalizarNumero($("#descuento_global_porcentaje").val());
     const subtotalAntesDescGlobal = montoBrutoUsd - totalDescuentosItemsUsd;
     const descGlobalMontoUsd = subtotalAntesDescGlobal * (descGlobalPorc / 100);
 
@@ -1472,23 +1351,20 @@ const recalcularTotalesGenerales = function () {
     const totalGeneralUsd = subtotalNetoUsd + totalIvaUsd;
     const totalGeneralBs = totalGeneralUsd * (tasaCompraActual > 0 ? tasaCompraActual : tasaUsdActual);
 
-    $("#resumenTotalUnidades").text(totalUnidades.toLocaleString());
-    $("#resumenMontoBrutoUsd").text(`$ ${montoBrutoUsd.toFixed(2)}`);
-    $("#resumenDescuentosUsd").text(`-$ ${totalDescuentosTotalUsd.toFixed(2)}`);
-    $("#resumenSubtotalUsd").text(`$ ${subtotalNetoUsd.toFixed(2)}`);
-    $("#resumenIvaUsd").text(`$ ${totalIvaUsd.toFixed(2)}`);
-    $("#resumenTotalGeneralUsd").text(`$ ${totalGeneralUsd.toFixed(2)}`);
-    $("#resumenTotalGeneralBs").text(`Bs. ${totalGeneralBs.toFixed(2)}`);
-};
-window.recalcularTotalesGenerales = recalcularTotalesGenerales;
+    $("#resumenTotalUnidades").text(formatearMonto(totalUnidades, 0));
+    $("#resumenMontoBrutoUsd").text(`$ ${formatearMonto(montoBrutoUsd, 2)}`);
+    $("#resumenDescuentosUsd").text(`-$ ${formatearMonto(totalDescuentosTotalUsd, 2)}`);
+    $("#resumenSubtotalUsd").text(`$ ${formatearMonto(subtotalNetoUsd, 2)}`);
+    $("#resumenIvaUsd").text(`$ ${formatearMonto(totalIvaUsd, 2)}`);
+    $("#resumenTotalGeneralUsd").text(`$ ${formatearMonto(totalGeneralUsd, 2)}`);
+    $("#resumenTotalGeneralBs").text(`Bs. ${formatearMonto(totalGeneralBs, 2)}`);
+}
 
-/**
- * Abrir modal de nueva recepción
- */
-const crear = function () {
+function crear() {
     $("#formularioRecepcion")[0].reset();
     $("#formularioRecepcion .is-invalid").removeClass("is-invalid");
     $("#formularioRecepcion .invalid-feedback").remove();
+    limpiarSelect2("#proveedor_id");
 
     const hoy = new Date().toISOString().split("T")[0];
     $("#fecha_emision").val(hoy);
@@ -1503,12 +1379,12 @@ const crear = function () {
     tasaCompraActual = tasaUsdActual;
     tasaVentaActual = tasaUsdActual;
 
-    $("#badgeTasaCambio").text(tasaUsdActual.toFixed(4));
+    $("#badgeTasaCambio").text(formatearMonto(tasaUsdActual, 4));
     $("#tasa_cambio").val(tasaUsdActual.toFixed(4));
     $("#tasa_compra").val(tasaCompraActual.toFixed(4));
     $("#tasa_venta").val(tasaVentaActual.toFixed(4));
-    $("#badgeTasaCompraFase2").text(tasaCompraActual.toFixed(4));
-    $("#badgeTasaVentaFase2").text(tasaVentaActual.toFixed(4));
+    $("#badgeTasaCompraFase2").text(formatearMonto(tasaCompraActual, 4));
+    $("#badgeTasaVentaFase2").text(formatearMonto(tasaVentaActual, 4));
     $("#badgeCodigoRecepcion").html(`<i class="fas fa-hashtag me-1"></i>${catalogosSistema.proximo_codigo || "REC-00001"}`);
 
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRecepcion"));
@@ -1517,13 +1393,9 @@ const crear = function () {
     setTimeout(() => {
         $("#numero_documento").focus();
     }, 400);
-};
-window.crear = crear;
+}
 
-/**
- * Guardar y procesar la recepción
- */
-const guardarRecepcion = async function () {
+async function guardarRecepcion() {
     const $form = $("#formularioRecepcion");
     const $btn = $("#btnGuardarRecepcion");
     const textoOriginal = $btn.html();
@@ -1611,13 +1483,9 @@ const guardarRecepcion = async function () {
     } finally {
         $btn.prop("disabled", false).html(textoOriginal);
     }
-};
-window.guardarRecepcion = guardarRecepcion;
+}
 
-/**
- * Ficha Técnica 360° / Comprobante de Recepción
- */
-const verFicha = async function (id) {
+async function verFicha(id) {
     try {
         const res = await consultarRegistro(urlDetalles, id);
         if (!res || !res.data) return;
@@ -1628,14 +1496,14 @@ const verFicha = async function (id) {
             recep.detalles.forEach((d) => {
                 const prod = d.producto || {};
                 const alm = d.almacen || recep.almacen || {};
-                const subtotalUsd = parseFloat(d.subtotal_usd || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                const subtotalBs = parseFloat(d.subtotal_bs || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                const costoUsd = parseFloat(d.costo_unitario_usd || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                const costoBs = parseFloat(d.costo_unitario_bs || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                const detalUsd = parseFloat(d.precio_detal_usd || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                const detalBs = parseFloat(d.precio_detal_bs || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                const mayoristaUsd = parseFloat(d.precio_mayorista_usd || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                const mayoristaBs = parseFloat(d.precio_mayorista_bs || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const subtotalUsd = formatearMonto(d.subtotal_usd, 4);
+                const subtotalBs = formatearMonto(d.subtotal_bs, 4);
+                const costoUsd = formatearMonto(d.costo_unitario_usd, 4);
+                const costoBs = formatearMonto(d.costo_unitario_bs, 4);
+                const detalUsd = formatearMonto(d.precio_detal_usd, 4);
+                const detalBs = formatearMonto(d.precio_detal_bs, 4);
+                const mayoristaUsd = formatearMonto(d.precio_mayorista_usd, 4);
+                const mayoristaBs = formatearMonto(d.precio_mayorista_bs, 4);
 
                 filasProductosHtml += `
                     <tr>
@@ -1648,13 +1516,13 @@ const verFicha = async function (id) {
                                 <i class="fas fa-warehouse me-1"></i>${alm.nombre || 'N/A'}
                             </span>
                         </td>
-                        <td class="text-center font-monospace fw-bold" style="white-space: nowrap;">${parseFloat(d.cantidad || 0)} ${prod.unidad_medida || 'und'}</td>
+                        <td class="text-center font-monospace fw-bold" style="white-space: nowrap;">${formatearMonto(d.cantidad || 0, 0)} ${prod.unidad_medida || 'und'}</td>
                         <td class="text-end font-monospace" style="white-space: nowrap;">
                             <span class="d-block fw-bold text-dark">$ ${costoUsd}</span>
                             <small class="d-block font-monospace fw-semibold" style="font-size: 0.72rem; color: #0284c7;">Bs. ${costoBs}</small>
                         </td>
-                        <td class="text-center font-monospace">${parseFloat(d.descuento_porcentaje || 0)}%</td>
-                        <td class="text-center font-monospace" style="white-space: nowrap;">${d.aplica_iva ? `IVA ${parseFloat(d.iva_porcentaje || 0)}%` : 'Exento'}</td>
+                        <td class="text-center font-monospace">${formatearMonto(d.descuento_porcentaje || 0, 0)}%</td>
+                        <td class="text-center font-monospace" style="white-space: nowrap;">${d.aplica_iva ? `IVA ${formatearMonto(d.iva_porcentaje || 0, 0)}%` : 'Exento'}</td>
                         <td class="text-end font-monospace" style="white-space: nowrap;">
                             <span class="d-block fw-bold text-dark">$ ${detalUsd}</span>
                             <small class="d-block font-monospace fw-semibold" style="font-size: 0.72rem; color: #0284c7;">Bs. ${detalBs}</small>
@@ -1674,7 +1542,6 @@ const verFicha = async function (id) {
 
         const fichaHtml = `
             <div class="row g-3">
-                <!-- ENCABEZADO 360 -->
                 <div class="col-12">
                     <div class="card card-executive border-0 shadow-sm p-4" style="border-radius: 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #ffffff;">
                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -1695,14 +1562,13 @@ const verFicha = async function (id) {
                             </div>
                             <div class="text-end">
                                 <span class="d-block small text-white-50">Total General</span>
-                                <h3 class="fw-bold mb-0 text-warning font-monospace">$ ${parseFloat(recep.total_usd || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
-                                <small class="text-white-50 font-monospace">Bs. ${parseFloat(recep.total_bs || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
+                                <h3 class="fw-bold mb-0 text-warning font-monospace">$ ${formatearMonto(recep.total_usd, 2)}</h3>
+                                <small class="text-white-50 font-monospace">Bs. ${formatearMonto(recep.total_bs, 2)}</small>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- PROVEEDOR Y CONDICIONES -->
                 <div class="col-md-6">
                     <div class="card border rounded-4 p-3 h-100 shadow-sm bg-white">
                         <h6 class="fw-bold text-dark mb-2"><i class="fas fa-truck text-primary me-2"></i> Información del Proveedor</h6>
@@ -1721,18 +1587,17 @@ const verFicha = async function (id) {
                             <div><strong>Almacén General:</strong> ${recep.almacen ? recep.almacen.nombre : 'N/A'}</div>
                             <div><strong>Condición:</strong> <span class="badge ${recep.condicion_pago === 'credito' ? 'bg-warning-subtle text-warning-emphasis' : 'bg-success-subtle text-success'} rounded-pill">${recep.condicion_pago.toUpperCase()}</span></div>
                             ${recep.condicion_pago === 'credito' && recep.fecha_vencimiento ? `<div><strong>Vencimiento:</strong> <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill"><i class="fas fa-clock me-1"></i>${formatearFecha(recep.fecha_vencimiento)} (${recep.dias_credito || 0} días)</span></div>` : ''}
-                            <div><strong>Tasa Aplicada:</strong> <span class="font-monospace fw-bold text-primary">${parseFloat(recep.tasa_cambio || 1).toFixed(4)} Bs/$</span></div>
+                            <div><strong>Tasa Aplicada:</strong> <span class="font-monospace fw-bold text-primary">${formatearMonto(recep.tasa_cambio || 1, 4)} Bs/$</span></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- PRODUCTOS -->
                 <div class="col-12">
                     <div class="card border rounded-4 p-3 shadow-sm bg-white">
                         <h6 class="fw-bold text-dark mb-3"><i class="fas fa-boxes-stacked text-primary me-2"></i> Artículos Recibidos</h6>
                         <div class="table-responsive">
                             <table class="table table-sm table-hover align-middle mb-0">
-                                <thead class="table-light font-monospace small">
+                                <thead class="table-white border-bottom font-monospace small">
                                     <tr>
                                         <th>Producto</th>
                                         <th>Almacén Destino</th>
@@ -1758,7 +1623,6 @@ const verFicha = async function (id) {
         $("#contenidoFichaRecepcion").html(fichaHtml);
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalFichaRecepcion"));
         
-        // Configurar botón de impresión del modal para abrir la hoja física de impresión
         $("#modalFichaRecepcion").find(".btn-outline-primary").attr("onclick", `imprimirRecepcion(${id})`);
         
         modal.show();
@@ -1771,23 +1635,15 @@ const verFicha = async function (id) {
             });
         }
     }
-};
-window.verFicha = verFicha;
+}
 
-/**
- * Abrir comprobante físico / hoja de impresión en ventana dedicada
- */
-const imprimirRecepcion = function (id) {
+function imprimirRecepcion(id) {
     if (!id) return;
     const printUrl = `${urlBase}/${id}/imprimir`;
     window.open(printUrl, "_blank");
-};
-window.imprimirRecepcion = imprimirRecepcion;
+}
 
-/**
- * Anular Recepción
- */
-const anularRecepcion = function (id, codigo) {
+function anularRecepcion(id, codigo) {
     if (!window.Swal) return;
 
     Swal.fire({
@@ -1840,21 +1696,16 @@ const anularRecepcion = function (id, codigo) {
             }
         }
     });
-};
-window.anularRecepcion = anularRecepcion;
+}
 
-/**
- * Modal rápido para crear proveedor sin salir del modal de recepción
- */
-const abrirModalRapidoProveedor = function () {
+function abrirModalRapidoProveedor() {
     $("#formularioRapidoProveedor")[0].reset();
     $("#formularioRapidoProveedor .is-invalid").removeClass("is-invalid");
     $("#formularioRapidoProveedor .invalid-feedback").remove();
 
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRapidoProveedor"));
     modal.show();
-};
-window.abrirModalRapidoProveedor = abrirModalRapidoProveedor;
+}
 
 $("#formularioRapidoProveedor").on("submit", async function (e) {
     e.preventDefault();
@@ -1883,7 +1734,7 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
             }
             catalogosSistema.proveedores.push(nuevoProv);
             poblarSelectProveedores();
-            $("#proveedor_id").val(nuevoProv.id);
+            establecerValorSelect2("#proveedor_id", nuevoProv.id);
 
             const modal = bootstrap.Modal.getInstance(document.getElementById("modalRapidoProveedor"));
             if (modal) modal.hide();
@@ -1920,36 +1771,26 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
     }
 });
 
-/**
- * Toggle Impuesto IVA en Modal Rápido de Producto
- */
-const toggleIvaRapidoProducto = function () {
+function toggleIvaRapidoProducto() {
     const aplicaIva = $("#rapido_prod_aplica_iva").is(":checked");
     if (aplicaIva) {
         $("#contenedorIvaPorcentajeRapido").slideDown(150);
     } else {
         $("#contenedorIvaPorcentajeRapido").slideUp(150);
     }
-};
-window.toggleIvaRapidoProducto = toggleIvaRapidoProducto;
+}
 
-/**
- * Modal rápido para crear producto sin salir de la recepción
- */
-const abrirModalRapidoProducto = function (query = "") {
+function abrirModalRapidoProducto(query = "") {
     $("#formularioRapidoProducto")[0].reset();
     $("#formularioRapidoProducto .is-invalid").removeClass("is-invalid");
     $("#formularioRapidoProducto .invalid-feedback").remove();
 
-    // Asegurar que las categorías estén pobladas
     poblarSelectCategoriasRapido();
 
-    // Reset de switch IVA
     $("#rapido_prod_aplica_iva").prop("checked", true);
     $("#rapido_prod_iva_porcentaje").val("16.00");
     $("#contenedorIvaPorcentajeRapido").show();
 
-    // Pre-llenar si vino del buscador
     query = (query || "").trim();
     if (query) {
         const esCodigoBarra = /^\d{6,}$/.test(query);
@@ -1970,8 +1811,7 @@ const abrirModalRapidoProducto = function (query = "") {
 
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRapidoProducto"));
     modal.show();
-};
-window.abrirModalRapidoProducto = abrirModalRapidoProducto;
+}
 
 $("#formularioRapidoProducto").on("submit", async function (e) {
     e.preventDefault();
@@ -2039,12 +1879,12 @@ $("#formularioRapidoProducto").on("submit", async function (e) {
                 nombre: prodData.nombre,
                 unidad_medida: prodData.unidad_medida || "UND",
                 categoria_nombre: prodData.categoria?.nombre || "General",
-                precio_costo_usd: parseFloat(prodData.precio_costo_usd || 0),
-                precio_costo_bs: parseFloat(prodData.precio_costo_bs || 0),
-                precio_detal_usd: parseFloat(prodData.precio_detal_usd || 0),
-                precio_detal_bs: parseFloat(prodData.precio_detal_bs || 0),
-                precio_mayorista_usd: parseFloat(prodData.precio_mayorista_usd || 0),
-                precio_mayorista_bs: parseFloat(prodData.precio_mayorista_bs || 0),
+                precio_costo_usd: parseFloat(prodData.precio_costo_usd) || 0,
+                precio_costo_bs: parseFloat(prodData.precio_costo_bs) || 0,
+                precio_detal_usd: parseFloat(prodData.precio_detal_usd) || 0,
+                precio_detal_bs: parseFloat(prodData.precio_detal_bs) || 0,
+                precio_mayorista_usd: parseFloat(prodData.precio_mayorista_usd) || 0,
+                precio_mayorista_bs: parseFloat(prodData.precio_mayorista_bs) || 0,
                 aplica_iva: prodData.aplica_iva,
                 iva_porcentaje: parseFloat(prodData.iva_porcentaje || 16),
                 codigos_barra: Array.isArray(prodData.codigos_barra)
@@ -2061,11 +1901,9 @@ $("#formularioRapidoProducto").on("submit", async function (e) {
             const modal = bootstrap.Modal.getInstance(document.getElementById("modalRapidoProducto"));
             if (modal) modal.hide();
 
-            // Limpiar buscador y resultados
             $("#inputEscaneoProducto").val("");
             $("#resultadosBusqueda").hide();
 
-            // Auto-seleccionar para carga directa
             seleccionarProductoParaCarga(nuevoProd);
 
             if (window.notificacion) {
@@ -2103,13 +1941,8 @@ $("#formularioRapidoProducto").on("submit", async function (e) {
     }
 });
 
-/**
- * =========================================================================
- * NAVEGACIÓN FLUIDA POR TECLADO (ENTER PARA AVANZAR, ESC PARA CANCELAR)
- * =========================================================================
- */
-const configurarNavegacionTeclado = function () {
-    const enfocarCampo = function (selector) {
+function configurarNavegacionTeclado() {
+    function enfocarCampo(selector) {
         const $el = $(selector);
         if ($el.length && $el.is(":visible")) {
             $el.focus();
@@ -2119,11 +1952,8 @@ const configurarNavegacionTeclado = function () {
             return true;
         }
         return false;
-    };
+    }
 
-    // ==========================================
-    // 1. FASE 1: DATOS PRINCIPALES DEL DOCUMENTO
-    // ==========================================
     $("#numero_documento").on("keydown", function (e) {
         if (e.which === 13) {
             e.preventDefault();
@@ -2205,9 +2035,6 @@ const configurarNavegacionTeclado = function () {
         }
     });
 
-    // ==========================================
-    // 2. FASE 2: FORMULARIO DE CARGA DE RENGLÓN
-    // ==========================================
     $("#form_renglon_almacen_id").on("keydown", function (e) {
         if (e.which === 13) {
             e.preventDefault();
@@ -2271,7 +2098,6 @@ const configurarNavegacionTeclado = function () {
         }
     });
 
-    // En el último campo del renglón, al presionar Enter se agrega el producto y regresa el foco al buscador
     $("#form_renglon_precio_mayorista").on("keydown", function (e) {
         if (e.which === 13) {
             e.preventDefault();
@@ -2279,7 +2105,6 @@ const configurarNavegacionTeclado = function () {
         }
     });
 
-    // Atajo rápido: Ctrl+Enter o Alt+A en cualquier campo del panel de renglón agrega inmediatamente
     $("#panelFormularioRenglon").on("keydown", "input, select", function (e) {
         if ((e.ctrlKey && e.which === 13) || (e.altKey && e.which === 65)) {
             e.preventDefault();
@@ -2287,9 +2112,8 @@ const configurarNavegacionTeclado = function () {
         }
     });
 
-    // Tecla Escape para cancelar edición rápida de renglón
     $(document).on("keydown", function (e) {
-        if (e.which === 27) { // ESC
+        if (e.which === 27) {
             if ($("#panelFormularioRenglon").is(":visible") && !$(".modal.show").length) {
                 cancelarEdicionRenglon();
                 $("#inputEscaneoProducto").focus();
@@ -2297,9 +2121,6 @@ const configurarNavegacionTeclado = function () {
         }
     });
 
-    // ==========================================
-    // 3. MODAL RÁPIDO DE PROVEEDOR
-    // ==========================================
     $("#rapido_prov_rif").on("keydown", function (e) {
         if (e.which === 13) {
             e.preventDefault();
@@ -2349,9 +2170,6 @@ const configurarNavegacionTeclado = function () {
         }
     });
 
-    // ==========================================
-    // 4. MODAL RÁPIDO DE PRODUCTO
-    // ==========================================
     $("#rapido_prod_codigo").on("keydown", function (e) {
         if (e.which === 13) {
             e.preventDefault();
@@ -2397,15 +2215,10 @@ const configurarNavegacionTeclado = function () {
             $("#formularioRapidoProducto").submit();
         }
     });
-};
+}
 
-/**
- * Aplicar restricciones y selecciones automáticas en campos
- */
-const aplicarRestriccionesInput = function () {
+function aplicarRestriccionesInput() {
     $(document).on("focus", "#panelFormularioRenglon input, #seccionFase1 input, #modalRapidoProducto input, #modalRapidoProveedor input", function () {
         $(this).select();
     });
-};
-
-
+}

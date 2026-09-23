@@ -24,6 +24,7 @@
 </script>
 
 <!-- Componentes JS Reutilizables del Sistema POS -->
+<script src="{{ asset('estilos/jsPropios/components/calculos-compra.component.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/components/calculos-compra.component.js')) ?: time() }}"></script>
 <script src="{{ asset('estilos/jsPropios/components/consultor.component.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/components/consultor.component.js')) ?: time() }}"></script>
 <script src="{{ asset('estilos/jsPropios/components/datatable.component.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/components/datatable.component.js')) ?: time() }}"></script>
 <script src="{{ asset('estilos/jsPropios/components/formulario.component.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/components/formulario.component.js')) ?: time() }}"></script>

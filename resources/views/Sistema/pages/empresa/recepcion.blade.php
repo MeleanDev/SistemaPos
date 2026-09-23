@@ -133,7 +133,7 @@
                 </div>
 
                 <!-- BODY DEL MODAL -->
-                <div class="modal-body p-4 bg-light-subtle">
+                <div class="modal-body p-4 bg-white">
                     <form id="formularioRecepcion">
                         @csrf
                         <input type="hidden" name="tasa_cambio" id="tasa_cambio" value="1.0000">
@@ -207,7 +207,7 @@
                                             <div class="input-group">
                                                 <span class="input-group-text bg-white text-dark fw-bold font-monospace">Bs.</span>
                                                 <input type="number" step="any" min="0.0001" name="tasa_compra" id="tasa_compra" class="form-control form-control-executive font-monospace fw-bold" placeholder="1.0000" value="1.0000" oninput="actualizarTasasDesdeInput()" required>
-                                                <button type="button" class="btn btn-outline-secondary rounded-end-pill px-3" onclick="restablecerTasaOficial('compra')" title="Restablecer a tasa oficial">
+                                                <button type="button" class="btn btn-outline-primary rounded-end-pill px-3 shadow-xs fw-semibold" onclick="restablecerTasaOficial('compra')" title="Restablecer a tasa oficial">
                                                     <i class="fas fa-sync-alt small"></i>
                                                 </button>
                                             </div>
@@ -221,7 +221,7 @@
                                             <div class="input-group">
                                                 <span class="input-group-text bg-white text-success fw-bold font-monospace">Bs.</span>
                                                 <input type="number" step="any" min="0.0001" name="tasa_venta" id="tasa_venta" class="form-control form-control-executive font-monospace fw-bold" placeholder="1.0000" value="1.0000" oninput="actualizarTasasDesdeInput()" required>
-                                                <button type="button" class="btn btn-outline-secondary rounded-end-pill px-3" onclick="restablecerTasaOficial('venta')" title="Restablecer a tasa oficial">
+                                                <button type="button" class="btn btn-outline-primary rounded-end-pill px-3 shadow-xs fw-semibold" onclick="restablecerTasaOficial('venta')" title="Restablecer a tasa oficial">
                                                     <i class="fas fa-sync-alt small"></i>
                                                 </button>
                                             </div>
@@ -238,40 +238,35 @@
 
                                 <div class="row g-3">
                                     <!-- N° Factura / Documento Proveedor -->
-                                    <div class="col-md-4">
-                                        <label class="form-label-executive"><i class="fas fa-hashtag text-primary"></i> N° Factura / Documento <span class="text-danger">*</span></label>
-                                        <input type="text" name="numero_documento" id="numero_documento" class="form-control form-control-executive" placeholder="Ej. FACT-004892" required maxlength="100">
-                                    </div>
+                                    <x-input name="numero_documento" id="numero_documento" label="N° Factura / Documento" icon="fas fa-hashtag text-primary" placeholder="Ej. FACT-004892" required maxlength="100" col="col-md-4" />
 
                                     <!-- N° Control de Factura (Opcional) -->
-                                    <div class="col-md-4">
-                                        <label class="form-label-executive"><i class="fas fa-barcode text-secondary"></i> N° de Control Fiscal <small class="text-muted fw-normal">(Opcional)</small></label>
-                                        <input type="text" name="numero_control" id="numero_control" class="form-control form-control-executive" placeholder="Ej. 00-12345" maxlength="100">
-                                    </div>
+                                    <x-input name="numero_control" id="numero_control" label="N° de Control Fiscal" icon="fas fa-barcode text-secondary" placeholder="Ej. 00-12345" optionalText="Opcional" maxlength="100" col="col-md-4" />
 
                                     <!-- Tipo de Documento -->
-                                    <div class="col-md-4">
-                                        <label class="form-label-executive"><i class="fas fa-file-alt text-primary"></i> Tipo de Documento <span class="text-danger">*</span></label>
-                                        <select name="tipo_documento" id="tipo_documento" class="form-select form-select-executive" required>
-                                            <option value="factura">Factura Fiscal</option>
-                                            <option value="nota_entrega">Nota de Entrega</option>
-                                            <option value="guia_despacho">Guía de Despacho</option>
-                                            <option value="orden_compra">Orden de Compra</option>
-                                        </select>
-                                    </div>
+                                    <x-select name="tipo_documento" id="tipo_documento" label="Tipo de Documento" icon="fas fa-file-alt text-primary" required col="col-md-4">
+                                        <option value="factura">Factura Fiscal</option>
+                                        <option value="nota_entrega">Nota de Entrega</option>
+                                        <option value="guia_despacho">Guía de Despacho</option>
+                                        <option value="orden_compra">Orden de Compra</option>
+                                    </x-select>
 
                                     <!-- Proveedor con Botón Rápido -->
-                                    <div class="col-md-6">
-                                        <label class="form-label-executive"><i class="fas fa-truck text-primary"></i> Proveedor Emisor <span class="text-danger">*</span></label>
-                                        <div class="input-group">
-                                            <select name="proveedor_id" id="proveedor_id" class="form-select form-select-executive" required>
-                                                <option value="">Seleccione un proveedor...</option>
-                                            </select>
-                                            <button class="btn btn-outline-primary rounded-end-pill px-3" type="button" onclick="abrirModalRapidoProveedor()" title="Crear Nuevo Proveedor">
-                                                <i class="fas fa-plus me-1"></i> Nuevo
-                                            </button>
-                                        </div>
-                                    </div>
+                                    <x-select2
+                                        name="proveedor_id"
+                                        id="proveedor_id"
+                                        label="Proveedor Emisor"
+                                        icon="fas fa-truck text-primary"
+                                        placeholder="Seleccione un proveedor..."
+                                        modalParent="#modalRecepcion"
+                                        actionText="Nuevo"
+                                        actionIcon="fas fa-plus"
+                                        actionOnClick="abrirModalRapidoProveedor()"
+                                        required
+                                        col="col-md-6"
+                                    >
+                                        <option value="">Seleccione un proveedor...</option>
+                                    </x-select2>
 
                                     <!-- Almacén Predeterminado -->
                                     <div class="col-md-6">
@@ -282,24 +277,14 @@
                                     </div>
 
                                     <!-- Fechas -->
-                                    <div class="col-md-3">
-                                        <label class="form-label-executive"><i class="fas fa-calendar-alt text-secondary"></i> Fecha de Emisión <span class="text-danger">*</span></label>
-                                        <input type="date" name="fecha_emision" id="fecha_emision" class="form-control form-control-executive" required>
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        <label class="form-label-executive"><i class="fas fa-calendar-check text-secondary"></i> Fecha de Recepción <span class="text-danger">*</span></label>
-                                        <input type="date" name="fecha_recepcion" id="fecha_recepcion" class="form-control form-control-executive" required>
-                                    </div>
+                                    <x-input type="date" name="fecha_emision" id="fecha_emision" label="Fecha de Emisión" icon="fas fa-calendar-alt text-secondary" required col="col-md-3" />
+                                    <x-input type="date" name="fecha_recepcion" id="fecha_recepcion" label="Fecha de Recepción" icon="fas fa-calendar-check text-secondary" required col="col-md-3" />
 
                                     <!-- Condición de Pago -->
-                                    <div class="col-md-3">
-                                        <label class="form-label-executive"><i class="fas fa-credit-card text-secondary"></i> Condición de Pago <span class="text-danger">*</span></label>
-                                        <select name="condicion_pago" id="condicion_pago" class="form-select form-select-executive" onchange="toggleCondicionPago()" required>
-                                            <option value="contado">Contado</option>
-                                            <option value="credito">Crédito (CXP)</option>
-                                        </select>
-                                    </div>
+                                    <x-select name="condicion_pago" id="condicion_pago" label="Condición de Pago" icon="fas fa-credit-card text-secondary" onchange="toggleCondicionPago()" required col="col-md-3">
+                                        <option value="contado">Contado</option>
+                                        <option value="credito">Crédito (CXP)</option>
+                                    </x-select>
 
                                     <!-- Días de Crédito (Condicional) -->
                                     <div class="col-md-3" id="contenedorDiasCredito" style="display: none;">
@@ -359,8 +344,9 @@
                                         </span>
                                     </div>
 
-                                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 fw-semibold" onclick="volverAFase1()">
-                                        <i class="fas fa-edit me-1"></i> Modificar Datos Principales
+                                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3.5 py-1.5 fw-bold shadow-xs d-flex align-items-center gap-1.5" onclick="volverAFase1()">
+                                        <i class="fas fa-edit"></i>
+                                        <span>Modificar Datos Principales</span>
                                     </button>
                                 </div>
                             </div>
@@ -373,7 +359,7 @@
                                     <h6 class="fw-bold text-dark mb-0">
                                         <i class="fas fa-barcode text-primary me-2"></i> 1. Buscar o Escanear Artículo
                                     </h6>
-                                    <span class="badge rounded-pill bg-light text-secondary border font-monospace px-3 py-1" style="font-size: 0.75rem;">
+                                    <span class="badge rounded-pill px-3 py-1.5 font-monospace fw-semibold" style="background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.75rem;">
                                         <i class="fas fa-keyboard me-1"></i> Pistola / Código de Barra / SKU / Nombre
                                     </span>
                                 </div>
@@ -381,9 +367,9 @@
                                 <div class="row g-2 align-items-center position-relative mb-3">
                                     <div class="col-12">
                                         <div class="input-group input-group-lg">
-                                            <span class="input-group-text bg-light border-end-0 rounded-start-pill ps-3"><i class="fas fa-search text-primary"></i></span>
+                                            <span class="input-group-text bg-white border-end-0 rounded-start-pill ps-3 text-primary"><i class="fas fa-search"></i></span>
                                             <input type="text" id="inputEscaneoProducto" class="form-control form-control-executive border-start-0 ps-2" placeholder="Escanear código de barra, SKU o escribir nombre del producto..." autocomplete="off">
-                                            <button class="btn btn-outline-primary rounded-end-pill px-3 fw-semibold d-flex align-items-center gap-1" type="button" onclick="abrirModalRapidoProducto()" title="Crear Nuevo Producto">
+                                            <button class="btn btn-primary rounded-end-pill px-3.5 fw-bold shadow-xs d-flex align-items-center gap-1" type="button" onclick="abrirModalRapidoProducto()" title="Crear Nuevo Producto">
                                                 <i class="fas fa-plus"></i>
                                                 <span class="d-none d-sm-inline">Nuevo Producto</span>
                                             </button>
@@ -452,7 +438,7 @@
                                         </span>
                                     </div>
 
-                                    <div class="row g-3 p-3 rounded-4 bg-light bg-opacity-50 border mb-3">
+                                    <div class="row g-3 p-3.5 rounded-4 bg-white border shadow-xs mb-3">
                                         
                                         <!-- Almacén Destino -->
                                         <div class="col-md-3">
@@ -479,7 +465,7 @@
                                         <!-- Cantidad Total de Unidades (Cálculo Automático Readonly) -->
                                         <div class="col-md-2">
                                             <label class="form-label-executive"><i class="fas fa-calculator text-primary"></i> Cantidad Total</label>
-                                            <input type="number" step="any" id="form_renglon_cantidad" class="form-control form-control-executive font-monospace fw-bold text-center bg-light text-primary border-primary" placeholder="0" value="0" readonly tabindex="-1" title="Calculado automáticamente: Bultos * Unid./Bulto">
+                                            <input type="number" step="any" id="form_renglon_cantidad" class="form-control form-control-executive font-monospace fw-bold text-center bg-primary bg-opacity-10 text-primary border-primary" placeholder="0" value="0" readonly tabindex="-1" title="Calculado automáticamente: Bultos * Unid./Bulto">
                                         </div>
 
                                         <!-- Costo Total del Producto / Factura (Obligatorio) -->
@@ -498,8 +484,8 @@
                                         <div class="col-md-3">
                                             <label class="form-label-executive"><i class="fas fa-dollar-sign text-secondary"></i> Costo Unitario Calculado</label>
                                             <div class="input-group">
-                                                <span class="input-group-text bg-light label-simbolo-moneda-fac">$</span>
-                                                <input type="number" step="any" min="0" id="form_renglon_costo_unitario" class="form-control form-control-executive font-monospace text-end bg-light fw-bold text-dark" placeholder="0.00" readonly tabindex="-1">
+                                                <span class="input-group-text bg-white text-dark label-simbolo-moneda-fac">$</span>
+                                                <input type="number" step="any" min="0" id="form_renglon_costo_unitario" class="form-control form-control-executive font-monospace text-end bg-white fw-bold text-dark" placeholder="0.0000" readonly tabindex="-1">
                                             </div>
                                             <div class="mt-1 text-end">
                                                 <span class="badge rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs d-inline-block" id="form_renglon_costo_equivalente" style="background-color: #ecfdf5; color: #047857; border: 1.5px solid #6ee7b7; font-size: 0.95rem;">
@@ -540,11 +526,11 @@
                                             <label class="form-label-executive"><i class="fas fa-store text-primary"></i> Nuevo Precio Detal</label>
                                             <div class="input-group">
                                                 <span class="input-group-text bg-white text-primary fw-bold label-simbolo-moneda-fac">$</span>
-                                                <input type="number" step="any" min="0" id="form_renglon_precio_detal" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.00" oninput="calcularMargenDetalDesdePrecio()">
+                                                <input type="number" step="any" min="0" id="form_renglon_precio_detal" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.0000" oninput="calcularMargenDetalDesdePrecio()">
                                             </div>
                                             <div class="mt-1 text-end">
                                                 <span class="badge rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs d-inline-block" id="form_renglon_detal_bs" style="background-color: #eff6ff; color: #1d4ed8; border: 1.5px solid #93c5fd; font-size: 0.98rem;">
-                                                    Bs. 0.00
+                                                    Bs. 0.0000
                                                 </span>
                                             </div>
                                         </div>
@@ -562,11 +548,11 @@
                                             <label class="form-label-executive" style="color: #7e22ce;"><i class="fas fa-truck-moving"></i> Nuevo Precio Mayorista</label>
                                             <div class="input-group">
                                                 <span class="input-group-text bg-white fw-bold label-simbolo-moneda-fac" style="color: #7e22ce;">$</span>
-                                                <input type="number" step="any" min="0" id="form_renglon_precio_mayorista" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.00" oninput="calcularMargenMayoristaDesdePrecio()">
+                                                <input type="number" step="any" min="0" id="form_renglon_precio_mayorista" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.0000" oninput="calcularMargenMayoristaDesdePrecio()">
                                             </div>
                                             <div class="mt-1 text-end">
                                                 <span class="badge rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs d-inline-block" id="form_renglon_mayorista_bs" style="background-color: #faf5ff; color: #6b21a8; border: 1.5px solid #d8b4fe; font-size: 0.98rem;">
-                                                    Bs. 0.00
+                                                    Bs. 0.0000
                                                 </span>
                                             </div>
                                         </div>
@@ -575,13 +561,13 @@
                                         <div class="col-md-4 d-flex align-items-center justify-content-between p-3 bg-white rounded-3 border">
                                             <div>
                                                 <span class="text-muted small d-block">Subtotal Renglón Neto:</span>
-                                                <h5 class="fw-bold mb-1 text-dark font-monospace" id="form_renglon_subtotal_usd">$ 0.00</h5>
+                                                <h5 class="fw-bold mb-1 text-dark font-monospace" id="form_renglon_subtotal_usd">$ 0.0000</h5>
                                                 <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs d-inline-block" id="form_renglon_subtotal_bs" style="background-color: #f8fafc; color: #0f172a; border: 1.5px solid #cbd5e1; font-size: 0.95rem;">
-                                                    Bs. 0.00
+                                                    Bs. 0.0000
                                                 </span>
                                             </div>
                                             <div class="d-flex gap-2">
-                                                <button type="button" class="btn btn-outline-secondary rounded-pill px-3 py-2 fw-semibold" onclick="cancelarEdicionRenglon()">
+                                                <button type="button" class="btn btn-sm btn-danger-subtle text-danger border border-danger-subtle rounded-circle shadow-xs" onclick="cancelarEdicionRenglon()" title="Cancelar / Limpiar Renglón" style="width: 42px; height: 42px; min-width: 42px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.05rem; transition: all 0.2s ease;">
                                                     <i class="fas fa-times"></i>
                                                 </button>
                                                 <button type="button" class="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-xs d-flex align-items-center gap-2" id="btnGuardarRenglon" onclick="agregarOActualizarRenglon()">
@@ -598,14 +584,15 @@
 
                             <!-- CARD INFERIOR: TABLA DE RENGLONES CARGADOS (DETALLE DE FACTURA) -->
                             <div class="card border rounded-4 shadow-xs mb-3 bg-white overflow-hidden">
-                                <div class="p-3 border-bottom bg-light d-flex align-items-center justify-content-between">
+                                <div class="p-3 border-bottom bg-white d-flex align-items-center justify-content-between">
                                     <div class="d-flex align-items-center gap-2">
                                         <h6 class="fw-bold text-dark mb-0"><i class="fas fa-list-check text-primary me-2"></i> Detalle de Factura (Artículos Cargados)</h6>
                                         <small class="text-muted">Revisa y modifica los renglones agregados a la recepción</small>
                                     </div>
                                     <div class="d-flex align-items-center gap-2">
-                                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="limpiarTablaProductos()">
-                                            <i class="fas fa-eraser me-1"></i> Limpiar Todo
+                                        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3.5 py-1.5 fw-bold shadow-xs d-flex align-items-center gap-1.5" onclick="limpiarTablaProductos()">
+                                            <i class="fas fa-trash-alt"></i>
+                                            <span>Limpiar Todo</span>
                                         </button>
                                         <span class="badge bg-primary text-white rounded-pill px-3 py-1 fw-bold" id="contadorRenglones">0 Productos</span>
                                     </div>
@@ -613,7 +600,7 @@
 
                                 <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
                                     <table class="table table-hover align-middle mb-0" id="tablaRecepcionDetalles">
-                                        <thead class="table-light sticky-top font-monospace" style="z-index: 5; font-size: 0.74rem;">
+                                        <thead class="table-white border-bottom sticky-top font-monospace" style="background-color: #ffffff; z-index: 5; font-size: 0.74rem;">
                                             <tr>
                                                 <th style="width: 40px;" class="text-center">#</th>
                                                 <th style="min-width: 180px;">Producto / SKU</th>
@@ -700,13 +687,13 @@
                 </div>
 
                 <!-- FOOTER DEL MODAL -->
-                <div class="modal-footer bg-light border-0 py-3 px-4 rounded-bottom-4 d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">
+                <div class="modal-footer bg-white border-top py-3 px-4 rounded-bottom-4 d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-danger rounded-pill px-4 fw-bold shadow-xs" data-bs-dismiss="modal">
                         <i class="fas fa-times me-1"></i> Cancelar
                     </button>
                     
                     <div class="d-flex gap-2" id="footerAccionesRecepcion">
-                        <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-semibold" id="btnVolverFase1Footer" style="display: none;" onclick="volverAFase1()">
+                        <button type="button" class="btn btn-outline-primary rounded-pill px-4 fw-bold shadow-xs" id="btnVolverFase1Footer" style="display: none;" onclick="volverAFase1()">
                             <i class="fas fa-arrow-left me-1"></i> Volver a Fase 1
                         </button>
                         <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" id="btnAvanzarFase2Footer" onclick="avanzarAFase2()">
@@ -736,16 +723,17 @@
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body p-4 bg-light-subtle" id="contenidoFichaRecepcion">
+                <div class="modal-body p-4 bg-white" id="contenidoFichaRecepcion">
                     <!-- CARGADO DINÁMICAMENTE POR JS -->
                 </div>
-                <div class="modal-footer bg-light border-0 py-3 px-4 rounded-bottom-4 d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">
+                <div class="modal-footer bg-white border-top py-3 px-4 rounded-bottom-4 d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-dark rounded-pill px-4 fw-bold shadow-xs" data-bs-dismiss="modal">
                         <i class="fas fa-times me-1"></i> Cerrar
                     </button>
                     <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-outline-primary rounded-pill px-3" onclick="window.print()">
-                            <i class="fas fa-print me-1"></i> Imprimir
+                        <button type="button" class="btn btn-outline-primary rounded-pill px-4 fw-bold shadow-xs d-flex align-items-center gap-1.5" onclick="window.print()">
+                            <i class="fas fa-print"></i>
+                            <span>Imprimir</span>
                         </button>
                     </div>
                 </div>
