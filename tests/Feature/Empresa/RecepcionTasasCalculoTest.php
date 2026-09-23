@@ -197,10 +197,9 @@ test('recepcion en bolivares convierte costo y calcula precios con tasas', funct
     $user->syncRoles('SuperAdmin');
     $user->empresas()->attach($empresa->id, ['es_predeterminada' => true, 'estado' => true]);
 
-    // Caso 2: Factura en VES
-    // Costo en Bs = 400 Bs.
+    // Caso 2: Factura en VES (TC >= TV: Caso general)
     // Tasa Compra = 40 Bs/$, Tasa Venta = 38 Bs/$
-    // Costo USD = 400 / 40 = 10 USD
+    // Costo en Bs = 380 Bs. -> dividido entre TV (38) = 10 USD
     // Margen detal = 20% -> Precio Detal USD = 10 * 1.20 = 12 USD
     // Precio Detal Bs = 12 * 38 = 456 Bs.
     $tasaCompra = 40.0000;
@@ -249,7 +248,114 @@ test('recepcion en bolivares convierte costo y calcula precios con tasas', funct
 
     $producto->refresh();
     expect((float) $producto->precio_costo_usd)->toBe(10.0000);
-    expect((float) $producto->precio_costo_bs)->toBe(400.0000); // 10 * 40
+    expect((float) $producto->precio_costo_bs)->toBe(380.0000); // 10 * 38
     expect((float) $producto->precio_detal_usd)->toBe(12.0000);
     expect((float) $producto->precio_detal_bs)->toBe(456.0000); // 12 * 38
+});
+
+test('recepcion en bolivares con tasa compra menor a tasa venta calcula costo con tasa compra y precio con tasa venta', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-70000003-3',
+        'nombre' => 'Empresa Recepcion Tasas VES TC < TV',
+        'razon_social' => 'Empresa Recepcion Tasas VES TC < TV C.A.',
+        'direccion' => 'Calle 30',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'ALM-03',
+        'nombre' => 'Almacén 3',
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $proveedor = Proveedor::create([
+        'empresa_id' => $empresa->id,
+        'rif' => 'J-66666666-6',
+        'nombre' => 'Proveedor Express',
+        'razon_social' => 'Proveedor Express C.A.',
+        'direccion' => 'Norte',
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'CAT-03',
+        'nombre' => 'Snacks',
+        'estado' => true,
+    ]);
+
+    $producto = Producto::create([
+        'empresa_id' => $empresa->id,
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'SNACK-01',
+        'nombre' => 'Papas Fritas',
+        'unidad_medida' => 'UND',
+        'aplica_iva' => false,
+        'precio_costo_usd' => 1.00,
+        'precio_costo_bs' => 38.00,
+        'precio_detal_usd' => 1.20,
+        'precio_detal_bs' => 48.00,
+        'estado' => true,
+    ]);
+
+    $user = User::factory()->create(['estado' => true]);
+    $user->syncRoles('SuperAdmin');
+    $user->empresas()->attach($empresa->id, ['es_predeterminada' => true, 'estado' => true]);
+
+    // Caso Especial VES: TC < TV (TC = 38, TV = 40)
+    // Costo en Bs = 380 Bs. -> dividido entre TC (38) = 10 USD
+    // Margen detal = 20% -> Precio Detal USD = 10 * 1.20 = 12 USD
+    // Precio Detal Bs = 12 * 40 = 480 Bs.
+    $tasaCompra = 38.0000;
+    $tasaVenta = 40.0000;
+    $costoUsd = 10.0000;
+    $precioDetalUsd = 12.0000;
+
+    $payload = [
+        'almacen_id' => $almacen->id,
+        'proveedor_id' => $proveedor->id,
+        'tipo_documento' => 'factura',
+        'numero_documento' => 'FACT-VES-003',
+        'moneda_documento' => 'VES',
+        'fecha_emision' => now()->toDateString(),
+        'fecha_recepcion' => now()->toDateString(),
+        'condicion_pago' => 'contado',
+        'tasa_compra' => $tasaCompra,
+        'tasa_venta' => $tasaVenta,
+        'tasa_cambio' => $tasaVenta,
+        'monto_bruto_usd' => 50.00,
+        'detalles' => [
+            [
+                'producto_id' => $producto->id,
+                'almacen_id' => $almacen->id,
+                'cantidad' => 5,
+                'bultos' => 1,
+                'unidades_por_bulto' => 5,
+                'costo_bulto_usd' => 50.00,
+                'costo_unitario_usd' => $costoUsd,
+                'descuento_porcentaje' => 0,
+                'aplica_iva' => false,
+                'margen_detal_porcentaje' => 20.00,
+                'precio_detal_usd' => $precioDetalUsd,
+                'margen_mayorista_porcentaje' => 10.00,
+                'precio_mayorista_usd' => 11.0000,
+            ],
+        ],
+    ];
+
+    $response = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson(route('recepcion'), $payload);
+
+    $response->assertStatus(200)
+        ->assertJson(['success' => true]);
+
+    $producto->refresh();
+    expect((float) $producto->precio_costo_usd)->toBe(10.0000);
+    expect((float) $producto->precio_costo_bs)->toBe(380.0000); // 10 * 38
+    expect((float) $producto->precio_detal_usd)->toBe(12.0000);
+    expect((float) $producto->precio_detal_bs)->toBe(480.0000); // 12 * 40
 });

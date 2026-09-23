@@ -181,6 +181,39 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- CAMPOS EJECUTIVOS PARA TASA DE COMPRA Y TASA DE VENTA -->
+                                <div class="mt-3 pt-3 border-top">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label-executive">
+                                                <i class="fas fa-shopping-cart text-warning me-1"></i> Tasa de Compra (Bs. / $) <span class="text-danger">*</span>
+                                                <small class="text-muted fw-normal">(Tasa del proveedor)</small>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white text-dark fw-bold font-monospace">Bs.</span>
+                                                <input type="number" step="any" min="0.0001" name="tasa_compra" id="tasa_compra" class="form-control form-control-executive font-monospace fw-bold" placeholder="1.0000" value="1.0000" oninput="actualizarTasasDesdeInput()" required>
+                                                <button type="button" class="btn btn-outline-secondary rounded-end-pill px-3" onclick="restablecerTasaOficial('compra')" title="Restablecer a tasa oficial">
+                                                    <i class="fas fa-sync-alt small"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label-executive">
+                                                <i class="fas fa-cash-register text-success me-1"></i> Tasa de Venta (Bs. / $) <span class="text-danger">*</span>
+                                                <small class="text-muted fw-normal">(Tasa oficial de fijación PVP)</small>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white text-success fw-bold font-monospace">Bs.</span>
+                                                <input type="number" step="any" min="0.0001" name="tasa_venta" id="tasa_venta" class="form-control form-control-executive font-monospace fw-bold" placeholder="1.0000" value="1.0000" oninput="actualizarTasasDesdeInput()" required>
+                                                <button type="button" class="btn btn-outline-secondary rounded-end-pill px-3" onclick="restablecerTasaOficial('venta')" title="Restablecer a tasa oficial">
+                                                    <i class="fas fa-sync-alt small"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- DATOS DEL DOCUMENTO & PROVEEDOR -->
@@ -295,6 +328,12 @@
                                         <span class="badge rounded-pill px-3 py-2 fw-semibold" id="badgeAlmFase2" style="background-color: #f8fafc; color: #475569; border: 1px solid #cbd5e1;">
                                             <i class="fas fa-warehouse text-secondary me-1"></i> Almacén: --
                                         </span>
+                                        <span class="badge rounded-pill px-3 py-2 fw-semibold" style="background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;">
+                                            <i class="fas fa-shopping-cart text-warning me-1"></i> T. Compra: <strong class="font-monospace" id="badgeTasaCompraFase2">1.0000</strong> Bs.
+                                        </span>
+                                        <span class="badge rounded-pill px-3 py-2 fw-semibold" style="background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">
+                                            <i class="fas fa-cash-register text-success me-1"></i> T. Venta: <strong class="font-monospace" id="badgeTasaVentaFase2">1.0000</strong> Bs.
+                                        </span>
                                         <span class="badge rounded-pill px-3 py-2 fw-bold" id="badgeMontoBrutoFase2" style="background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a;">
                                             <i class="fas fa-receipt me-1"></i> Monto Fac: $ 0.00
                                         </span>
@@ -382,6 +421,11 @@
                                             <span class="input-group-text bg-white label-simbolo-moneda-fac text-success fw-bold">$</span>
                                             <input type="number" step="any" min="0.0001" id="lote_costo_unitario" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.00" oninput="recalcularPreciosLote()">
                                         </div>
+                                        <div class="mt-1 text-end">
+                                            <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs d-inline-block" id="lote_costo_equivalente" style="background-color: #ecfdf5; color: #047857; border: 1.5px solid #6ee7b7; font-size: 0.85rem;">
+                                                Equiv: Bs. 0.00
+                                            </span>
+                                        </div>
                                     </div>
 
                                     <div class="col-md-2">
@@ -412,10 +456,14 @@
                                     <div class="col-md-3">
                                         <label class="form-label-executive"><i class="fas fa-store text-primary"></i> Precio Detal</label>
                                         <div class="input-group">
-                                            <span class="input-group-text bg-white text-primary fw-bold">$</span>
+                                            <span class="input-group-text bg-white text-primary fw-bold label-simbolo-moneda-fac">$</span>
                                             <input type="number" step="any" min="0" id="lote_precio_detal" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.00" oninput="calcularMargenDetalLote()">
                                         </div>
-                                        <small class="text-muted font-monospace d-block mt-1 text-end" id="lote_detal_bs" style="font-size: 0.72rem;">Bs. 0.00</small>
+                                        <div class="mt-1 text-end">
+                                            <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs d-inline-block" id="lote_detal_bs" style="background-color: #eff6ff; color: #1d4ed8; border: 1.5px solid #93c5fd; font-size: 0.88rem;">
+                                                Bs. 0.00
+                                            </span>
+                                        </div>
                                     </div>
 
                                     <div class="col-md-3">
@@ -429,10 +477,14 @@
                                     <div class="col-md-3">
                                         <label class="form-label-executive" style="color: #7e22ce;"><i class="fas fa-truck-moving"></i> Precio Mayorista</label>
                                         <div class="input-group">
-                                            <span class="input-group-text bg-white fw-bold" style="color: #7e22ce;">$</span>
+                                            <span class="input-group-text bg-white fw-bold label-simbolo-moneda-fac" style="color: #7e22ce;">$</span>
                                             <input type="number" step="any" min="0" id="lote_precio_mayorista" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.00" oninput="calcularMargenMayoristaLote()">
                                         </div>
-                                        <small class="text-muted font-monospace d-block mt-1 text-end" id="lote_mayorista_bs" style="font-size: 0.72rem;">Bs. 0.00</small>
+                                        <div class="mt-1 text-end">
+                                            <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs d-inline-block" id="lote_mayorista_bs" style="background-color: #faf5ff; color: #6b21a8; border: 1.5px solid #d8b4fe; font-size: 0.88rem;">
+                                                Bs. 0.00
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 

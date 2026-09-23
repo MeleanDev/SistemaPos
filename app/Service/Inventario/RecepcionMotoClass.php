@@ -94,10 +94,16 @@ class RecepcionMotoClass
     public function guardar(array $datos, $user, int $empresaId): RecepcionMoto
     {
         return DB::transaction(function () use ($datos, $user, $empresaId) {
-            $tasaCambio = ! empty($datos['tasa_cambio']) && $datos['tasa_cambio'] > 0
-                ? (float) $datos['tasa_cambio']
-                : $this->obtenerTasaOficial($empresaId);
+            $tasaOficial = $this->obtenerTasaOficial($empresaId);
+            $tasaCompra = ! empty($datos['tasa_compra']) && $datos['tasa_compra'] > 0
+                ? (float) $datos['tasa_compra']
+                : (! empty($datos['tasa_cambio']) && $datos['tasa_cambio'] > 0 ? (float) $datos['tasa_cambio'] : $tasaOficial);
 
+            $tasaVenta = ! empty($datos['tasa_venta']) && $datos['tasa_venta'] > 0
+                ? (float) $datos['tasa_venta']
+                : (! empty($datos['tasa_cambio']) && $datos['tasa_cambio'] > 0 ? (float) $datos['tasa_cambio'] : $tasaOficial);
+
+            $tasaCambio = $tasaVenta;
             $monedaDoc = $datos['moneda_documento'] ?? 'USD';
 
             // 1. Validar seriales únicos contra la base de datos y dentro del mismo lote
@@ -189,47 +195,66 @@ class RecepcionMotoClass
             $totalGlobalUsd = 0;
             $totalUnidades = 0;
 
-            $detallesCalculados = [];
+            $esVes = ($monedaDoc === 'VES');
+            $tasaMenor = ($tasaCompra < $tasaVenta);
 
             foreach ($datos['detalles'] as $det) {
                 $cantidad = (int) $det['cantidad'];
                 $totalUnidades += $cantidad;
 
                 $costoUnitarioUsd = (float) $det['costo_unitario_usd'];
-                $costoUnitarioBs = $costoUnitarioUsd * $tasaCambio;
+                if (! $esVes) {
+                    $costoUnitarioBs = $tasaMenor ? round($costoUnitarioUsd * $tasaVenta, 4) : round($costoUnitarioUsd * $tasaCompra, 4);
+                } else {
+                    $costoUnitarioBs = $tasaMenor ? round($costoUnitarioUsd * $tasaCompra, 4) : round($costoUnitarioUsd * $tasaVenta, 4);
+                }
 
                 $descPct = ! empty($det['descuento_porcentaje']) ? (float) $det['descuento_porcentaje'] : 0;
                 $descUsd = round($costoUnitarioUsd * ($descPct / 100), 4);
-                $descBs = round($descUsd * $tasaCambio, 4);
+                $descBs = round($descUsd * $tasaCompra, 4);
 
                 $costoNetoUsd = $costoUnitarioUsd - $descUsd;
-                $costoNetoBs = $costoNetoUsd * $tasaCambio;
+                $costoNetoBs = round($costoNetoUsd * $tasaCompra, 4);
 
                 $aplicaIva = ! empty($det['aplica_iva']);
                 $ivaPct = $aplicaIva ? (! empty($det['iva_porcentaje']) ? (float) $det['iva_porcentaje'] : 16.00) : 0;
                 $ivaUnitarioUsd = $aplicaIva ? round($costoNetoUsd * ($ivaPct / 100), 4) : 0;
-                $ivaUnitarioBs = round($ivaUnitarioUsd * $tasaCambio, 4);
+                $ivaUnitarioBs = round($ivaUnitarioUsd * $tasaCompra, 4);
 
                 $margenDetalPct = ! empty($det['margen_detal']) ? (float) $det['margen_detal'] : 0;
+                if (! $esVes) {
+                    $sugeridoDetalUsd = $tasaMenor
+                        ? ($costoNetoUsd * (1 + ($margenDetalPct / 100)))
+                        : (($costoNetoUsd * (1 + ($margenDetalPct / 100)) * $tasaCompra) / $tasaVenta);
+                } else {
+                    $sugeridoDetalUsd = $costoNetoUsd * (1 + ($margenDetalPct / 100));
+                }
                 $precioDetalUsd = ! empty($det['precio_detal_usd']) && $det['precio_detal_usd'] > 0
                     ? (float) $det['precio_detal_usd']
-                    : round($costoNetoUsd * (1 + ($margenDetalPct / 100)), 4);
-                $precioDetalBs = round($precioDetalUsd * $tasaCambio, 4);
+                    : round($sugeridoDetalUsd, 4);
+                $precioDetalBs = round($precioDetalUsd * $tasaVenta, 4);
 
                 $margenMayoristaPct = ! empty($det['margen_mayorista']) ? (float) $det['margen_mayorista'] : 0;
+                if (! $esVes) {
+                    $sugeridoMayoristaUsd = $tasaMenor
+                        ? ($costoNetoUsd * (1 + ($margenMayoristaPct / 100)))
+                        : (($costoNetoUsd * (1 + ($margenMayoristaPct / 100)) * $tasaCompra) / $tasaVenta);
+                } else {
+                    $sugeridoMayoristaUsd = $costoNetoUsd * (1 + ($margenMayoristaPct / 100));
+                }
                 $precioMayoristaUsd = ! empty($det['precio_mayorista_usd']) && $det['precio_mayorista_usd'] > 0
                     ? (float) $det['precio_mayorista_usd']
-                    : round($costoNetoUsd * (1 + ($margenMayoristaPct / 100)), 4);
-                $precioMayoristaBs = round($precioMayoristaUsd * $tasaCambio, 4);
+                    : round($sugeridoMayoristaUsd, 4);
+                $precioMayoristaBs = round($precioMayoristaUsd * $tasaVenta, 4);
 
                 $renglonSubtotalUsd = round($costoNetoUsd * $cantidad, 2);
-                $renglonSubtotalBs = round($renglonSubtotalUsd * $tasaCambio, 2);
+                $renglonSubtotalBs = round($renglonSubtotalUsd * $tasaCompra, 2);
 
                 $renglonIvaUsd = round($ivaUnitarioUsd * $cantidad, 2);
-                $renglonIvaBs = round($renglonIvaUsd * $tasaCambio, 2);
+                $renglonIvaBs = round($renglonIvaUsd * $tasaCompra, 2);
 
                 $renglonTotalUsd = round($renglonSubtotalUsd + $renglonIvaUsd, 2);
-                $renglonTotalBs = round($renglonTotalUsd * $tasaCambio, 2);
+                $renglonTotalBs = round($renglonTotalUsd * $tasaCompra, 2);
 
                 $subtotalGlobalUsd += $renglonSubtotalUsd;
                 $ivaGlobalUsd += $renglonIvaUsd;
@@ -273,15 +298,15 @@ class RecepcionMotoClass
             }
 
             $montoBrutoUsd = ! empty($datos['monto_bruto_usd']) ? (float) $datos['monto_bruto_usd'] : $subtotalGlobalUsd;
-            $montoBrutoBs = round($montoBrutoUsd * $tasaCambio, 2);
+            $montoBrutoBs = round($montoBrutoUsd * $tasaCompra, 2);
 
             $descGlobalPct = ! empty($datos['descuento_global_porcentaje']) ? (float) $datos['descuento_global_porcentaje'] : 0;
             $descGlobalUsd = round($montoBrutoUsd * ($descGlobalPct / 100), 2);
-            $descGlobalBs = round($descGlobalUsd * $tasaCambio, 2);
+            $descGlobalBs = round($descGlobalUsd * $tasaCompra, 2);
 
-            $totalBs = round($totalGlobalUsd * $tasaCambio, 2);
-            $subtotalBs = round($subtotalGlobalUsd * $tasaCambio, 2);
-            $ivaBs = round($ivaGlobalUsd * $tasaCambio, 2);
+            $totalBs = round($totalGlobalUsd * $tasaCompra, 2);
+            $subtotalBs = round($subtotalGlobalUsd * $tasaCompra, 2);
+            $ivaBs = round($ivaGlobalUsd * $tasaCompra, 2);
 
             // Fechas y condición de pago
             $diasCredito = ($datos['condicion_pago'] === 'credito') ? (int) ($datos['dias_credito'] ?? 30) : 0;
@@ -301,6 +326,8 @@ class RecepcionMotoClass
                 'numero_control' => ! empty($datos['numero_control']) ? trim($datos['numero_control']) : null,
                 'moneda_documento' => $monedaDoc,
                 'tasa_cambio' => $tasaCambio,
+                'tasa_compra' => $tasaCompra,
+                'tasa_venta' => $tasaVenta,
                 'fecha_emision' => $datos['fecha_emision'],
                 'fecha_recepcion' => $datos['fecha_recepcion'],
                 'condicion_pago' => $datos['condicion_pago'],

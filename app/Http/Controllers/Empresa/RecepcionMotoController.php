@@ -52,6 +52,8 @@ class RecepcionMotoController extends Controller
                     'proveedores' => $proveedores,
                     'almacenes' => $almacenes,
                     'tasa_oficial' => $tasaOficial,
+                    'tasa_compra' => $tasaOficial,
+                    'tasa_venta' => $tasaOficial,
                     'codigo_sugerido' => $codigoSugerido,
                     'proxima_referencia' => $proximaReferencia,
                 ],

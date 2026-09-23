@@ -877,24 +877,18 @@ const calcularPrecioDetalDesdeMargen = function () {
 
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
     const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
+    const tasaMenor = tCompra < tVenta;
 
     if (costoInput > 0) {
         if (!esVes) {
-            // CASO 1: Factura en USD
-            // Costo en USD: costoInput
-            // Precio en USD: [Costo * (1 + Margen/100) * TasaCompra] / TasaVenta
             const baseGanancia = costoInput * (1 + margenDetal / 100);
-            const nuevoDetalUsd = (baseGanancia * tCompra) / tVenta;
+            const nuevoDetalUsd = tasaMenor ? baseGanancia : ((baseGanancia * tCompra) / tVenta);
             const nuevoDetalBs = nuevoDetalUsd * tVenta;
 
             $("#form_renglon_precio_detal").val(nuevoDetalUsd.toFixed(2));
             $("#form_renglon_detal_bs").text(`Bs. ${nuevoDetalBs.toFixed(2)}`);
         } else {
-            // CASO 2: Factura en VES
-            // Costo en USD: costoInput / TasaCompra
-            // Precio en USD: CostoUsd * (1 + Margen/100)
-            // Precio en Bs: PrecioUsd * TasaVenta
-            const costoUsd = costoInput / tCompra;
+            const costoUsd = tasaMenor ? (costoInput / tCompra) : (costoInput / tVenta);
             const nuevoDetalUsd = costoUsd * (1 + margenDetal / 100);
             const nuevoDetalBs = nuevoDetalUsd * tVenta;
 
@@ -915,24 +909,21 @@ const calcularMargenDetalDesdePrecio = function () {
 
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
     const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
+    const tasaMenor = tCompra < tVenta;
 
     if (costoInput > 0 && precioInput > 0) {
         if (!esVes) {
-            // CASO 1: Factura en USD (input es Precio USD)
-            // Margen = [(PrecioUsd * TasaVenta) / (CostoUsd * TasaCompra) - 1] * 100
-            const nuevoMargen = ((precioInput * tVenta) / (costoInput * tCompra) - 1) * 100;
+            const nuevoMargen = tasaMenor
+                ? (((precioInput / costoInput) - 1) * 100)
+                : (((precioInput * tVenta) / (costoInput * tCompra) - 1) * 100);
             const nuevoDetalBs = precioInput * tVenta;
 
             $("#form_renglon_margen_detal").val(nuevoMargen.toFixed(0));
             $("#form_renglon_detal_bs").text(`Bs. ${nuevoDetalBs.toFixed(2)}`);
         } else {
-            // CASO 2: Factura en VES (input es Precio Bs)
-            // CostoUsd = CostoBs / TasaCompra
-            // PrecioUsd = PrecioBs / TasaVenta
-            // Margen = (PrecioUsd / CostoUsd - 1) * 100
-            const costoUsd = costoInput / tCompra;
+            const costoUsd = tasaMenor ? (costoInput / tCompra) : (costoInput / tVenta);
             const precioUsd = precioInput / tVenta;
-            const nuevoMargen = costoUsd > 0 ? ((precioUsd / costoUsd) - 1) * 100 : 0;
+            const nuevoMargen = costoUsd > 0 ? (((precioUsd / costoUsd) - 1) * 100) : 0;
 
             $("#form_renglon_margen_detal").val(nuevoMargen.toFixed(0));
             $("#form_renglon_detal_bs").text(`$ ${precioUsd.toFixed(2)}`);
@@ -949,19 +940,18 @@ const calcularPrecioMayoristaDesdeMargen = function () {
 
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
     const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
+    const tasaMenor = tCompra < tVenta;
 
     if (costoInput > 0) {
         if (!esVes) {
-            // CASO 1: Factura en USD
             const baseGanancia = costoInput * (1 + margenMayor / 100);
-            const nuevoMayorUsd = (baseGanancia * tCompra) / tVenta;
+            const nuevoMayorUsd = tasaMenor ? baseGanancia : ((baseGanancia * tCompra) / tVenta);
             const nuevoMayorBs = nuevoMayorUsd * tVenta;
 
             $("#form_renglon_precio_mayorista").val(nuevoMayorUsd.toFixed(2));
             $("#form_renglon_mayorista_bs").text(`Bs. ${nuevoMayorBs.toFixed(2)}`);
         } else {
-            // CASO 2: Factura en VES
-            const costoUsd = costoInput / tCompra;
+            const costoUsd = tasaMenor ? (costoInput / tCompra) : (costoInput / tVenta);
             const nuevoMayorUsd = costoUsd * (1 + margenMayor / 100);
             const nuevoMayorBs = nuevoMayorUsd * tVenta;
 
@@ -982,20 +972,21 @@ const calcularMargenMayoristaDesdePrecio = function () {
 
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
     const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
+    const tasaMenor = tCompra < tVenta;
 
     if (costoInput > 0 && precioMayorInput > 0) {
         if (!esVes) {
-            // CASO 1: Factura en USD
-            const nuevoMargen = ((precioMayorInput * tVenta) / (costoInput * tCompra) - 1) * 100;
+            const nuevoMargen = tasaMenor
+                ? (((precioMayorInput / costoInput) - 1) * 100)
+                : (((precioMayorInput * tVenta) / (costoInput * tCompra) - 1) * 100);
             const nuevoMayorBs = precioMayorInput * tVenta;
 
             $("#form_renglon_margen_mayorista").val(nuevoMargen.toFixed(0));
             $("#form_renglon_mayorista_bs").text(`Bs. ${nuevoMayorBs.toFixed(2)}`);
         } else {
-            // CASO 2: Factura en VES
-            const costoUsd = costoInput / tCompra;
+            const costoUsd = tasaMenor ? (costoInput / tCompra) : (costoInput / tVenta);
             const precioUsd = precioMayorInput / tVenta;
-            const nuevoMargen = costoUsd > 0 ? ((precioUsd / costoUsd) - 1) * 100 : 0;
+            const nuevoMargen = costoUsd > 0 ? (((precioUsd / costoUsd) - 1) * 100) : 0;
 
             $("#form_renglon_margen_mayorista").val(nuevoMargen.toFixed(0));
             $("#form_renglon_mayorista_bs").text(`$ ${precioUsd.toFixed(2)}`);
@@ -1012,17 +1003,19 @@ const recalcularFormularioRenglon = function () {
     const descPorc = parseFloat($("#form_renglon_descuento").val()) || 0;
 
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
+    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
+    const tasaMenor = tCompra < tVenta;
 
     let costoUsd = 0;
     let costoBs = 0;
 
     if (!esVes) {
         costoUsd = costoInput;
-        costoBs = costoUsd * tCompra;
+        costoBs = tasaMenor ? (costoUsd * tVenta) : (costoUsd * tCompra);
         $("#form_renglon_costo_equivalente").text(`Equiv: Bs. ${costoBs.toFixed(2)}`);
     } else {
         costoBs = costoInput;
-        costoUsd = tCompra > 0 ? costoBs / tCompra : 0;
+        costoUsd = tasaMenor ? (tCompra > 0 ? costoBs / tCompra : 0) : (tVenta > 0 ? costoBs / tVenta : 0);
         $("#form_renglon_costo_equivalente").text(`Equiv: $ ${costoUsd.toFixed(2)}`);
     }
 
@@ -1040,9 +1033,6 @@ const recalcularFormularioRenglon = function () {
 };
 window.recalcularFormularioRenglon = recalcularFormularioRenglon;
 
-/**
- * Agregar o Actualizar Renglón en la lista
- */
 const agregarOActualizarRenglon = function () {
     if (!productoSeleccionadoActual) {
         if (window.notificacion) {
@@ -1106,6 +1096,7 @@ const agregarOActualizarRenglon = function () {
     const esVes = monedaDocumentoActual === "VES";
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
     const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
+    const tasaMenor = tCompra < tVenta;
 
     let costoUsd = 0;
     let costoBs = 0;
@@ -1114,14 +1105,14 @@ const agregarOActualizarRenglon = function () {
 
     if (!esVes) {
         costoUsd = costoInput;
-        costoBs = costoUsd * tCompra;
+        costoBs = tasaMenor ? (costoUsd * tVenta) : (costoUsd * tCompra);
         costoBultoUsd = costoBultoInput;
-        costoBultoBs = costoBultoUsd * tCompra;
+        costoBultoBs = tasaMenor ? (costoBultoUsd * tVenta) : (costoBultoUsd * tCompra);
     } else {
         costoBs = costoInput;
-        costoUsd = costoBs / tCompra;
+        costoUsd = tasaMenor ? (costoBs / tCompra) : (costoBs / tVenta);
         costoBultoBs = costoBultoInput;
-        costoBultoUsd = costoBultoBs / tCompra;
+        costoBultoUsd = tasaMenor ? (costoBultoBs / tCompra) : (costoBultoBs / tVenta);
     }
 
     const descPorc = parseFloat($("#form_renglon_descuento").val()) || 0;
@@ -1135,14 +1126,24 @@ const agregarOActualizarRenglon = function () {
     let precioMayorBs = 0;
 
     if (!esVes) {
-        precioDetalUsd = parseFloat($("#form_renglon_precio_detal").val()) || ((costoUsd * (1 + margenDetal / 100) * tCompra) / tVenta);
+        const sugeridoDetalUsd = tasaMenor
+            ? (costoUsd * (1 + margenDetal / 100))
+            : ((costoUsd * (1 + margenDetal / 100) * tCompra) / tVenta);
+        precioDetalUsd = parseFloat($("#form_renglon_precio_detal").val()) || sugeridoDetalUsd;
         precioDetalBs = precioDetalUsd * tVenta;
-        precioMayorUsd = parseFloat($("#form_renglon_precio_mayorista").val()) || ((costoUsd * (1 + margenMayor / 100) * tCompra) / tVenta);
+
+        const sugeridoMayorUsd = tasaMenor
+            ? (costoUsd * (1 + margenMayor / 100))
+            : ((costoUsd * (1 + margenMayor / 100) * tCompra) / tVenta);
+        precioMayorUsd = parseFloat($("#form_renglon_precio_mayorista").val()) || sugeridoMayorUsd;
         precioMayorBs = precioMayorUsd * tVenta;
     } else {
-        precioDetalBs = parseFloat($("#form_renglon_precio_detal").val()) || (costoUsd * (1 + margenDetal / 100) * tVenta);
+        const sugeridoDetalUsd = costoUsd * (1 + margenDetal / 100);
+        precioDetalBs = parseFloat($("#form_renglon_precio_detal").val()) || (sugeridoDetalUsd * tVenta);
         precioDetalUsd = precioDetalBs / tVenta;
-        precioMayorBs = parseFloat($("#form_renglon_precio_mayorista").val()) || (costoUsd * (1 + margenMayor / 100) * tVenta);
+
+        const sugeridoMayorUsd = costoUsd * (1 + margenMayor / 100);
+        precioMayorBs = parseFloat($("#form_renglon_precio_mayorista").val()) || (sugeridoMayorUsd * tVenta);
         precioMayorUsd = precioMayorBs / tVenta;
     }
 
@@ -1191,7 +1192,6 @@ const agregarOActualizarRenglon = function () {
     if (indiceEdicionActual !== null && indiceEdicionActual >= 0 && indiceEdicionActual < listaProductosCargados.length) {
         listaProductosCargados[indiceEdicionActual] = itemRenglon;
     } else {
-        // Verificar si ya existe con el mismo producto y mismo almacén
         const indiceExistente = listaProductosCargados.findIndex(
             (it) => it.producto_id === itemRenglon.producto_id && it.almacen_id === itemRenglon.almacen_id
         );

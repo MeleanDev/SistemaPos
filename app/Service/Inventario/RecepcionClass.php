@@ -227,9 +227,14 @@ class RecepcionClass
 
                 $renglonSubtotalNetoUsd = round($renglonBrutoUsd - $descuentoUsd, 2);
                 $renglonSubtotalNetoBs = round($renglonSubtotalNetoUsd * $tasaCompra, 2);
-                $subtotalNetoUsd += $renglonSubtotalNetoUsd;
+                $esVes = ($monedaDocumento === 'VES');
+                $tasaMenor = ($tasaCompra < $tasaVenta);
 
-                $costoUnitarioBs = round($costoUnitarioUsd * $tasaCompra, 4);
+                if (! $esVes) {
+                    $costoUnitarioBs = $tasaMenor ? round($costoUnitarioUsd * $tasaVenta, 4) : round($costoUnitarioUsd * $tasaCompra, 4);
+                } else {
+                    $costoUnitarioBs = $tasaMenor ? round($costoUnitarioUsd * $tasaCompra, 4) : round($costoUnitarioUsd * $tasaVenta, 4);
+                }
 
                 // IVA por producto
                 $aplicaIva = isset($item['aplica_iva']) ? (bool) $item['aplica_iva'] : (bool) $producto->aplica_iva;
@@ -245,11 +250,25 @@ class RecepcionClass
 
                 // Precios de Venta
                 $margenDetal = (float) ($item['margen_detal_porcentaje'] ?? $producto->ultimo_margen_detal ?? 30);
-                $precioDetalUsd = (float) ($item['precio_detal_usd'] ?? ($costoUnitarioUsd * (1 + ($margenDetal / 100)) * $tasaCompra / $tasaVenta));
+                if (! $esVes) {
+                    $sugeridoDetalUsd = $tasaMenor
+                        ? ($costoUnitarioUsd * (1 + ($margenDetal / 100)))
+                        : (($costoUnitarioUsd * (1 + ($margenDetal / 100)) * $tasaCompra) / $tasaVenta);
+                } else {
+                    $sugeridoDetalUsd = $costoUnitarioUsd * (1 + ($margenDetal / 100));
+                }
+                $precioDetalUsd = (float) ($item['precio_detal_usd'] ?? $sugeridoDetalUsd);
                 $precioDetalBs = round($precioDetalUsd * $tasaVenta, 4);
 
                 $margenMayorista = (float) ($item['margen_mayorista_porcentaje'] ?? $producto->ultimo_margen_mayorista ?? 15);
-                $precioMayoristaUsd = (float) ($item['precio_mayorista_usd'] ?? ($costoUnitarioUsd * (1 + ($margenMayorista / 100)) * $tasaCompra / $tasaVenta));
+                if (! $esVes) {
+                    $sugeridoMayoristaUsd = $tasaMenor
+                        ? ($costoUnitarioUsd * (1 + ($margenMayorista / 100)))
+                        : (($costoUnitarioUsd * (1 + ($margenMayorista / 100)) * $tasaCompra) / $tasaVenta);
+                } else {
+                    $sugeridoMayoristaUsd = $costoUnitarioUsd * (1 + ($margenMayorista / 100));
+                }
+                $precioMayoristaUsd = (float) ($item['precio_mayorista_usd'] ?? $sugeridoMayoristaUsd);
                 $precioMayoristaBs = round($precioMayoristaUsd * $tasaVenta, 4);
 
                 $detallesAProcesar[] = [
