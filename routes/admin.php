@@ -92,6 +92,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/recepciones-motos', 'index')->name('recepcion_moto');
         Route::get('/recepciones-motos/lista', 'lista');
         Route::get('/recepciones-motos/catalogos', 'catalogos');
+        Route::get('/recepciones-motos/borradores', 'listarBorradores');
+        Route::get('/recepciones-motos/borradores/{id}', 'recuperarBorrador');
+        Route::post('/recepciones-motos/borradores', 'guardarBorrador');
+        Route::delete('/recepciones-motos/borradores/{id}', 'eliminarBorrador');
         Route::get('/recepciones-motos/{id}', 'detalle');
         Route::get('/recepciones-motos/{id}/imprimir', 'imprimir')->name('recepcion_moto.imprimir');
         Route::post('/recepciones-motos', 'guardar');

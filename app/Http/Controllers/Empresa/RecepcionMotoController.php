@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Empresa;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RecepcionMoto\CrearRequest;
+use App\Http\Requests\RecepcionMoto\GuardarBorradorRequest;
 use App\Models\Almacen;
 use App\Models\Empresa;
 use App\Models\Proveedor;
@@ -152,6 +153,81 @@ class RecepcionMotoController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function guardarBorrador(GuardarBorradorRequest $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $empresaId = $user->empresaActiva()->id;
+
+            $borrador = $this->recepcionMotoService->guardarBorrador($request->validated(), $user->id, $empresaId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Borrador guardado exitosamente en el servidor.',
+                'data' => $borrador,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al guardar borrador: '.$e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function listarBorradores(): JsonResponse
+    {
+        try {
+            $empresaId = $this->obtenerEmpresaId();
+            $borradores = $this->recepcionMotoService->listarBorradores($empresaId);
+
+            return response()->json([
+                'success' => true,
+                'data' => $borradores,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al listar borradores: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function recuperarBorrador(int $id): JsonResponse
+    {
+        try {
+            $empresaId = $this->obtenerEmpresaId();
+            $borrador = $this->recepcionMotoService->recuperarBorrador($id, $empresaId);
+
+            return response()->json([
+                'success' => true,
+                'data' => $borrador,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al recuperar borrador: '.$e->getMessage(),
+            ], 404);
+        }
+    }
+
+    public function eliminarBorrador(int $id): JsonResponse
+    {
+        try {
+            $empresaId = $this->obtenerEmpresaId();
+            $this->recepcionMotoService->eliminarBorrador($id, $empresaId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Borrador eliminado correctamente.',
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar borrador: '.$e->getMessage(),
             ], 422);
         }
     }

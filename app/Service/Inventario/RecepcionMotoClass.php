@@ -11,6 +11,7 @@ use App\Models\Producto;
 use App\Models\ProductoProveedor;
 use App\Models\Proveedor;
 use App\Models\RecepcionMoto;
+use App\Models\RecepcionMotoBorrador;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -635,6 +636,12 @@ class RecepcionMotoClass
                 ]);
             }
 
+            if (! empty($datos['borrador_id'])) {
+                RecepcionMotoBorrador::where('id', $datos['borrador_id'])
+                    ->where('empresa_id', $empresaId)
+                    ->delete();
+            }
+
             return $recepcionMoto;
         });
     }
@@ -693,5 +700,93 @@ class RecepcionMotoClass
 
             return $recepcion;
         });
+    }
+
+    /**
+     * Guardar o actualizar un borrador de recepción de motos
+     */
+    public function guardarBorrador(array $datos, int $userId, int $empresaId): RecepcionMotoBorrador
+    {
+        $borradorId = ! empty($datos['borrador_id']) ? (int) $datos['borrador_id'] : null;
+        $datosJson = $datos['datos_json'] ?? [];
+
+        $proveedorId = ! empty($datos['proveedor_id']) ? (int) $datos['proveedor_id'] : ($datosJson['proveedor_id'] ?? null);
+        $numeroDoc = ! empty($datos['numero_documento']) ? trim($datos['numero_documento']) : ($datosJson['numero_documento'] ?? null);
+        $referencia = ! empty($datos['referencia']) ? trim($datos['referencia']) : ($numeroDoc ? "Borrador Doc: {$numeroDoc}" : 'Borrador sin nombre');
+        $totalUnidades = ! empty($datos['total_unidades']) ? (int) $datos['total_unidades'] : ($datosJson['total_unidades'] ?? 0);
+
+        if ($borradorId) {
+            $borrador = RecepcionMotoBorrador::where('id', $borradorId)
+                ->where('empresa_id', $empresaId)
+                ->first();
+
+            if ($borrador) {
+                $borrador->update([
+                    'user_id' => $userId,
+                    'proveedor_id' => $proveedorId,
+                    'referencia' => $referencia,
+                    'numero_documento' => $numeroDoc,
+                    'total_unidades' => $totalUnidades,
+                    'datos_json' => $datosJson,
+                ]);
+
+                return $borrador->fresh(['proveedor', 'usuario']);
+            }
+        }
+
+        return RecepcionMotoBorrador::create([
+            'empresa_id' => $empresaId,
+            'user_id' => $userId,
+            'proveedor_id' => $proveedorId,
+            'referencia' => $referencia,
+            'numero_documento' => $numeroDoc,
+            'total_unidades' => $totalUnidades,
+            'datos_json' => $datosJson,
+        ])->load(['proveedor', 'usuario']);
+    }
+
+    /**
+     * Listar borradores guardados de la empresa
+     */
+    public function listarBorradores(int $empresaId): array
+    {
+        return RecepcionMotoBorrador::with(['proveedor', 'usuario'])
+            ->where('empresa_id', $empresaId)
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->toArray();
+    }
+
+    /**
+     * Recuperar datos de un borrador específico
+     */
+    public function recuperarBorrador(int $id, int $empresaId): array
+    {
+        $borrador = RecepcionMotoBorrador::with(['proveedor', 'usuario'])
+            ->where('id', $id)
+            ->where('empresa_id', $empresaId)
+            ->firstOrFail();
+
+        return [
+            'id' => $borrador->id,
+            'referencia' => $borrador->referencia,
+            'numero_documento' => $borrador->numero_documento,
+            'proveedor_id' => $borrador->proveedor_id,
+            'total_unidades' => $borrador->total_unidades,
+            'datos_json' => $borrador->datos_json,
+            'updated_at' => $borrador->updated_at?->format('d/m/Y H:i'),
+        ];
+    }
+
+    /**
+     * Eliminar un borrador
+     */
+    public function eliminarBorrador(int $id, int $empresaId): bool
+    {
+        $borrador = RecepcionMotoBorrador::where('id', $id)
+            ->where('empresa_id', $empresaId)
+            ->firstOrFail();
+
+        return (bool) $borrador->delete();
     }
 }

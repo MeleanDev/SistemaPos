@@ -12,6 +12,7 @@ class CrearRequest extends BaseRequest
     public function rules(): array
     {
         return [
+            'borrador_id' => ['nullable', 'integer'],
             'almacen_id' => ['required', 'integer', 'exists:almacenes,id'],
             'proveedor_id' => ['required', 'integer', 'exists:proveedores,id'],
             'tipo_documento' => ['required', 'string', 'in:factura,nota_entrega,guia_despacho,orden_compra'],

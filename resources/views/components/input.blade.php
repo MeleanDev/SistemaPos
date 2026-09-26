@@ -58,7 +58,7 @@
                 @if($required) required @endif
                 @if($readonly) readonly @endif
                 @if($disabled) disabled @endif
-                {{ $attributes->merge(['class' => 'form-control form-control-executive ' . ($readonly ? 'bg-light text-dark' : '')]) }}
+                {{ $attributes->merge(['class' => 'form-control form-control-executive ' . ($readonly ? 'bg-white text-muted border-secondary-subtle' : '')]) }}
             >
             @if($addonPosition === 'right')
                 <span class="input-group-text bg-white text-primary font-monospace">
@@ -79,7 +79,7 @@
             @if($required) required @endif
             @if($readonly) readonly @endif
             @if($disabled) disabled @endif
-            {{ $attributes->merge(['class' => 'form-control form-control-executive ' . ($readonly ? 'bg-light text-dark' : '')]) }}
+            {{ $attributes->merge(['class' => 'form-control form-control-executive ' . ($readonly ? 'bg-white text-muted border-secondary-subtle' : '')]) }}
         >
     @endif
 

@@ -41,11 +41,11 @@
 
             <!-- Modal Footer -->
             @if(isset($footer))
-                <div class="modal-footer bg-light border-0 px-4 py-3 d-flex justify-content-between">
+                <div class="modal-footer bg-white border-top px-4 py-3 d-flex justify-content-between">
                     {{ $footer }}
                 </div>
             @elseif($submitButton)
-                <div class="modal-footer bg-light border-0 px-4 py-3 d-flex justify-content-between align-items-center">
+                <div class="modal-footer bg-white border-top px-4 py-3 d-flex justify-content-between align-items-center">
                     <button type="button" class="btn btn-executive-cancel" data-bs-dismiss="modal">
                         <i class="fas fa-times me-1"></i> Cancelar
                     </button>

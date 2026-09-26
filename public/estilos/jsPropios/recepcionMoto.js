@@ -18,6 +18,8 @@ let modoItemActual = 'moto';
 let lotesAgregados = [];
 let editandoLoteIndex = null;
 let proximaReferenciaSugerida = '1';
+let borradorActualId = null;
+let temporizadorAutoGuardado = null;
 
 $(document).ready(function () {
     crearSelect2({
@@ -28,6 +30,7 @@ $(document).ready(function () {
 
     inicializarTabla();
     cargarCatalogos();
+    actualizarContadorBorradores();
 
     $('#lote_referencia').on('input', function () {
         this.value = this.value.replace(/[^0-9]/g, '');
@@ -48,6 +51,10 @@ $(document).ready(function () {
         }
     });
 
+    $(document).on('input change', '#formularioRecepcionMoto input, #formularioRecepcionMoto select, #formularioRecepcionMoto textarea', function () {
+        dispararAutoGuardado();
+    });
+
     generarMatrizSeriales();
 });
 
@@ -60,7 +67,7 @@ const inicializarTabla = function () {
                 data: 'codigo',
                 name: 'codigo',
                 render: function (data) {
-                    return `<span class="badge rounded-pill bg-light text-dark border font-monospace fw-bold px-2 py-1"><i class="fas fa-hashtag me-1 text-primary"></i>${data}</span>`;
+                    return `<span class="badge rounded-pill bg-white text-dark border shadow-xs font-monospace fw-bold px-2.5 py-1"><i class="fas fa-hashtag me-1 text-primary"></i>${data}</span>`;
                 }
             },
             {
@@ -90,7 +97,7 @@ const inicializarTabla = function () {
                 data: 'almacen.nombre',
                 name: 'almacen.nombre',
                 render: function (data) {
-                    return `<span class="badge rounded-pill bg-light text-secondary border px-2 py-1"><i class="fas fa-warehouse me-1"></i>${data || 'General'}</span>`;
+                    return `<span class="badge rounded-pill bg-white text-secondary border shadow-xs px-2.5 py-1"><i class="fas fa-warehouse me-1 text-primary"></i>${data || 'General'}</span>`;
                 }
             },
             {
@@ -98,7 +105,7 @@ const inicializarTabla = function () {
                 name: 'total_unidades',
                 className: 'text-center',
                 render: function (data) {
-                    return `<span class="badge rounded-pill bg-primary text-white fw-bold px-3 py-1">${data || 0} Unids</span>`;
+                    return `<span class="badge rounded-pill bg-primary text-white fw-bold px-3 py-1 shadow-xs">${data || 0} Unids</span>`;
                 }
             },
             {
@@ -133,7 +140,7 @@ const inicializarTabla = function () {
                     } else if (data === 'anulada') {
                         return '<span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3 py-1"><i class="fas fa-ban me-1"></i>Anulada</span>';
                     }
-                    return `<span class="badge rounded-pill bg-secondary px-3 py-1">${data}</span>`;
+                    return `<span class="badge rounded-pill bg-dark text-white px-3 py-1">${data}</span>`;
                 }
             },
             {
@@ -149,7 +156,7 @@ const inicializarTabla = function () {
                             <button type="button" class="btn btn-outline-info btn-sm rounded-pill px-2" onclick="verDetalle(${data})" title="Ver Detalles">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <a href="/recepciones-motos/${data}/imprimir" target="_blank" class="btn btn-outline-secondary btn-sm rounded-pill px-2" title="Imprimir Comprobante">
+                            <a href="/recepciones-motos/${data}/imprimir" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill px-2" title="Imprimir Comprobante">
                                 <i class="fas fa-print"></i>
                             </a>
                             ${!anulada ? `
@@ -272,11 +279,11 @@ const cambiarModoItem = function (modo) {
     modoItemActual = modo;
     if (modo === 'moto') {
         $('#btnModoItemMoto').removeClass('btn-outline-primary').addClass('btn-primary shadow-xs');
-        $('#btnModoItemProducto').removeClass('btn-success shadow-xs').addClass('btn-outline-secondary');
+        $('#btnModoItemProducto').removeClass('btn-success shadow-xs').addClass('btn-outline-success');
         $('#cardConstructorMoto').slideDown(200);
         $('#cardConstructorProducto').slideUp(200);
     } else {
-        $('#btnModoItemProducto').removeClass('btn-outline-secondary').addClass('btn-success shadow-xs');
+        $('#btnModoItemProducto').removeClass('btn-outline-success').addClass('btn-success shadow-xs');
         $('#btnModoItemMoto').removeClass('btn-primary shadow-xs').addClass('btn-outline-primary');
         $('#cardConstructorProducto').slideDown(200);
         $('#cardConstructorMoto').slideUp(200);
@@ -589,7 +596,7 @@ const calcularFechaVencimiento = function () {
     $('#labelFechaVencimiento').text(`Vence: ${res.fechaFormateada}`);
 };
 
-const crear = function () {
+const crear = function (limpiarBorrador = true) {
     $('#formularioRecepcionMoto')[0].reset();
     limpiarSelect2('#proveedor_id');
     lotesAgregados = [];
@@ -599,6 +606,11 @@ const crear = function () {
     renderizarLotesAgregados();
     volverAFase1();
 
+    if (limpiarBorrador) {
+        borradorActualId = null;
+        $('#borrador_id').val('');
+    }
+
     const hoy = new Date().toISOString().split('T')[0];
     $('#fecha_emision').val(hoy);
     $('#fecha_recepcion').val(hoy);
@@ -607,6 +619,10 @@ const crear = function () {
     seleccionarMonedaDocumento('USD');
     cambiarModoItem('moto');
     cargarCatalogos();
+
+    if (limpiarBorrador) {
+        verificarBorradorPendiente();
+    }
 
     $('#modalRecepcionMoto').modal('show');
 };
@@ -696,7 +712,7 @@ const generarMatrizSeriales = function (serialesExistentes = []) {
 
         $tbody.append(`
             <tr data-index="${i}">
-                <td class="text-center fw-bold font-monospace bg-light">${i}</td>
+                <td class="text-center fw-bold font-monospace bg-white text-primary">${i}</td>
                 <td>
                     <input type="text" class="form-control form-control-sm input-serial-matrix serial-niv" placeholder="17 caracteres..." maxlength="50" value="${nivVal}" required>
                 </td>
@@ -1168,8 +1184,8 @@ const verSerialesLote = function (index) {
     (lote.seriales || []).forEach((s, idx) => {
         html += `
             <tr>
-                <td class="text-center fw-bold bg-light">${idx + 1}</td>
-                <td><span class="badge bg-light text-dark border">${s.numero_niv}</span></td>
+                <td class="text-center fw-bold text-dark font-monospace">${idx + 1}</td>
+                <td><span class="badge bg-white text-dark border shadow-xs font-monospace">${s.numero_niv}</span></td>
                 <td>${s.numero_chasis}</td>
                 <td>${s.numero_motor}</td>
                 <td><span class="badge bg-success-subtle text-success border border-success-subtle">${s.certificado_origen}</span></td>
@@ -1258,7 +1274,7 @@ const renderizarLotesAgregados = function () {
                     <span class="fw-bold text-dark">$ ${costoTotalUsd}</span>
                 </td>
                 <td class="text-center">
-                    <span class="badge rounded-pill ${lote.aplica_iva ? 'bg-secondary text-white' : 'bg-light text-muted border'}">${lote.iva_porcentaje}%</span>
+                    <span class="badge rounded-pill ${lote.aplica_iva ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-white text-muted border shadow-xs'}">${lote.iva_porcentaje}%</span>
                 </td>
                 <td class="text-end font-monospace" style="font-size: 0.78rem;">
                     <span class="text-muted small">Sin: $ ${detalSinIva}</span><br>
@@ -1408,6 +1424,7 @@ const procesarRecepcionMoto = async function () {
 
     const payload = {
         _token: $('meta[name="csrf-token"]').attr('content'),
+        borrador_id: $('#borrador_id').val() || borradorActualId || null,
         almacen_id: $('#almacen_id').val(),
         proveedor_id: $('#proveedor_id').val(),
         tipo_documento: $('#tipo_documento').val(),
@@ -1449,18 +1466,21 @@ const procesarRecepcionMoto = async function () {
     });
 
     try {
-        const respuesta = await $.ajax({
+        const respuesta = await peticionAjax({
             url: urlGuardar,
-            type: "POST",
+            method: "POST",
             data: JSON.stringify(payload),
             contentType: "application/json",
-            dataType: "json",
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             }
         });
 
         if (respuesta.success) {
+            localStorage.removeItem('draft_recepcion_moto');
+            borradorActualId = null;
+            $('#borrador_id').val('');
+            actualizarContadorBorradores();
             $('#modalRecepcionMoto').modal('hide');
             Swal.fire({
                 icon: 'success',
@@ -1493,11 +1513,7 @@ const procesarRecepcionMoto = async function () {
 
 const verDetalle = async function (id) {
     try {
-        const respuesta = await $.ajax({
-            url: urlDetalles + id,
-            type: "GET",
-            dataType: "json"
-        });
+        const respuesta = await consultarRegistro(urlDetalles, id);
 
         if (respuesta.success && respuesta.data) {
             const r = respuesta.data;
@@ -1510,7 +1526,7 @@ const verDetalle = async function (id) {
                 if (d.tipo_item === 'moto' && d.motos && d.motos.length > 0) {
                     (d.motos || []).forEach(m => {
                         serialesHtml += `
-                            <div class="p-2 border rounded-3 bg-light mb-1 font-monospace small">
+                            <div class="p-2 border rounded-3 bg-white shadow-xs mb-1 font-monospace small">
                                 <strong>NIV:</strong> ${m.numero_niv} | 
                                 <strong>Chasis:</strong> ${m.numero_chasis} | 
                                 <strong>Motor:</strong> ${m.numero_motor} | 
@@ -1529,7 +1545,7 @@ const verDetalle = async function (id) {
                     <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h6 class="fw-bold text-dark mb-0">${tituloRenglon}</h6>
-                            <span class="badge ${d.tipo_item === 'moto' ? 'bg-primary' : 'bg-success'} rounded-pill px-3 py-1">${d.cantidad} Unidades</span>
+                            <span class="badge ${d.tipo_item === 'moto' ? 'bg-primary' : 'bg-success'} rounded-pill px-3 py-1 shadow-xs">${d.cantidad} Unidades</span>
                         </div>
                         <div class="row g-2 font-monospace small text-muted mb-2">
                             <div class="col-md-3">Costo Unit: $ ${parseFloat(d.costo_unitario_usd).toFixed(2)}</div>
@@ -1564,7 +1580,7 @@ const verDetalle = async function (id) {
                         </div>
                         <div class="col-md-3">
                             <small class="text-muted d-block">Condición / Tasas:</small>
-                            <span class="badge bg-light text-dark border">${r.condicion_pago.toUpperCase()}</span>
+                            <span class="badge bg-white text-dark border shadow-xs">${r.condicion_pago.toUpperCase()}</span>
                             <small class="font-monospace text-muted d-block">T. Compra: ${parseFloat(r.tasa_compra || r.tasa_cambio).toFixed(4)} Bs. | T. Venta: ${parseFloat(r.tasa_venta || r.tasa_cambio).toFixed(4)} Bs.</small>
                         </div>
                     </div>
@@ -1601,13 +1617,12 @@ const anularRecepcion = async function (id, codigo) {
     if (!confirm.isConfirmed) return;
 
     try {
-        const respuesta = await $.ajax({
+        const respuesta = await peticionAjax({
             url: `${urlAnular}${id}/anular`,
-            type: "POST",
+            method: "POST",
             data: {
                 _token: $('meta[name="csrf-token"]').attr('content')
-            },
-            dataType: "json"
+            }
         });
 
         if (respuesta.success) {
@@ -1628,40 +1643,479 @@ const abrirModalRapidoProveedor = function () {
     $('#modalRapidoProveedor').modal('show');
 };
 
-const guardarRapidoProveedor = async function () {
-    const formData = new FormData($('#formularioRapidoProveedor')[0]);
-    const rifCompleto = $('#formularioRapidoProveedor select[name="tipo_cedula"]').val() + $('#formularioRapidoProveedor input[name="cedula_numero"]').val().trim();
-    formData.set('rif', rifCompleto);
+const guardarRapidoProveedor = function () {
+    enviarFormulario({
+        form: '#formularioRapidoProveedor',
+        url: "/proveedores",
+        modalSelector: '#modalRapidoProveedor',
+        btnSubmit: '#modalRapidoProveedorBtnGuardar',
+        antesDeEnviar: function (formData) {
+            const rifCompleto = $('#formularioRapidoProveedor select[name="tipo_cedula"]').val() + $('#formularioRapidoProveedor input[name="cedula_numero"]').val().trim();
+            formData.set('rif', rifCompleto);
 
-    const telNum = $('#formularioRapidoProveedor input[name="telefono_numero"]').val().trim();
-    if (telNum) {
-        formData.set('telefono', $('#formularioRapidoProveedor select[name="codigo_pais"]').val() + telNum);
+            const telNum = $('#formularioRapidoProveedor input[name="telefono_numero"]').val().trim();
+            if (telNum) {
+                formData.set('telefono', $('#formularioRapidoProveedor select[name="codigo_pais"]').val() + telNum);
+            }
+            return formData;
+        },
+        onSuccess: async function (respuesta) {
+            await cargarCatalogos();
+            if (respuesta.data?.id) {
+                establecerValorSelect2('#proveedor_id', respuesta.data.id);
+            }
+        }
+    });
+};
+
+const obtenerEstadoActualFormulario = function () {
+    const serialesActuales = [];
+    $('#tbodyMatrizSeriales tr').each(function () {
+        serialesActuales.push({
+            numero_niv: $(this).find('.serial-niv').val() || '',
+            numero_chasis: $(this).find('.serial-chasis').val() || '',
+            numero_motor: $(this).find('.serial-motor').val() || '',
+            certificado_origen: $(this).find('.serial-origen').val() || '',
+            placa: $(this).find('.serial-placa').val() || '',
+            almacen_id: $(this).find('.serial-almacen').val() || $('#almacen_id').val()
+        });
+    });
+
+    return {
+        borrador_id: $('#borrador_id').val() || borradorActualId,
+        fecha_guardado: new Date().toLocaleString(),
+        proveedor_id: $('#proveedor_id').val(),
+        almacen_id: $('#almacen_id').val(),
+        tipo_documento: $('#tipo_documento').val(),
+        numero_documento: ($('#numero_documento').val() || '').trim(),
+        numero_control: ($('#numero_control').val() || '').trim(),
+        moneda_documento: monedaSeleccionada,
+        tasa_cambio: tasaCambioActual,
+        tasa_compra: tasaCompraActual,
+        tasa_venta: tasaVentaActual,
+        fecha_emision: $('#fecha_emision').val(),
+        fecha_recepcion: $('#fecha_recepcion').val(),
+        condicion_pago: $('#condicion_pago').val(),
+        dias_credito: $('#dias_credito').val(),
+        monto_bruto_usd: $('#monto_bruto_input').val(),
+        descuento_global_porcentaje: $('#descuento_global_porcentaje').val(),
+        incluir_flete_en_factura: $('#switchIncluirFleteFactura').is(':checked') ? 1 : 0,
+        observaciones: $('#observaciones').val(),
+        lotesAgregados: lotesAgregados,
+        modoItemActual: modoItemActual,
+        lote_actual: {
+            referencia: $('#lote_referencia').val(),
+            marca: $('#lote_marca').val(),
+            modelo: $('#lote_modelo').val(),
+            anio: $('#lote_anio').val(),
+            color: $('#lote_color').val(),
+            cilindrada: $('#lote_cilindrada').val(),
+            cantidad: $('#lote_cantidad').val(),
+            costo_unitario: $('#lote_costo_unitario').val(),
+            flete_unitario: $('#lote_flete_unitario').val(),
+            descuento: $('#lote_descuento').val(),
+            iva: $('#lote_iva').val(),
+            margen_detal: $('#lote_margen_detal').val(),
+            precio_detal: $('#lote_precio_detal').val(),
+            margen_mayorista: $('#lote_margen_mayorista').val(),
+            precio_mayorista: $('#lote_precio_mayorista').val(),
+            seriales: serialesActuales
+        }
+    };
+};
+
+const dispararAutoGuardado = function () {
+    $('#badgeAutoSaveStatus').html('<i class="fas fa-spinner fa-spin text-warning me-1"></i> Guardando...');
+    if (temporizadorAutoGuardado) {
+        clearTimeout(temporizadorAutoGuardado);
+    }
+    temporizadorAutoGuardado = setTimeout(function () {
+        const estado = obtenerEstadoActualFormulario();
+        const tieneContenido = (estado.numero_documento && estado.numero_documento.trim().length > 0) ||
+            (estado.proveedor_id && estado.proveedor_id !== '') ||
+            (estado.lotesAgregados && estado.lotesAgregados.length > 0) ||
+            (estado.lote_actual && estado.lote_actual.modelo && estado.lote_actual.modelo.trim().length > 0);
+
+        if (tieneContenido) {
+            localStorage.setItem('draft_recepcion_moto', JSON.stringify(estado));
+            $('#badgeAutoSaveStatus').html('<i class="fas fa-shield-alt text-success me-1"></i> Auto-guardado local');
+        } else {
+            $('#badgeAutoSaveStatus').html('<i class="fas fa-shield-alt text-white-50 me-1"></i> Auto-guardado activo');
+        }
+    }, 400);
+};
+
+const verificarBorradorPendiente = function () {
+    const draftStr = localStorage.getItem('draft_recepcion_moto');
+    if (draftStr) {
+        try {
+            const draft = JSON.parse(draftStr);
+            const numDoc = draft.numero_documento || 'Sin número';
+            const lotesCount = (draft.lotesAgregados || []).length;
+            const unidadesCount = (draft.lotesAgregados || []).reduce((a, b) => a + (parseInt(b.cantidad) || 0), 0) + (parseInt(draft.lote_actual?.cantidad) || 0);
+            const fecha = draft.fecha_guardado || 'recientemente';
+
+            $('#textoAlertaBorrador').html(`Existe un borrador local guardado el <strong>${fecha}</strong> para el documento <strong>${numDoc}</strong> con <strong>${unidadesCount} motos/productos</strong> en progreso.`);
+            $('#alertaBorradorDetectado').slideDown(200);
+        } catch (e) {
+            $('#alertaBorradorDetectado').hide();
+        }
+    } else {
+        $('#alertaBorradorDetectado').hide();
+    }
+};
+
+const restaurarBorradorDetectado = function () {
+    const draftStr = localStorage.getItem('draft_recepcion_moto');
+    if (draftStr) {
+        try {
+            const draft = JSON.parse(draftStr);
+            restaurarEstado(draft);
+            $('#alertaBorradorDetectado').slideUp(200);
+            notificacion.fire({
+                icon: 'success',
+                title: 'Progreso Restaurado',
+                text: 'Se han recuperado todos los datos de la recepción.'
+            });
+        } catch (e) {
+            notificacion.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo restaurar el borrador local.'
+            });
+        }
+    }
+};
+
+const descartarBorradorDetectado = function () {
+    localStorage.removeItem('draft_recepcion_moto');
+    $('#alertaBorradorDetectado').slideUp(200);
+};
+
+const restaurarEstado = function (datos) {
+    if (!datos) return;
+
+    $('#borrador_id').val(datos.borrador_id || '');
+    borradorActualId = datos.borrador_id || null;
+
+    if (datos.proveedor_id) {
+        establecerValorSelect2('#proveedor_id', datos.proveedor_id);
+    }
+    if (datos.almacen_id) {
+        $('#almacen_id').val(datos.almacen_id);
+    }
+    if (datos.tipo_documento) {
+        $('#tipo_documento').val(datos.tipo_documento);
+    }
+    if (datos.numero_documento) {
+        $('#numero_documento').val(datos.numero_documento);
+    }
+    if (datos.numero_control) {
+        $('#numero_control').val(datos.numero_control);
+    }
+    if (datos.fecha_emision) {
+        $('#fecha_emision').val(datos.fecha_emision);
+    }
+    if (datos.fecha_recepcion) {
+        $('#fecha_recepcion').val(datos.fecha_recepcion);
+    }
+    if (datos.condicion_pago) {
+        $('#condicion_pago').val(datos.condicion_pago);
+        toggleCondicionPago();
+    }
+    if (datos.dias_credito) {
+        $('#dias_credito').val(datos.dias_credito);
+        calcularFechaVencimiento();
+    }
+    if (datos.monto_bruto_usd) {
+        $('#monto_bruto_input').val(datos.monto_bruto_usd);
+    }
+    if (datos.descuento_global_porcentaje) {
+        $('#descuento_global_porcentaje').val(datos.descuento_global_porcentaje);
+    }
+    if (datos.observaciones) {
+        $('#observaciones').val(datos.observaciones);
     }
 
+    $('#switchIncluirFleteFactura').prop('checked', datos.incluir_flete_en_factura == 1);
+
+    if (datos.moneda_documento) {
+        seleccionarMonedaDocumento(datos.moneda_documento);
+    }
+    if (datos.tasa_compra) {
+        tasaCompraActual = parseFloat(datos.tasa_compra);
+        $('#tasa_compra').val(tasaCompraActual);
+    }
+    if (datos.tasa_venta) {
+        tasaVentaActual = parseFloat(datos.tasa_venta);
+        $('#tasa_venta').val(tasaVentaActual);
+    }
+    if (datos.tasa_cambio) {
+        tasaCambioActual = parseFloat(datos.tasa_cambio);
+    }
+
+    lotesAgregados = Array.isArray(datos.lotesAgregados) ? datos.lotesAgregados : [];
+    renderizarLotesAgregados();
+
+    if (datos.lote_actual) {
+        const la = datos.lote_actual;
+        if (la.referencia) $('#lote_referencia').val(la.referencia);
+        if (la.marca) $('#lote_marca').val(la.marca);
+        if (la.modelo) $('#lote_modelo').val(la.modelo);
+        if (la.anio) $('#lote_anio').val(la.anio);
+        if (la.color) $('#lote_color').val(la.color);
+        if (la.cilindrada) $('#lote_cilindrada').val(la.cilindrada);
+        if (la.cantidad) $('#lote_cantidad').val(la.cantidad);
+        if (la.costo_unitario) $('#lote_costo_unitario').val(la.costo_unitario);
+        if (la.flete_unitario) $('#lote_flete_unitario').val(la.flete_unitario);
+        if (la.descuento || la.descuento_porcentaje) $('#lote_descuento').val(la.descuento || la.descuento_porcentaje);
+        if (la.iva || la.iva_porcentaje) $('#lote_iva').val(la.iva || la.iva_porcentaje);
+        if (la.margen_detal) $('#lote_margen_detal').val(la.margen_detal);
+        if (la.precio_detal) $('#lote_precio_detal').val(la.precio_detal);
+        if (la.margen_mayorista || la.margen_mayor) $('#lote_margen_mayorista').val(la.margen_mayorista || la.margen_mayor);
+        if (la.precio_mayorista || la.precio_mayor) $('#lote_precio_mayorista').val(la.precio_mayorista || la.precio_mayor);
+
+        recalcularPreciosLote();
+
+        if (Array.isArray(la.seriales) && la.seriales.length > 0) {
+            generarMatrizSeriales(la.seriales);
+        } else {
+            generarMatrizSeriales();
+        }
+    }
+
+    if (datos.modoItemActual) {
+        cambiarModoItem(datos.modoItemActual);
+    }
+
+    recalcularTotalesGenerales();
+    actualizarCuadreFactura();
+    $('#badgeAutoSaveStatus').html('<i class="fas fa-check-circle text-success me-1"></i> Borrador cargado');
+};
+
+const guardarBorradorEnServidor = async function () {
+    const estado = obtenerEstadoActualFormulario();
+    const totalUnidades = (estado.lotesAgregados || []).reduce((acc, l) => acc + (parseInt(l.cantidad) || 0), 0) + (parseInt(estado.lote_actual?.cantidad) || 0);
+    const numDoc = estado.numero_documento || 'Sin Factura';
+
+    let nombreReferencia = `Borrador Factura ${numDoc} (${totalUnidades} unidades)`;
+    if (estado.proveedor_id) {
+        const prov = proveedoresLista.find(p => p.id == estado.proveedor_id);
+        if (prov) {
+            nombreReferencia += ` - ${prov.nombre}`;
+        }
+    }
+
+    const payload = {
+        borrador_id: $('#borrador_id').val() || borradorActualId || null,
+        referencia: nombreReferencia,
+        proveedor_id: estado.proveedor_id || null,
+        numero_documento: estado.numero_documento || null,
+        total_unidades: totalUnidades,
+        datos_json: estado
+    };
+
     try {
-        const respuesta = await $.ajax({
-            url: "/proveedores",
-            type: "POST",
-            data: formData,
-            processData: false,
-            contentType: false,
-            dataType: "json",
+        $('#btnGuardarBorradorModal').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Guardando...');
+        const res = await peticionAjax({
+            url: "/recepciones-motos/borradores",
+            method: 'POST',
+            data: JSON.stringify(payload),
+            contentType: 'application/json',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             }
         });
 
-        if (respuesta.success && respuesta.data) {
-            $('#modalRapidoProveedor').modal('hide');
-            notificacion.fire({ icon: 'success', title: 'Proveedor creado exitosamente.' });
-            await cargarCatalogos();
-            establecerValorSelect2('#proveedor_id', respuesta.data.id);
+        if (res.success && res.data) {
+            borradorActualId = res.data.id;
+            $('#borrador_id').val(res.data.id);
+            localStorage.setItem('draft_recepcion_moto', JSON.stringify(estado));
+            actualizarContadorBorradores();
+            notificacion.fire({
+                icon: 'success',
+                title: 'Borrador Guardado',
+                text: 'El progreso actual se ha guardado de forma segura en el servidor.'
+            });
         }
-    } catch (error) {
+    } catch (err) {
         notificacion.fire({
             icon: 'error',
-            title: 'Error al registrar proveedor',
-            text: error.responseJSON?.message || 'Verifica los campos ingresados.'
+            title: 'Error al Guardar Borrador',
+            text: err.responseJSON?.message || 'No se pudo guardar el borrador en el servidor.'
         });
+    } finally {
+        $('#btnGuardarBorradorModal').prop('disabled', false).html('<i class="fas fa-pause-circle me-1"></i> Guardar Borrador');
+    }
+};
+
+const abrirModalBorradores = async function () {
+    $('#modalBorradoresRecepcionMoto').modal('show');
+    $('#contenedorListaBorradores').html(`
+        <div class="text-center py-4 text-muted font-monospace">
+            <i class="fas fa-spinner fa-spin fa-2x mb-2 text-primary"></i>
+            <p class="mb-0">Cargando borradores guardados...</p>
+        </div>
+    `);
+
+    try {
+        const res = await peticionAjax({
+            url: "/recepciones-motos/borradores",
+            method: 'GET'
+        });
+
+        if (res.success && Array.isArray(res.data)) {
+            actualizarBadgeContador(res.data.length);
+            if (res.data.length === 0) {
+                $('#contenedorListaBorradores').html(`
+                    <div class="text-center py-5 text-muted">
+                        <div class="avatar-executive-sm rounded-circle bg-warning bg-opacity-10 text-warning mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px; font-size: 1.5rem;">
+                            <i class="fas fa-folder-open"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark">No hay borradores guardados</h6>
+                        <small class="text-muted">Cuando pauses una recepción y presiones "Guardar Borrador", aparecerá aquí para que la retomes en cualquier momento.</small>
+                    </div>
+                `);
+                return;
+            }
+
+            let html = '<div class="list-group gap-2">';
+            res.data.forEach(b => {
+                const provNombre = b.proveedor ? b.proveedor.nombre : 'Sin proveedor asignado';
+                const docNum = b.numero_documento || 'Sin número';
+                const fecha = b.updated_at ? new Date(b.updated_at).toLocaleString() : '--';
+                const unidades = b.total_unidades || 0;
+                const usuarioNombre = b.usuario ? b.usuario.name : 'Usuario';
+
+                html += `
+                    <div class="list-group-item list-group-item-action border rounded-4 p-3 shadow-xs bg-white">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <strong class="text-dark fs-6">${b.referencia || `Borrador Doc: ${docNum}`}</strong>
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary font-monospace">${unidades} ${unidades === 1 ? 'unidad' : 'unidades'}</span>
+                                </div>
+                                <div class="font-monospace small text-muted">
+                                    <span><i class="fas fa-truck text-secondary me-1"></i>${provNombre}</span> • 
+                                    <span><i class="fas fa-file-invoice text-secondary me-1"></i>Doc: ${docNum}</span> • 
+                                    <span><i class="fas fa-clock text-secondary me-1"></i>${fecha}</span> • 
+                                    <span><i class="fas fa-user text-secondary me-1"></i>${usuarioNombre}</span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-success rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs" onclick="cargarBorradorServidor(${b.id})">
+                                    <i class="fas fa-download me-1"></i> Cargar Borrador
+                                </button>
+                                <button type="button" class="btn btn-outline-danger rounded-pill px-2.5 py-1.5 font-monospace small" onclick="eliminarBorradorServidor(${b.id})">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            $('#contenedorListaBorradores').html(html);
+        }
+    } catch (err) {
+        $('#contenedorListaBorradores').html(`
+            <div class="alert alert-danger rounded-4">
+                <i class="fas fa-exclamation-triangle me-1"></i> Error al cargar los borradores: ${err.message || 'Error del servidor'}
+            </div>
+        `);
+    }
+};
+
+const cargarBorradorServidor = async function (id) {
+    try {
+        Swal.fire({
+            title: 'Cargando borrador...',
+            text: 'Restaurando lotes, seriales y configuración fiscal...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        const res = await consultarRegistro('/recepciones-motos/borradores', id);
+
+        if (res.success && res.data) {
+            Swal.close();
+            $('#modalBorradoresRecepcionMoto').modal('hide');
+            crear(false);
+            const datos = typeof res.data.datos_json === 'string' ? JSON.parse(res.data.datos_json) : (res.data.datos_json || {});
+            datos.borrador_id = res.data.id;
+            restaurarEstado(datos);
+            notificacion.fire({
+                icon: 'success',
+                title: 'Borrador Cargado',
+                text: `Se restauró el progreso de la factura ${res.data.numero_documento || ''}.`
+            });
+        }
+    } catch (err) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo cargar el borrador seleccionado.'
+        });
+    }
+};
+
+const eliminarBorradorServidor = async function (id) {
+    const confirm = await Swal.fire({
+        title: '¿Eliminar Borrador?',
+        text: 'Esta acción descartará el borrador guardado en el servidor permanentemente.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: '<i class="fas fa-trash-alt me-1"></i> Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+        const res = await peticionAjax({
+            url: `/recepciones-motos/borradores/${id}`,
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            }
+        });
+
+        if (res.success) {
+            if (borradorActualId == id) {
+                borradorActualId = null;
+                $('#borrador_id').val('');
+            }
+            abrirModalBorradores();
+            actualizarContadorBorradores();
+        }
+    } catch (err) {
+        notificacion.fire({
+            icon: 'error',
+            title: 'Error',
+            text: err.responseJSON?.message || 'No se pudo eliminar el borrador.'
+        });
+    }
+};
+
+const actualizarContadorBorradores = async function () {
+    try {
+        const res = await peticionAjax({
+            url: "/recepciones-motos/borradores",
+            method: 'GET'
+        });
+        if (res.success && Array.isArray(res.data)) {
+            actualizarBadgeContador(res.data.length);
+        }
+    } catch (e) {}
+};
+
+const actualizarBadgeContador = function (conteo) {
+    $('#badgeConteoBorradores').text(conteo);
+    if (conteo > 0) {
+        $('#btnAbrirBorradores').removeClass('btn-outline-primary').addClass('btn-primary text-white');
+    } else {
+        $('#btnAbrirBorradores').removeClass('btn-primary text-white').addClass('btn-outline-primary');
     }
 };

@@ -1,0 +1,14 @@
+{
+    admin off
+}
+
+:8080 {
+    root * /app/public
+    encode zstd gzip
+
+    route {
+        # Intenta servir el archivo estático, si no existe, pasa a php_server
+        try_files {path} {path}/ /index.php?{query}
+        php_server
+    }
+}
