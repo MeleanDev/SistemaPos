@@ -8,11 +8,13 @@ const urlAnular = urlCompleta + "/";
 let datatableRecepcionMotos = null;
 let proveedoresLista = [];
 let almacenesLista = [];
+let productosLista = [];
 let tasaOficialActual = 1.0000;
 let tasaCompraActual = 1.0000;
 let tasaVentaActual = 1.0000;
 let tasaCambioActual = 1.0000;
 let monedaSeleccionada = 'USD';
+let modoItemActual = 'moto';
 let lotesAgregados = [];
 let editandoLoteIndex = null;
 let proximaReferenciaSugerida = '1';
@@ -96,7 +98,7 @@ const inicializarTabla = function () {
                 name: 'total_unidades',
                 className: 'text-center',
                 render: function (data) {
-                    return `<span class="badge rounded-pill bg-primary text-white fw-bold px-3 py-1"><i class="fas fa-motorcycle me-1"></i>${data || 0} Motos</span>`;
+                    return `<span class="badge rounded-pill bg-primary text-white fw-bold px-3 py-1">${data || 0} Unids</span>`;
                 }
             },
             {
@@ -173,6 +175,7 @@ const cargarCatalogos = async function () {
         if (respuesta.success && respuesta.data) {
             proveedoresLista = respuesta.data.proveedores || [];
             almacenesLista = respuesta.data.almacenes || [];
+            productosLista = respuesta.data.productos || [];
             tasaOficialActual = parseFloat(respuesta.data.tasa_oficial) || 1.0000;
             tasaCompraActual = parseFloat(respuesta.data.tasa_compra || respuesta.data.tasa_oficial) || tasaOficialActual;
             tasaVentaActual = parseFloat(respuesta.data.tasa_venta || respuesta.data.tasa_oficial) || tasaOficialActual;
@@ -199,7 +202,7 @@ const cargarCatalogos = async function () {
             poblarSelects();
         }
     } catch (e) {
-        console.error("Error al cargar catálogos:", e);
+        console.error(e);
     }
 };
 
@@ -218,7 +221,11 @@ const actualizarTasasDesdeInput = function () {
         $('#badgeTasaVentaFase2').text(tasaVentaActual.toFixed(4));
     }
 
-    recalcularPreciosLote();
+    if (modoItemActual === 'moto') {
+        recalcularPreciosLote();
+    } else {
+        recalcularPreciosProducto();
+    }
     recalcularTotalesGenerales();
 };
 window.actualizarTasasDesdeInput = actualizarTasasDesdeInput;
@@ -248,11 +255,291 @@ const poblarSelects = function () {
     }
 
     const $selectAlm = $('#almacen_id').empty().append('<option value="">Seleccione almacén...</option>');
+    const $selectProdAlm = $('#prod_almacen_id').empty().append('<option value="">Seleccione almacén...</option>');
     almacenesLista.forEach((a, idx) => {
         const isSelected = idx === 0 ? 'selected' : '';
         $selectAlm.append(`<option value="${a.id}" ${isSelected}>${a.nombre} (${a.codigo})</option>`);
+        $selectProdAlm.append(`<option value="${a.id}" ${isSelected}>${a.nombre} (${a.codigo})</option>`);
+    });
+
+    const $selectProd = $('#prod_select_id').empty().append('<option value="">Buscar o seleccionar producto...</option>');
+    productosLista.forEach(p => {
+        $selectProd.append(`<option value="${p.id}">[${p.codigo_interno}] ${p.nombre} (${p.categoria_nombre})</option>`);
     });
 };
+
+const cambiarModoItem = function (modo) {
+    modoItemActual = modo;
+    if (modo === 'moto') {
+        $('#btnModoItemMoto').removeClass('btn-outline-primary').addClass('btn-primary shadow-xs');
+        $('#btnModoItemProducto').removeClass('btn-success shadow-xs').addClass('btn-outline-secondary');
+        $('#cardConstructorMoto').slideDown(200);
+        $('#cardConstructorProducto').slideUp(200);
+    } else {
+        $('#btnModoItemProducto').removeClass('btn-outline-secondary').addClass('btn-success shadow-xs');
+        $('#btnModoItemMoto').removeClass('btn-primary shadow-xs').addClass('btn-outline-primary');
+        $('#cardConstructorProducto').slideDown(200);
+        $('#cardConstructorMoto').slideUp(200);
+    }
+};
+window.cambiarModoItem = cambiarModoItem;
+
+const seleccionarProductoDeCatalogo = function () {
+    const prodId = parseInt($('#prod_select_id').val()) || 0;
+    const prod = productosLista.find(p => p.id === prodId);
+    if (!prod) return;
+
+    const esVes = monedaSeleccionada === 'VES';
+    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
+    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
+    const tasaMenor = tCompra < tVenta;
+
+    const costoVal = esVes
+        ? (tasaMenor ? (prod.precio_costo_usd * tCompra) : (prod.precio_costo_usd * tVenta))
+        : prod.precio_costo_usd;
+
+    $('#prod_costo_unitario').val(costoVal > 0 ? costoVal.toFixed(4) : '');
+    $('#prod_descuento').val('0.00');
+    $('#prod_iva').val(prod.aplica_iva ? (prod.iva_porcentaje || 16) : 0);
+    $('#prod_margen_detal').val(prod.ultimo_margen_detal || 30);
+    $('#prod_margen_mayorista').val(prod.ultimo_margen_mayorista || 15);
+
+    recalcularPreciosProducto();
+};
+window.seleccionarProductoDeCatalogo = seleccionarProductoDeCatalogo;
+
+const recalcularPreciosProducto = function () {
+    const costoInput = parseFloat($('#prod_costo_unitario').val()) || 0;
+    const ivaPorcentaje = parseFloat($('#prod_iva').val()) || 0;
+    const aplicaIva = ivaPorcentaje > 0;
+    const res = window.CalculosCompra.calcularPreciosDesdeMargen({
+        costo: costoInput,
+        flete: 0,
+        ivaPorcentaje: ivaPorcentaje,
+        aplicaIva: aplicaIva,
+        margenDetal: $('#prod_margen_detal').val(),
+        margenMayorista: $('#prod_margen_mayorista').val(),
+        tasaCompra: tasaCompraActual,
+        tasaVenta: tasaVentaActual,
+        moneda: monedaSeleccionada,
+    });
+
+    const esVes = monedaSeleccionada === 'VES';
+    if (res.costoBaseUsd > 0 || res.costoBaseBs > 0) {
+        if (!esVes) {
+            $('#prod_precio_detal').val(res.precioDetalConIvaUsd.toFixed(4));
+            $('#prod_precio_mayorista').val(res.precioMayoristaConIvaUsd.toFixed(4));
+        } else {
+            $('#prod_precio_detal').val(res.precioDetalConIvaBs.toFixed(4));
+            $('#prod_precio_mayorista').val(res.precioMayoristaConIvaBs.toFixed(4));
+        }
+        $('#prod_detal_con_iva_badge').text(`$ ${res.precioDetalConIvaUsd.toFixed(2)} | Bs. ${res.precioDetalConIvaBs.toFixed(2)}`);
+        $('#prod_detal_sin_iva').text(`$ ${res.precioDetalUsd.toFixed(2)} | Bs. ${res.precioDetalBs.toFixed(2)}`);
+        $('#prod_mayorista_con_iva_badge').text(`$ ${res.precioMayoristaConIvaUsd.toFixed(2)} | Bs. ${res.precioMayoristaConIvaBs.toFixed(2)}`);
+        $('#prod_mayorista_sin_iva').text(`$ ${res.precioMayoristaUsd.toFixed(2)} | Bs. ${res.precioMayoristaBs.toFixed(2)}`);
+    } else {
+        $('#prod_precio_detal').val('');
+        $('#prod_precio_mayorista').val('');
+        $('#prod_detal_con_iva_badge').text('$ 0.00 | Bs. 0.00');
+        $('#prod_detal_sin_iva').text('$ 0.00 | Bs. 0.00');
+        $('#prod_mayorista_con_iva_badge').text('$ 0.00 | Bs. 0.00');
+        $('#prod_mayorista_sin_iva').text('$ 0.00 | Bs. 0.00');
+    }
+};
+window.recalcularPreciosProducto = recalcularPreciosProducto;
+
+const calcularPrecioDetalProducto = function () {
+    recalcularPreciosProducto();
+};
+window.calcularPrecioDetalProducto = calcularPrecioDetalProducto;
+
+const calcularMargenDetalProducto = function () {
+    const res = window.CalculosCompra.calcularMargenDesdePrecio({
+        costo: $('#prod_costo_unitario').val(),
+        flete: 0,
+        precio: $('#prod_precio_detal').val(),
+        tipoPrecio: 'con_iva',
+        ivaPorcentaje: $('#prod_iva').val(),
+        aplicaIva: parseFloat($('#prod_iva').val()) > 0,
+        tasaCompra: tasaCompraActual,
+        tasaVenta: tasaVentaActual,
+        moneda: monedaSeleccionada,
+    });
+    if (res.precioUsd > 0 || res.precioBs > 0) {
+        $('#prod_margen_detal').val(res.margen.toFixed(0));
+        $('#prod_detal_con_iva_badge').text(`$ ${res.precioConIvaUsd.toFixed(2)} | Bs. ${res.precioConIvaBs.toFixed(2)}`);
+        $('#prod_detal_sin_iva').text(`$ ${res.precioUsd.toFixed(2)} | Bs. ${res.precioBs.toFixed(2)}`);
+    }
+};
+window.calcularMargenDetalProducto = calcularMargenDetalProducto;
+
+const calcularPrecioMayoristaProducto = function () {
+    recalcularPreciosProducto();
+};
+window.calcularPrecioMayoristaProducto = calcularPrecioMayoristaProducto;
+
+const calcularMargenMayoristaProducto = function () {
+    const res = window.CalculosCompra.calcularMargenDesdePrecio({
+        costo: $('#prod_costo_unitario').val(),
+        flete: 0,
+        precio: $('#prod_precio_mayorista').val(),
+        tipoPrecio: 'con_iva',
+        ivaPorcentaje: $('#prod_iva').val(),
+        aplicaIva: parseFloat($('#prod_iva').val()) > 0,
+        tasaCompra: tasaCompraActual,
+        tasaVenta: tasaVentaActual,
+        moneda: monedaSeleccionada,
+    });
+    if (res.precioUsd > 0 || res.precioBs > 0) {
+        $('#prod_margen_mayorista').val(res.margen.toFixed(0));
+        $('#prod_mayorista_con_iva_badge').text(`$ ${res.precioConIvaUsd.toFixed(2)} | Bs. ${res.precioConIvaBs.toFixed(2)}`);
+        $('#prod_mayorista_sin_iva').text(`$ ${res.precioUsd.toFixed(2)} | Bs. ${res.precioUsd > 0 ? (res.precioUsd * tasaVentaActual).toFixed(2) : '0.00'}`);
+    }
+};
+window.calcularMargenMayoristaProducto = calcularMargenMayoristaProducto;
+
+const agregarProductoAFactura = function () {
+    const prodId = parseInt($('#prod_select_id').val()) || 0;
+    const almId = parseInt($('#prod_almacen_id').val()) || parseInt($('#almacen_id').val()) || 0;
+    const cantidad = parseFloat($('#prod_cantidad').val()) || 0;
+    const costoUnitarioInput = parseFloat($('#prod_costo_unitario').val()) || 0;
+
+    if (prodId <= 0) return notificacion.fire({ icon: 'warning', title: 'Debes seleccionar un producto del catálogo.' });
+    if (almId <= 0) return notificacion.fire({ icon: 'warning', title: 'Debes seleccionar el almacén de destino.' });
+    if (cantidad <= 0) return notificacion.fire({ icon: 'warning', title: 'La cantidad debe ser mayor a cero.' });
+    if (costoUnitarioInput <= 0) return notificacion.fire({ icon: 'warning', title: 'El costo unitario debe ser mayor a cero.' });
+
+    const productoObj = productosLista.find(p => p.id === prodId);
+    const nombreProd = productoObj ? productoObj.nombre : 'Producto';
+    const codigoProd = productoObj ? productoObj.codigo_interno : 'PROD';
+
+    const esVes = monedaSeleccionada === 'VES';
+    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
+    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
+    const tasaMenor = tCompra < tVenta;
+
+    const descPct = parseFloat($('#prod_descuento').val()) || 0;
+    const ivaPct = parseFloat($('#prod_iva').val()) || 0;
+    const aplicaIva = ivaPct > 0;
+    const margenDetal = parseFloat($('#prod_margen_detal').val()) || 0;
+    const margenMayorista = parseFloat($('#prod_margen_mayorista').val()) || 0;
+
+    let costoUnitarioUsd = 0;
+    let costoUnitarioBs = 0;
+
+    if (!esVes) {
+        costoUnitarioUsd = costoUnitarioInput;
+        costoUnitarioBs = tasaMenor ? (costoUnitarioUsd * tVenta) : (costoUnitarioUsd * tCompra);
+    } else {
+        costoUnitarioBs = costoUnitarioInput;
+        costoUnitarioUsd = tasaMenor ? (costoUnitarioBs / tCompra) : (costoUnitarioBs / tVenta);
+    }
+
+    const descUsd = costoUnitarioUsd * (descPct / 100);
+    const costoNetoUsd = costoUnitarioUsd - descUsd;
+    const subtotalUsd = costoNetoUsd * cantidad;
+    const ivaUsd = aplicaIva ? (subtotalUsd * (ivaPct / 100)) : 0;
+    const totalUsd = subtotalUsd + ivaUsd;
+
+    const costoTotalProdUsd = costoNetoUsd + (aplicaIva ? (costoNetoUsd * (ivaPct / 100)) : 0);
+    const sugeridoDetalConIvaUsd = !esVes
+        ? (tasaMenor ? (costoTotalProdUsd * (1 + margenDetal / 100)) : ((costoTotalProdUsd * (1 + margenDetal / 100) * tCompra) / tVenta))
+        : (costoTotalProdUsd * (1 + margenDetal / 100));
+    const precioDetalConIvaUsd = !esVes
+        ? (parseFloat($('#prod_precio_detal').val()) || sugeridoDetalConIvaUsd)
+        : ((parseFloat($('#prod_precio_detal').val()) || (sugeridoDetalConIvaUsd * tVenta)) / tVenta);
+    const precioDetalUsd = aplicaIva ? (precioDetalConIvaUsd / (1 + (ivaPct / 100))) : precioDetalConIvaUsd;
+    const precioDetalBs = precioDetalUsd * tVenta;
+    const precioDetalConIvaBs = precioDetalConIvaUsd * tVenta;
+
+    const sugeridoMayorConIvaUsd = !esVes
+        ? (tasaMenor ? (costoTotalProdUsd * (1 + margenMayorista / 100)) : ((costoTotalProdUsd * (1 + margenMayorista / 100) * tCompra) / tVenta))
+        : (costoTotalProdUsd * (1 + margenMayorista / 100));
+    const precioMayoristaConIvaUsd = !esVes
+        ? (parseFloat($('#prod_precio_mayorista').val()) || sugeridoMayorConIvaUsd)
+        : ((parseFloat($('#prod_precio_mayorista').val()) || (sugeridoMayorConIvaUsd * tVenta)) / tVenta);
+    const precioMayoristaUsd = aplicaIva ? (precioMayoristaConIvaUsd / (1 + (ivaPct / 100))) : precioMayoristaConIvaUsd;
+    const precioMayoristaBs = precioMayoristaUsd * tVenta;
+    const precioMayoristaConIvaBs = precioMayoristaConIvaUsd * tVenta;
+
+    const itemData = {
+        tipo_item: 'producto',
+        producto_id: prodId,
+        almacen_id: almId,
+        referencia: codigoProd,
+        marca: productoObj?.categoria_nombre || 'General',
+        modelo: nombreProd,
+        anio: '',
+        color: '',
+        cilindrada: '',
+        cantidad: cantidad,
+        costo_unitario_usd: costoUnitarioUsd,
+        costo_unitario_bs: costoUnitarioBs,
+        flete_unitario_usd: 0,
+        flete_unitario_bs: 0,
+        costo_total_unitario_usd: costoNetoUsd,
+        costo_total_unitario_bs: costoNetoUsd * tCompra,
+        descuento_porcentaje: descPct,
+        descuento_usd: descUsd,
+        descuento_bs: descUsd * tCompra,
+        aplica_iva: aplicaIva,
+        iva_porcentaje: ivaPct,
+        iva_monto_usd: ivaUsd / cantidad,
+        iva_monto_bs: (ivaUsd * tCompra) / cantidad,
+        margen_detal: margenDetal,
+        precio_detal_usd: precioDetalUsd,
+        precio_detal_bs: precioDetalBs,
+        precio_detal_con_iva_usd: precioDetalConIvaUsd,
+        precio_detal_con_iva_bs: precioDetalConIvaBs,
+        margen_mayorista: margenMayorista,
+        precio_mayorista_usd: precioMayoristaUsd,
+        precio_mayorista_bs: precioMayoristaBs,
+        precio_mayorista_con_iva_usd: precioMayoristaConIvaUsd,
+        precio_mayorista_con_iva_bs: precioMayoristaConIvaBs,
+        subtotal_usd: subtotalUsd,
+        subtotal_bs: subtotalUsd * tCompra,
+        iva_usd: ivaUsd,
+        iva_bs: ivaUsd * tCompra,
+        total_usd: totalUsd,
+        total_bs: totalUsd * tCompra,
+        seriales: []
+    };
+
+    if (editandoLoteIndex !== null && lotesAgregados[editandoLoteIndex]) {
+        lotesAgregados[editandoLoteIndex] = itemData;
+        notificacion.fire({ icon: 'success', title: 'Producto actualizado', timer: 1500, showConfirmButton: false });
+    } else {
+        lotesAgregados.push(itemData);
+        notificacion.fire({ icon: 'success', title: 'Producto añadido a la Factura', timer: 1500, showConfirmButton: false });
+    }
+
+    cancelarEdicionProducto();
+    renderizarLotesAgregados();
+    recalcularTotalesGenerales();
+};
+window.agregarProductoAFactura = agregarProductoAFactura;
+
+const cancelarEdicionProducto = function () {
+    editandoLoteIndex = null;
+    $('#prod_select_id').val('');
+    $('#prod_cantidad').val(1);
+    $('#prod_costo_unitario').val('');
+    $('#prod_descuento').val('0.00');
+    $('#prod_iva').val('16');
+    $('#prod_margen_detal').val('30');
+    $('#prod_precio_detal').val('');
+    $('#prod_margen_mayorista').val('15');
+    $('#prod_precio_mayorista').val('');
+    $('#prod_detal_con_iva_badge').text('$ 0.00 | Bs. 0.00');
+    $('#prod_detal_sin_iva').text('$ 0.00 | Bs. 0.00');
+    $('#prod_mayorista_con_iva_badge').text('$ 0.00 | Bs. 0.00');
+    $('#prod_mayorista_sin_iva').text('$ 0.00 | Bs. 0.00');
+    $('#badgeEstadoEdicionProducto').text('Nuevo Renglón de Producto');
+    $('#btnAccionProductoTexto').text('Agregar este Producto a la Factura');
+    $('#btnAccionProductoIcono').removeClass('fa-save').addClass('fa-plus-circle');
+    $('#btnCancelarEdicionProducto').hide();
+};
+window.cancelarEdicionProducto = cancelarEdicionProducto;
 
 const seleccionarMonedaDocumento = function (moneda) {
     monedaSeleccionada = moneda;
@@ -281,6 +568,7 @@ const seleccionarMonedaDocumento = function (moneda) {
     }
 
     recalcularPreciosLote();
+    recalcularPreciosProducto();
     recalcularTotalesGenerales();
 };
 
@@ -307,6 +595,7 @@ const crear = function () {
     lotesAgregados = [];
     editandoLoteIndex = null;
     cancelarEdicionLote();
+    cancelarEdicionProducto();
     renderizarLotesAgregados();
     volverAFase1();
 
@@ -314,7 +603,9 @@ const crear = function () {
     $('#fecha_emision').val(hoy);
     $('#fecha_recepcion').val(hoy);
     $('#dias_credito').val(30);
+    $('#switchIncluirFleteFactura').prop('checked', false);
     seleccionarMonedaDocumento('USD');
+    cambiarModoItem('moto');
     cargarCatalogos();
 
     $('#modalRecepcionMoto').modal('show');
@@ -434,23 +725,15 @@ const generarMatrizSeriales = function (serialesExistentes = []) {
 const recalcularPreciosLote = function () {
     const esVes = monedaSeleccionada === 'VES';
     const costoIngresado = parseFloat($('#lote_costo_unitario').val()) || 0;
-    const eq = window.CalculosCompra.calcularEquivalenteMoneda(costoIngresado, monedaSeleccionada, tasaCompraActual, tasaVentaActual);
+    const fleteIngresado = parseFloat($('#lote_flete_unitario').val()) || 0;
+    const ivaPorcentaje = parseFloat($('#lote_iva').val()) || 0;
+    const aplicaIva = ivaPorcentaje > 0;
 
-    if (!esVes) {
-        $('#lote_costo_equivalente').text(`Equiv: Bs. ${eq.bs.toFixed(4)}`);
-    } else {
-        $('#lote_costo_equivalente').text(`Equiv: $ ${eq.usd.toFixed(4)}`);
-    }
-
-    calcularPrecioDetalLote();
-    calcularPrecioMayoristaLote();
-};
-window.recalcularPreciosLote = recalcularPreciosLote;
-
-const calcularPrecioDetalLote = function () {
-    const esVes = monedaSeleccionada === 'VES';
     const res = window.CalculosCompra.calcularPreciosDesdeMargen({
-        costo: $('#lote_costo_unitario').val(),
+        costo: costoIngresado,
+        flete: fleteIngresado,
+        ivaPorcentaje: ivaPorcentaje,
+        aplicaIva: aplicaIva,
         margenDetal: $('#lote_margen_detal').val(),
         margenMayorista: $('#lote_margen_mayorista').val(),
         tasaCompra: tasaCompraActual,
@@ -458,26 +741,40 @@ const calcularPrecioDetalLote = function () {
         moneda: monedaSeleccionada,
     });
 
-    if (res.costoUsd > 0 || res.costoBs > 0) {
-        if (!esVes) {
-            $('#lote_precio_detal').val(res.precioDetalUsd.toFixed(4));
-            $('#lote_detal_bs').text(`Bs. ${res.precioDetalBs.toFixed(4)}`);
-        } else {
-            $('#lote_precio_detal').val(res.precioDetalBs.toFixed(4));
-            $('#lote_detal_bs').text(`$ ${res.precioDetalUsd.toFixed(4)}`);
-        }
+    if (!esVes) {
+        $('#lote_costo_equivalente').text(`Base: Bs. ${res.costoBaseBs.toFixed(4)}`);
+        $('#lote_flete_bs').text(`Flete: Bs. ${res.fleteBs.toFixed(4)}`);
+        $('#lote_precio_detal').val(res.costoTotalUsd > 0 ? res.precioDetalConIvaUsd.toFixed(4) : '');
+        $('#lote_precio_mayorista').val(res.costoTotalUsd > 0 ? res.precioMayoristaConIvaUsd.toFixed(4) : '');
     } else {
-        $('#lote_precio_detal').val('');
-        $('#lote_detal_bs').text(esVes ? '$ 0.0000' : 'Bs. 0.0000');
+        $('#lote_costo_equivalente').text(`Base: $ ${res.costoBaseUsd.toFixed(4)}`);
+        $('#lote_flete_bs').text(`Flete: $ ${res.fleteUsd.toFixed(4)}`);
+        $('#lote_precio_detal').val(res.costoTotalBs > 0 ? res.precioDetalConIvaBs.toFixed(4) : '');
+        $('#lote_precio_mayorista').val(res.costoTotalBs > 0 ? res.precioMayoristaConIvaBs.toFixed(4) : '');
     }
+
+    $('#lote_costo_total_usd').text(`$ ${res.costoTotalUsd.toFixed(4)}`);
+    $('#lote_costo_total_bs').text(`Bs. ${res.costoTotalBs.toFixed(4)}`);
+    $('#lote_detal_con_iva_badge').text(`$ ${res.precioDetalConIvaUsd.toFixed(2)} | Bs. ${res.precioDetalConIvaBs.toFixed(2)}`);
+    $('#lote_detal_sin_iva').text(`$ ${res.precioDetalUsd.toFixed(2)} | Bs. ${res.precioDetalBs.toFixed(2)}`);
+    $('#lote_mayorista_con_iva_badge').text(`$ ${res.precioMayoristaConIvaUsd.toFixed(2)} | Bs. ${res.precioMayoristaConIvaBs.toFixed(2)}`);
+    $('#lote_mayorista_sin_iva').text(`$ ${res.precioMayoristaUsd.toFixed(2)} | Bs. ${res.precioMayoristaBs.toFixed(2)}`);
+};
+window.recalcularPreciosLote = recalcularPreciosLote;
+
+const calcularPrecioDetalLote = function () {
+    recalcularPreciosLote();
 };
 window.calcularPrecioDetalLote = calcularPrecioDetalLote;
 
 const calcularMargenDetalLote = function () {
-    const esVes = monedaSeleccionada === 'VES';
     const res = window.CalculosCompra.calcularMargenDesdePrecio({
         costo: $('#lote_costo_unitario').val(),
+        flete: $('#lote_flete_unitario').val(),
         precio: $('#lote_precio_detal').val(),
+        tipoPrecio: 'con_iva',
+        ivaPorcentaje: $('#lote_iva').val(),
+        aplicaIva: parseFloat($('#lote_iva').val()) > 0,
         tasaCompra: tasaCompraActual,
         tasaVenta: tasaVentaActual,
         moneda: monedaSeleccionada,
@@ -485,46 +782,25 @@ const calcularMargenDetalLote = function () {
 
     if (res.precioUsd > 0 || res.precioBs > 0) {
         $('#lote_margen_detal').val(res.margen.toFixed(0));
-        if (!esVes) {
-            $('#lote_detal_bs').text(`Bs. ${res.precioBs.toFixed(4)}`);
-        } else {
-            $('#lote_detal_bs').text(`$ ${res.precioUsd.toFixed(4)}`);
-        }
+        $('#lote_detal_con_iva_badge').text(`$ ${res.precioConIvaUsd.toFixed(2)} | Bs. ${res.precioConIvaBs.toFixed(2)}`);
+        $('#lote_detal_sin_iva').text(`$ ${res.precioUsd.toFixed(2)} | Bs. ${res.precioBs.toFixed(2)}`);
     }
 };
 window.calcularMargenDetalLote = calcularMargenDetalLote;
 
 const calcularPrecioMayoristaLote = function () {
-    const esVes = monedaSeleccionada === 'VES';
-    const res = window.CalculosCompra.calcularPreciosDesdeMargen({
-        costo: $('#lote_costo_unitario').val(),
-        margenDetal: $('#lote_margen_detal').val(),
-        margenMayorista: $('#lote_margen_mayorista').val(),
-        tasaCompra: tasaCompraActual,
-        tasaVenta: tasaVentaActual,
-        moneda: monedaSeleccionada,
-    });
-
-    if (res.costoUsd > 0 || res.costoBs > 0) {
-        if (!esVes) {
-            $('#lote_precio_mayorista').val(res.precioMayoristaUsd.toFixed(4));
-            $('#lote_mayorista_bs').text(`Bs. ${res.precioMayoristaBs.toFixed(4)}`);
-        } else {
-            $('#lote_precio_mayorista').val(res.precioMayoristaBs.toFixed(4));
-            $('#lote_mayorista_bs').text(`$ ${res.precioMayoristaUsd.toFixed(4)}`);
-        }
-    } else {
-        $('#lote_precio_mayorista').val('');
-        $('#lote_mayorista_bs').text(esVes ? '$ 0.0000' : 'Bs. 0.0000');
-    }
+    recalcularPreciosLote();
 };
 window.calcularPrecioMayoristaLote = calcularPrecioMayoristaLote;
 
 const calcularMargenMayoristaLote = function () {
-    const esVes = monedaSeleccionada === 'VES';
     const res = window.CalculosCompra.calcularMargenDesdePrecio({
         costo: $('#lote_costo_unitario').val(),
+        flete: $('#lote_flete_unitario').val(),
         precio: $('#lote_precio_mayorista').val(),
+        tipoPrecio: 'con_iva',
+        ivaPorcentaje: $('#lote_iva').val(),
+        aplicaIva: parseFloat($('#lote_iva').val()) > 0,
         tasaCompra: tasaCompraActual,
         tasaVenta: tasaVentaActual,
         moneda: monedaSeleccionada,
@@ -532,14 +808,10 @@ const calcularMargenMayoristaLote = function () {
 
     if (res.precioUsd > 0 || res.precioBs > 0) {
         $('#lote_margen_mayorista').val(res.margen.toFixed(0));
-        if (!esVes) {
-            $('#lote_mayorista_bs').text(`Bs. ${res.precioBs.toFixed(4)}`);
-        } else {
-            $('#lote_mayorista_bs').text(`$ ${res.precioUsd.toFixed(4)}`);
-        }
+        $('#lote_mayorista_con_iva_badge').text(`$ ${res.precioConIvaUsd.toFixed(2)} | Bs. ${res.precioConIvaBs.toFixed(2)}`);
+        $('#lote_mayorista_sin_iva').text(`$ ${res.precioUsd.toFixed(2)} | Bs. ${res.precioUsd > 0 ? (res.precioUsd * tasaVentaActual).toFixed(2) : '0.00'}`);
     }
 };
-window.calcularMargenMayoristaLote = calcularMargenMayoristaLote;
 window.calcularMargenMayoristaLote = calcularMargenMayoristaLote;
 
 const agregarLoteAFactura = function () {
@@ -551,6 +823,7 @@ const agregarLoteAFactura = function () {
     const cilindrada = $('#lote_cilindrada').val().trim();
     const cantidad = parseInt($('#lote_cantidad').val()) || 0;
     const costoUnitarioInput = parseFloat($('#lote_costo_unitario').val()) || 0;
+    const fleteUnitarioInput = parseFloat($('#lote_flete_unitario').val()) || 0;
 
     if (!referencia) return notificacion.fire({ icon: 'warning', title: 'La referencia o código SKU es obligatorio.' });
     if (!marca) return notificacion.fire({ icon: 'warning', title: 'La marca de la moto es obligatoria.' });
@@ -600,10 +873,20 @@ const agregarLoteAFactura = function () {
 
     let costoUnitarioUsd = 0;
     let costoUnitarioBs = 0;
-    let precioDetalUsd = 0;
-    let precioDetalBs = 0;
-    let precioMayoristaUsd = 0;
-    let precioMayoristaBs = 0;
+    let fleteUnitarioUsd = 0;
+    let fleteUnitarioBs = 0;
+
+    if (!esVes) {
+        costoUnitarioUsd = costoUnitarioInput;
+        costoUnitarioBs = tasaMenor ? (costoUnitarioUsd * tVenta) : (costoUnitarioUsd * tCompra);
+        fleteUnitarioUsd = fleteUnitarioInput;
+        fleteUnitarioBs = tasaMenor ? (fleteUnitarioUsd * tVenta) : (fleteUnitarioUsd * tCompra);
+    } else {
+        costoUnitarioBs = costoUnitarioInput;
+        costoUnitarioUsd = tasaMenor ? (costoUnitarioBs / tCompra) : (costoUnitarioBs / tVenta);
+        fleteUnitarioBs = fleteUnitarioInput;
+        fleteUnitarioUsd = tasaMenor ? (fleteUnitarioBs / tCompra) : (fleteUnitarioBs / tVenta);
+    }
 
     const descPct = parseFloat($('#lote_descuento').val()) || 0;
     const ivaPct = parseFloat($('#lote_iva').val()) || 0;
@@ -611,38 +894,40 @@ const agregarLoteAFactura = function () {
     const margenDetal = parseFloat($('#lote_margen_detal').val()) || 0;
     const margenMayorista = parseFloat($('#lote_margen_mayorista').val()) || 0;
 
-    if (!esVes) {
-        costoUnitarioUsd = costoUnitarioInput;
-        costoUnitarioBs = tasaMenor ? (costoUnitarioUsd * tVenta) : (costoUnitarioUsd * tCompra);
-        const sugeridoDetalUsd = tasaMenor
-            ? (costoUnitarioUsd * (1 + margenDetal / 100))
-            : ((costoUnitarioUsd * (1 + margenDetal / 100) * tCompra) / tVenta);
-        precioDetalUsd = parseFloat($('#lote_precio_detal').val()) || sugeridoDetalUsd;
-        precioDetalBs = precioDetalUsd * tVenta;
+    const descUsd = costoUnitarioUsd * (descPct / 100);
+    const costoNetoUsd = costoUnitarioUsd - descUsd;
+    const ivaUnitarioUsd = aplicaIva ? (costoNetoUsd * (ivaPct / 100)) : 0;
+    const costoTotalUnitarioUsd = costoNetoUsd + ivaUnitarioUsd + fleteUnitarioUsd;
+    const costoTotalUnitarioBs = costoTotalUnitarioUsd * (tasaMenor ? tVenta : tCompra);
 
-        const sugeridoMayorUsd = tasaMenor
-            ? (costoUnitarioUsd * (1 + margenMayorista / 100))
-            : ((costoUnitarioUsd * (1 + margenMayorista / 100) * tCompra) / tVenta);
-        precioMayoristaUsd = parseFloat($('#lote_precio_mayorista').val()) || sugeridoMayorUsd;
-        precioMayorBs = precioMayoristaUsd * tVenta;
-    } else {
-        costoUnitarioBs = costoUnitarioInput;
-        costoUnitarioUsd = tasaMenor ? (costoUnitarioBs / tCompra) : (costoUnitarioBs / tVenta);
-        const sugeridoDetalUsd = costoUnitarioUsd * (1 + margenDetal / 100);
-        precioDetalBs = parseFloat($('#lote_precio_detal').val()) || (sugeridoDetalUsd * tVenta);
-        precioDetalUsd = precioDetalBs / tVenta;
+    const sugeridoDetalConIvaUsd = !esVes
+        ? (tasaMenor ? (costoTotalUnitarioUsd * (1 + margenDetal / 100)) : ((costoTotalUnitarioUsd * (1 + margenDetal / 100) * tCompra) / tVenta))
+        : (costoTotalUnitarioUsd * (1 + margenDetal / 100));
+    const precioDetalConIvaUsd = !esVes
+        ? (parseFloat($('#lote_precio_detal').val()) || sugeridoDetalConIvaUsd)
+        : ((parseFloat($('#lote_precio_detal').val()) || (sugeridoDetalConIvaUsd * tVenta)) / tVenta);
+    const precioDetalUsd = aplicaIva ? (precioDetalConIvaUsd / (1 + (ivaPct / 100))) : precioDetalConIvaUsd;
+    const precioDetalBs = precioDetalUsd * tVenta;
+    const precioDetalConIvaBs = precioDetalConIvaUsd * tVenta;
 
-        const sugeridoMayorUsd = costoUnitarioUsd * (1 + margenMayorista / 100);
-        precioMayorBs = parseFloat($('#lote_precio_mayorista').val()) || (sugeridoMayorUsd * tVenta);
-        precioMayoristaUsd = precioMayorBs / tVenta;
-    }
+    const sugeridoMayorConIvaUsd = !esVes
+        ? (tasaMenor ? (costoTotalUnitarioUsd * (1 + margenMayorista / 100)) : ((costoTotalUnitarioUsd * (1 + margenMayorista / 100) * tCompra) / tVenta))
+        : (costoTotalUnitarioUsd * (1 + margenMayorista / 100));
+    const precioMayoristaConIvaUsd = !esVes
+        ? (parseFloat($('#lote_precio_mayorista').val()) || sugeridoMayorConIvaUsd)
+        : ((parseFloat($('#lote_precio_mayorista').val()) || (sugeridoMayorConIvaUsd * tVenta)) / tVenta);
+    const precioMayoristaUsd = aplicaIva ? (precioMayoristaConIvaUsd / (1 + (ivaPct / 100))) : precioMayoristaConIvaUsd;
+    const precioMayoristaBs = precioMayoristaUsd * tVenta;
+    const precioMayoristaConIvaBs = precioMayoristaConIvaUsd * tVenta;
 
-    const costoNetoUsd = costoUnitarioUsd * (1 - (descPct / 100));
-    const subtotalUsd = costoNetoUsd * cantidad;
-    const ivaUsd = aplicaIva ? (subtotalUsd * (ivaPct / 100)) : 0;
-    const totalUsd = subtotalUsd + ivaUsd;
+    const subtotalRenglonUsd = costoNetoUsd * cantidad;
+    const ivaRenglonUsd = ivaUnitarioUsd * cantidad;
+    const totalRenglonUsd = subtotalRenglonUsd + ivaRenglonUsd;
 
     const loteData = {
+        tipo_item: 'moto',
+        producto_id: null,
+        almacen_id: $('#almacen_id').val(),
         referencia: referencia,
         marca: marca,
         modelo: modelo,
@@ -652,21 +937,33 @@ const agregarLoteAFactura = function () {
         cantidad: cantidad,
         costo_unitario_usd: costoUnitarioUsd,
         costo_unitario_bs: costoUnitarioBs,
+        flete_unitario_usd: fleteUnitarioUsd,
+        flete_unitario_bs: fleteUnitarioBs,
+        costo_total_unitario_usd: costoTotalUnitarioUsd,
+        costo_total_unitario_bs: costoTotalUnitarioBs,
         descuento_porcentaje: descPct,
+        descuento_usd: descUsd,
+        descuento_bs: descUsd * tCompra,
         aplica_iva: aplicaIva,
         iva_porcentaje: ivaPct,
+        iva_monto_usd: ivaUnitarioUsd,
+        iva_monto_bs: ivaUnitarioUsd * tCompra,
         margen_detal: margenDetal,
         precio_detal_usd: precioDetalUsd,
         precio_detal_bs: precioDetalBs,
+        precio_detal_con_iva_usd: precioDetalConIvaUsd,
+        precio_detal_con_iva_bs: precioDetalConIvaBs,
         margen_mayorista: margenMayorista,
         precio_mayorista_usd: precioMayoristaUsd,
         precio_mayorista_bs: precioMayoristaBs,
-        subtotal_usd: subtotalUsd,
-        subtotal_bs: subtotalUsd * tCompra,
-        iva_usd: ivaUsd,
-        iva_bs: ivaUsd * tCompra,
-        total_usd: totalUsd,
-        total_bs: totalUsd * tCompra,
+        precio_mayorista_con_iva_usd: precioMayoristaConIvaUsd,
+        precio_mayorista_con_iva_bs: precioMayoristaConIvaBs,
+        subtotal_usd: subtotalRenglonUsd,
+        subtotal_bs: subtotalRenglonUsd * tCompra,
+        iva_usd: ivaRenglonUsd,
+        iva_bs: ivaRenglonUsd * tCompra,
+        total_usd: totalRenglonUsd,
+        total_bs: totalRenglonUsd * tCompra,
         seriales: seriales
     };
 
@@ -709,6 +1006,42 @@ const editarLote = function (index) {
     const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
     const tasaMenor = tCompra < tVenta;
 
+    if (lote.tipo_item === 'producto') {
+        cambiarModoItem('producto');
+        $('#prod_select_id').val(lote.producto_id);
+        $('#prod_almacen_id').val(lote.almacen_id);
+        $('#prod_cantidad').val(lote.cantidad);
+
+        const costoVal = esVes
+            ? (tasaMenor ? lote.costo_unitario_usd * tCompra : lote.costo_unitario_usd * tVenta)
+            : lote.costo_unitario_usd;
+        $('#prod_costo_unitario').val(costoVal.toFixed(4));
+        $('#prod_descuento').val(lote.descuento_porcentaje);
+        $('#prod_iva').val(lote.iva_porcentaje);
+        $('#prod_margen_detal').val(lote.margen_detal);
+        $('#prod_precio_detal').val(esVes ? (lote.precio_detal_con_iva_bs || lote.precio_detal_con_iva_usd * tVenta).toFixed(4) : (lote.precio_detal_con_iva_usd || lote.precio_detal_usd).toFixed(4));
+        $('#prod_margen_mayorista').val(lote.margen_mayorista);
+        $('#prod_precio_mayorista').val(esVes ? (lote.precio_mayorista_con_iva_bs || lote.precio_mayorista_con_iva_usd * tVenta).toFixed(4) : (lote.precio_mayorista_con_iva_usd || lote.precio_mayorista_usd).toFixed(4));
+
+        const prodDetalConIvaUsd = lote.precio_detal_con_iva_usd || lote.precio_detal_usd;
+        const prodDetalConIvaBs = lote.precio_detal_con_iva_bs || (prodDetalConIvaUsd * tVenta);
+        const prodMayorConIvaUsd = lote.precio_mayorista_con_iva_usd || lote.precio_mayorista_usd;
+        const prodMayorConIvaBs = lote.precio_mayorista_con_iva_bs || (prodMayorConIvaUsd * tVenta);
+
+        $('#prod_detal_con_iva_badge').text(`$ ${prodDetalConIvaUsd.toFixed(2)} | Bs. ${prodDetalConIvaBs.toFixed(2)}`);
+        $('#prod_detal_sin_iva').text(`$ ${lote.precio_detal_usd.toFixed(2)} | Bs. ${lote.precio_detal_bs.toFixed(2)}`);
+        $('#prod_mayorista_con_iva_badge').text(`$ ${prodMayorConIvaUsd.toFixed(2)} | Bs. ${prodMayorConIvaBs.toFixed(2)}`);
+        $('#prod_mayorista_sin_iva').text(`$ ${lote.precio_mayorista_usd.toFixed(2)} | Bs. ${lote.precio_mayorista_bs.toFixed(2)}`);
+
+        $('#badgeEstadoEdicionProducto').text(`Editando Renglón #${index + 1}`);
+        $('#btnAccionProductoTexto').text('Guardar Cambios del Producto');
+        $('#btnAccionProductoIcono').removeClass('fa-plus-circle').addClass('fa-save');
+        $('#btnCancelarEdicionProducto').show();
+        document.getElementById('cardConstructorProducto').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+    }
+
+    cambiarModoItem('moto');
     $('#lote_referencia').val(lote.referencia);
     $('#lote_marca').val(lote.marca);
     $('#lote_modelo').val(lote.modelo);
@@ -720,26 +1053,44 @@ const editarLote = function (index) {
     const costoVal = esVes
         ? (tasaMenor ? lote.costo_unitario_usd * tCompra : lote.costo_unitario_usd * tVenta)
         : lote.costo_unitario_usd;
-    $('#lote_costo_unitario').val(costoVal.toFixed(2));
+    $('#lote_costo_unitario').val(costoVal.toFixed(4));
+
+    const fleteVal = esVes
+        ? (tasaMenor ? lote.flete_unitario_usd * tCompra : lote.flete_unitario_usd * tVenta)
+        : lote.flete_unitario_usd;
+    $('#lote_flete_unitario').val(fleteVal.toFixed(4));
+
     $('#lote_descuento').val(lote.descuento_porcentaje);
     $('#lote_iva').val(lote.iva_porcentaje);
     $('#lote_margen_detal').val(lote.margen_detal);
     
-    const detalVal = esVes ? (lote.precio_detal_usd * tVenta) : lote.precio_detal_usd;
-    $('#lote_precio_detal').val(detalVal.toFixed(2));
+    const detalVal = esVes ? (lote.precio_detal_con_iva_bs || lote.precio_detal_con_iva_usd * tVenta) : (lote.precio_detal_con_iva_usd || lote.precio_detal_usd);
+    $('#lote_precio_detal').val(detalVal.toFixed(4));
     
     $('#lote_margen_mayorista').val(lote.margen_mayorista);
-    const mayorVal = esVes ? (lote.precio_mayorista_usd * tVenta) : lote.precio_mayorista_usd;
-    $('#lote_precio_mayorista').val(mayorVal.toFixed(2));
+    const mayorVal = esVes ? (lote.precio_mayorista_con_iva_bs || lote.precio_mayorista_con_iva_usd * tVenta) : (lote.precio_mayorista_con_iva_usd || lote.precio_mayorista_usd);
+    $('#lote_precio_mayorista').val(mayorVal.toFixed(4));
 
     const costoEquivBs = tasaMenor ? (lote.costo_unitario_usd * tVenta) : (lote.costo_unitario_usd * tCompra);
-    $('#lote_costo_equivalente').text(esVes ? `Equiv: $ ${lote.costo_unitario_usd.toFixed(2)}` : `Equiv: Bs. ${costoEquivBs.toFixed(2)}`);
-    $('#lote_detal_bs').text(esVes ? `$ ${lote.precio_detal_usd.toFixed(2)}` : `Bs. ${(lote.precio_detal_usd * tVenta).toFixed(2)}`);
-    $('#lote_mayorista_bs').text(esVes ? `$ ${lote.precio_mayorista_usd.toFixed(2)}` : `Bs. ${(lote.precio_mayorista_usd * tVenta).toFixed(2)}`);
+    const fleteEquivBs = tasaMenor ? (lote.flete_unitario_usd * tVenta) : (lote.flete_unitario_usd * tCompra);
+
+    $('#lote_costo_equivalente').text(esVes ? `Base: $ ${lote.costo_unitario_usd.toFixed(4)}` : `Base: Bs. ${costoEquivBs.toFixed(4)}`);
+    $('#lote_flete_bs').text(esVes ? `Flete: $ ${lote.flete_unitario_usd.toFixed(4)}` : `Flete: Bs. ${fleteEquivBs.toFixed(4)}`);
+    $('#lote_costo_total_usd').text(`$ ${lote.costo_total_unitario_usd.toFixed(4)}`);
+    $('#lote_costo_total_bs').text(`Bs. ${lote.costo_total_unitario_bs.toFixed(4)}`);
+
+    const motoDetalConIvaUsd = lote.precio_detal_con_iva_usd || lote.precio_detal_usd;
+    const motoDetalConIvaBs = lote.precio_detal_con_iva_bs || (motoDetalConIvaUsd * tVenta);
+    const motoMayorConIvaUsd = lote.precio_mayorista_con_iva_usd || lote.precio_mayorista_usd;
+    const motoMayorConIvaBs = lote.precio_mayorista_con_iva_bs || (motoMayorConIvaUsd * tVenta);
+
+    $('#lote_detal_con_iva_badge').text(`$ ${motoDetalConIvaUsd.toFixed(2)} | Bs. ${motoDetalConIvaBs.toFixed(2)}`);
+    $('#lote_detal_sin_iva').text(`$ ${lote.precio_detal_usd.toFixed(2)} | Bs. ${lote.precio_detal_bs.toFixed(2)}`);
+    $('#lote_mayorista_con_iva_badge').text(`$ ${motoMayorConIvaUsd.toFixed(2)} | Bs. ${motoMayorConIvaBs.toFixed(2)}`);
+    $('#lote_mayorista_sin_iva').text(`$ ${lote.precio_mayorista_usd.toFixed(2)} | Bs. ${lote.precio_mayorista_bs.toFixed(2)}`);
 
     generarMatrizSeriales(lote.seriales || []);
 
-    $('#tituloConstructorLote').html(`1. Modificando Renglón #${index + 1}: <span class="text-primary">${lote.marca} ${lote.modelo}</span>`);
     $('#badgeEstadoEdicionLote').removeClass('bg-primary-subtle text-primary border-primary-subtle')
         .addClass('bg-warning-subtle text-warning-emphasis border-warning-subtle')
         .text(`Editando Renglón #${index + 1}`);
@@ -747,7 +1098,7 @@ const editarLote = function (index) {
     $('#btnAccionLoteIcono').removeClass('fa-plus-circle').addClass('fa-save');
     $('#btnCancelarEdicionLote').show();
 
-    document.getElementById('cardConstructorLote').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('cardConstructorMoto').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 const cancelarEdicionLote = function () {
@@ -766,21 +1117,26 @@ const cancelarEdicionLote = function () {
     $('#lote_color').val('');
     $('#lote_cantidad').val(1);
     $('#lote_costo_unitario').val('');
+    $('#lote_flete_unitario').val('0.0000');
     $('#lote_descuento').val('0.00');
     $('#lote_iva').val('16');
     $('#lote_margen_detal').val('25');
     $('#lote_precio_detal').val('');
     $('#lote_margen_mayorista').val('15');
     $('#lote_precio_mayorista').val('');
-    $('#lote_costo_equivalente').text(monedaSeleccionada === 'VES' ? 'Equiv: $ 0.00' : 'Equiv: Bs. 0.00');
-    $('#lote_detal_bs').text(monedaSeleccionada === 'VES' ? '$ 0.00' : 'Bs. 0.00');
-    $('#lote_mayorista_bs').text(monedaSeleccionada === 'VES' ? '$ 0.00' : 'Bs. 0.00');
+    $('#lote_costo_equivalente').text(monedaSeleccionada === 'VES' ? 'Base: $ 0.00' : 'Base: Bs. 0.00');
+    $('#lote_flete_bs').text(monedaSeleccionada === 'VES' ? 'Flete: $ 0.00' : 'Flete: Bs. 0.00');
+    $('#lote_costo_total_usd').text('$ 0.0000');
+    $('#lote_costo_total_bs').text('Bs. 0.0000');
+    $('#lote_detal_con_iva_badge').text('$ 0.00 | Bs. 0.00');
+    $('#lote_detal_sin_iva').text('$ 0.00 | Bs. 0.00');
+    $('#lote_mayorista_con_iva_badge').text('$ 0.00 | Bs. 0.00');
+    $('#lote_mayorista_sin_iva').text('$ 0.00 | Bs. 0.00');
 
-    $('#tituloConstructorLote').text('1. Configurar Modelo / Lote de Motos');
     $('#badgeEstadoEdicionLote').removeClass('bg-warning-subtle text-warning-emphasis border-warning-subtle')
         .addClass('bg-primary-subtle text-primary border-primary-subtle')
-        .text('Nuevo Renglón');
-    $('#btnAccionLoteTexto').text('Agregar este Modelo a la Factura');
+        .text('Nuevo Renglón de Moto');
+    $('#btnAccionLoteTexto').text('Agregar este Modelo de Moto');
     $('#btnAccionLoteIcono').removeClass('fa-save').addClass('fa-plus-circle');
     $('#btnCancelarEdicionLote').hide();
 
@@ -835,6 +1191,7 @@ const verSerialesLote = function (index) {
 const eliminarLote = function (index) {
     if (editandoLoteIndex === index) {
         cancelarEdicionLote();
+        cancelarEdicionProducto();
     }
     lotesAgregados.splice(index, 1);
     renderizarLotesAgregados();
@@ -843,70 +1200,90 @@ const eliminarLote = function (index) {
 
 const renderizarLotesAgregados = function () {
     const $tbody = $('#tbodyRecepcionMotoDetalles').empty();
-    let totalMotos = 0;
+    let totalUnidades = 0;
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
 
     if (lotesAgregados.length === 0) {
         $tbody.html(`
             <tr id="filaSinLotes">
-                <td colspan="11" class="text-center py-4 text-muted">
+                <td colspan="13" class="text-center py-4 text-muted">
                     <i class="fas fa-motorcycle fs-3 d-block mb-2 opacity-50"></i>
-                    No has agregado ningún modelo de motos a esta factura.
+                    No has agregado ningún renglón (moto o producto) a esta factura.
                 </td>
             </tr>
         `);
-        $('#contadorLotesMotos').text('0 Modelos (0 Motos)');
+        $('#contadorLotesMotos').text('0 Renglones (0 Unidades)');
         actualizarCuadreFactura();
         return;
     }
 
     lotesAgregados.forEach((lote, idx) => {
-        totalMotos += lote.cantidad;
+        totalUnidades += lote.cantidad;
         const costoUsd = lote.costo_unitario_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const costoBs = (lote.costo_unitario_usd * tCompra).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const totalLoteUsd = lote.total_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const totalLoteBs = (lote.total_usd * tCompra).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const detalUsd = lote.precio_detal_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const mayorUsd = lote.precio_mayorista_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fleteUsd = (lote.flete_unitario_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const costoTotalUsd = (lote.costo_total_unitario_usd || lote.costo_unitario_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const subtotalUsd = lote.subtotal_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const detalSinIva = lote.precio_detal_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const detalConIvaUsd = (lote.precio_detal_con_iva_usd || lote.precio_detal_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const detalConIvaBs = ((lote.precio_detal_con_iva_usd || lote.precio_detal_usd) * tasaVentaActual).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const mayorSinIva = lote.precio_mayorista_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const mayorConIvaUsd = (lote.precio_mayorista_con_iva_usd || lote.precio_mayorista_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const mayorConIvaBs = ((lote.precio_mayorista_con_iva_usd || lote.precio_mayorista_usd) * tasaVentaActual).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const esMoto = (lote.tipo_item === 'moto');
+        const badgeTipo = esMoto
+            ? '<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5"><i class="fas fa-motorcycle me-1"></i>Moto</span>'
+            : '<span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2 py-0.5"><i class="fas fa-box me-1"></i>Prod</span>';
 
         $tbody.append(`
             <tr>
                 <td class="text-center font-monospace fw-bold">${idx + 1}</td>
+                <td class="text-center">${badgeTipo}</td>
                 <td>
                     <strong class="text-dark">${lote.marca} ${lote.modelo}</strong>
-                    <small class="text-muted d-block font-monospace">Ref: ${lote.referencia} | ${lote.cilindrada}</small>
-                </td>
-                <td>
-                    <span class="badge rounded-pill bg-light text-secondary border">${lote.anio}</span>
-                    <small class="d-block text-muted">${lote.color}</small>
+                    <small class="text-muted d-block font-monospace">Ref: ${lote.referencia}${lote.cilindrada ? ' | ' + lote.cilindrada : ''}${lote.color ? ' | ' + lote.color : ''}</small>
                 </td>
                 <td class="text-center">
-                    <span class="badge rounded-pill bg-primary text-white fw-bold px-2 py-1">${lote.cantidad} unids</span>
+                    <span class="badge rounded-pill bg-dark text-white fw-bold px-2 py-1">${lote.cantidad} unids</span>
                 </td>
                 <td class="text-end font-monospace">
                     <span class="fw-semibold text-dark">$ ${costoUsd}</span>
-                    <small class="text-muted d-block" style="font-size: 0.72rem;">Bs. ${costoBs}</small>
+                </td>
+                <td class="text-end font-monospace text-warning">
+                    ${esMoto ? '$ ' + fleteUsd : '<span class="text-muted">--</span>'}
+                </td>
+                <td class="text-end font-monospace">
+                    <span class="fw-bold text-dark">$ ${costoTotalUsd}</span>
                 </td>
                 <td class="text-center">
                     <span class="badge rounded-pill ${lote.aplica_iva ? 'bg-secondary text-white' : 'bg-light text-muted border'}">${lote.iva_porcentaje}%</span>
                 </td>
-                <td class="text-end font-monospace text-primary fw-bold">$ ${detalUsd}</td>
-                <td class="text-end font-monospace" style="color: #7e22ce;">$ ${mayorUsd}</td>
+                <td class="text-end font-monospace" style="font-size: 0.78rem;">
+                    <span class="text-muted small">Sin: $ ${detalSinIva}</span><br>
+                    <span class="badge rounded-pill px-2 py-0.5 font-monospace fw-bold" style="background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.74rem;">$ ${detalConIvaUsd} | Bs. ${detalConIvaBs}</span>
+                </td>
+                <td class="text-end font-monospace" style="font-size: 0.78rem;">
+                    <span class="text-muted small">Sin: $ ${mayorSinIva}</span><br>
+                    <span class="badge rounded-pill px-2 py-0.5 font-monospace fw-bold" style="background-color: #faf5ff; color: #6b21a8; border: 1px solid #d8b4fe; font-size: 0.74rem;">$ ${mayorConIvaUsd} | Bs. ${mayorConIvaBs}</span>
+                </td>
                 <td class="text-end font-monospace">
-                    <strong class="text-success">$ ${totalLoteUsd}</strong>
-                    <small class="text-muted d-block" style="font-size: 0.72rem;">Bs. ${totalLoteBs}</small>
+                    <strong class="text-success">$ ${subtotalUsd}</strong>
                 </td>
                 <td class="text-center">
-                    <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-2 py-1 font-monospace" onclick="verSerialesLote(${idx})" title="Ver Seriales de este Modelo" style="font-size: 0.74rem;">
-                        <i class="fas fa-fingerprint me-1"></i> ${lote.seriales?.length || 0} Ser.
-                    </button>
+                    ${esMoto ? `
+                        <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-2 py-1 font-monospace" onclick="verSerialesLote(${idx})" title="Ver Seriales" style="font-size: 0.72rem;">
+                            <i class="fas fa-fingerprint me-1"></i> ${lote.seriales?.length || 0}
+                        </button>
+                    ` : '<span class="text-muted small">N/A</span>'}
                 </td>
                 <td class="text-center">
                     <div class="d-flex justify-content-center gap-1">
-                        <button type="button" class="btn btn-outline-primary btn-sm rounded-circle p-1" onclick="editarLote(${idx})" title="Editar Modelo y Seriales">
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-circle p-1" onclick="editarLote(${idx})" title="Editar Renglón">
                             <i class="fas fa-edit" style="font-size: 0.75rem;"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-danger btn-sm rounded-circle p-1" onclick="eliminarLote(${idx})" title="Eliminar Modelo">
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-circle p-1" onclick="eliminarLote(${idx})" title="Eliminar Renglón">
                             <i class="fas fa-trash-alt" style="font-size: 0.75rem;"></i>
                         </button>
                     </div>
@@ -915,32 +1292,63 @@ const renderizarLotesAgregados = function () {
         `);
     });
 
-    $('#contadorLotesMotos').text(`${lotesAgregados.length} ${lotesAgregados.length === 1 ? 'Modelo' : 'Modelos'} (${totalMotos} Motos)`);
+    $('#contadorLotesMotos').text(`${lotesAgregados.length} Renglones (${totalUnidades} Unidades)`);
     actualizarCuadreFactura();
 };
 
 const recalcularTotalesGenerales = function () {
-    let subtotalUsd = 0;
+    let baseImponibleUsd = 0;
+    let exentoUsd = 0;
     let ivaUsd = 0;
-    let totalUsd = 0;
+    let fleteTotalUsd = 0;
+    let ivaPctGeneral = 16.00;
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
 
     lotesAgregados.forEach(l => {
-        subtotalUsd += l.subtotal_usd;
-        ivaUsd += l.iva_usd;
-        totalUsd += l.total_usd;
+        if (l.aplica_iva && l.iva_porcentaje > 0) {
+            baseImponibleUsd += l.subtotal_usd;
+            ivaUsd += l.iva_usd;
+            ivaPctGeneral = l.iva_porcentaje;
+        } else {
+            exentoUsd += l.subtotal_usd;
+        }
+        if (l.tipo_item === 'moto') {
+            fleteTotalUsd += ((l.flete_unitario_usd || 0) * l.cantidad);
+        }
     });
 
     const descGlobalPct = parseFloat($('#descuento_global_porcentaje').val()) || 0;
-    const descGlobalUsd = subtotalUsd * (descGlobalPct / 100);
-    const granTotalUsd = Math.max(0, totalUsd - descGlobalUsd);
-    const granTotalBs = granTotalUsd * tCompra;
+    const subtotalBruto = baseImponibleUsd + exentoUsd;
+    const descGlobalUsd = subtotalBruto * (descGlobalPct / 100);
 
-    $('#resumenSubtotalUsd').text(`$ ${subtotalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-    $('#resumenIvaUsd').text(`$ ${ivaUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-    $('#resumenDescuentoUsd').text(`-$ ${descGlobalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-    $('#resumenTotalUsd').text(`$ ${granTotalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-    $('#resumenTotalBs').text(`Bs. ${granTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    let baseFinalUsd = baseImponibleUsd;
+    let exentoFinalUsd = exentoUsd;
+
+    if (descGlobalPct > 0) {
+        baseFinalUsd = baseImponibleUsd * (1 - (descGlobalPct / 100));
+        exentoFinalUsd = exentoUsd * (1 - (descGlobalPct / 100));
+        ivaUsd = baseFinalUsd * (ivaPctGeneral / 100);
+    }
+
+    const incluirFlete = $('#switchIncluirFleteFactura').is(':checked');
+    const subtotalNetoUsd = baseFinalUsd + exentoFinalUsd;
+    const totalFacturaUsd = subtotalNetoUsd + ivaUsd + (incluirFlete ? fleteTotalUsd : 0);
+
+    const baseFinalBs = baseFinalUsd * tCompra;
+    const descGlobalBs = descGlobalUsd * tCompra;
+    const exentoFinalBs = exentoFinalUsd * tCompra;
+    const ivaBs = ivaUsd * tCompra;
+    const fleteTotalBs = fleteTotalUsd * tCompra;
+    const totalFacturaBs = totalFacturaUsd * tCompra;
+
+    $('#resumenBaseImponible').text(`$ ${baseFinalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Bs. ${baseFinalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    $('#resumenDescuentoUsd').text(`-$ ${descGlobalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | -Bs. ${descGlobalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    $('#resumenExento').text(`$ ${exentoFinalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Bs. ${exentoFinalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    $('#labelResumenIva').text(`IVA (${ivaPctGeneral}%):`);
+    $('#resumenIvaUsd').text(`$ ${ivaUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Bs. ${ivaBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    $('#resumenFleteTotal').text(`$ ${fleteTotalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Bs. ${fleteTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    $('#resumenTotalUsd').text(`$ ${totalFacturaUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    $('#resumenTotalBs').text(`Bs. ${totalFacturaBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 
     actualizarCuadreFactura();
 };
@@ -950,10 +1358,20 @@ const actualizarCuadreFactura = function () {
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
     const montoFacturaUsd = (monedaSeleccionada === 'VES') ? (montoFacturaInput / tCompra) : montoFacturaInput;
 
-    let sumaModelosUsd = 0;
+    const incluirFlete = $('#switchIncluirFleteFactura').is(':checked');
+    let sumaRenglonesUsd = 0;
+    let fleteTotalUsd = 0;
+
     lotesAgregados.forEach(l => {
-        sumaModelosUsd += l.total_usd;
+        sumaRenglonesUsd += l.subtotal_usd + l.iva_usd;
+        if (l.tipo_item === 'moto') {
+            fleteTotalUsd += ((l.flete_unitario_usd || 0) * l.cantidad);
+        }
     });
+
+    if (incluirFlete) {
+        sumaRenglonesUsd += fleteTotalUsd;
+    }
 
     const $badgeCuadre = $('#badgeEstadoCuadreFactura');
 
@@ -963,17 +1381,17 @@ const actualizarCuadreFactura = function () {
         return;
     }
 
-    const diferencia = Math.abs(montoFacturaUsd - sumaModelosUsd);
+    const diferencia = Math.abs(montoFacturaUsd - sumaRenglonesUsd);
 
     if (diferencia < 0.05) {
-        $badgeCuadre.html('<i class="fas fa-check-circle me-1"></i> Factura Cuadrada ($ ' + sumaModelosUsd.toFixed(2) + ')')
+        $badgeCuadre.html('<i class="fas fa-check-circle me-1"></i> Factura Cuadrada ($ ' + sumaRenglonesUsd.toFixed(2) + ')')
             .css({ 'background-color': '#dcfce7', 'color': '#15803d', 'border': '1px solid #86efac' });
-    } else if (sumaModelosUsd < montoFacturaUsd) {
-        const falta = (montoFacturaUsd - sumaModelosUsd).toFixed(2);
+    } else if (sumaRenglonesUsd < montoFacturaUsd) {
+        const falta = (montoFacturaUsd - sumaRenglonesUsd).toFixed(2);
         $badgeCuadre.html(`<i class="fas fa-clock me-1"></i> Faltan $ ${falta} por cargar`)
             .css({ 'background-color': '#fef3c7', 'color': '#b45309', 'border': '1px solid #fde68a' });
     } else {
-        const sobra = (sumaModelosUsd - montoFacturaUsd).toFixed(2);
+        const sobra = (sumaRenglonesUsd - montoFacturaUsd).toFixed(2);
         $badgeCuadre.html(`<i class="fas fa-exclamation-triangle me-1"></i> Excede por $ ${sobra}`)
             .css({ 'background-color': '#fee2e2', 'color': '#b91c1c', 'border': '1px solid #fca5a5' });
     }
@@ -983,8 +1401,8 @@ const procesarRecepcionMoto = async function () {
     if (lotesAgregados.length === 0) {
         return notificacion.fire({
             icon: 'warning',
-            title: 'Sin Motos Registradas',
-            text: 'Debes agregar al menos un lote de motos con sus respectivos seriales a la recepción.'
+            title: 'Sin Renglones Registrados',
+            text: 'Debes agregar al menos una moto o producto a la recepción.'
         });
     }
 
@@ -1005,13 +1423,14 @@ const procesarRecepcionMoto = async function () {
         dias_credito: $('#dias_credito').val(),
         monto_bruto_usd: $('#monto_bruto_input').val(),
         descuento_global_porcentaje: $('#descuento_global_porcentaje').val(),
+        incluir_flete_en_factura: $('#switchIncluirFleteFactura').is(':checked') ? 1 : 0,
         observaciones: $('#observaciones').val(),
         detalles: lotesAgregados
     };
 
     const confirm = await Swal.fire({
-        title: '¿Procesar Recepción de Motos?',
-        text: `Se registrarán ${lotesAgregados.reduce((a, b) => a + b.cantidad, 0)} motos con sus seriales únicos y se ingresarán al inventario.`,
+        title: '¿Procesar Recepción?',
+        text: `Se registrarán ${lotesAgregados.reduce((a, b) => a + b.cantidad, 0)} unidades (motos y productos) y se ingresarán al inventario.`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#10b981',
@@ -1024,7 +1443,7 @@ const procesarRecepcionMoto = async function () {
 
     Swal.fire({
         title: 'Procesando recepción...',
-        text: 'Registrando seriales únicos y actualizando inventario...',
+        text: 'Registrando lotes, seriales y actualizando inventario...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
     });
@@ -1088,34 +1507,42 @@ const verDetalle = async function (id) {
             let tablaDetalles = '';
             (r.detalles || []).forEach((d, idx) => {
                 let serialesHtml = '';
-                (d.motos || []).forEach(m => {
-                    serialesHtml += `
-                        <div class="p-2 border rounded-3 bg-light mb-1 font-monospace small">
-                            <strong>NIV:</strong> ${m.numero_niv} | 
-                            <strong>Chasis:</strong> ${m.numero_chasis} | 
-                            <strong>Motor:</strong> ${m.numero_motor} | 
-                            <strong>Cert. Origen:</strong> ${m.certificado_origen}
-                            ${m.placa ? ` | <strong>Placa:</strong> ${m.placa}` : ''}
-                        </div>
-                    `;
-                });
+                if (d.tipo_item === 'moto' && d.motos && d.motos.length > 0) {
+                    (d.motos || []).forEach(m => {
+                        serialesHtml += `
+                            <div class="p-2 border rounded-3 bg-light mb-1 font-monospace small">
+                                <strong>NIV:</strong> ${m.numero_niv} | 
+                                <strong>Chasis:</strong> ${m.numero_chasis} | 
+                                <strong>Motor:</strong> ${m.numero_motor} | 
+                                <strong>Cert. Origen:</strong> ${m.certificado_origen}
+                                ${m.placa ? ` | <strong>Placa:</strong> ${m.placa}` : ''}
+                            </div>
+                        `;
+                    });
+                }
+
+                const tituloRenglon = d.tipo_item === 'moto'
+                    ? `${idx + 1}. [MOTO] ${d.marca} ${d.modelo} (${d.anio} - ${d.color})`
+                    : `${idx + 1}. [PRODUCTO] ${d.producto?.nombre || d.modelo || 'Producto General'}`;
 
                 tablaDetalles += `
                     <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="fw-bold text-dark mb-0">${idx + 1}. ${d.marca} ${d.modelo} (${d.anio} - ${d.color})</h6>
-                            <span class="badge bg-primary rounded-pill px-3 py-1">${d.cantidad} Motos</span>
+                            <h6 class="fw-bold text-dark mb-0">${tituloRenglon}</h6>
+                            <span class="badge ${d.tipo_item === 'moto' ? 'bg-primary' : 'bg-success'} rounded-pill px-3 py-1">${d.cantidad} Unidades</span>
                         </div>
                         <div class="row g-2 font-monospace small text-muted mb-2">
                             <div class="col-md-3">Costo Unit: $ ${parseFloat(d.costo_unitario_usd).toFixed(2)}</div>
-                            <div class="col-md-3">Precio Detal: $ ${parseFloat(d.precio_detal_usd).toFixed(2)}</div>
-                            <div class="col-md-3">Precio Mayor: $ ${parseFloat(d.precio_mayorista_usd).toFixed(2)}</div>
-                            <div class="col-md-3 text-end fw-bold text-success">Total Lote: $ ${parseFloat(d.total_usd).toFixed(2)}</div>
+                            <div class="col-md-3">Flete Unit: $ ${parseFloat(d.flete_unitario_usd || 0).toFixed(2)}</div>
+                            <div class="col-md-3">PVP Detal: $ ${parseFloat(d.precio_detal_usd).toFixed(2)}</div>
+                            <div class="col-md-3 text-end fw-bold text-success">Total Renglón: $ ${parseFloat(d.total_usd).toFixed(2)}</div>
                         </div>
-                        <div class="mt-2">
-                            <small class="fw-bold text-dark d-block mb-1"><i class="fas fa-fingerprint text-success me-1"></i> Seriales Registrados:</small>
-                            ${serialesHtml}
-                        </div>
+                        ${serialesHtml ? `
+                            <div class="mt-2">
+                                <small class="fw-bold text-dark d-block mb-1"><i class="fas fa-fingerprint text-success me-1"></i> Seriales Registrados:</small>
+                                ${serialesHtml}
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             });
@@ -1143,11 +1570,11 @@ const verDetalle = async function (id) {
                     </div>
                 </div>
 
-                <h6 class="fw-bold text-dark mb-2"><i class="fas fa-motorcycle text-primary me-2"></i> Lotes y Unidades Recibidas</h6>
+                <h6 class="fw-bold text-dark mb-2"><i class="fas fa-boxes-stacked text-primary me-2"></i> Renglones y Unidades Recibidas</h6>
                 ${tablaDetalles}
 
                 <div class="card border-0 rounded-4 p-3 text-white text-end font-monospace" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
-                    <div class="fs-5 fw-bold text-warning">TOTAL COMPRA: $ ${parseFloat(r.total_usd).toFixed(2)}</div>
+                    <div class="fs-5 fw-bold text-warning">TOTAL FACTURA: $ ${parseFloat(r.total_usd).toFixed(2)}</div>
                     <div class="text-white-50">Equivalente: Bs. ${parseFloat(r.total_bs).toFixed(2)}</div>
                 </div>
             `);
@@ -1162,7 +1589,7 @@ const verDetalle = async function (id) {
 const anularRecepcion = async function (id, codigo) {
     const confirm = await Swal.fire({
         title: `¿Anular Recepción ${codigo}?`,
-        text: "Se revertirán las motos del inventario si no han sido vendidas.",
+        text: "Se revertirán las motos y productos del inventario si no han sido vendidos.",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',

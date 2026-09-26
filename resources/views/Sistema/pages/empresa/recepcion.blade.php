@@ -296,7 +296,7 @@
                                     </div>
 
                                     <!-- Monto Bruto Factura & Descuento Global -->
-                                    <div class="col-md-3">
+                                    <div class="col-md-6">
                                         <label class="form-label-executive"><i class="fas fa-receipt text-secondary"></i> Monto Bruto Fac. <span class="text-danger">*</span></label>
                                         <div class="input-group">
                                             <span class="input-group-text bg-white text-primary fw-bold label-simbolo-moneda-fac">$</span>
@@ -304,7 +304,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="col-md-3">
+                                    <div class="col-md-6">
                                         <label class="form-label-executive"><i class="fas fa-percent text-secondary"></i> Descuento Global Fac. <small class="text-muted fw-normal">(%)</small></label>
                                         <div class="input-group">
                                             <input type="number" step="any" min="0" max="100" name="descuento_global_porcentaje" id="descuento_global_porcentaje" class="form-control form-control-executive font-monospace" value="0.00" oninput="recalcularTotalesGenerales()">
@@ -452,50 +452,50 @@
                                         </div>
 
                                         <!-- Bultos & Unidades por Bulto -->
-                                        <div class="col-md-2">
+                                        <div class="col-md-3">
                                             <label class="form-label-executive"><i class="fas fa-cubes text-secondary"></i> Bultos / Cajas <span class="text-danger">*</span></label>
                                             <input type="number" step="any" min="0.001" id="form_renglon_bultos" class="form-control form-control-executive font-monospace text-center fw-bold" placeholder="0" oninput="calcularCantidadDesdeBultos()">
                                         </div>
 
-                                        <div class="col-md-2">
+                                        <div class="col-md-3">
                                             <label class="form-label-executive"><i class="fas fa-box-open text-secondary"></i> Unid. / Bulto <span class="text-danger">*</span></label>
                                             <input type="number" step="any" min="1" id="form_renglon_unid_bulto" class="form-control form-control-executive font-monospace text-center" placeholder="1" value="1" oninput="calcularCantidadDesdeBultos()">
                                         </div>
 
                                         <!-- Cantidad Total de Unidades (Cálculo Automático Readonly) -->
-                                        <div class="col-md-2">
+                                        <div class="col-md-3">
                                             <label class="form-label-executive"><i class="fas fa-calculator text-primary"></i> Cantidad Total</label>
                                             <input type="number" step="any" id="form_renglon_cantidad" class="form-control form-control-executive font-monospace fw-bold text-center bg-primary bg-opacity-10 text-primary border-primary" placeholder="0" value="0" readonly tabindex="-1" title="Calculado automáticamente: Bultos * Unid./Bulto">
                                         </div>
 
                                         <!-- Costo Total del Producto / Factura (Obligatorio) -->
                                         <div class="col-md-3">
-                                            <label class="form-label-executive"><i class="fas fa-tag text-success"></i> Costo del Producto / Factura <span class="text-danger">*</span></label>
+                                            <label class="form-label-executive"><i class="fas fa-tag text-success"></i> Costo Factura (Bultos) <span class="text-danger">*</span></label>
                                             <div class="input-group">
                                                 <span class="input-group-text bg-white label-simbolo-moneda-fac text-success fw-bold">$</span>
                                                 <input type="number" step="any" min="0.0001" id="form_renglon_costo_bulto" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.00" oninput="calcularCostoDesdeBulto()">
                                             </div>
                                             <small class="text-muted font-monospace d-block mt-1" style="font-size: 0.72rem;">
-                                                Monto total pagado por las unidades
+                                                Monto total pagado
                                             </small>
                                         </div>
 
                                         <!-- Costo Unitario de Compra (Cálculo Automático: Costo / Cantidad Total) -->
                                         <div class="col-md-3">
-                                            <label class="form-label-executive"><i class="fas fa-dollar-sign text-secondary"></i> Costo Unitario Calculado</label>
+                                            <label class="form-label-executive"><i class="fas fa-dollar-sign text-secondary"></i> Costo Unit. Calculado</label>
                                             <div class="input-group">
                                                 <span class="input-group-text bg-white text-dark label-simbolo-moneda-fac">$</span>
                                                 <input type="number" step="any" min="0" id="form_renglon_costo_unitario" class="form-control form-control-executive font-monospace text-end bg-white fw-bold text-dark" placeholder="0.0000" readonly tabindex="-1">
                                             </div>
                                             <div class="mt-1 text-end">
-                                                <span class="badge rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs d-inline-block" id="form_renglon_costo_equivalente" style="background-color: #ecfdf5; color: #047857; border: 1.5px solid #6ee7b7; font-size: 0.95rem;">
+                                                <span class="badge rounded-pill px-2.5 py-0.5 font-monospace fw-semibold shadow-xs d-inline-block" id="form_renglon_costo_equivalente" style="background-color: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; font-size: 0.78rem;">
                                                     Equiv: Bs. 0.00
                                                 </span>
                                             </div>
                                         </div>
 
                                         <!-- Descuento Comercial % -->
-                                        <div class="col-md-2">
+                                        <div class="col-md-3">
                                             <label class="form-label-executive"><i class="fas fa-percent text-secondary"></i> Descuento (%)</label>
                                             <div class="input-group">
                                                 <input type="number" step="any" min="0" max="100" id="form_renglon_descuento" class="form-control form-control-executive font-monospace text-center" value="0.00" oninput="recalcularFormularioRenglon()">
@@ -504,8 +504,8 @@
                                         </div>
 
                                         <!-- IVA -->
-                                        <div class="col-md-2">
-                                            <label class="form-label-executive"><i class="fas fa-receipt text-secondary"></i> IVA</label>
+                                        <div class="col-md-3">
+                                            <label class="form-label-executive"><i class="fas fa-receipt text-secondary"></i> IVA Compra</label>
                                             <select id="form_renglon_iva" class="form-select form-select-executive font-monospace" onchange="recalcularFormularioRenglon()">
                                                 <option value="16">IVA 16%</option>
                                                 <option value="8">IVA 8%</option>
@@ -513,60 +513,69 @@
                                             </select>
                                         </div>
 
-                                        <!-- Margen Detal % & Nuevo Precio Detal -->
-                                        <div class="col-md-2">
-                                            <label class="form-label-executive"><i class="fas fa-chart-line text-primary"></i> Margen Detal (%)</label>
-                                            <div class="input-group">
-                                                <input type="number" step="any" min="0" id="form_renglon_margen_detal" class="form-control form-control-executive font-monospace text-center" value="30" oninput="calcularPrecioDetalDesdeMargen()">
+                                        <!-- Margen Detal % & Nuevo Precio Detal Sin/Con IVA -->
+                                        <div class="col-md-6">
+                                            <label class="form-label-executive"><i class="fas fa-chart-line text-primary"></i> Margen Detal (%) & Precio Venta (Con IVA / PVP)</label>
+                                            <div class="input-group mb-2">
+                                                <input type="number" step="any" min="0" id="form_renglon_margen_detal" class="form-control form-control-executive font-monospace text-center" style="max-width: 95px;" value="30" oninput="calcularPrecioDetalDesdeMargen()">
                                                 <span class="input-group-text bg-white">%</span>
+                                                <input type="number" step="any" min="0" id="form_renglon_precio_detal" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="PVP Con IVA" oninput="calcularMargenDetalDesdePrecio()">
+                                            </div>
+                                            <div class="d-flex flex-column gap-1.5 p-2.5 rounded-3 bg-light border shadow-xs">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <small class="text-primary fw-bold"><i class="fas fa-tag me-1"></i>PVP (Con IVA):</small>
+                                                    <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="form_renglon_detal_con_iva_badge" style="background-color: #eff6ff; color: #1d4ed8; border: 1.5px solid #bfdbfe; font-size: 0.84rem;">
+                                                        $ 0,00 | Bs. 0,00
+                                                    </span>
+                                                </div>
+                                                <div class="d-flex justify-content-between align-items-center border-top pt-1.5">
+                                                    <small class="text-muted fw-semibold"><i class="fas fa-info-circle text-primary me-1"></i>Precio Sin IVA:</small>
+                                                    <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="form_renglon_detal_sin_iva" style="background-color: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; font-size: 0.84rem;">
+                                                        $ 0,00 | Bs. 0,00
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <div class="col-md-3">
-                                            <label class="form-label-executive"><i class="fas fa-store text-primary"></i> Nuevo Precio Detal</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text bg-white text-primary fw-bold label-simbolo-moneda-fac">$</span>
-                                                <input type="number" step="any" min="0" id="form_renglon_precio_detal" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.0000" oninput="calcularMargenDetalDesdePrecio()">
-                                            </div>
-                                            <div class="mt-1 text-end">
-                                                <span class="badge rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs d-inline-block" id="form_renglon_detal_bs" style="background-color: #eff6ff; color: #1d4ed8; border: 1.5px solid #93c5fd; font-size: 0.98rem;">
-                                                    Bs. 0.0000
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <!-- Margen Mayorista % & Nuevo Precio Mayorista -->
-                                        <div class="col-md-2">
-                                            <label class="form-label-executive"><i class="fas fa-boxes text-secondary"></i> Margen Mayor (%)</label>
-                                            <div class="input-group">
-                                                <input type="number" step="any" min="0" id="form_renglon_margen_mayorista" class="form-control form-control-executive font-monospace text-center" value="15" oninput="calcularPrecioMayoristaDesdeMargen()">
+                                        <!-- Margen Mayorista % & Nuevo Precio Mayorista Sin/Con IVA -->
+                                        <div class="col-md-6">
+                                            <label class="form-label-executive" style="color: #7e22ce;"><i class="fas fa-truck-moving"></i> Margen Mayor (%) & Precio Mayor (Con IVA / PVP)</label>
+                                            <div class="input-group mb-2">
+                                                <input type="number" step="any" min="0" id="form_renglon_margen_mayorista" class="form-control form-control-executive font-monospace text-center" style="max-width: 95px;" value="15" oninput="calcularPrecioMayoristaDesdeMargen()">
                                                 <span class="input-group-text bg-white">%</span>
+                                                <input type="number" step="any" min="0" id="form_renglon_precio_mayorista" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="Mayor Con IVA" oninput="calcularMargenMayoristaDesdePrecio()">
                                             </div>
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <label class="form-label-executive" style="color: #7e22ce;"><i class="fas fa-truck-moving"></i> Nuevo Precio Mayorista</label>
-                                            <div class="input-group">
-                                                <span class="input-group-text bg-white fw-bold label-simbolo-moneda-fac" style="color: #7e22ce;">$</span>
-                                                <input type="number" step="any" min="0" id="form_renglon_precio_mayorista" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.0000" oninput="calcularMargenMayoristaDesdePrecio()">
-                                            </div>
-                                            <div class="mt-1 text-end">
-                                                <span class="badge rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs d-inline-block" id="form_renglon_mayorista_bs" style="background-color: #faf5ff; color: #6b21a8; border: 1.5px solid #d8b4fe; font-size: 0.98rem;">
-                                                    Bs. 0.0000
-                                                </span>
+                                            <div class="d-flex flex-column gap-1.5 p-2.5 rounded-3 bg-light border shadow-xs">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <small class="fw-bold" style="color: #7e22ce;"><i class="fas fa-tag me-1"></i>Mayor (Con IVA):</small>
+                                                    <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="form_renglon_mayorista_con_iva_badge" style="background-color: #faf5ff; color: #6b21a8; border: 1.5px solid #d8b4fe; font-size: 0.84rem;">
+                                                        $ 0,00 | Bs. 0,00
+                                                    </span>
+                                                </div>
+                                                <div class="d-flex justify-content-between align-items-center border-top pt-1.5">
+                                                    <small class="text-muted fw-semibold" style="color: #7e22ce !important;"><i class="fas fa-info-circle me-1"></i>Mayor Sin IVA:</small>
+                                                    <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="form_renglon_mayorista_sin_iva" style="background-color: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; font-size: 0.84rem;">
+                                                        $ 0,00 | Bs. 0,00
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
 
                                         <!-- Subtotal Renglón & Botón de Inserción -->
-                                        <div class="col-md-4 d-flex align-items-center justify-content-between p-3 bg-white rounded-3 border">
-                                            <div>
-                                                <span class="text-muted small d-block">Subtotal Renglón Neto:</span>
-                                                <h5 class="fw-bold mb-1 text-dark font-monospace" id="form_renglon_subtotal_usd">$ 0.0000</h5>
-                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs d-inline-block" id="form_renglon_subtotal_bs" style="background-color: #f8fafc; color: #0f172a; border: 1.5px solid #cbd5e1; font-size: 0.95rem;">
-                                                    Bs. 0.0000
-                                                </span>
+                                        <div class="col-md-12 d-flex flex-wrap align-items-center justify-content-between p-3 bg-light rounded-3 border">
+                                            <div class="d-flex align-items-center gap-4">
+                                                <div>
+                                                    <span class="text-muted small d-block">Subtotal Renglón Neto:</span>
+                                                    <h5 class="fw-bold mb-0 text-dark font-monospace" id="form_renglon_subtotal_usd">$ 0.0000</h5>
+                                                </div>
+                                                <div class="border-start ps-3">
+                                                    <span class="text-muted small d-block">Equivalente:</span>
+                                                    <span class="badge rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs d-inline-block" id="form_renglon_subtotal_bs" style="background-color: #ffffff; color: #0f172a; border: 1.5px solid #cbd5e1; font-size: 0.88rem;">
+                                                        Bs. 0.0000
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div class="d-flex gap-2">
+                                            <div class="d-flex gap-2 mt-2 mt-sm-0">
                                                 <button type="button" class="btn btn-sm btn-danger-subtle text-danger border border-danger-subtle rounded-circle shadow-xs" onclick="cancelarEdicionRenglon()" title="Cancelar / Limpiar Renglón" style="width: 42px; height: 42px; min-width: 42px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.05rem; transition: all 0.2s ease;">
                                                     <i class="fas fa-times"></i>
                                                 </button>
@@ -605,13 +614,13 @@
                                                 <th style="width: 40px;" class="text-center">#</th>
                                                 <th style="min-width: 180px;">Producto / SKU</th>
                                                 <th style="min-width: 130px;">Almacén</th>
-                                                <th class="text-center" style="min-width: 100px;">Cant.</th>
-                                                <th class="text-end" style="min-width: 120px;">Costo Unit.</th>
-                                                <th class="text-center" style="min-width: 80px;">Desc</th>
-                                                <th class="text-center" style="min-width: 80px;">IVA</th>
-                                                <th class="text-end" style="min-width: 130px;">Precio Detal</th>
-                                                <th class="text-end" style="min-width: 130px;">Precio Mayor.</th>
-                                                <th class="text-end" style="min-width: 130px;">Subtotal</th>
+                                                <th class="text-center" style="min-width: 90px;">Cant.</th>
+                                                <th class="text-end" style="min-width: 110px;">Costo Unit.</th>
+                                                <th class="text-center" style="min-width: 75px;">Desc</th>
+                                                <th class="text-center" style="min-width: 75px;">IVA</th>
+                                                <th class="text-end" style="min-width: 130px;">PVP Detal (Sin/Con)</th>
+                                                <th class="text-end" style="min-width: 130px;">PVP Mayor (Sin/Con)</th>
+                                                <th class="text-end" style="min-width: 120px;">Subtotal Renglón</th>
                                                 <th class="text-center" style="width: 80px;">Acciones</th>
                                             </tr>
                                         </thead>
@@ -635,47 +644,54 @@
 
                             <!-- OBSERVACIONES Y RESUMEN DE LIQUIDACIÓN -->
                             <div class="row g-3">
-                                <div class="col-md-7">
+                                <div class="col-md-6">
                                     <div class="card border rounded-4 p-3 h-100 shadow-xs bg-white">
                                         <label class="form-label-executive mb-2"><i class="fas fa-comment-alt text-secondary"></i> Observaciones / Notas de Recepción</label>
                                         <textarea name="observaciones" id="observaciones" rows="4" class="form-control form-control-executive" placeholder="Detalles de la entrega, transportista, condiciones de empaque, precintos..."></textarea>
                                     </div>
                                 </div>
 
-                                <div class="col-md-5">
-                                    <div class="card border rounded-4 p-3 shadow-xs bg-white">
-                                        <h6 class="fw-bold text-dark mb-3 border-bottom pb-2"><i class="fas fa-calculator text-primary me-2"></i> Resumen de Liquidación</h6>
-                                        
-                                        <div class="d-flex justify-content-between mb-1 small">
-                                            <span class="text-muted">Total Piezas / Unidades:</span>
-                                            <strong class="font-monospace text-dark" id="resumenTotalUnidades">0.00</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1 small">
-                                            <span class="text-muted">Monto Bruto:</span>
-                                            <strong class="font-monospace text-dark" id="resumenMontoBrutoUsd">$ 0.00</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1 small">
-                                            <span class="text-muted">Descuentos Aplicados:</span>
-                                            <strong class="font-monospace text-danger" id="resumenDescuentosUsd">-$ 0.00</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1 small">
-                                            <span class="text-muted">Subtotal Neto:</span>
-                                            <strong class="font-monospace text-dark" id="resumenSubtotalUsd">$ 0.00</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-2 small">
-                                            <span class="text-muted">IVA de Compra:</span>
-                                            <strong class="font-monospace text-dark" id="resumenIvaUsd">$ 0.00</strong>
+                                <div class="col-md-6">
+                                    <div class="card border-0 rounded-4 p-4 shadow-sm text-white" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+                                        <div class="d-flex align-items-center justify-content-between mb-3">
+                                            <h6 class="fw-bold text-white text-uppercase mb-0" style="letter-spacing: 0.05em; font-size: 0.85rem;">
+                                                <i class="fas fa-calculator text-warning me-1"></i> Liquidación Fiscal Global
+                                            </h6>
+                                            <span class="badge rounded-pill bg-white bg-opacity-10 text-white-50 px-2 py-1 font-monospace small" id="resumenTotalUnidades">
+                                                0.00 Unidades
+                                            </span>
                                         </div>
 
-                                        <div class="p-3 rounded-3 mt-2" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #ffffff;">
-                                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                                <span class="text-white-50 small">Total a Pagar USD:</span>
-                                                <h4 class="fw-bold mb-0 text-warning font-monospace" id="resumenTotalGeneralUsd">$ 0.00</h4>
-                                            </div>
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <span class="text-white-50 small">Equivalente en Bolívares:</span>
-                                                <h6 class="fw-bold mb-0 text-white font-monospace" id="resumenTotalGeneralBs">Bs. 0.00</h6>
-                                            </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-1.5 font-monospace">
+                                            <span class="text-white-50">Base Imponible:</span>
+                                            <span class="fw-bold text-white fs-6" id="resumenBaseImponible">$ 0.00 | Bs. 0.00</span>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-center mb-1.5 font-monospace">
+                                            <span class="text-white-50">Descuento:</span>
+                                            <span class="fw-bold text-danger fs-6" id="resumenDescuentosUsd">-$ 0.00 | -Bs. 0.00</span>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-center mb-1.5 font-monospace">
+                                            <span class="text-white-50">Exento (0% IVA):</span>
+                                            <span class="fw-bold text-white-50 fs-6" id="resumenExento">$ 0.00 | Bs. 0.00</span>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-center mb-1.5 font-monospace">
+                                            <span class="text-white-50" id="labelResumenIva">IVA (16%):</span>
+                                            <span class="fw-bold text-white fs-6" id="resumenIvaUsd">$ 0.00 | Bs. 0.00</span>
+                                        </div>
+
+                                        <hr class="border-secondary my-2">
+
+                                        <div class="d-flex justify-content-between align-items-center mb-1 font-monospace">
+                                            <span class="fs-5 fw-bold text-white">MONTO TOTAL FACTURA:</span>
+                                            <h4 class="fw-bold mb-0 text-warning font-monospace" id="resumenTotalGeneralUsd">$ 0.00</h4>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-center font-monospace">
+                                            <span class="small text-white-50">Equivalente Total (Bs.):</span>
+                                            <h6 class="fw-bold mb-0 text-success font-monospace" id="resumenTotalGeneralBs">Bs. 0.00</h6>
                                         </div>
                                     </div>
                                 </div>

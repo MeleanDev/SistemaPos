@@ -16,6 +16,8 @@ class RecepcionMotoDetalle extends Model
     protected $fillable = [
         'recepcion_moto_id',
         'almacen_id',
+        'tipo_item',
+        'producto_id',
         'referencia',
         'marca',
         'modelo',
@@ -25,6 +27,10 @@ class RecepcionMotoDetalle extends Model
         'cantidad',
         'costo_unitario_usd',
         'costo_unitario_bs',
+        'flete_unitario_usd',
+        'flete_unitario_bs',
+        'costo_total_unitario_usd',
+        'costo_total_unitario_bs',
         'descuento_porcentaje',
         'descuento_usd',
         'descuento_bs',
@@ -35,9 +41,13 @@ class RecepcionMotoDetalle extends Model
         'margen_detal',
         'precio_detal_usd',
         'precio_detal_bs',
+        'precio_detal_con_iva_usd',
+        'precio_detal_con_iva_bs',
         'margen_mayorista',
         'precio_mayorista_usd',
         'precio_mayorista_bs',
+        'precio_mayorista_con_iva_usd',
+        'precio_mayorista_con_iva_bs',
         'subtotal_usd',
         'subtotal_bs',
         'total_usd',
@@ -50,6 +60,10 @@ class RecepcionMotoDetalle extends Model
             'aplica_iva' => 'boolean',
             'costo_unitario_usd' => 'decimal:4',
             'costo_unitario_bs' => 'decimal:4',
+            'flete_unitario_usd' => 'decimal:4',
+            'flete_unitario_bs' => 'decimal:4',
+            'costo_total_unitario_usd' => 'decimal:4',
+            'costo_total_unitario_bs' => 'decimal:4',
             'descuento_porcentaje' => 'decimal:2',
             'descuento_usd' => 'decimal:4',
             'descuento_bs' => 'decimal:4',
@@ -59,9 +73,13 @@ class RecepcionMotoDetalle extends Model
             'margen_detal' => 'decimal:2',
             'precio_detal_usd' => 'decimal:4',
             'precio_detal_bs' => 'decimal:4',
+            'precio_detal_con_iva_usd' => 'decimal:4',
+            'precio_detal_con_iva_bs' => 'decimal:4',
             'margen_mayorista' => 'decimal:2',
             'precio_mayorista_usd' => 'decimal:4',
             'precio_mayorista_bs' => 'decimal:4',
+            'precio_mayorista_con_iva_usd' => 'decimal:4',
+            'precio_mayorista_con_iva_bs' => 'decimal:4',
             'subtotal_usd' => 'decimal:2',
             'subtotal_bs' => 'decimal:2',
             'total_usd' => 'decimal:2',
@@ -72,6 +90,11 @@ class RecepcionMotoDetalle extends Model
     public function recepcion(): BelongsTo
     {
         return $this->belongsTo(RecepcionMoto::class, 'recepcion_moto_id');
+    }
+
+    public function producto(): BelongsTo
+    {
+        return $this->belongsTo(Producto::class, 'producto_id');
     }
 
     public function almacen(): BelongsTo

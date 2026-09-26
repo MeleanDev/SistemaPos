@@ -29,14 +29,22 @@ class Moto extends Model
         'numero_motor',
         'certificado_origen',
         'placa',
+        'costo_base_usd',
+        'costo_base_bs',
+        'flete_usd',
+        'flete_bs',
         'precio_costo_usd',
         'precio_costo_bs',
         'margen_detal',
         'precio_detal_usd',
         'precio_detal_bs',
+        'precio_detal_con_iva_usd',
+        'precio_detal_con_iva_bs',
         'margen_mayorista',
         'precio_mayorista_usd',
         'precio_mayorista_bs',
+        'precio_mayorista_con_iva_usd',
+        'precio_mayorista_con_iva_bs',
         'estado',
         'observaciones',
     ];
@@ -44,14 +52,22 @@ class Moto extends Model
     protected function casts(): array
     {
         return [
+            'costo_base_usd' => 'decimal:4',
+            'costo_base_bs' => 'decimal:4',
+            'flete_usd' => 'decimal:4',
+            'flete_bs' => 'decimal:4',
             'precio_costo_usd' => 'decimal:4',
             'precio_costo_bs' => 'decimal:4',
             'margen_detal' => 'decimal:2',
             'precio_detal_usd' => 'decimal:4',
             'precio_detal_bs' => 'decimal:4',
+            'precio_detal_con_iva_usd' => 'decimal:4',
+            'precio_detal_con_iva_bs' => 'decimal:4',
             'margen_mayorista' => 'decimal:2',
             'precio_mayorista_usd' => 'decimal:4',
             'precio_mayorista_bs' => 'decimal:4',
+            'precio_mayorista_con_iva_usd' => 'decimal:4',
+            'precio_mayorista_con_iva_bs' => 'decimal:4',
         ];
     }
 

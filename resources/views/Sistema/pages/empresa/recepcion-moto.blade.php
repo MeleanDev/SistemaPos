@@ -272,7 +272,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="col-md-3">
+                                    <div class="col-md-6">
                                         <label class="form-label-executive"><i class="fas fa-receipt text-secondary"></i> Monto Bruto Fac. <span class="text-danger">*</span></label>
                                         <div class="input-group">
                                             <span class="input-group-text bg-white text-primary fw-bold label-simbolo-moneda-fac">$</span>
@@ -280,7 +280,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="col-md-3">
+                                    <div class="col-md-6">
                                         <label class="form-label-executive"><i class="fas fa-percent text-secondary"></i> Descuento Global Fac. <small class="text-muted fw-normal">(%)</small></label>
                                         <div class="input-group">
                                             <input type="number" step="any" min="0" max="100" name="descuento_global_porcentaje" id="descuento_global_porcentaje" class="form-control form-control-executive font-monospace" value="0.00" oninput="recalcularTotalesGenerales()">
@@ -346,18 +346,33 @@
                                 </div>
                             </div>
 
-                            <!-- CARD: CONSTRUCTOR DE LOTE / MODELO DE MOTOS & MATRIZ DINÁMICA DE SERIALES -->
-                            <div class="card border rounded-4 p-4 shadow-xs mb-3 bg-white" id="cardConstructorLote" style="border-left: 5px solid #2563eb !important;">
+                            <!-- SELECTOR DE MODO DE RENGLÓN: MOTO CON SERIALES VS PRODUCTO / REPUESTO -->
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                                <div class="d-flex align-items-center gap-2 bg-light p-1.5 rounded-pill border shadow-xs" style="max-width: 480px; width: 100%;">
+                                    <button type="button" class="btn btn-sm rounded-pill px-3 py-1.5 fw-bold transition-all w-50 btn-primary shadow-xs" id="btnModoItemMoto" onclick="cambiarModoItem('moto')">
+                                        <i class="fas fa-motorcycle me-1"></i> 🏍️ Moto con Seriales
+                                    </button>
+                                    <button type="button" class="btn btn-sm rounded-pill px-3 py-1.5 fw-bold transition-all w-50 btn-outline-secondary" id="btnModoItemProducto" onclick="cambiarModoItem('producto')">
+                                        <i class="fas fa-boxes-stacked me-1"></i> 📦 Producto / Repuesto
+                                    </button>
+                                </div>
+                                <span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle px-3 py-1.5 font-monospace fw-bold">
+                                    <i class="fas fa-layer-group me-1"></i> Recepción Mixta Multirubro Habilitada
+                                </span>
+                            </div>
+
+                            <!-- CARD: CONSTRUCTOR DE MOTO CON SERIALES -->
+                            <div class="card border rounded-4 p-4 shadow-xs mb-3 bg-white" id="cardConstructorMoto" style="border-left: 5px solid #2563eb !important;">
                                 <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
                                     <div class="d-flex align-items-center gap-2">
                                         <div class="avatar-executive-xs rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                                            <i class="fas fa-layer-group" id="iconoConstructorLote"></i>
+                                            <i class="fas fa-motorcycle"></i>
                                         </div>
-                                        <h6 class="fw-bold text-dark mb-0" id="tituloConstructorLote">
-                                            1. Configurar Modelo / Lote de Motos
+                                        <h6 class="fw-bold text-dark mb-0">
+                                            Configurar Modelo / Lote de Motos
                                         </h6>
                                         <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle font-monospace px-3 py-1" id="badgeEstadoEdicionLote">
-                                            Nuevo Renglón
+                                            Nuevo Renglón de Moto
                                         </span>
                                     </div>
                                     <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-semibold" id="btnCancelarEdicionLote" onclick="cancelarEdicionLote()" style="display: none;">
@@ -367,18 +382,18 @@
 
                                 <div class="row g-3 mb-3">
                                     <div class="col-md-2">
-                                        <label class="form-label-executive"><i class="fas fa-barcode text-secondary"></i> Referencia Numérica <span class="text-danger">*</span></label>
+                                        <label class="form-label-executive"><i class="fas fa-barcode text-secondary"></i> Referencia <span class="text-danger">*</span></label>
                                         <input type="text" id="lote_referencia" class="form-control form-control-executive font-monospace fw-bold" placeholder="Ej. 1001" maxlength="50" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                                     </div>
 
                                     <div class="col-md-3">
                                         <label class="form-label-executive"><i class="fas fa-copyright text-primary"></i> Marca <span class="text-danger">*</span></label>
-                                        <input type="text" id="lote_marca" class="form-control form-control-executive" placeholder="Ej. Bera, Kavak, Empire, Yamaha..." maxlength="100">
+                                        <input type="text" id="lote_marca" class="form-control form-control-executive" placeholder="Ej. Bera, Kavak, Empire..." maxlength="100">
                                     </div>
 
                                     <div class="col-md-3">
                                         <label class="form-label-executive"><i class="fas fa-motorcycle text-primary"></i> Modelo <span class="text-danger">*</span></label>
-                                        <input type="text" id="lote_modelo" class="form-control form-control-executive" placeholder="Ej. SBR 150, TX 200, Leon 150..." maxlength="100">
+                                        <input type="text" id="lote_modelo" class="form-control form-control-executive" placeholder="Ej. SBR 150, TX 200..." maxlength="100">
                                     </div>
 
                                     <div class="col-md-2">
@@ -392,24 +407,37 @@
                                     </div>
 
                                     <div class="col-md-2">
-                                        <label class="form-label-executive"><i class="fas fa-tachometer-alt text-secondary"></i> Cilindrada (CC)</label>
+                                        <label class="form-label-executive"><i class="fas fa-tachometer-alt text-secondary"></i> Cilindrada</label>
                                         <input type="text" id="lote_cilindrada" class="form-control form-control-executive" placeholder="Ej. 150cc" value="150cc" maxlength="50">
                                     </div>
 
                                     <div class="col-md-2">
-                                        <label class="form-label-executive"><i class="fas fa-hashtag text-primary"></i> Cantidad de Motos <span class="text-danger">*</span></label>
+                                        <label class="form-label-executive"><i class="fas fa-hashtag text-primary"></i> Cantidad <span class="text-danger">*</span></label>
                                         <input type="number" min="1" max="100" id="lote_cantidad" class="form-control form-control-executive font-monospace fw-bold text-center border-primary" value="1" oninput="generarMatrizSeriales()">
                                     </div>
 
                                     <div class="col-md-3">
-                                        <label class="form-label-executive"><i class="fas fa-tag text-success"></i> Costo Unitario <span class="text-danger">*</span></label>
+                                        <label class="form-label-executive"><i class="fas fa-tag text-success"></i> Costo Base Unit. <span class="text-danger">*</span></label>
                                         <div class="input-group">
                                             <span class="input-group-text bg-white label-simbolo-moneda-fac text-success fw-bold">$</span>
                                             <input type="number" step="any" min="0.0001" id="lote_costo_unitario" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.0000" oninput="recalcularPreciosLote()">
                                         </div>
                                         <div class="mt-1 text-end">
-                                            <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs d-inline-block" id="lote_costo_equivalente" style="background-color: #ecfdf5; color: #047857; border: 1.5px solid #6ee7b7; font-size: 0.85rem;">
-                                                Equiv: Bs. 0.0000
+                                            <span class="badge rounded-pill px-2.5 py-0.5 font-monospace fw-semibold shadow-xs d-inline-block" id="lote_costo_equivalente" style="background-color: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; font-size: 0.78rem;">
+                                                Base: Bs. 0.0000
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label-executive"><i class="fas fa-truck-ramp-box text-warning"></i> Flete Unitario <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white text-warning fw-bold label-simbolo-moneda-fac">$</span>
+                                            <input type="number" step="any" min="0" id="lote_flete_unitario" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.0000" value="0.0000" oninput="recalcularPreciosLote()">
+                                        </div>
+                                        <div class="mt-1 text-end">
+                                            <span class="badge rounded-pill px-2.5 py-0.5 font-monospace fw-semibold shadow-xs d-inline-block" id="lote_flete_bs" style="background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; font-size: 0.78rem;">
+                                                Flete: Bs. 0.0000
                                             </span>
                                         </div>
                                     </div>
@@ -422,8 +450,8 @@
                                         </div>
                                     </div>
 
-                                    <div class="col-md-3">
-                                        <label class="form-label-executive"><i class="fas fa-receipt text-secondary"></i> IVA</label>
+                                    <div class="col-md-4">
+                                        <label class="form-label-executive"><i class="fas fa-receipt text-secondary"></i> IVA Compra</label>
                                         <select id="lote_iva" class="form-select form-select-executive font-monospace" onchange="recalcularPreciosLote()">
                                             <option value="16">IVA 16%</option>
                                             <option value="8">IVA 8%</option>
@@ -431,45 +459,59 @@
                                         </select>
                                     </div>
 
-                                    <div class="col-md-3">
-                                        <label class="form-label-executive"><i class="fas fa-chart-line text-primary"></i> Margen Detal (%)</label>
-                                        <div class="input-group">
-                                            <input type="number" step="any" min="0" id="lote_margen_detal" class="form-control form-control-executive font-monospace text-center" value="25" oninput="calcularPrecioDetalLote()">
+                                    <div class="col-md-8">
+                                        <label class="form-label-executive"><i class="fas fa-coins text-dark"></i> Costo Total Calculado (Base + IVA + Flete)</label>
+                                        <div class="p-2 rounded-3 bg-light border d-flex align-items-center justify-content-between" style="min-height: 42px;">
+                                            <span class="fw-bold font-monospace text-dark fs-6" id="lote_costo_total_usd">$ 0.0000</span>
+                                            <span class="badge rounded-pill bg-dark text-white font-monospace px-3 py-1.5" id="lote_costo_total_bs">Bs. 0.0000</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- PRECIO DETAL SIN IVA Y CON IVA -->
+                                    <div class="col-md-6">
+                                        <label class="form-label-executive"><i class="fas fa-chart-line text-primary"></i> Margen Detal (%) & Precio Venta (Con IVA / PVP)</label>
+                                        <div class="input-group mb-2">
+                                            <input type="number" step="any" min="0" id="lote_margen_detal" class="form-control form-control-executive font-monospace text-center" style="max-width: 95px;" value="25" oninput="calcularPrecioDetalLote()">
                                             <span class="input-group-text bg-white">%</span>
+                                            <input type="number" step="any" min="0" id="lote_precio_detal" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="PVP Con IVA" oninput="calcularMargenDetalLote()">
+                                        </div>
+                                        <div class="d-flex flex-column gap-1.5 p-2.5 rounded-3 bg-light border shadow-xs">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-primary fw-bold"><i class="fas fa-tag me-1"></i>PVP (Con IVA):</small>
+                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="lote_detal_con_iva_badge" style="background-color: #eff6ff; color: #1d4ed8; border: 1.5px solid #bfdbfe; font-size: 0.84rem;">
+                                                    $ 0.00 | Bs. 0.00
+                                                </span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center border-top pt-1.5">
+                                                <small class="text-muted fw-semibold"><i class="fas fa-info-circle text-primary me-1"></i>Precio Sin IVA:</small>
+                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="lote_detal_sin_iva" style="background-color: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; font-size: 0.84rem;">
+                                                    $ 0.00 | Bs. 0.00
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div class="col-md-3">
-                                        <label class="form-label-executive"><i class="fas fa-store text-primary"></i> Precio Detal</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-white text-primary fw-bold label-simbolo-moneda-fac">$</span>
-                                            <input type="number" step="any" min="0" id="lote_precio_detal" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.0000" oninput="calcularMargenDetalLote()">
-                                        </div>
-                                        <div class="mt-1 text-end">
-                                            <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs d-inline-block" id="lote_detal_bs" style="background-color: #eff6ff; color: #1d4ed8; border: 1.5px solid #93c5fd; font-size: 0.88rem;">
-                                                Bs. 0.0000
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        <label class="form-label-executive"><i class="fas fa-boxes text-secondary"></i> Margen Mayor (%)</label>
-                                        <div class="input-group">
-                                            <input type="number" step="any" min="0" id="lote_margen_mayorista" class="form-control form-control-executive font-monospace text-center" value="15" oninput="calcularPrecioMayoristaLote()">
+                                    <!-- PRECIO MAYORISTA SIN IVA Y CON IVA -->
+                                    <div class="col-md-6">
+                                        <label class="form-label-executive" style="color: #7e22ce;"><i class="fas fa-truck-moving"></i> Margen Mayor (%) & Precio Mayor (Con IVA / PVP)</label>
+                                        <div class="input-group mb-2">
+                                            <input type="number" step="any" min="0" id="lote_margen_mayorista" class="form-control form-control-executive font-monospace text-center" style="max-width: 95px;" value="15" oninput="calcularPrecioMayoristaLote()">
                                             <span class="input-group-text bg-white">%</span>
+                                            <input type="number" step="any" min="0" id="lote_precio_mayorista" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="Mayor Con IVA" oninput="calcularMargenMayoristaLote()">
                                         </div>
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        <label class="form-label-executive" style="color: #7e22ce;"><i class="fas fa-truck-moving"></i> Precio Mayorista</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-white fw-bold label-simbolo-moneda-fac" style="color: #7e22ce;">$</span>
-                                            <input type="number" step="any" min="0" id="lote_precio_mayorista" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.0000" oninput="calcularMargenMayoristaLote()">
-                                        </div>
-                                        <div class="mt-1 text-end">
-                                            <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs d-inline-block" id="lote_mayorista_bs" style="background-color: #faf5ff; color: #6b21a8; border: 1.5px solid #d8b4fe; font-size: 0.88rem;">
-                                                Bs. 0.0000
-                                            </span>
+                                        <div class="d-flex flex-column gap-1.5 p-2.5 rounded-3 bg-light border shadow-xs">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="fw-bold" style="color: #7e22ce;"><i class="fas fa-tag me-1"></i>Mayor (Con IVA):</small>
+                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="lote_mayorista_con_iva_badge" style="background-color: #faf5ff; color: #6b21a8; border: 1.5px solid #d8b4fe; font-size: 0.84rem;">
+                                                    $ 0.00 | Bs. 0.00
+                                                </span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center border-top pt-1.5">
+                                                <small class="text-muted fw-semibold" style="color: #7e22ce !important;"><i class="fas fa-info-circle me-1"></i>Mayor Sin IVA:</small>
+                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="lote_mayorista_sin_iva" style="background-color: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; font-size: 0.84rem;">
+                                                    $ 0.00 | Bs. 0.00
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -478,7 +520,7 @@
                                 <div class="border rounded-4 p-3 bg-white shadow-xs mb-3">
                                     <div class="d-flex align-items-center justify-content-between mb-2">
                                         <div class="d-flex align-items-center gap-2">
-                                            <h6 class="fw-bold text-dark mb-0"><i class="fas fa-fingerprint text-success me-2"></i> 2. Matriz de Seriales Únicos para este Modelo</h6>
+                                            <h6 class="fw-bold text-dark mb-0"><i class="fas fa-fingerprint text-success me-2"></i> Matriz de Seriales Únicos para este Modelo</h6>
                                             <span class="badge rounded-pill bg-success text-white px-2 py-1 font-monospace" id="badgeCantidadSeriales">1 Moto</span>
                                         </div>
                                         <small class="text-muted"><kbd>Enter</kbd> o <kbd>Tab</kbd> para saltar rápidamente entre celdas</small>
@@ -507,23 +549,147 @@
                                 <!-- BOTÓN PARA INSERTAR O GUARDAR EL LOTE A LA FACTURA -->
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="text-muted small">
-                                        <i class="fas fa-lightbulb text-warning me-1"></i> Al presionar el botón, el modelo se guardará en la tabla de abajo y el formulario quedará libre para agregar otro modelo.
+                                        <i class="fas fa-lightbulb text-warning me-1"></i> Al presionar el botón, el modelo de moto se guardará en el detalle de la factura.
                                     </div>
                                     <button type="button" class="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-xs d-flex align-items-center gap-2" id="btnAccionLote" onclick="agregarLoteAFactura()">
                                         <i class="fas fa-plus-circle" id="btnAccionLoteIcono"></i>
-                                        <span id="btnAccionLoteTexto">Agregar este Modelo a la Factura</span>
+                                        <span id="btnAccionLoteTexto">Agregar este Modelo de Moto</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <!-- CARD: TABLA DE LOTES CARGADOS A LA FACTURA -->
+                            <!-- CARD: CONSTRUCTOR DE PRODUCTOS / REPUESTOS / ACCESORIOS -->
+                            <div class="card border rounded-4 p-4 shadow-xs mb-3 bg-white" id="cardConstructorProducto" style="display: none; border-left: 5px solid #059669 !important;">
+                                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-executive-xs rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                            <i class="fas fa-box-open"></i>
+                                        </div>
+                                        <h6 class="fw-bold text-dark mb-0">
+                                            Configurar Producto / Repuesto / Accesorio
+                                        </h6>
+                                        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle font-monospace px-3 py-1" id="badgeEstadoEdicionProducto">
+                                            Nuevo Renglón de Producto
+                                        </span>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-semibold" id="btnCancelarEdicionProducto" onclick="cancelarEdicionProducto()" style="display: none;">
+                                        <i class="fas fa-times me-1"></i> Cancelar Edición
+                                    </button>
+                                </div>
+
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label-executive"><i class="fas fa-box text-success"></i> Producto del Catálogo <span class="text-danger">*</span></label>
+                                        <select id="prod_select_id" class="form-select form-select-executive" onchange="seleccionarProductoDeCatalogo()">
+                                            <option value="">Buscar o seleccionar producto...</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label-executive"><i class="fas fa-warehouse text-secondary"></i> Almacén Destino <span class="text-danger">*</span></label>
+                                        <select id="prod_almacen_id" class="form-select form-select-executive">
+                                            <option value="">Seleccione almacén...</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label-executive"><i class="fas fa-hashtag text-success"></i> Cantidad <span class="text-danger">*</span></label>
+                                        <input type="number" min="1" step="any" id="prod_cantidad" class="form-control form-control-executive font-monospace fw-bold text-center border-success" value="1" oninput="recalcularPreciosProducto()">
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label-executive"><i class="fas fa-tag text-success"></i> Costo Unit. <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white label-simbolo-moneda-fac text-success fw-bold">$</span>
+                                            <input type="number" step="any" min="0.0001" id="prod_costo_unitario" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.0000" oninput="recalcularPreciosProducto()">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label-executive"><i class="fas fa-percent text-secondary"></i> Descuento (%)</label>
+                                        <div class="input-group">
+                                            <input type="number" step="any" min="0" max="100" id="prod_descuento" class="form-control form-control-executive font-monospace text-center" value="0.00" oninput="recalcularPreciosProducto()">
+                                            <span class="input-group-text bg-white">%</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label-executive"><i class="fas fa-receipt text-secondary"></i> IVA</label>
+                                        <select id="prod_iva" class="form-select form-select-executive font-monospace" onchange="recalcularPreciosProducto()">
+                                            <option value="16">IVA 16%</option>
+                                            <option value="8">IVA 8%</option>
+                                            <option value="0">Exento (0%)</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Margen Detal % & Precios Sin/Con IVA -->
+                                    <div class="col-md-6">
+                                        <label class="form-label-executive"><i class="fas fa-chart-line text-success"></i> Margen Detal (%) & Precio Venta (Con IVA / PVP)</label>
+                                        <div class="input-group mb-2">
+                                            <input type="number" step="any" min="0" id="prod_margen_detal" class="form-control form-control-executive font-monospace text-center" style="max-width: 95px;" value="30" oninput="calcularPrecioDetalProducto()">
+                                            <span class="input-group-text bg-white">%</span>
+                                            <input type="number" step="any" min="0" id="prod_precio_detal" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="PVP Con IVA" oninput="calcularMargenDetalProducto()">
+                                        </div>
+                                        <div class="d-flex flex-column gap-1.5 p-2.5 rounded-3 bg-light border shadow-xs">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-success fw-bold"><i class="fas fa-tag me-1"></i>PVP (Con IVA):</small>
+                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="prod_detal_con_iva_badge" style="background-color: #eff6ff; color: #1d4ed8; border: 1.5px solid #bfdbfe; font-size: 0.84rem;">
+                                                    $ 0.00 | Bs. 0.00
+                                                </span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center border-top pt-1.5">
+                                                <small class="text-muted fw-semibold"><i class="fas fa-info-circle text-success me-1"></i>Precio Sin IVA:</small>
+                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="prod_detal_sin_iva" style="background-color: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; font-size: 0.84rem;">
+                                                    $ 0.00 | Bs. 0.00
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Margen Mayorista % & Precios Sin/Con IVA -->
+                                    <div class="col-md-6">
+                                        <label class="form-label-executive" style="color: #7e22ce;"><i class="fas fa-truck-moving"></i> Margen Mayor (%) & Precio Mayor (Con IVA / PVP)</label>
+                                        <div class="input-group mb-2">
+                                            <input type="number" step="any" min="0" id="prod_margen_mayorista" class="form-control form-control-executive font-monospace text-center" style="max-width: 95px;" value="15" oninput="calcularPrecioMayoristaProducto()">
+                                            <span class="input-group-text bg-white">%</span>
+                                            <input type="number" step="any" min="0" id="prod_precio_mayorista" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="Mayor Con IVA" oninput="calcularMargenMayoristaProducto()">
+                                        </div>
+                                        <div class="d-flex flex-column gap-1.5 p-2.5 rounded-3 bg-light border shadow-xs">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="fw-bold" style="color: #7e22ce;"><i class="fas fa-tag me-1"></i>Mayor (Con IVA):</small>
+                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="prod_mayorista_con_iva_badge" style="background-color: #faf5ff; color: #6b21a8; border: 1.5px solid #d8b4fe; font-size: 0.84rem;">
+                                                    $ 0.00 | Bs. 0.00
+                                                </span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center border-top pt-1.5">
+                                                <small class="text-muted fw-semibold" style="color: #7e22ce !important;"><i class="fas fa-info-circle me-1"></i>Mayor Sin IVA:</small>
+                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="prod_mayorista_sin_iva" style="background-color: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; font-size: 0.84rem;">
+                                                    $ 0.00 | Bs. 0.00
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="text-muted small">
+                                        <i class="fas fa-lightbulb text-success me-1"></i> Este producto ingresará directamente al inventario general y generará su movimiento en el Kardex.
+                                    </div>
+                                    <button type="button" class="btn btn-success rounded-pill px-4 py-2 fw-bold shadow-xs d-flex align-items-center gap-2" id="btnAccionProducto" onclick="agregarProductoAFactura()">
+                                        <i class="fas fa-plus-circle" id="btnAccionProductoIcono"></i>
+                                        <span id="btnAccionProductoTexto">Agregar este Producto a la Factura</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- CARD: TABLA DE RENGLONES CARGADOS A LA FACTURA (MOTOS + PRODUCTOS) -->
                             <div class="card border rounded-4 shadow-xs mb-3 bg-white overflow-hidden">
                                 <div class="p-3 border-bottom bg-white d-flex align-items-center justify-content-between">
                                     <div class="d-flex align-items-center gap-2">
-                                        <h6 class="fw-bold text-dark mb-0"><i class="fas fa-list-check text-primary me-2"></i> Modelos / Lotes Agregados a la Factura</h6>
+                                        <h6 class="fw-bold text-dark mb-0"><i class="fas fa-list-check text-primary me-2"></i> Renglones Cargados a la Factura (Motos y Productos)</h6>
                                     </div>
                                     <div class="d-flex align-items-center gap-2">
-                                        <span class="badge bg-primary text-white rounded-pill px-3 py-1 fw-bold" id="contadorLotesMotos">0 Modelos (0 Motos)</span>
+                                        <span class="badge bg-primary text-white rounded-pill px-3 py-1 fw-bold" id="contadorLotesMotos">0 Renglones (0 Unidades)</span>
                                     </div>
                                 </div>
 
@@ -531,24 +697,26 @@
                                     <table class="table table-hover align-middle mb-0" id="tablaRecepcionMotoDetalles">
                                         <thead class="bg-white border-bottom sticky-top font-monospace" style="font-size: 0.74rem;">
                                             <tr>
-                                                <th style="width: 40px;" class="text-center">#</th>
-                                                <th style="min-width: 180px;">Modelo / Marca</th>
-                                                <th style="min-width: 100px;">Año / Color</th>
-                                                <th class="text-center" style="min-width: 90px;">Cant. Motos</th>
-                                                <th class="text-end" style="min-width: 110px;">Costo Unit.</th>
-                                                <th class="text-center" style="min-width: 70px;">IVA</th>
-                                                <th class="text-end" style="min-width: 110px;">Precio Detal</th>
-                                                <th class="text-end" style="min-width: 110px;">Precio Mayor</th>
-                                                <th class="text-end" style="min-width: 120px;">Total Lote</th>
-                                                <th class="text-center" style="min-width: 120px;">Seriales</th>
-                                                <th class="text-center" style="width: 90px;">Acción</th>
+                                                <th style="width: 35px;" class="text-center">#</th>
+                                                <th style="width: 70px;" class="text-center">Tipo</th>
+                                                <th style="min-width: 170px;">Descripción / Modelo</th>
+                                                <th class="text-center" style="min-width: 80px;">Cant.</th>
+                                                <th class="text-end" style="min-width: 100px;">Costo Base</th>
+                                                <th class="text-end" style="min-width: 90px;">Flete Unit.</th>
+                                                <th class="text-end" style="min-width: 100px;">Costo Total</th>
+                                                <th class="text-center" style="min-width: 65px;">IVA</th>
+                                                <th class="text-end" style="min-width: 110px;">PVP Detal (Sin/Con)</th>
+                                                <th class="text-end" style="min-width: 110px;">PVP Mayor (Sin/Con)</th>
+                                                <th class="text-end" style="min-width: 110px;">Subtotal Renglón</th>
+                                                <th class="text-center" style="width: 80px;">Seriales</th>
+                                                <th class="text-center" style="width: 80px;">Acción</th>
                                             </tr>
                                         </thead>
                                         <tbody id="tbodyRecepcionMotoDetalles">
                                             <tr id="filaSinLotes">
-                                                <td colspan="11" class="text-center py-4 text-muted">
+                                                <td colspan="13" class="text-center py-4 text-muted">
                                                     <i class="fas fa-motorcycle fs-3 d-block mb-2 opacity-50"></i>
-                                                    No has agregado ningún modelo de motos a esta factura.
+                                                    No has agregado ningún renglón (moto o producto) a esta factura.
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -579,38 +747,62 @@
 
                             <!-- RESUMEN DE TOTALES Y OBSERVACIONES -->
                             <div class="row g-3">
-                                <div class="col-md-7">
+                                <div class="col-md-6">
                                     <div class="card border rounded-4 p-3 shadow-xs h-100 bg-white">
                                         <label class="form-label-executive"><i class="fas fa-comment-alt text-secondary"></i> Observaciones Generales de la Compra</label>
-                                        <textarea name="observaciones" id="observaciones" class="form-control form-control-executive" rows="3" placeholder="Información sobre la factura de compra, transporte, contenedor, precintos o condiciones especiales..."></textarea>
+                                        <textarea name="observaciones" id="observaciones" class="form-control form-control-executive" rows="4" placeholder="Información sobre la factura de compra, transporte, fletes, contenedor, precintos o condiciones especiales..."></textarea>
                                     </div>
                                 </div>
 
-                                <div class="col-md-5">
+                                <div class="col-md-6">
                                     <div class="card border-0 rounded-4 p-4 shadow-sm text-white" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
-                                        <h6 class="fw-bold text-white-50 text-uppercase mb-3" style="letter-spacing: 0.05em; font-size: 0.8rem;">
-                                            <i class="fas fa-calculator me-1"></i> Liquidación Fiscal Global
-                                        </h6>
-
-                                        <div class="d-flex justify-content-between align-items-center mb-2 font-monospace">
-                                            <span class="text-white-50">Subtotal Neto:</span>
-                                            <span class="fw-bold fs-6" id="resumenSubtotalUsd">$ 0.0000</span>
+                                        <div class="d-flex align-items-center justify-content-between mb-3">
+                                            <h6 class="fw-bold text-white text-uppercase mb-0" style="letter-spacing: 0.05em; font-size: 0.85rem;">
+                                                <i class="fas fa-calculator text-warning me-1"></i> Liquidación Fiscal Global
+                                            </h6>
+                                            <span class="badge rounded-pill bg-white bg-opacity-10 text-white-50 px-2 py-1 font-monospace small">
+                                                Base + IVA + Flete
+                                            </span>
                                         </div>
 
-                                        <div class="d-flex justify-content-between align-items-center mb-2 font-monospace">
-                                            <span class="text-white-50">Total IVA:</span>
-                                            <span class="fw-bold fs-6" id="resumenIvaUsd">$ 0.0000</span>
+                                        <div class="d-flex justify-content-between align-items-center mb-1.5 font-monospace">
+                                            <span class="text-white-50">Base Imponible:</span>
+                                            <span class="fw-bold text-white fs-6" id="resumenBaseImponible">$ 0.00 | Bs. 0.00</span>
                                         </div>
 
-                                        <div class="d-flex justify-content-between align-items-center mb-2 font-monospace">
-                                            <span class="text-white-50">Descuento Global:</span>
-                                            <span class="fw-bold text-warning fs-6" id="resumenDescuentoUsd">-$ 0.0000</span>
+                                        <div class="d-flex justify-content-between align-items-center mb-1.5 font-monospace">
+                                            <span class="text-white-50">Descuento:</span>
+                                            <span class="fw-bold text-danger fs-6" id="resumenDescuentoUsd">-$ 0.00 | -Bs. 0.00</span>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-center mb-1.5 font-monospace">
+                                            <span class="text-white-50">Exento (0% IVA):</span>
+                                            <span class="fw-bold text-white-50 fs-6" id="resumenExento">$ 0.00 | Bs. 0.00</span>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-center mb-1.5 font-monospace">
+                                            <span class="text-white-50" id="labelResumenIva">IVA (16%):</span>
+                                            <span class="fw-bold text-white fs-6" id="resumenIvaUsd">$ 0.00 | Bs. 0.00</span>
+                                        </div>
+
+                                        <!-- FLETE Y SWITCH DE INCLUSIÓN EN FACTURA -->
+                                        <div class="p-2.5 rounded-3 bg-white bg-opacity-10 my-2 border border-white border-opacity-10">
+                                            <div class="d-flex justify-content-between align-items-center mb-1 font-monospace">
+                                                <span class="text-warning small fw-bold"><i class="fas fa-truck-fast me-1"></i> Flete Total Motos:</span>
+                                                <span class="fw-bold text-warning fs-6" id="resumenFleteTotal">$ 0.00 | Bs. 0.00</span>
+                                            </div>
+                                            <div class="form-check form-switch p-0 d-flex align-items-center justify-content-between m-0">
+                                                <label class="form-check-label text-white small mb-0 cursor-pointer" for="switchIncluirFleteFactura" style="cursor: pointer;">
+                                                    <i class="fas fa-file-invoice-dollar text-info me-1"></i> ¿Incluir flete en el total de la factura fiscal?
+                                                </label>
+                                                <input class="form-check-input ms-2" type="checkbox" role="switch" id="switchIncluirFleteFactura" name="incluir_flete_en_factura" value="1" onchange="recalcularTotalesGenerales()" style="cursor: pointer; width: 2.3em; height: 1.2em;">
+                                            </div>
                                         </div>
 
                                         <hr class="border-secondary my-2">
 
                                         <div class="d-flex justify-content-between align-items-center mb-1 font-monospace">
-                                            <span class="fs-5 fw-bold text-white">TOTAL COMPRA ($):</span>
+                                            <span class="fs-5 fw-bold text-white">MONTO TOTAL FACTURA:</span>
                                             <span class="fs-4 fw-bolder text-warning" id="resumenTotalUsd">$ 0.0000</span>
                                         </div>
 

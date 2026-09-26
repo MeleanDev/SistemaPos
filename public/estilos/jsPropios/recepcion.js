@@ -306,6 +306,8 @@ function actualizarTasasDesdeInput() {
     calcularPrecioDetalDesdeMargen();
     calcularPrecioMayoristaDesdeMargen();
     recalcularFormularioRenglon();
+    renderizarTablaDetalles();
+    recalcularTotalesGenerales();
 }
 
 function restablecerTasaOficial(tipo) {
@@ -774,6 +776,25 @@ function seleccionarProductoParaCarga(prod, datosPrecargados = null) {
     actualizarStockAlmacenFormulario();
     calcularCantidadDesdeBultos();
 
+    if (datosPrecargados) {
+        if (datosPrecargados.precio_detal_con_iva_usd > 0) {
+            if (esVes) {
+                $("#form_renglon_precio_detal").val((datosPrecargados.precio_detal_con_iva_bs || (datosPrecargados.precio_detal_con_iva_usd * tasaVentaActual)).toFixed(4));
+            } else {
+                $("#form_renglon_precio_detal").val(datosPrecargados.precio_detal_con_iva_usd.toFixed(4));
+            }
+            calcularMargenDetalDesdePrecio();
+        }
+        if (datosPrecargados.precio_mayorista_con_iva_usd > 0) {
+            if (esVes) {
+                $("#form_renglon_precio_mayorista").val((datosPrecargados.precio_mayorista_con_iva_bs || (datosPrecargados.precio_mayorista_con_iva_usd * tasaVentaActual)).toFixed(4));
+            } else {
+                $("#form_renglon_precio_mayorista").val(datosPrecargados.precio_mayorista_con_iva_usd.toFixed(4));
+            }
+            calcularMargenMayoristaDesdePrecio();
+        }
+    }
+
     $("#panelFormularioRenglon").slideDown(150);
 
     setTimeout(() => {
@@ -841,8 +862,12 @@ function actualizarCostoUnitarioManual() {
 }
 
 function calcularPrecioDetalDesdeMargen() {
+    const ivaPorcentaje = normalizarNumero($("#form_renglon_iva").val());
     const res = window.CalculosCompra.calcularPreciosDesdeMargen({
         costo: $("#form_renglon_costo_unitario").val(),
+        flete: 0,
+        ivaPorcentaje: ivaPorcentaje,
+        aplicaIva: ivaPorcentaje > 0,
         margenDetal: $("#form_renglon_margen_detal").val(),
         margenMayorista: $("#form_renglon_margen_mayorista").val(),
         tasaCompra: tasaCompraActual,
@@ -850,43 +875,49 @@ function calcularPrecioDetalDesdeMargen() {
         moneda: monedaDocumentoActual,
     });
 
-    if (res.costoUsd > 0 || res.costoBs > 0) {
+    if (res.costoBaseUsd > 0 || res.costoBaseBs > 0) {
         if (monedaDocumentoActual === "VES") {
-            $("#form_renglon_precio_detal").val(res.precioDetalBs.toFixed(4));
-            $("#form_renglon_detal_bs").text(`$ ${formatearMonto(res.precioDetalUsd, 4)}`);
+            $("#form_renglon_precio_detal").val(res.precioDetalConIvaBs.toFixed(4));
         } else {
-            $("#form_renglon_precio_detal").val(res.precioDetalUsd.toFixed(4));
-            $("#form_renglon_detal_bs").text(`Bs. ${formatearMonto(res.precioDetalBs, 4)}`);
+            $("#form_renglon_precio_detal").val(res.precioDetalConIvaUsd.toFixed(4));
         }
+        $("#form_renglon_detal_con_iva_badge").text(`$ ${formatearMonto(res.precioDetalConIvaUsd, 2)} | Bs. ${formatearMonto(res.precioDetalConIvaBs, 2)}`);
+        $("#form_renglon_detal_sin_iva").text(`$ ${formatearMonto(res.precioDetalUsd, 2)} | Bs. ${formatearMonto(res.precioDetalBs, 2)}`);
     } else {
         $("#form_renglon_precio_detal").val("");
-        $("#form_renglon_detal_bs").text(monedaDocumentoActual === "VES" ? "$ 0,0000" : "Bs. 0,0000");
+        $("#form_renglon_detal_con_iva_badge").text("$ 0,00 | Bs. 0,00");
+        $("#form_renglon_detal_sin_iva").text("$ 0,00 | Bs. 0,00");
     }
 }
 
 function calcularMargenDetalDesdePrecio() {
+    const ivaPorcentaje = normalizarNumero($("#form_renglon_iva").val());
     const res = window.CalculosCompra.calcularMargenDesdePrecio({
         costo: $("#form_renglon_costo_unitario").val(),
         precio: $("#form_renglon_precio_detal").val(),
+        tipoPrecio: 'con_iva',
+        ivaPorcentaje: ivaPorcentaje,
+        aplicaIva: ivaPorcentaje > 0,
         tasaCompra: tasaCompraActual,
         tasaVenta: tasaVentaActual,
         moneda: monedaDocumentoActual,
     });
 
-    if (res.precioUsd > 0 || res.precioBs > 0) {
+    if (res.precioConIvaUsd > 0 || res.precioConIvaBs > 0) {
         $("#form_renglon_margen_detal").val(res.margen.toFixed(0));
-        if (monedaDocumentoActual === "VES") {
-            $("#form_renglon_detal_bs").text(`$ ${formatearMonto(res.precioUsd, 4)}`);
-        } else {
-            $("#form_renglon_detal_bs").text(`Bs. ${formatearMonto(res.precioBs, 4)}`);
-        }
+        $("#form_renglon_detal_con_iva_badge").text(`$ ${formatearMonto(res.precioConIvaUsd, 2)} | Bs. ${formatearMonto(res.precioConIvaBs, 2)}`);
+        $("#form_renglon_detal_sin_iva").text(`$ ${formatearMonto(res.precioUsd, 2)} | Bs. ${formatearMonto(res.precioBs, 2)}`);
     }
     recalcularFormularioRenglon();
 }
 
 function calcularPrecioMayoristaDesdeMargen() {
+    const ivaPorcentaje = normalizarNumero($("#form_renglon_iva").val());
     const res = window.CalculosCompra.calcularPreciosDesdeMargen({
         costo: $("#form_renglon_costo_unitario").val(),
+        flete: 0,
+        ivaPorcentaje: ivaPorcentaje,
+        aplicaIva: ivaPorcentaje > 0,
         margenDetal: $("#form_renglon_margen_detal").val(),
         margenMayorista: $("#form_renglon_margen_mayorista").val(),
         tasaCompra: tasaCompraActual,
@@ -894,36 +925,38 @@ function calcularPrecioMayoristaDesdeMargen() {
         moneda: monedaDocumentoActual,
     });
 
-    if (res.costoUsd > 0 || res.costoBs > 0) {
+    if (res.costoBaseUsd > 0 || res.costoBaseBs > 0) {
         if (monedaDocumentoActual === "VES") {
-            $("#form_renglon_precio_mayorista").val(res.precioMayoristaBs.toFixed(4));
-            $("#form_renglon_mayorista_bs").text(`$ ${formatearMonto(res.precioMayoristaUsd, 4)}`);
+            $("#form_renglon_precio_mayorista").val(res.precioMayoristaConIvaBs.toFixed(4));
         } else {
-            $("#form_renglon_precio_mayorista").val(res.precioMayoristaUsd.toFixed(4));
-            $("#form_renglon_mayorista_bs").text(`Bs. ${formatearMonto(res.precioMayoristaBs, 4)}`);
+            $("#form_renglon_precio_mayorista").val(res.precioMayoristaConIvaUsd.toFixed(4));
         }
+        $("#form_renglon_mayorista_con_iva_badge").text(`$ ${formatearMonto(res.precioMayoristaConIvaUsd, 2)} | Bs. ${formatearMonto(res.precioMayoristaConIvaBs, 2)}`);
+        $("#form_renglon_mayorista_sin_iva").text(`$ ${formatearMonto(res.precioMayoristaUsd, 2)} | Bs. ${formatearMonto(res.precioMayoristaBs, 2)}`);
     } else {
         $("#form_renglon_precio_mayorista").val("");
-        $("#form_renglon_mayorista_bs").text(monedaDocumentoActual === "VES" ? "$ 0,0000" : "Bs. 0,0000");
+        $("#form_renglon_mayorista_con_iva_badge").text("$ 0,00 | Bs. 0,00");
+        $("#form_renglon_mayorista_sin_iva").text("$ 0,00 | Bs. 0,00");
     }
 }
 
 function calcularMargenMayoristaDesdePrecio() {
+    const ivaPorcentaje = normalizarNumero($("#form_renglon_iva").val());
     const res = window.CalculosCompra.calcularMargenDesdePrecio({
         costo: $("#form_renglon_costo_unitario").val(),
         precio: $("#form_renglon_precio_mayorista").val(),
+        tipoPrecio: 'con_iva',
+        ivaPorcentaje: ivaPorcentaje,
+        aplicaIva: ivaPorcentaje > 0,
         tasaCompra: tasaCompraActual,
         tasaVenta: tasaVentaActual,
         moneda: monedaDocumentoActual,
     });
 
-    if (res.precioUsd > 0 || res.precioBs > 0) {
+    if (res.precioConIvaUsd > 0 || res.precioConIvaBs > 0) {
         $("#form_renglon_margen_mayorista").val(res.margen.toFixed(0));
-        if (monedaDocumentoActual === "VES") {
-            $("#form_renglon_mayorista_bs").text(`$ ${formatearMonto(res.precioUsd, 4)}`);
-        } else {
-            $("#form_renglon_mayorista_bs").text(`Bs. ${formatearMonto(res.precioBs, 4)}`);
-        }
+        $("#form_renglon_mayorista_con_iva_badge").text(`$ ${formatearMonto(res.precioConIvaUsd, 2)} | Bs. ${formatearMonto(res.precioConIvaBs, 2)}`);
+        $("#form_renglon_mayorista_sin_iva").text(`$ ${formatearMonto(res.precioUsd, 2)} | Bs. ${formatearMonto(res.precioBs, 2)}`);
     }
     recalcularFormularioRenglon();
 }
@@ -1045,31 +1078,65 @@ function agregarOActualizarRenglon() {
     const margenDetal = normalizarNumero($("#form_renglon_margen_detal").val()) || 30;
     const margenMayor = normalizarNumero($("#form_renglon_margen_mayorista").val()) || 15;
 
-    let precioDetalUsd = 0;
-    let precioDetalBs = 0;
-    let precioMayorUsd = 0;
-    let precioMayorBs = 0;
+    const resPrecios = window.CalculosCompra.calcularPreciosDesdeMargen({
+        costo: costoInput,
+        flete: 0,
+        ivaPorcentaje: ivaPorc,
+        aplicaIva: ivaPorc > 0,
+        margenDetal: margenDetal,
+        margenMayorista: margenMayor,
+        tasaCompra: tCompra,
+        tasaVenta: tVenta,
+        moneda: monedaDocumentoActual,
+    });
 
-    if (!esVes) {
-        const sugeridoDetalUsd = tasaMenor
-            ? (costoUsd * (1 + margenDetal / 100))
-            : ((costoUsd * (1 + margenDetal / 100) * tCompra) / tVenta);
-        precioDetalUsd = normalizarNumero($("#form_renglon_precio_detal").val()) || sugeridoDetalUsd;
-        precioDetalBs = precioDetalUsd * tVenta;
+    const pDetalInput = normalizarNumero($("#form_renglon_precio_detal").val());
+    const pMayorInput = normalizarNumero($("#form_renglon_precio_mayorista").val());
 
-        const sugeridoMayorUsd = tasaMenor
-            ? (costoUsd * (1 + margenMayor / 100))
-            : ((costoUsd * (1 + margenMayor / 100) * tCompra) / tVenta);
-        precioMayorUsd = normalizarNumero($("#form_renglon_precio_mayorista").val()) || sugeridoMayorUsd;
-        precioMayorBs = precioMayorUsd * tVenta;
-    } else {
-        const sugeridoDetalUsd = costoUsd * (1 + margenDetal / 100);
-        precioDetalBs = normalizarNumero($("#form_renglon_precio_detal").val()) || (sugeridoDetalUsd * tVenta);
-        precioDetalUsd = precioDetalBs / tVenta;
+    let precioDetalUsd = resPrecios.precioDetalUsd;
+    let precioDetalBs = resPrecios.precioDetalBs;
+    let precioDetalConIvaUsd = resPrecios.precioDetalConIvaUsd;
+    let precioDetalConIvaBs = resPrecios.precioDetalConIvaBs;
 
-        const sugeridoMayorUsd = costoUsd * (1 + margenMayor / 100);
-        precioMayorBs = normalizarNumero($("#form_renglon_precio_mayorista").val()) || (sugeridoMayorUsd * tVenta);
-        precioMayorUsd = precioMayorBs / tVenta;
+    if (pDetalInput > 0) {
+        const resDetal = window.CalculosCompra.calcularMargenDesdePrecio({
+            costo: costoInput,
+            flete: 0,
+            precio: pDetalInput,
+            tipoPrecio: 'con_iva',
+            ivaPorcentaje: ivaPorc,
+            aplicaIva: ivaPorc > 0,
+            tasaCompra: tCompra,
+            tasaVenta: tVenta,
+            moneda: monedaDocumentoActual,
+        });
+        precioDetalConIvaUsd = resDetal.precioConIvaUsd;
+        precioDetalConIvaBs = resDetal.precioConIvaBs;
+        precioDetalUsd = resDetal.precioUsd;
+        precioDetalBs = resDetal.precioBs;
+    }
+
+    let precioMayorUsd = resPrecios.precioMayoristaUsd;
+    let precioMayorBs = resPrecios.precioMayoristaBs;
+    let precioMayoristaConIvaUsd = resPrecios.precioMayoristaConIvaUsd;
+    let precioMayoristaConIvaBs = resPrecios.precioMayoristaConIvaBs;
+
+    if (pMayorInput > 0) {
+        const resMayor = window.CalculosCompra.calcularMargenDesdePrecio({
+            costo: costoInput,
+            flete: 0,
+            precio: pMayorInput,
+            tipoPrecio: 'con_iva',
+            ivaPorcentaje: ivaPorc,
+            aplicaIva: ivaPorc > 0,
+            tasaCompra: tCompra,
+            tasaVenta: tVenta,
+            moneda: monedaDocumentoActual,
+        });
+        precioMayoristaConIvaUsd = resMayor.precioConIvaUsd;
+        precioMayoristaConIvaBs = resMayor.precioConIvaBs;
+        precioMayorUsd = resMayor.precioUsd;
+        precioMayorBs = resMayor.precioBs;
     }
 
     const subtotalBrutoUsd = cantidad * costoUsd;
@@ -1101,9 +1168,13 @@ function agregarOActualizarRenglon() {
         margen_detal_porcentaje: margenDetal,
         precio_detal_usd: precioDetalUsd,
         precio_detal_bs: precioDetalBs,
+        precio_detal_con_iva_usd: precioDetalConIvaUsd,
+        precio_detal_con_iva_bs: precioDetalConIvaBs,
         margen_mayorista_porcentaje: margenMayor,
         precio_mayorista_usd: precioMayorUsd,
         precio_mayorista_bs: precioMayorBs,
+        precio_mayorista_con_iva_usd: precioMayoristaConIvaUsd,
+        precio_mayorista_con_iva_bs: precioMayoristaConIvaBs,
         subtotal_usd: subtotalNetoUsd,
         subtotal_bs: subtotalNetoBs,
         costo_anterior_usd: parseFloat(productoSeleccionadoActual.precio_costo_usd) || 0,
@@ -1127,8 +1198,12 @@ function agregarOActualizarRenglon() {
             listaProductosCargados[indiceExistente].costo_unitario_bs = itemRenglon.costo_unitario_bs;
             listaProductosCargados[indiceExistente].precio_detal_usd = itemRenglon.precio_detal_usd;
             listaProductosCargados[indiceExistente].precio_detal_bs = itemRenglon.precio_detal_bs;
+            listaProductosCargados[indiceExistente].precio_detal_con_iva_usd = itemRenglon.precio_detal_con_iva_usd;
+            listaProductosCargados[indiceExistente].precio_detal_con_iva_bs = itemRenglon.precio_detal_con_iva_bs;
             listaProductosCargados[indiceExistente].precio_mayorista_usd = itemRenglon.precio_mayorista_usd;
             listaProductosCargados[indiceExistente].precio_mayorista_bs = itemRenglon.precio_mayorista_bs;
+            listaProductosCargados[indiceExistente].precio_mayorista_con_iva_usd = itemRenglon.precio_mayorista_con_iva_usd;
+            listaProductosCargados[indiceExistente].precio_mayorista_con_iva_bs = itemRenglon.precio_mayorista_con_iva_bs;
             listaProductosCargados[indiceExistente].subtotal_usd = listaProductosCargados[indiceExistente].cantidad * itemRenglon.costo_unitario_usd * (1 - itemRenglon.descuento_porcentaje / 100);
             listaProductosCargados[indiceExistente].subtotal_bs = listaProductosCargados[indiceExistente].subtotal_usd * tCompra;
         } else {
@@ -1180,6 +1255,10 @@ function cancelarEdicionRenglon() {
     $("#panelInfoProductoSeleccionado").slideUp(100);
     $("#panelFormularioRenglon").slideUp(100);
     $("#badgeModoEdicion").hide();
+    $("#form_renglon_detal_con_iva_badge").text("$ 0,00 | Bs. 0,00");
+    $("#form_renglon_detal_sin_iva").text("$ 0,00 | Bs. 0,00");
+    $("#form_renglon_mayorista_con_iva_badge").text("$ 0,00 | Bs. 0,00");
+    $("#form_renglon_mayorista_sin_iva").text("$ 0,00 | Bs. 0,00");
     $("#inputEscaneoProducto").val("").focus();
 }
 
@@ -1221,14 +1300,16 @@ function renderizarTablaDetalles() {
         const costPrincipal = !esVes ? `$ ${formatearMonto(item.costo_unitario_usd, 4)}` : `Bs. ${formatearMonto(item.costo_unitario_bs, 4)}`;
         const costSecundario = !esVes ? `Bs. ${formatearMonto(item.costo_unitario_bs, 4)}` : `$ ${formatearMonto(item.costo_unitario_usd, 4)}`;
 
-        const detalPrincipal = !esVes ? `$ ${formatearMonto(item.precio_detal_usd, 4)}` : `Bs. ${formatearMonto(item.precio_detal_bs, 4)}`;
-        const detalSecundario = !esVes ? `Bs. ${formatearMonto(item.precio_detal_bs, 4)}` : `$ ${formatearMonto(item.precio_detal_usd, 4)}`;
+        const detalSinIva = item.precio_detal_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const detalConIvaUsd = (item.precio_detal_con_iva_usd || item.precio_detal_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const detalConIvaBs = ((item.precio_detal_con_iva_usd || item.precio_detal_usd) * tasaVentaActual).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-        const mayorPrincipal = !esVes ? `$ ${formatearMonto(item.precio_mayorista_usd, 4)}` : `Bs. ${formatearMonto(item.precio_mayorista_bs, 4)}`;
-        const mayorSecundario = !esVes ? `Bs. ${formatearMonto(item.precio_mayorista_bs, 4)}` : `$ ${formatearMonto(item.precio_mayorista_usd, 4)}`;
+        const mayorSinIva = item.precio_mayorista_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const mayorConIvaUsd = (item.precio_mayorista_con_iva_usd || item.precio_mayorista_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const mayorConIvaBs = ((item.precio_mayorista_con_iva_usd || item.precio_mayorista_usd) * tasaVentaActual).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-        const subtotalPrincipal = !esVes ? `$ ${formatearMonto(item.subtotal_usd, 4)}` : `Bs. ${formatearMonto(item.subtotal_bs, 4)}`;
-        const subtotalSecundario = !esVes ? `Bs. ${formatearMonto(item.subtotal_bs, 4)}` : `$ ${formatearMonto(item.subtotal_usd, 4)}`;
+        const subtotalPrincipal = !esVes ? `$ ${formatearMonto(item.subtotal_usd, 2)}` : `Bs. ${formatearMonto(item.subtotal_bs, 2)}`;
+        const subtotalSecundario = !esVes ? `Bs. ${formatearMonto(item.subtotal_bs, 2)}` : `$ ${formatearMonto(item.subtotal_usd, 2)}`;
 
         const filaHtml = `
             <tr class="fila-producto-cargado align-middle">
@@ -1251,8 +1332,8 @@ function renderizarTablaDetalles() {
                     ${bultosTexto}
                 </td>
                 <td class="text-end font-monospace">
-                    <strong class="text-success d-block" style="font-size: 0.92rem;">${costPrincipal}</strong>
-                    <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.78rem; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">
+                    <strong class="text-success d-block" style="font-size: 0.90rem;">${costPrincipal}</strong>
+                    <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.74rem; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">
                         ${costSecundario}
                     </span>
                 </td>
@@ -1264,27 +1345,17 @@ function renderizarTablaDetalles() {
                         ${item.iva_porcentaje > 0 ? `IVA ${formatearMonto(item.iva_porcentaje, 0)}%` : 'Exento'}
                     </span>
                 </td>
-                <td class="text-end font-monospace">
-                    <div class="d-flex align-items-center justify-content-end gap-1">
-                        <strong class="text-primary d-block" style="font-size: 0.92rem;">${detalPrincipal}</strong>
-                        <span class="badge rounded-pill bg-light text-secondary border px-1.5 py-0" style="font-size: 0.70rem;">${formatearMonto(item.margen_detal_porcentaje, 0)}%</span>
-                    </div>
-                    <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.78rem; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">
-                        ${detalSecundario}
-                    </span>
+                <td class="text-end font-monospace" style="font-size: 0.78rem;">
+                    <span class="text-muted small">Sin: $ ${detalSinIva}</span><br>
+                    <span class="badge rounded-pill px-2 py-0.5 font-monospace fw-bold" style="background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.74rem;">$ ${detalConIvaUsd} | Bs. ${detalConIvaBs}</span>
+                </td>
+                <td class="text-end font-monospace" style="font-size: 0.78rem;">
+                    <span class="text-muted small">Sin: $ ${mayorSinIva}</span><br>
+                    <span class="badge rounded-pill px-2 py-0.5 font-monospace fw-bold" style="background-color: #faf5ff; color: #6b21a8; border: 1px solid #d8b4fe; font-size: 0.74rem;">$ ${mayorConIvaUsd} | Bs. ${mayorConIvaBs}</span>
                 </td>
                 <td class="text-end font-monospace">
-                    <div class="d-flex align-items-center justify-content-end gap-1">
-                        <strong style="color: #7e22ce;" class="d-block" style="font-size: 0.92rem;">${mayorPrincipal}</strong>
-                        <span class="badge rounded-pill bg-light text-secondary border px-1.5 py-0" style="font-size: 0.70rem;">${formatearMonto(item.margen_mayorista_porcentaje, 0)}%</span>
-                    </div>
-                    <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.78rem; background-color: #faf5ff; color: #6b21a8; border: 1px solid #e9d5ff;">
-                        ${mayorSecundario}
-                    </span>
-                </td>
-                <td class="text-end font-monospace">
-                    <strong class="text-dark d-block" style="font-size: 0.95rem;">${subtotalPrincipal}</strong>
-                    <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.78rem; background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">
+                    <strong class="text-dark d-block" style="font-size: 0.90rem;">${subtotalPrincipal}</strong>
+                    <span class="badge rounded-pill px-2 py-0.5 mt-0.5 fw-bold font-monospace shadow-xs d-inline-block" style="font-size: 0.74rem; background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">
                         ${subtotalSecundario}
                     </span>
                 </td>
@@ -1316,8 +1387,10 @@ function renderizarTablaDetalles() {
             <input type="hidden" name="detalles[${idx}][iva_porcentaje]" value="${item.iva_porcentaje}">
             <input type="hidden" name="detalles[${idx}][margen_detal_porcentaje]" value="${item.margen_detal_porcentaje}">
             <input type="hidden" name="detalles[${idx}][precio_detal_usd]" value="${item.precio_detal_usd}">
+            <input type="hidden" name="detalles[${idx}][precio_detal_con_iva_usd]" value="${item.precio_detal_con_iva_usd}">
             <input type="hidden" name="detalles[${idx}][margen_mayorista_porcentaje]" value="${item.margen_mayorista_porcentaje}">
             <input type="hidden" name="detalles[${idx}][precio_mayorista_usd]" value="${item.precio_mayorista_usd}">
+            <input type="hidden" name="detalles[${idx}][precio_mayorista_con_iva_usd]" value="${item.precio_mayorista_con_iva_usd}">
         `;
         $hiddenContainer.append(hiddenHtml);
     });
@@ -1325,37 +1398,56 @@ function renderizarTablaDetalles() {
 
 function recalcularTotalesGenerales() {
     let totalUnidades = 0;
-    let montoBrutoUsd = 0;
-    let totalDescuentosItemsUsd = 0;
+    let baseImponibleUsd = 0;
+    let exentoUsd = 0;
     let totalIvaUsd = 0;
+    let ivaPorcentajeGeneral = 16.00;
+    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : tasaUsdActual;
 
     listaProductosCargados.forEach((item) => {
         const cant = parseFloat(item.cantidad) || 0;
-        const cUsd = parseFloat(item.costo_unitario_usd) || 0;
-        const dUsd = parseFloat(item.descuento_usd) || 0;
+        const subtotalNeto = parseFloat(item.subtotal_usd) || 0;
         const ivaUsd = parseFloat(item.iva_monto_usd) || 0;
+        const ivaPorc = parseFloat(item.iva_porcentaje) || 0;
 
         totalUnidades += cant;
-        montoBrutoUsd += cant * cUsd;
-        totalDescuentosItemsUsd += dUsd;
-        totalIvaUsd += ivaUsd;
+        if (ivaPorc > 0) {
+            baseImponibleUsd += subtotalNeto;
+            totalIvaUsd += ivaUsd;
+            ivaPorcentajeGeneral = ivaPorc;
+        } else {
+            exentoUsd += subtotalNeto;
+        }
     });
 
     const descGlobalPorc = normalizarNumero($("#descuento_global_porcentaje").val());
-    const subtotalAntesDescGlobal = montoBrutoUsd - totalDescuentosItemsUsd;
-    const descGlobalMontoUsd = subtotalAntesDescGlobal * (descGlobalPorc / 100);
+    const subtotalBruto = baseImponibleUsd + exentoUsd;
+    const descGlobalMontoUsd = subtotalBruto * (descGlobalPorc / 100);
 
-    const subtotalNetoUsd = subtotalAntesDescGlobal - descGlobalMontoUsd;
-    const totalDescuentosTotalUsd = totalDescuentosItemsUsd + descGlobalMontoUsd;
+    let baseFinalUsd = baseImponibleUsd;
+    let exentoFinalUsd = exentoUsd;
 
+    if (descGlobalPorc > 0) {
+        baseFinalUsd = baseImponibleUsd * (1 - descGlobalPorc / 100);
+        exentoFinalUsd = exentoUsd * (1 - descGlobalPorc / 100);
+        totalIvaUsd = baseFinalUsd * (ivaPorcentajeGeneral / 100);
+    }
+
+    const subtotalNetoUsd = baseFinalUsd + exentoFinalUsd;
     const totalGeneralUsd = subtotalNetoUsd + totalIvaUsd;
-    const totalGeneralBs = totalGeneralUsd * (tasaCompraActual > 0 ? tasaCompraActual : tasaUsdActual);
+    const totalGeneralBs = totalGeneralUsd * tCompra;
 
-    $("#resumenTotalUnidades").text(formatearMonto(totalUnidades, 0));
-    $("#resumenMontoBrutoUsd").text(`$ ${formatearMonto(montoBrutoUsd, 2)}`);
-    $("#resumenDescuentosUsd").text(`-$ ${formatearMonto(totalDescuentosTotalUsd, 2)}`);
-    $("#resumenSubtotalUsd").text(`$ ${formatearMonto(subtotalNetoUsd, 2)}`);
-    $("#resumenIvaUsd").text(`$ ${formatearMonto(totalIvaUsd, 2)}`);
+    const baseFinalBs = baseFinalUsd * tCompra;
+    const descGlobalBs = descGlobalMontoUsd * tCompra;
+    const exentoFinalBs = exentoFinalUsd * tCompra;
+    const ivaBs = totalIvaUsd * tCompra;
+
+    $("#resumenTotalUnidades").text(`${formatearMonto(totalUnidades, 0)} Unidades`);
+    $("#resumenBaseImponible").text(`$ ${formatearMonto(baseFinalUsd, 2)} | Bs. ${formatearMonto(baseFinalBs, 2)}`);
+    $("#resumenDescuentosUsd").text(`-$ ${formatearMonto(descGlobalMontoUsd, 2)} | -Bs. ${formatearMonto(descGlobalBs, 2)}`);
+    $("#resumenExento").text(`$ ${formatearMonto(exentoFinalUsd, 2)} | Bs. ${formatearMonto(exentoFinalBs, 2)}`);
+    $("#labelResumenIva").text(`IVA (${ivaPorcentajeGeneral}%):`);
+    $("#resumenIvaUsd").text(`$ ${formatearMonto(totalIvaUsd, 2)} | Bs. ${formatearMonto(ivaBs, 2)}`);
     $("#resumenTotalGeneralUsd").text(`$ ${formatearMonto(totalGeneralUsd, 2)}`);
     $("#resumenTotalGeneralBs").text(`Bs. ${formatearMonto(totalGeneralBs, 2)}`);
 }

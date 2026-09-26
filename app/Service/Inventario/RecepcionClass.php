@@ -182,8 +182,10 @@ class RecepcionClass
 
             // Calcular totales de los renglones
             $montoBrutoUsd = 0;
-            $subtotalNetoUsd = 0;
+            $baseImponibleUsd = 0;
+            $exentoUsd = 0;
             $ivaTotalUsd = 0;
+            $ivaPorcentajeGeneral = 16.00;
             $detallesAProcesar = [];
 
             foreach ($detallesInput as $item) {
@@ -243,33 +245,51 @@ class RecepcionClass
                 $ivaMontoBs = 0;
 
                 if ($aplicaIva && $ivaPorcentaje > 0) {
+                    $ivaPorcentajeGeneral = $ivaPorcentaje;
                     $ivaMontoUsd = round($renglonSubtotalNetoUsd * ($ivaPorcentaje / 100), 2);
                     $ivaMontoBs = round($ivaMontoUsd * $tasaCompra, 2);
                     $ivaTotalUsd += $ivaMontoUsd;
+                    $baseImponibleUsd += $renglonSubtotalNetoUsd;
+                } else {
+                    $exentoUsd += $renglonSubtotalNetoUsd;
                 }
 
                 // Precios de Venta
+                $ivaUnitarioUsd = ($aplicaIva && $ivaPorcentaje > 0) ? round($costoUnitarioUsd * ($ivaPorcentaje / 100), 4) : 0;
+                $costoTotalUnitarioUsd = round($costoUnitarioUsd + $ivaUnitarioUsd, 4);
+                $factorIva = ($aplicaIva && $ivaPorcentaje > 0) ? (1 + ($ivaPorcentaje / 100)) : 1;
+
                 $margenDetal = (float) ($item['margen_detal_porcentaje'] ?? $producto->ultimo_margen_detal ?? 30);
                 if (! $esVes) {
-                    $sugeridoDetalUsd = $tasaMenor
-                        ? ($costoUnitarioUsd * (1 + ($margenDetal / 100)))
-                        : (($costoUnitarioUsd * (1 + ($margenDetal / 100)) * $tasaCompra) / $tasaVenta);
+                    $sugeridoDetalConIvaUsd = $tasaMenor
+                        ? ($costoTotalUnitarioUsd * (1 + ($margenDetal / 100)))
+                        : (($costoTotalUnitarioUsd * (1 + ($margenDetal / 100)) * $tasaCompra) / $tasaVenta);
                 } else {
-                    $sugeridoDetalUsd = $costoUnitarioUsd * (1 + ($margenDetal / 100));
+                    $sugeridoDetalConIvaUsd = $costoTotalUnitarioUsd * (1 + ($margenDetal / 100));
                 }
-                $precioDetalUsd = (float) ($item['precio_detal_usd'] ?? $sugeridoDetalUsd);
+                $sugeridoDetalSinIvaUsd = $sugeridoDetalConIvaUsd / $factorIva;
+                $precioDetalUsd = (float) ($item['precio_detal_usd'] ?? round($sugeridoDetalSinIvaUsd, 4));
                 $precioDetalBs = round($precioDetalUsd * $tasaVenta, 4);
+                $precioDetalConIvaUsd = ! empty($item['precio_detal_con_iva_usd']) && $item['precio_detal_con_iva_usd'] > 0
+                    ? (float) $item['precio_detal_con_iva_usd']
+                    : round($precioDetalUsd * $factorIva, 4);
+                $precioDetalConIvaBs = round($precioDetalConIvaUsd * $tasaVenta, 4);
 
                 $margenMayorista = (float) ($item['margen_mayorista_porcentaje'] ?? $producto->ultimo_margen_mayorista ?? 15);
                 if (! $esVes) {
-                    $sugeridoMayoristaUsd = $tasaMenor
-                        ? ($costoUnitarioUsd * (1 + ($margenMayorista / 100)))
-                        : (($costoUnitarioUsd * (1 + ($margenMayorista / 100)) * $tasaCompra) / $tasaVenta);
+                    $sugeridoMayoristaConIvaUsd = $tasaMenor
+                        ? ($costoTotalUnitarioUsd * (1 + ($margenMayorista / 100)))
+                        : (($costoTotalUnitarioUsd * (1 + ($margenMayorista / 100)) * $tasaCompra) / $tasaVenta);
                 } else {
-                    $sugeridoMayoristaUsd = $costoUnitarioUsd * (1 + ($margenMayorista / 100));
+                    $sugeridoMayoristaConIvaUsd = $costoTotalUnitarioUsd * (1 + ($margenMayorista / 100));
                 }
-                $precioMayoristaUsd = (float) ($item['precio_mayorista_usd'] ?? $sugeridoMayoristaUsd);
+                $sugeridoMayoristaSinIvaUsd = $sugeridoMayoristaConIvaUsd / $factorIva;
+                $precioMayoristaUsd = (float) ($item['precio_mayorista_usd'] ?? round($sugeridoMayoristaSinIvaUsd, 4));
                 $precioMayoristaBs = round($precioMayoristaUsd * $tasaVenta, 4);
+                $precioMayoristaConIvaUsd = ! empty($item['precio_mayorista_con_iva_usd']) && $item['precio_mayorista_con_iva_usd'] > 0
+                    ? (float) $item['precio_mayorista_con_iva_usd']
+                    : round($precioMayoristaUsd * $factorIva, 4);
+                $precioMayoristaConIvaBs = round($precioMayoristaConIvaUsd * $tasaVenta, 4);
 
                 $detallesAProcesar[] = [
                     'producto' => $producto,
@@ -295,11 +315,15 @@ class RecepcionClass
                     'margen_detal_porcentaje' => $margenDetal,
                     'precio_detal_usd' => $precioDetalUsd,
                     'precio_detal_bs' => $precioDetalBs,
+                    'precio_detal_con_iva_usd' => $precioDetalConIvaUsd,
+                    'precio_detal_con_iva_bs' => $precioDetalConIvaBs,
                     'precio_mayorista_anterior_usd' => $mayoristaAnteriorUsd,
                     'precio_mayorista_anterior_bs' => $mayoristaAnteriorBs,
                     'margen_mayorista_porcentaje' => $margenMayorista,
                     'precio_mayorista_usd' => $precioMayoristaUsd,
                     'precio_mayorista_bs' => $precioMayoristaBs,
+                    'precio_mayorista_con_iva_usd' => $precioMayoristaConIvaUsd,
+                    'precio_mayorista_con_iva_bs' => $precioMayoristaConIvaBs,
                     'subtotal_usd' => $renglonSubtotalNetoUsd,
                     'subtotal_bs' => $renglonSubtotalNetoBs,
                 ];
@@ -310,13 +334,21 @@ class RecepcionClass
             }
 
             // Descuento global
+            $subtotalNetoUsd = round($baseImponibleUsd + $exentoUsd, 2);
             $descuentoGlobalUsd = 0;
             $descuentoGlobalBs = 0;
             if ($descuentoGlobalPorcentaje > 0) {
                 $descuentoGlobalUsd = round($subtotalNetoUsd * ($descuentoGlobalPorcentaje / 100), 2);
                 $descuentoGlobalBs = round($descuentoGlobalUsd * $tasaCompra, 2);
-                $subtotalNetoUsd = round($subtotalNetoUsd - $descuentoGlobalUsd, 2);
+                $baseImponibleUsd = round($baseImponibleUsd * (1 - ($descuentoGlobalPorcentaje / 100)), 2);
+                $exentoUsd = round($exentoUsd * (1 - ($descuentoGlobalPorcentaje / 100)), 2);
+                $ivaTotalUsd = round($baseImponibleUsd * ($ivaPorcentajeGeneral / 100), 2);
+                $subtotalNetoUsd = round($baseImponibleUsd + $exentoUsd, 2);
             }
+
+            $baseImponibleBs = round($baseImponibleUsd * $tasaCompra, 2);
+            $exentoBs = round($exentoUsd * $tasaCompra, 2);
+            $ivaTotalBs = round($ivaTotalUsd * $tasaCompra, 2);
 
             $totalUsd = round($subtotalNetoUsd + $ivaTotalUsd, 2);
             $totalBs = round($totalUsd * $tasaCompra, 2);
@@ -343,11 +375,17 @@ class RecepcionClass
                 'moneda_documento' => $monedaDocumento,
                 'monto_bruto_usd' => $montoBrutoUsd,
                 'monto_bruto_bs' => $montoBrutoBs,
+                'base_imponible_usd' => $baseImponibleUsd,
+                'base_imponible_bs' => $baseImponibleBs,
+                'exento_usd' => $exentoUsd,
+                'exento_bs' => $exentoBs,
                 'descuento_global_porcentaje' => $descuentoGlobalPorcentaje,
                 'descuento_global_usd' => $descuentoGlobalUsd,
                 'descuento_global_bs' => $descuentoGlobalBs,
                 'subtotal_usd' => $subtotalNetoUsd,
+                'iva_porcentaje' => $ivaPorcentajeGeneral,
                 'iva_usd' => $ivaTotalUsd,
+                'iva_bs' => $ivaTotalBs,
                 'total_usd' => $totalUsd,
                 'total_bs' => $totalBs,
                 'observaciones' => $observaciones,
@@ -385,11 +423,15 @@ class RecepcionClass
                     'margen_detal_porcentaje' => $d['margen_detal_porcentaje'],
                     'precio_detal_usd' => $d['precio_detal_usd'],
                     'precio_detal_bs' => $d['precio_detal_bs'],
+                    'precio_detal_con_iva_usd' => $d['precio_detal_con_iva_usd'],
+                    'precio_detal_con_iva_bs' => $d['precio_detal_con_iva_bs'],
                     'precio_mayorista_anterior_usd' => $d['precio_mayorista_anterior_usd'],
                     'precio_mayorista_anterior_bs' => $d['precio_mayorista_anterior_bs'],
                     'margen_mayorista_porcentaje' => $d['margen_mayorista_porcentaje'],
                     'precio_mayorista_usd' => $d['precio_mayorista_usd'],
                     'precio_mayorista_bs' => $d['precio_mayorista_bs'],
+                    'precio_mayorista_con_iva_usd' => $d['precio_mayorista_con_iva_usd'],
+                    'precio_mayorista_con_iva_bs' => $d['precio_mayorista_con_iva_bs'],
                     'subtotal_usd' => $d['subtotal_usd'],
                     'subtotal_bs' => $d['subtotal_bs'],
                 ]);
