@@ -12,7 +12,7 @@
 
 
     # --- ETAPA 2: Imagen Final con FrankenPHP ---
-    FROM dunglas/frankenphp:latest-php8.5-bookworm
+    FROM dunglas/frankenphp:php8.5-bookworm
 
     # Copiar Composer oficial (más rápido que instalarlo vía script)
     COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
