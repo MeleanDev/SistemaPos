@@ -42,7 +42,7 @@
     @if($hasAddon)
         <div class="input-group input-group-executive">
             @if($addonPosition === 'left')
-                <span class="input-group-text bg-light text-secondary font-monospace">
+                <span class="input-group-text bg-white text-primary font-monospace">
                     @if($addonIcon)<i class="{{ $addonIcon }}"></i>@endif
                     @if($addonText){{ $addonText }}@endif
                 </span>
@@ -61,7 +61,7 @@
                 {{ $attributes->merge(['class' => 'form-control form-control-executive ' . ($readonly ? 'bg-light text-dark' : '')]) }}
             >
             @if($addonPosition === 'right')
-                <span class="input-group-text bg-light text-secondary font-monospace">
+                <span class="input-group-text bg-white text-primary font-monospace">
                     @if($addonIcon)<i class="{{ $addonIcon }}"></i>@endif
                     @if($addonText){{ $addonText }}@endif
                 </span>

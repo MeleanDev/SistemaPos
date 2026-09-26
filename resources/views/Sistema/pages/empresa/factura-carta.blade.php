@@ -361,7 +361,7 @@
 
             <div class="fiscal-control">
                 <div class="fiscal-badge">Forma Libre</div>
-                <div class="control-number">N° CONTROL 00- <span style="font-size: 17px;">{{ str_pad($venta->numero_control ?? $venta->id, 8, '0', STR_PAD_LEFT) }}</span></div>
+                <div class="control-number">N° CONTROL 00- <span style="font-size: 17px;">{{ str_pad(preg_replace('/^00-/', '', (string) ($venta->numero_control ?? $venta->id)), 8, '0', STR_PAD_LEFT) }}</span></div>
                 <div class="invoice-number-box">
                     @if($tieneVehiculo)
                         <span style="font-size: 11px; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; margin-right: 4px;">.VEHICULO</span>

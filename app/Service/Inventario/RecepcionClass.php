@@ -120,12 +120,24 @@ class RecepcionClass
     }
 
     /**
-     * Generar código correlativo de recepción (Ej: REC-00001)
+     * Generar código correlativo de recepción (Ej: REC-00001) por empresa
      */
     public function generarCodigo(int $empresaId): string
     {
-        $ultimoId = Recepcion::where('empresa_id', $empresaId)->max('id') ?? 0;
-        $correlativo = str_pad($ultimoId + 1, 5, '0', STR_PAD_LEFT);
+        $recepciones = Recepcion::where('empresa_id', $empresaId)->get(['id', 'codigo']);
+        $maxNum = 0;
+
+        foreach ($recepciones as $r) {
+            $cod = trim($r->codigo ?? '');
+            if (preg_match('/(\d+)/', $cod, $matches)) {
+                $val = (int) $matches[1];
+                if ($val > $maxNum) {
+                    $maxNum = $val;
+                }
+            }
+        }
+
+        $correlativo = str_pad($maxNum + 1, 5, '0', STR_PAD_LEFT);
 
         return "REC-{$correlativo}";
     }

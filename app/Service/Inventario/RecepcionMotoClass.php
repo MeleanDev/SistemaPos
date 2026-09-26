@@ -128,8 +128,20 @@ class RecepcionMotoClass
      */
     public function generarCodigo(int $empresaId): string
     {
-        $ultimo = RecepcionMoto::where('empresa_id', $empresaId)->max('id') ?? 0;
-        $numero = str_pad($ultimo + 1, 6, '0', STR_PAD_LEFT);
+        $recepciones = RecepcionMoto::where('empresa_id', $empresaId)->get(['id', 'codigo']);
+        $maxNum = 0;
+
+        foreach ($recepciones as $r) {
+            $cod = trim($r->codigo ?? '');
+            if (preg_match('/(\d+)/', $cod, $matches)) {
+                $val = (int) $matches[1];
+                if ($val > $maxNum) {
+                    $maxNum = $val;
+                }
+            }
+        }
+
+        $numero = str_pad($maxNum + 1, 6, '0', STR_PAD_LEFT);
 
         return 'RECMOTO-'.$numero;
     }

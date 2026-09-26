@@ -206,23 +206,70 @@ class VentaClass
     }
 
     /**
-     * Generar correlativo de venta (Ej: VEN-00001)
+     * Generar correlativo de venta (Ej: VEN-00001) por empresa
      */
     public function generarCodigo(int $empresaId): string
     {
-        $ultimoId = Venta::where('empresa_id', $empresaId)->max('id') ?? 0;
-        $correlativo = str_pad($ultimoId + 1, 5, '0', STR_PAD_LEFT);
+        $ventas = Venta::where('empresa_id', $empresaId)->get(['id', 'codigo']);
+        $maxNum = 0;
+
+        foreach ($ventas as $v) {
+            $cod = trim($v->codigo ?? '');
+            if (preg_match('/(\d+)/', $cod, $matches)) {
+                $val = (int) $matches[1];
+                if ($val > $maxNum) {
+                    $maxNum = $val;
+                }
+            }
+        }
+
+        $correlativo = str_pad($maxNum + 1, 5, '0', STR_PAD_LEFT);
 
         return "VEN-{$correlativo}";
     }
 
     /**
-     * Generar correlativo de devolución (Ej: DEV-00001)
+     * Generar número de control fiscal (Ej: 00-00000001) por empresa
+     */
+    public function generarNumeroControl(int $empresaId): string
+    {
+        $ventas = Venta::where('empresa_id', $empresaId)->get(['id', 'numero_control']);
+        $maxNum = 0;
+
+        foreach ($ventas as $v) {
+            $control = trim($v->numero_control ?? '');
+            if ($control && preg_match('/(\d+)/', $control, $matches)) {
+                $val = (int) $matches[1];
+                if ($val > $maxNum) {
+                    $maxNum = $val;
+                }
+            }
+        }
+
+        $correlativo = str_pad($maxNum + 1, 8, '0', STR_PAD_LEFT);
+
+        return "00-{$correlativo}";
+    }
+
+    /**
+     * Generar correlativo de devolución (Ej: DEV-00001) por empresa
      */
     public function generarCodigoDevolucion(int $empresaId): string
     {
-        $ultimoId = DevolucionVenta::where('empresa_id', $empresaId)->max('id') ?? 0;
-        $correlativo = str_pad($ultimoId + 1, 5, '0', STR_PAD_LEFT);
+        $devoluciones = DevolucionVenta::where('empresa_id', $empresaId)->get(['id', 'codigo']);
+        $maxNum = 0;
+
+        foreach ($devoluciones as $d) {
+            $cod = trim($d->codigo ?? '');
+            if (preg_match('/(\d+)/', $cod, $matches)) {
+                $val = (int) $matches[1];
+                if ($val > $maxNum) {
+                    $maxNum = $val;
+                }
+            }
+        }
+
+        $correlativo = str_pad($maxNum + 1, 5, '0', STR_PAD_LEFT);
 
         return "DEV-{$correlativo}";
     }
@@ -495,6 +542,7 @@ class VentaClass
                 'almacen_id' => $almacenIdGlobal,
                 'user_id' => $userId,
                 'codigo' => $codigo,
+                'numero_control' => $datos['numero_control'] ?? $this->generarNumeroControl($empresaId),
                 'tipo_venta' => $tipoVenta,
                 'moneda' => 'USD',
                 'tasa_cambio' => $tasaCambio,
@@ -687,6 +735,7 @@ class VentaClass
             ->where('empresa_id', $empresaId)
             ->where(function ($q) use ($busqueda) {
                 $q->where('codigo', $busqueda)
+                    ->orWhere('numero_control', $busqueda)
                     ->orWhere('id', $busqueda);
             })
             ->first();

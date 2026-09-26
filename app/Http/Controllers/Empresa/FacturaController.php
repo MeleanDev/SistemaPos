@@ -94,6 +94,7 @@ class FacturaController extends Controller
                 if ($search = request('search.value')) {
                     $q->where(function ($sub) use ($search) {
                         $sub->where('codigo', 'LIKE', "%{$search}%")
+                            ->orWhere('numero_control', 'LIKE', "%{$search}%")
                             ->orWhereHas('cliente', function ($cq) use ($search) {
                                 $cq->where('nombre', 'LIKE', "%{$search}%")
                                     ->orWhere('apellido', 'LIKE', "%{$search}%")

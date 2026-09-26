@@ -18667,8 +18667,8 @@ strong {
 .form-control-executive,
 .form-select-executive {
     border-radius: 0.75rem !important;
-    border: 1.5px solid #e2e8f0 !important;
-    background-color: #f8fafc !important;
+    border: 1.5px solid #cbd5e1 !important;
+    background-color: #ffffff !important;
     color: #1e293b !important;
     font-size: 0.875rem !important;
     font-weight: 500 !important;
@@ -19183,8 +19183,8 @@ strong {
 .input-group-executive > .input-group-text,
 .input-group > .input-group-text {
     border: 1px solid #cbd5e1 !important;
-    background-color: #f8fafc !important;
-    color: #475569 !important;
+    background-color: #ffffff !important;
+    color: #4f46e5 !important;
     font-size: 0.875rem !important;
     font-weight: 600 !important;
     padding: 0.45rem 0.85rem !important;

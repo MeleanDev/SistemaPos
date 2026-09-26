@@ -20,6 +20,11 @@ $(document).ready(function () {
     configurarAtajosTecladoPos();
     configurarBuscadorProductosPos();
     configurarBuscadorClientesPos();
+    $("#modalInicioVentaCliente").on("shown.bs.modal", function () {
+        const $inp = $("#posInputClienteModal");
+        $inp.trigger("focus");
+        $inp.select();
+    });
 });
 
 function formatearMonto(monto, decimales = 2) {
@@ -53,11 +58,12 @@ async function cargarDatosInicialesPos() {
                 posAlmacenActualId = parseInt(res.data.almacenes[0].id);
             }
 
-            if (res.data.cliente_defecto) {
-                establecerClienteActual(res.data.cliente_defecto);
-            }
-
             poblarSelectMetodosPago();
+
+            if (!posClienteActual) {
+                activarModoConsulta();
+                abrirModalInicioCliente();
+            }
         }
     } catch (e) {
         console.error("Error al cargar datos del POS:", e);
@@ -84,41 +90,144 @@ function actualizarMonedaPagoSeleccionada() {
     $("#cobroSimboloMonedaPago").text(moneda === "VES" ? "Bs." : "$");
 };
 
+function activarModoConsulta() {
+    posClienteActual = null;
+    $("#contenedorClienteActivo").addClass("d-none");
+    $("#contenedorModoConsulta").removeClass("d-none");
+    setTimeout(() => {
+        $("#posInputBuscadorProducto").focus();
+    }, 100);
+};
+
+function abrirModalInicioCliente() {
+    const modalEl = document.getElementById("modalInicioVentaCliente");
+    if (!modalEl) return;
+    $("#posInputClienteModal").val("");
+    $("#dropdownClientesModalPos").hide().empty();
+    const modalInst = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modalInst.show();
+    setTimeout(() => {
+        const $inp = $("#posInputClienteModal");
+        $inp.trigger("focus");
+        $inp.select();
+    }, 150);
+};
+
+function asignarConsumidorFinalRapido() {
+    let cli = posCatalogos.cliente_defecto;
+    if (!cli) {
+        cli = {
+            id: null,
+            nombre: "Consumidor",
+            apellido: "Final",
+            cedula: "V-00000000",
+            telefono: "Sin teléfono",
+            tipo_cliente: "detal"
+        };
+    }
+    establecerClienteActual(cli);
+};
+
+function abrirModalNuevoClienteDesdeInicio() {
+    const modalInicioEl = document.getElementById("modalInicioVentaCliente");
+    if (modalInicioEl) {
+        const modalInst = bootstrap.Modal.getInstance(modalInicioEl) || bootstrap.Modal.getOrCreateInstance(modalInicioEl);
+        if (modalInst) modalInst.hide();
+    }
+    abrirModalNuevoCliente();
+};
+
 function establecerClienteActual(cliente) {
     posClienteActual = cliente;
-    const nombreCompleto = `${cliente.nombre} ${cliente.apellido || ""}`.trim();
+    const nombreCompleto = `${cliente.nombre || ''} ${cliente.apellido || ''}`.trim() || "Consumidor Final";
     $("#posClienteNombre").text(nombreCompleto);
     $("#posClienteCedula").text(cliente.cedula || "--");
     $("#posClienteTelefono").text(cliente.telefono || "Sin teléfono");
 
     const tipo = cliente.tipo_cliente || "detal";
-    $("#posClienteTipoBadge").text(tipo === "mayorista" ? "Mayorista" : "Detal")
+    $("#posClienteTipoBadge").text(tipo === "mayorista" ? "Mayor" : "Detal")
         .removeClass("bg-primary-subtle text-primary border-primary-subtle bg-purple-subtle text-purple-emphasis border-purple-subtle bg-secondary-subtle text-secondary")
         .addClass(tipo === "mayorista" ? "bg-purple-subtle text-purple-emphasis border border-purple-subtle" : "bg-primary-subtle text-primary border border-primary-subtle");
 
     if (tipo === "mayorista" && posTipoVentaActual !== "mayor") {
         cambiarTipoVenta("mayor");
     }
+
+    $("#contenedorModoConsulta").addClass("d-none");
+    $("#contenedorClienteActivo").removeClass("d-none");
+
+    const modalEl = document.getElementById("modalInicioVentaCliente");
+    if (modalEl) {
+        const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+        if (modalInst) modalInst.hide();
+    }
+
+    setTimeout(() => {
+        $("#posInputBuscadorProducto").focus();
+    }, 150);
 };
 
 function resetearClienteDefecto() {
-    if (posCatalogos.cliente_defecto) {
-        establecerClienteActual(posCatalogos.cliente_defecto);
-        $("#posInputCliente").val("");
-    }
+    activarModoConsulta();
 };
 
 function configurarBuscadorClientesPos() {
-    const $input = $("#posInputCliente");
-    const $dropdown = $("#dropdownClientesPos");
+    const $input = $("#posInputClienteModal");
+    const $dropdown = $("#dropdownClientesModalPos");
     let debounceTimer = null;
+    let indiceSeleccionadoCli = -1;
+
+    $input.on("keydown", function (e) {
+        const $items = $dropdown.find(".cliente-item-pos");
+
+        if ($dropdown.is(":visible") && $items.length > 0) {
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                indiceSeleccionadoCli = (indiceSeleccionadoCli + 1) % $items.length;
+                $items.removeClass("dropdown-item-hover-pos");
+                const $itemActivo = $items.eq(indiceSeleccionadoCli).addClass("dropdown-item-hover-pos");
+                $itemActivo[0]?.scrollIntoView({ block: "nearest" });
+                return;
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                indiceSeleccionadoCli = (indiceSeleccionadoCli - 1 + $items.length) % $items.length;
+                $items.removeClass("dropdown-item-hover-pos");
+                const $itemActivo = $items.eq(indiceSeleccionadoCli).addClass("dropdown-item-hover-pos");
+                $itemActivo[0]?.scrollIntoView({ block: "nearest" });
+                return;
+            } else if (e.key === "Enter") {
+                e.preventDefault();
+                if (indiceSeleccionadoCli >= 0 && indiceSeleccionadoCli < $items.length) {
+                    $items.eq(indiceSeleccionadoCli).trigger("click");
+                } else if ($items.length > 0) {
+                    $items.first().trigger("click");
+                }
+                return;
+            } else if (e.key === "Escape") {
+                $dropdown.hide();
+                return;
+            }
+        }
+
+        if (e.key === "Enter") {
+            e.preventDefault();
+            const term = $input.val().trim();
+            if (!term) {
+                asignarConsumidorFinalRapido();
+            } else {
+                $dropdown.hide();
+                abrirModalNuevoCliente(term);
+            }
+        }
+    });
 
     $input.on("input", function () {
         clearTimeout(debounceTimer);
         const term = $(this).val().trim();
+        indiceSeleccionadoCli = -1;
 
         if (term.length < 2) {
-            $dropdown.hide();
+            $dropdown.hide().empty();
             return;
         }
 
@@ -132,6 +241,8 @@ function configurarBuscadorClientesPos() {
                 });
 
                 $dropdown.empty();
+                indiceSeleccionadoCli = -1;
+
                 if (res.success && Array.isArray(res.data) && res.data.length > 0) {
                     res.data.forEach((c) => {
                         const itemHtml = `
@@ -140,29 +251,66 @@ function configurarBuscadorClientesPos() {
                                     <strong class="text-dark d-block" style="font-size: 0.85rem;">${c.nombre} ${c.apellido || ''}</strong>
                                     <small class="text-muted font-monospace">${c.cedula} • ${c.telefono || 'Sin tel.'}</small>
                                 </div>
-                                <span class="badge bg-light text-secondary border rounded-pill font-monospace">${c.tipo_cliente}</span>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill font-monospace">${c.tipo_cliente}</span>
                             </a>
                         `;
                         $dropdown.append(itemHtml);
                     });
 
+                    const createExtraHtml = `
+                        <a href="javascript:void(0)" class="list-group-item list-group-item-action p-2.5 d-flex justify-content-between align-items-center cliente-item-pos cliente-item-create-pos border-top" data-accion="crear" data-termino="${term}" style="background: #fdfefe;">
+                            <div class="d-flex align-items-center gap-2 text-start">
+                                <i class="fas fa-plus-circle text-primary"></i>
+                                <span class="text-primary font-monospace fw-bold small">¿No es ninguno? Registrar "${term}" como nuevo cliente</span>
+                            </div>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill font-monospace" style="font-size: 0.70rem;">Nuevo [Enter]</span>
+                        </a>
+                    `;
+                    $dropdown.append(createExtraHtml);
+
                     $dropdown.find(".cliente-item-pos").on("click", function () {
+                        const accion = $(this).attr("data-accion") || $(this).data("accion");
+                        if (accion === "crear") {
+                            const termCrear = $(this).attr("data-termino") || $input.val().trim();
+                            $input.val("");
+                            $dropdown.hide();
+                            abrirModalNuevoCliente(String(termCrear));
+                            return;
+                        }
                         const cli = $(this).data("json");
-                        establecerClienteActual(cli);
-                        $input.val("");
-                        $dropdown.hide();
+                        if (cli) {
+                            establecerClienteActual(cli);
+                            $input.val("");
+                            $dropdown.hide();
+                        }
                     });
 
                     $dropdown.show();
                 } else {
-                    $dropdown.append(`
-                        <div class="list-group-item p-3 text-center bg-white">
-                            <span class="text-muted small d-block mb-2">No se encontró cliente con "${term}".</span>
-                            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" onclick="abrirModalNuevoCliente('${term}')">
-                                <i class="fas fa-plus me-1"></i> Registrar "${term}"
-                            </button>
-                        </div>
-                    `);
+                    const noResultHtml = `
+                        <a href="javascript:void(0)" class="list-group-item list-group-item-action p-3 d-flex justify-content-between align-items-center cliente-item-pos cliente-item-create-pos dropdown-item-hover-pos" data-accion="crear" data-termino="${term}">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="rounded-circle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 36px; height: 36px; background: #eef2ff;">
+                                    <i class="fas fa-user-plus text-primary"></i>
+                                </div>
+                                <div class="text-start">
+                                    <strong class="text-dark d-block" style="font-size: 0.88rem;">Registrar nuevo cliente con "${term}"</strong>
+                                    <small class="text-muted font-monospace">No existe en la base de datos • Pulsa [Enter] para registrar</small>
+                                </div>
+                            </div>
+                            <span class="badge bg-primary text-white rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs">Registrar [Enter]</span>
+                        </a>
+                    `;
+                    $dropdown.append(noResultHtml);
+                    indiceSeleccionadoCli = 0;
+
+                    $dropdown.find(".cliente-item-pos").on("click", function () {
+                        const termCrear = $(this).attr("data-termino") || $input.val().trim();
+                        $input.val("");
+                        $dropdown.hide();
+                        abrirModalNuevoCliente(String(termCrear));
+                    });
+
                     $dropdown.show();
                 }
             } catch (e) {
@@ -172,20 +320,49 @@ function configurarBuscadorClientesPos() {
     });
 
     $(document).on("click", function (e) {
-        if (!$(e.target).closest("#posInputCliente, #dropdownClientesPos").length) {
+        if (!$(e.target).closest("#posInputClienteModal, #dropdownClientesModalPos").length) {
             $dropdown.hide();
         }
     });
 };
 
-function abrirModalNuevoCliente(cedulaInicial = "") {
+function abrirModalNuevoCliente(terminoInicial = "") {
+    const modalInicioEl = document.getElementById("modalInicioVentaCliente");
+    if (modalInicioEl) {
+        const modalInst = bootstrap.Modal.getInstance(modalInicioEl) || bootstrap.Modal.getOrCreateInstance(modalInicioEl);
+        if (modalInst) modalInst.hide();
+    }
+
     $("#formRapidoClientePos")[0].reset();
     $("#rapidoClienteId").val("");
 
-    if (cedulaInicial) {
-        const desglosada = typeof desglosarCedula === "function" ? desglosarCedula(cedulaInicial) : { tipo: "V-", numero: cedulaInicial.replace(/^[VJEGPvjegp]-?/, "") };
-        $("#rapido_tipo_cedula").val(desglosada.tipo || "V-");
-        $("#rapido_cedula_numero").val(desglosada.numero || "");
+    const termStr = String(terminoInicial || "").trim();
+
+    if (termStr) {
+        const tieneLetras = /[a-zA-Z]/.test(termStr);
+        const tieneNumeros = /[0-9]/.test(termStr);
+        const esCedulaOIdentificacion = /^[VJEGPvjegp]-?[0-9]+$/i.test(termStr) || (!tieneLetras && tieneNumeros);
+
+        if (esCedulaOIdentificacion) {
+            let tipo = "V-";
+            let numero = termStr.replace(/^[VJEGPvjegp]-?/i, "").replace(/\D/g, "");
+            const matchPrefijo = termStr.match(/^([VJEGPvjegp])-?/i);
+            if (matchPrefijo) {
+                tipo = matchPrefijo[1].toUpperCase() + "-";
+            }
+            $("#rapido_tipo_cedula").val(tipo);
+            $("#rapido_cedula_numero").val(numero);
+        } else {
+            $("#rapido_tipo_cedula").val("V-");
+            $("#rapido_cedula_numero").val("");
+            const partes = termStr.split(/\s+/);
+            if (partes.length > 1) {
+                $("#rapido_nombre").val(partes[0]);
+                $("#rapido_apellido").val(partes.slice(1).join(" "));
+            } else {
+                $("#rapido_nombre").val(termStr);
+            }
+        }
     } else {
         $("#rapido_tipo_cedula").val("V-");
         $("#rapido_cedula_numero").val("");
@@ -197,17 +374,27 @@ function abrirModalNuevoCliente(cedulaInicial = "") {
 
     $("#modalRapidoClientePosTitulo").text("Nuevo Cliente");
     $("#modalRapidoClientePosSubtitulo").text("Completa la información del cliente");
-    $("#modalRapidoClientePosIcono").attr("class", "fas fa-user-plus text-warning fs-5");
+    $("#modalRapidoClientePosIcono").attr("class", "fas fa-user-plus text-white");
     $("#modalRapidoClientePosTextoGuardar").text("Guardar Cliente");
 
-    bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRapidoClientePos")).show();
+    const modalNuevoEl = document.getElementById("modalRapidoClientePos");
+    if (modalNuevoEl) {
+        bootstrap.Modal.getOrCreateInstance(modalNuevoEl).show();
+    }
+
     setTimeout(() => {
         if ($("#rapido_cedula_numero").val()) {
             $("#rapido_nombre").focus();
+        } else if ($("#rapido_nombre").val()) {
+            if ($("#rapido_apellido").val()) {
+                $("#rapido_cedula_numero").focus();
+            } else {
+                $("#rapido_apellido").focus();
+            }
         } else {
             $("#rapido_cedula_numero").focus();
         }
-    }, 300);
+    }, 250);
 };
 
 function abrirModalEditarCliente() {
@@ -234,7 +421,7 @@ function abrirModalEditarCliente() {
 
     $("#modalRapidoClientePosTitulo").text(`Editar Cliente: ${posClienteActual.nombre} ${posClienteActual.apellido || ''}`);
     $("#modalRapidoClientePosSubtitulo").text("Modifica los datos fiscales del cliente");
-    $("#modalRapidoClientePosIcono").attr("class", "fas fa-user-edit text-warning fs-5");
+    $("#modalRapidoClientePosIcono").attr("class", "fas fa-user-edit text-white");
     $("#modalRapidoClientePosTextoGuardar").text("Actualizar Cambios");
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRapidoClientePos")).show();
@@ -358,9 +545,39 @@ function configurarBuscadorProductosPos() {
     const $input = $("#posInputBuscadorProducto");
     const $dropdown = $("#dropdownProductosPos");
     let debounceTimer = null;
+    let indiceSeleccionadoProd = -1;
 
-    $input.on("keypress", function (e) {
-        if (e.which === 13) {
+    $input.on("keydown", function (e) {
+        const $items = $dropdown.find(".prod-item-pos");
+
+        if ($dropdown.is(":visible") && $items.length > 0) {
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                indiceSeleccionadoProd = (indiceSeleccionadoProd + 1) % $items.length;
+                $items.removeClass("dropdown-item-hover-pos");
+                const $itemActivo = $items.eq(indiceSeleccionadoProd).addClass("dropdown-item-hover-pos");
+                $itemActivo[0]?.scrollIntoView({ block: "nearest" });
+                return;
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                indiceSeleccionadoProd = (indiceSeleccionadoProd - 1 + $items.length) % $items.length;
+                $items.removeClass("dropdown-item-hover-pos");
+                const $itemActivo = $items.eq(indiceSeleccionadoProd).addClass("dropdown-item-hover-pos");
+                $itemActivo[0]?.scrollIntoView({ block: "nearest" });
+                return;
+            } else if (e.key === "Enter") {
+                if (indiceSeleccionadoProd >= 0 && indiceSeleccionadoProd < $items.length) {
+                    e.preventDefault();
+                    $items.eq(indiceSeleccionadoProd).trigger("click");
+                    return;
+                }
+            } else if (e.key === "Escape") {
+                $dropdown.hide();
+                return;
+            }
+        }
+
+        if (e.key === "Enter") {
             e.preventDefault();
             const rawVal = $(this).val().trim();
             if (!rawVal) return;
@@ -381,7 +598,7 @@ function configurarBuscadorProductosPos() {
                 } else {
                     agregarProductoAlCarrito(prodExacto);
                 }
-                $(this).val("");
+                $(this).val("").focus();
                 $dropdown.hide();
                 return;
             }
@@ -396,7 +613,7 @@ function configurarBuscadorProductosPos() {
                 } else {
                     agregarProductoAlCarrito(coincidencias[0]);
                 }
-                $(this).val("");
+                $(this).val("").focus();
                 $dropdown.hide();
             } else if (coincidencias.length > 1) {
                 renderizarDropdownProductos(coincidencias, requiereModal);
@@ -417,6 +634,7 @@ function configurarBuscadorProductosPos() {
         const rawVal = $(this).val().trim();
         const requiereModal = rawVal.startsWith("*");
         const query = (requiereModal ? rawVal.substring(1).trim() : rawVal).toLowerCase();
+        indiceSeleccionadoProd = -1;
 
         if (query.length < 2) {
             $dropdown.hide();
@@ -775,7 +993,11 @@ function eliminarItemCarrito(idx) {
 };
 
 function limpiarPantallaPos() {
-    if (posCarrito.length === 0) return;
+    if (posCarrito.length === 0) {
+        resetearClienteDefecto();
+        abrirModalInicioCliente();
+        return;
+    }
 
     if (window.Swal) {
         Swal.fire({
@@ -791,16 +1013,19 @@ function limpiarPantallaPos() {
             if (res.isConfirmed) {
                 posCarrito = [];
                 posIndiceRenglonSeleccionado = null;
+                resetearClienteDefecto();
                 renderizarCarritoPos();
                 recalcularTotalesPos();
-                $("#posInputBuscadorProducto").val("").focus();
+                abrirModalInicioCliente();
             }
         });
     } else {
         posCarrito = [];
         posIndiceRenglonSeleccionado = null;
+        resetearClienteDefecto();
         renderizarCarritoPos();
         recalcularTotalesPos();
+        abrirModalInicioCliente();
     }
 };
 
@@ -854,15 +1079,15 @@ function renderizarCarritoPos() {
         const cantidadHtml = item.tipo_item === 'moto'
             ? `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle font-monospace px-2.5 py-1.5 fw-bold" style="font-size: 0.80rem;"><i class="fas fa-tag me-1"></i> 1 UND</span>`
             : `
-                <div class="input-group input-group-sm justify-content-center" style="max-width: 110px; margin: 0 auto;">
-                    <button class="btn btn-outline-secondary px-2" type="button" onclick="event.stopPropagation(); alterarCantidadItem(${idx}, -1);">-</button>
-                    <input type="number" step="any" min="0.001" class="form-control text-center font-monospace fw-bold px-1" value="${cant}" onchange="event.stopPropagation(); actualizarCantidadItem(${idx}, this.value);" onclick="event.stopPropagation(); this.select();">
-                    <button class="btn btn-outline-secondary px-2" type="button" onclick="event.stopPropagation(); alterarCantidadItem(${idx}, 1);">+</button>
+                <div class="pos-qty-control">
+                    <button class="pos-qty-btn" type="button" onclick="event.stopPropagation(); alterarCantidadItem(${idx}, -1);" title="Disminuir"><i class="fas fa-minus" style="font-size: 0.65rem;"></i></button>
+                    <input type="number" step="any" min="0.001" class="pos-qty-input" value="${cant}" onchange="event.stopPropagation(); actualizarCantidadItem(${idx}, this.value);" onclick="event.stopPropagation(); this.select();">
+                    <button class="pos-qty-btn" type="button" onclick="event.stopPropagation(); alterarCantidadItem(${idx}, 1);" title="Aumentar"><i class="fas fa-plus" style="font-size: 0.65rem;"></i></button>
                 </div>
             `;
 
         const filaHtml = `
-            <tr class="fila-pos-item ${esSeleccionado ? 'table-active border-primary' : ''}" data-idx="${idx}" onclick="seleccionarFilaPos(${idx})" style="cursor: pointer;">
+            <tr class="fila-pos-item ${esSeleccionado ? 'fila-activa' : ''}" data-idx="${idx}" onclick="seleccionarFilaPos(${idx})" style="cursor: pointer;">
                 <!-- Código -->
                 <td class="font-monospace">
                     <span class="badge bg-light text-secondary border px-2 py-1">${item.codigo}</span>
@@ -921,8 +1146,8 @@ function renderizarCarritoPos() {
 
 function seleccionarFilaPos(idx) {
     posIndiceRenglonSeleccionado = idx;
-    $(".fila-pos-item").removeClass("table-active border-primary");
-    $(`.fila-pos-item[data-idx="${idx}"]`).addClass("table-active border-primary");
+    $(".fila-pos-item").removeClass("fila-activa table-active border-primary");
+    $(`.fila-pos-item[data-idx="${idx}"]`).addClass("fila-activa");
 };
 
 function recalcularTotalesPos() {
@@ -1149,6 +1374,21 @@ function actualizarBalancesCobro() {
 };
 
 async function procesarVentaFinal() {
+    if (!posClienteActual && posCatalogos.cliente_defecto) {
+        posClienteActual = posCatalogos.cliente_defecto;
+    }
+
+    if (!posClienteActual) {
+        if (window.notificacion) {
+            return window.notificacion.fire({
+                icon: "warning",
+                title: "Cliente requerido",
+                text: "Por favor selecciona un cliente antes de procesar la venta.",
+            });
+        }
+        return;
+    }
+
     const total = obtenerTotalVentaUsd();
     const pagado = posPagos.reduce((acc, p) => acc + p.monto_usd, 0);
     const cond = $("#cobroCondicionPago").val();
@@ -1257,7 +1497,7 @@ async function procesarVentaFinal() {
             renderizarCarritoPos();
             recalcularTotalesPos();
             cargarDatosInicialesPos();
-            $("#posInputBuscadorProducto").val("").focus();
+            abrirModalInicioCliente();
         }
     } catch (xhr) {
         const msg = xhr.responseJSON?.message || "Ocurrió un error al procesar la venta.";
@@ -1854,7 +2094,6 @@ function configurarAtajosTecladoPos() {
         const teclasInterceptar = ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "Escape", "Esc"];
 
         if (teclasInterceptar.includes(key)) {
-
             if (key !== "F5" && key !== "F12") {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1862,18 +2101,28 @@ function configurarAtajosTecladoPos() {
             }
         }
 
+        const modalInicioClienteAbierto = $("#modalInicioVentaCliente").hasClass("show");
         const modalCobroAbierto = $("#modalCobroVenta").hasClass("show");
         const modalDevolucionAbierto = $("#modalDevolucion").hasClass("show");
         const modalEsperaAbierto = $("#modalCuentasEspera").hasClass("show");
         const modalConsultaAbierto = $("#modalConsultaProducto").hasClass("show");
         const modalReimprimirAbierto = $("#modalReimprimirTicket").hasClass("show");
         const modalClienteAbierto = $("#modalRapidoClientePos").hasClass("show");
+        const modalDetalleAbierto = $("#modalDetalleVentaProducto").hasClass("show");
 
-        const hayModalAbierto = modalCobroAbierto || modalDevolucionAbierto || modalEsperaAbierto || modalConsultaAbierto || modalReimprimirAbierto || modalClienteAbierto || $(".modal.show").length > 0;
+        const hayModalAbierto = modalInicioClienteAbierto || modalCobroAbierto || modalDevolucionAbierto || modalEsperaAbierto || modalConsultaAbierto || modalReimprimirAbierto || modalClienteAbierto || modalDetalleAbierto || $(".modal.show").length > 0;
 
         switch (key) {
+            case "F1":
+                $("#posInputBuscadorProducto").val("").focus();
+                break;
+
             case "F2":
-                abrirModalReimprimir();
+                abrirModalInicioCliente();
+                break;
+
+            case "F3":
+                abrirModalConsultaProducto();
                 break;
 
             case "F4":
@@ -1885,15 +2134,15 @@ function configurarAtajosTecladoPos() {
                 break;
 
             case "F6":
-                abrirModalDevolucion();
-                break;
-
-            case "F7":
                 abrirModalCuentasEspera();
                 break;
 
+            case "F7":
+                abrirModalDevolucion();
+                break;
+
             case "F8":
-                abrirModalConsultaProducto();
+                abrirModalReimprimir();
                 break;
 
             case "F9":
@@ -1904,6 +2153,12 @@ function configurarAtajosTecladoPos() {
                 limpiarPantallaPos();
                 break;
 
+            case "F11":
+                if (typeof alternarPantallaCompleta === "function") {
+                    alternarPantallaCompleta();
+                }
+                break;
+
             case "Escape":
             case "Esc":
                 if (hayModalAbierto) {
@@ -1911,6 +2166,13 @@ function configurarAtajosTecladoPos() {
                         const m = bootstrap.Modal.getInstance(this);
                         if (m) m.hide();
                     });
+                    if (!posClienteActual) {
+                        activarModoConsulta();
+                    } else {
+                        $("#posInputBuscadorProducto").focus();
+                    }
+                } else if (posClienteActual) {
+                    activarModoConsulta();
                 } else {
                     if (typeof urlDashboard !== "undefined") {
                         window.location.href = urlDashboard;

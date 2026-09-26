@@ -19,8 +19,11 @@ const inicializarTablaFacturas = function () {
             {
                 data: "codigo",
                 name: "codigo",
-                render: function (data) {
-                    return `<span class="badge rounded-pill bg-light text-dark border font-monospace fw-bold px-2.5 py-1.5"><i class="fas fa-receipt text-primary me-1"></i>${data}</span>`;
+                render: function (data, type, row) {
+                    const controlHtml = row.numero_control
+                        ? `<small class="text-muted font-monospace d-block" style="font-size: 0.72rem;"><i class="fas fa-barcode me-1"></i>Ctrl: ${row.numero_control}</small>`
+                        : "";
+                    return `<span class="badge rounded-pill bg-light text-dark border font-monospace fw-bold px-2.5 py-1.5"><i class="fas fa-receipt text-primary me-1"></i>${data}</span>${controlHtml}`;
                 }
             },
             {
@@ -276,6 +279,10 @@ const verDetalleFactura = async function (id) {
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="text-muted">Número Factura:</span>
                                     <strong class="text-dark">${v.codigo}</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">N° Control Fiscal:</span>
+                                    <span class="badge rounded-pill bg-danger-subtle text-danger font-monospace fw-bold">${v.numero_control || 'N/A'}</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="text-muted">Fecha & Hora:</span>

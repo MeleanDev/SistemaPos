@@ -204,7 +204,7 @@
             </div>
             <div class="totales-row">
                 <span>N° CONTROL:</span>
-                <span class="fw-bold">00-{{ str_pad($venta->numero_control ?? $venta->id, 8, '0', STR_PAD_LEFT) }}</span>
+                <span class="fw-bold">00-{{ str_pad(preg_replace('/^00-/', '', (string) ($venta->numero_control ?? $venta->id)), 8, '0', STR_PAD_LEFT) }}</span>
             </div>
             <div class="totales-row">
                 <span>CONDICIÓN:</span>
