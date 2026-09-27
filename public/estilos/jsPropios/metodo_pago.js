@@ -1,9 +1,9 @@
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
-const urlLista = urlBase + "/lista";
-const urlDetalles = urlBase + "/";
-const urlEliminar = urlBase + "/";
+const urlLista = `${urlBase}/lista`;
+const urlDetalles = `${urlBase}/`;
+const urlEliminar = `${urlBase}/`;
 const urlGuardar = urlBase;
-const urlEditar = urlBase + "/actualizar/";
+const urlEditar = `${urlBase}/actualizar/`;
 
 let urlAccion = urlGuardar;
 let isEditar = false;
@@ -81,23 +81,24 @@ $(document).ready(function () {
     aplicarRestriccionesInput();
 });
 
+const resetearFormularioMetodoPago = function () {
+    const $form = $("#formularioMetodoPago");
+    $form[0].reset();
+    $("#modalMetodoPago .is-invalid").removeClass("is-invalid");
+    $("#modalMetodoPago .invalid-feedback").remove();
+    $form.find("input, select, textarea").prop("disabled", false);
+};
+
 const crear = function () {
     isEditar = false;
     idMetodoPagoActual = null;
     urlAccion = urlGuardar;
 
-    $("#formularioMetodoPago")[0].reset();
-    $("#formularioMetodoPago .is-invalid").removeClass("is-invalid");
-    $("#formularioMetodoPago .invalid-feedback").remove();
-
-    $("#formularioMetodoPago")
-        .find("input, select, textarea")
-        .prop("disabled", false);
+    resetearFormularioMetodoPago();
 
     $("#modalMetodoPagoTitulo").text("Nuevo Método de Pago");
     $("#modalMetodoPagoSubtitulo").text("Completa la información del método de pago");
     $("#modalMetodoPagoIcono").attr("class", "fas fa-credit-card text-warning fs-5");
-
     $("#modalMetodoPagoBtnGuardar").prop("hidden", false).prop("disabled", false);
     $("#modalMetodoPagoTextoGuardar").text("Guardar");
 
@@ -105,25 +106,25 @@ const crear = function () {
     modal.show();
 };
 
+const llenarFormularioMetodoPago = function (data) {
+    $("#nombre").val(data.nombre || "");
+    $("#descripcion").val(data.descripcion || "");
+};
+
 const ver = async function (id) {
     try {
         idMetodoPagoActual = id;
-        const metodoPago = await consultarRegistro(urlDetalles, id);
+        const res = await consultarRegistro(urlDetalles, id);
+        const metodoPago = res && res.data ? res.data : res;
         if (!metodoPago) return;
 
-        $("#formularioMetodoPago")[0].reset();
-        $("#formularioMetodoPago .is-invalid").removeClass("is-invalid");
-        $("#formularioMetodoPago .invalid-feedback").remove();
+        resetearFormularioMetodoPago();
+        llenarFormularioMetodoPago(metodoPago);
 
+        $("#formularioMetodoPago").find("input, select, textarea").prop("disabled", true);
         $("#modalMetodoPagoTitulo").text("Detalles del Método de Pago");
         $("#modalMetodoPagoSubtitulo").text("Consulta la información del método de pago");
         $("#modalMetodoPagoIcono").attr("class", "fas fa-eye text-info fs-5");
-
-        llenarFormularioMetodoPago(metodoPago);
-
-        $("#formularioMetodoPago")
-            .find("input, select, textarea")
-            .prop("disabled", true);
         $("#modalMetodoPagoBtnGuardar").prop("hidden", true);
 
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalMetodoPago"));
@@ -143,26 +144,19 @@ const editar = async function (id) {
     try {
         isEditar = true;
         idMetodoPagoActual = id;
-        urlAccion = urlEditar + id;
-        const metodoPago = await consultarRegistro(urlDetalles, id);
+        urlAccion = `${urlEditar}${id}`;
+
+        const res = await consultarRegistro(urlDetalles, id);
+        const metodoPago = res && res.data ? res.data : res;
         if (!metodoPago) return;
 
-        $("#formularioMetodoPago")[0].reset();
-        $("#formularioMetodoPago .is-invalid").removeClass("is-invalid");
-        $("#formularioMetodoPago .invalid-feedback").remove();
+        resetearFormularioMetodoPago();
+        llenarFormularioMetodoPago(metodoPago);
 
         $("#modalMetodoPagoTitulo").text(`Editar Método de Pago: ${metodoPago.nombre}`);
         $("#modalMetodoPagoSubtitulo").text("Modifica los datos del método de pago");
         $("#modalMetodoPagoIcono").attr("class", "fas fa-edit text-warning fs-5");
-
-        $("#formularioMetodoPago")
-            .find("input, select, textarea")
-            .prop("disabled", false);
-        llenarFormularioMetodoPago(metodoPago);
-
-        $("#modalMetodoPagoBtnGuardar")
-            .prop("hidden", false)
-            .prop("disabled", false);
+        $("#modalMetodoPagoBtnGuardar").prop("hidden", false).prop("disabled", false);
         $("#modalMetodoPagoTextoGuardar").text("Actualizar Cambios");
 
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalMetodoPago"));
@@ -176,11 +170,6 @@ const editar = async function (id) {
             });
         }
     }
-};
-
-const llenarFormularioMetodoPago = function (data) {
-    $("#nombre").val(data.nombre || "");
-    $("#descripcion").val(data.descripcion || "");
 };
 
 const eliminar = function (id, nombreMetodo) {
@@ -197,17 +186,6 @@ const eliminar = function (id, nombreMetodo) {
 
 $("#formularioMetodoPago").on("submit", function (e) {
     e.preventDefault();
-
-    const nombre = $("#nombre").val().trim();
-
-    if (nombre.length < 2) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "El nombre del método debe tener al menos 2 caracteres",
-            });
-        }
-    }
 
     enviarFormulario({
         form: this,
