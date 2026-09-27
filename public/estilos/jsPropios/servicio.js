@@ -1,10 +1,10 @@
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
-const urlLista = urlBase + "/lista";
-const urlCatalogos = urlBase + "/catalogos";
-const urlDetalles = urlBase + "/";
-const urlEliminar = urlBase + "/";
+const urlLista = `${urlBase}/lista`;
+const urlCatalogos = `${urlBase}/catalogos`;
+const urlDetalles = `${urlBase}/`;
+const urlEliminar = `${urlBase}/`;
 const urlGuardar = urlBase;
-const urlEditar = urlBase + "/actualizar/";
+const urlEditar = `${urlBase}/actualizar/`;
 
 let urlAccion = urlGuardar;
 let isEditar = false;
@@ -84,7 +84,7 @@ $(document).ready(function () {
                 name: "aplica_iva",
                 className: "text-center align-middle",
                 render: function (data, type, row) {
-                    const aplicaIva = !!data;
+                    const aplicaIva = Boolean(data);
                     const porc = parseFloat(row.iva_porcentaje || 16.00).toFixed(0);
 
                     return aplicaIva
@@ -118,13 +118,12 @@ $(document).ready(function () {
 
 const cargarCatalogos = async function () {
     try {
-        const res = await $.ajax({
+        const res = await peticionAjax({
             url: urlCatalogos,
             type: "GET",
-            dataType: "json",
         });
 
-        if (res.success && res.data) {
+        if (res && res.success && res.data) {
             catalogosSistema = res.data;
             tasaUsdActual = parseFloat(res.data.tasa_usd) || 1.0000;
             $("#badgeTasaUsd").text(tasaUsdActual.toFixed(4));
@@ -176,14 +175,11 @@ const calcularPreciosUsdDesdeBs = function () {
     $("#precio_venta_usd").val(ventaBs > 0 ? (ventaBs / tasaUsdActual).toFixed(4) : "");
 };
 
-const crear = function () {
-    isEditar = false;
-    idServicioActual = null;
-    urlAccion = urlGuardar;
-
-    $("#formularioServicio")[0].reset();
-    $("#formularioServicio .is-invalid").removeClass("is-invalid");
-    $("#formularioServicio .invalid-feedback").remove();
+const resetearFormularioServicio = function () {
+    const $form = $("#formularioServicio");
+    $form[0].reset();
+    $("#modalServicio .is-invalid").removeClass("is-invalid");
+    $("#modalServicio .invalid-feedback").remove();
 
     limpiarSelect2("#categoria_id");
 
@@ -192,9 +188,20 @@ const crear = function () {
     toggleIvaInput();
 
     $("#badgeTasaUsd").text(tasaUsdActual.toFixed(4));
+    $form.find("input, select, textarea").prop("disabled", false);
+};
+
+const crear = function () {
+    isEditar = false;
+    idServicioActual = null;
+    urlAccion = urlGuardar;
+
+    resetearFormularioServicio();
+
     $("#modalServicioTitulo").text("Nuevo Servicio");
     $("#modalServicioSubtitulo").text("Completa la información del servicio profesional");
     $("#modalServicioIcono").attr("class", "fas fa-wrench text-warning fs-5");
+    $("#modalServicioBtnGuardar").prop("hidden", false).prop("disabled", false);
     $("#modalServicioTextoGuardar").text("Guardar");
 
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalServicio"));
@@ -205,20 +212,18 @@ const editar = async function (id) {
     try {
         isEditar = true;
         idServicioActual = id;
-        urlAccion = urlEditar + id;
+        urlAccion = `${urlEditar}${id}`;
 
         const res = await consultarRegistro(urlDetalles, id);
-        if (!res || !res.data) return;
-        const srv = res.data;
+        const srv = res && res.data ? res.data : res;
+        if (!srv) return;
 
-        $("#formularioServicio")[0].reset();
-        $("#formularioServicio .is-invalid").removeClass("is-invalid");
-        $("#formularioServicio .invalid-feedback").remove();
+        resetearFormularioServicio();
 
-        $("#badgeTasaUsd").text(tasaUsdActual.toFixed(4));
         $("#modalServicioTitulo").text(`Editar: ${srv.nombre}`);
         $("#modalServicioSubtitulo").text("Modifica los datos del servicio");
         $("#modalServicioIcono").attr("class", "fas fa-edit text-warning fs-5");
+        $("#modalServicioBtnGuardar").prop("hidden", false).prop("disabled", false);
         $("#modalServicioTextoGuardar").text("Actualizar Cambios");
 
         establecerValorSelect2("#categoria_id", srv.categoria_id);
@@ -229,7 +234,7 @@ const editar = async function (id) {
         $("#precio_venta_usd").val(srv.precio_venta_usd || "");
         calcularPreciosBsDesdeUsd();
 
-        const aplicaIva = !!srv.aplica_iva;
+        const aplicaIva = Boolean(srv.aplica_iva);
         $("#aplica_iva").prop("checked", aplicaIva);
         $("#iva_porcentaje").val(srv.iva_porcentaje !== null && srv.iva_porcentaje !== undefined ? parseFloat(srv.iva_porcentaje).toFixed(2) : "16.00");
         toggleIvaInput();
@@ -249,37 +254,6 @@ const editar = async function (id) {
 
 $("#formularioServicio").on("submit", function (e) {
     e.preventDefault();
-
-    const nombre = $("#nombre").val().trim();
-    const codigo = $("#codigo").val().trim();
-    const categoriaId = $("#categoria_id").val();
-
-    if (codigo.length < 2) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "El código debe tener al menos 2 caracteres",
-            });
-        }
-    }
-
-    if (!categoriaId) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "Debe seleccionar una categoría",
-            });
-        }
-    }
-
-    if (nombre.length < 2) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "El nombre debe tener al menos 2 caracteres",
-            });
-        }
-    }
 
     enviarFormulario({
         form: this,

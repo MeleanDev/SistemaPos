@@ -38,6 +38,8 @@ class ActualizarRequest extends BaseRequest
             'descripcion' => ['nullable', 'string', 'max:1000'],
             'precio_venta_usd' => ['required', 'numeric', 'min:0'],
             'precio_venta_bs' => ['nullable', 'numeric', 'min:0'],
+            'aplica_iva' => ['nullable'],
+            'iva_porcentaje' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
     }
 
@@ -55,6 +57,9 @@ class ActualizarRequest extends BaseRequest
             'nombre.unique' => 'Ya existe un servicio con este nombre en tu empresa.',
             'precio_venta_usd.required' => 'El precio de venta en USD es obligatorio.',
             'precio_venta_usd.min' => 'El precio de venta en USD no puede ser negativo.',
+            'iva_porcentaje.numeric' => 'El porcentaje de IVA debe ser un número válido.',
+            'iva_porcentaje.min' => 'El porcentaje de IVA no puede ser negativo.',
+            'iva_porcentaje.max' => 'El porcentaje de IVA no puede ser mayor a 100.',
         ];
     }
 }

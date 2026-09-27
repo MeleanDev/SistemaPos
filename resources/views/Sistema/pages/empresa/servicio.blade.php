@@ -119,27 +119,31 @@
 
                 <!-- RÉGIMEN FISCAL (IVA) -->
                 <div class="col-md-5">
-                    <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
-                        <h6 class="fw-bold text-dark mb-2"><i class="fas fa-file-invoice-dollar text-warning me-1"></i> Régimen Fiscal</h6>
-                        <div class="row g-2">
-                            <div class="col-12">
-                                <div class="d-flex align-items-center justify-content-between border rounded-3 p-2.5 bg-white shadow-xs">
-                                    <div class="form-check form-switch mb-0">
-                                        <input class="form-check-input" type="checkbox" role="switch" id="aplica_iva" name="aplica_iva" value="1" onchange="toggleIvaInput()">
-                                        <label class="form-check-label fw-bold text-dark small ms-1" for="aplica_iva">Aplica IVA</label>
-                                    </div>
-                                    <div style="width: 125px;" id="contenedorIvaPorcentaje">
-                                        <div class="input-group input-group-executive">
-                                            <input type="number" step="0.01" min="0" max="100" class="form-control form-control-executive text-end fw-bold font-monospace" id="iva_porcentaje" name="iva_porcentaje" value="16.00">
-                                            <span class="input-group-text">%</span>
-                                        </div>
+                    <div class="card border rounded-4 p-3 bg-white shadow-xs h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <h6 class="fw-bold text-dark mb-3"><i class="fas fa-file-invoice-dollar text-warning me-1"></i> Régimen Fiscal</h6>
+                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                <x-checkbox
+                                    switch="true"
+                                    id="aplica_iva"
+                                    name="aplica_iva"
+                                    value="1"
+                                    onchange="toggleIvaInput()"
+                                    label="Aplica IVA"
+                                    labelClass="fw-bold text-dark small"
+                                    style="cursor: pointer; width: 2.5em; height: 1.3em;"
+                                />
+                                <div style="width: 120px;" id="contenedorIvaPorcentaje">
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" min="0" max="100" class="form-control form-control-executive text-end fw-bold font-monospace" id="iva_porcentaje" name="iva_porcentaje" value="16.00">
+                                        <span class="input-group-text bg-white text-muted small">%</span>
                                     </div>
                                 </div>
-                                <small class="text-muted d-block mt-2 ps-1" style="font-size: 0.73rem;">
-                                    Si se desactiva, el servicio quedará <strong>Exento de IVA</strong>.
-                                </small>
                             </div>
                         </div>
+                        <small class="text-muted d-block mt-2 ps-1" style="font-size: 0.73rem;">
+                            Si se desactiva, el servicio quedará <strong class="text-secondary">Exento de IVA</strong>.
+                        </small>
                     </div>
                 </div>
 
