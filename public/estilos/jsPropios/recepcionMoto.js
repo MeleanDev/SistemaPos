@@ -28,6 +28,16 @@ $(document).ready(function () {
         placeholder: 'Seleccione un proveedor...',
     });
 
+    crearSelect2({
+        selector: '#prod_select_id',
+        modalSelector: '#modalRecepcionMoto',
+        placeholder: 'Buscar producto por nombre o SKU...',
+    });
+
+    $('#prod_select_id').on('change', function () {
+        seleccionarProductoDeCatalogo();
+    });
+
     inicializarTabla();
     cargarCatalogos();
     actualizarContadorBorradores();
@@ -255,10 +265,14 @@ const poblarSelects = function () {
         $selectProv.append(`<option value="${p.id}">[${p.rif}] ${p.nombre}</option>`);
     });
 
+    crearSelect2({
+        selector: '#proveedor_id',
+        modalSelector: '#modalRecepcionMoto',
+        placeholder: 'Seleccione un proveedor...',
+    });
+
     if (valorSeleccionado) {
         establecerValorSelect2('#proveedor_id', valorSeleccionado);
-    } else {
-        $selectProv.trigger('change.select2');
     }
 
     const $selectAlm = $('#almacen_id').empty().append('<option value="">Seleccione almacén...</option>');
@@ -272,6 +286,12 @@ const poblarSelects = function () {
     const $selectProd = $('#prod_select_id').empty().append('<option value="">Buscar o seleccionar producto...</option>');
     productosLista.forEach(p => {
         $selectProd.append(`<option value="${p.id}">[${p.codigo_interno}] ${p.nombre} (${p.categoria_nombre})</option>`);
+    });
+
+    crearSelect2({
+        selector: '#prod_select_id',
+        modalSelector: '#modalRecepcionMoto',
+        placeholder: 'Buscar producto por nombre o SKU...',
     });
 };
 
@@ -528,7 +548,7 @@ window.agregarProductoAFactura = agregarProductoAFactura;
 
 const cancelarEdicionProducto = function () {
     editandoLoteIndex = null;
-    $('#prod_select_id').val('');
+    $('#prod_select_id').val('').trigger('change.select2');
     $('#prod_cantidad').val(1);
     $('#prod_costo_unitario').val('');
     $('#prod_descuento').val('0.00');
@@ -1024,7 +1044,7 @@ const editarLote = function (index) {
 
     if (lote.tipo_item === 'producto') {
         cambiarModoItem('producto');
-        $('#prod_select_id').val(lote.producto_id);
+        $('#prod_select_id').val(lote.producto_id).trigger('change.select2');
         $('#prod_almacen_id').val(lote.almacen_id);
         $('#prod_cantidad').val(lote.cantidad);
 

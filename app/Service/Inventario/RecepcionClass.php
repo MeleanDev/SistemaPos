@@ -73,8 +73,11 @@ class RecepcionClass
         // Productos activos con sus códigos de barra, almacenes y márgenes
         $productos = Producto::with(['codigosBarra', 'stockAlmacenes.almacen', 'categoria'])
             ->where('empresa_id', $empresaId)
-            ->where('tipo', 'producto')
             ->where('estado', true)
+            ->where(function (Builder $q) {
+                $q->whereNull('tipo')
+                    ->orWhere('tipo', '!=', 'servicio');
+            })
             ->orderBy('nombre')
             ->get()
             ->map(function ($p) {

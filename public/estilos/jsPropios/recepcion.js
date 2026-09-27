@@ -548,7 +548,8 @@ function configurarBuscadorProductos() {
             const query = $(this).val().trim().toLowerCase();
             if (!query) return;
 
-            const productoEncontrado = catalogosSistema.productos.find((p) => {
+            const prods = Array.isArray(catalogosSistema.productos) ? catalogosSistema.productos : [];
+            const productoEncontrado = prods.find((p) => {
                 const skuMatch = (p.codigo_interno || "").toLowerCase() === query;
                 const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => (cb || "").toLowerCase() === query);
                 return skuMatch || barcodeMatch;
@@ -559,8 +560,8 @@ function configurarBuscadorProductos() {
                 $input.val("");
                 $resultados.hide();
             } else {
-                const coincidencias = catalogosSistema.productos.filter((p) =>
-                    p.nombre.toLowerCase().includes(query) || (p.codigo_interno || "").toLowerCase().includes(query)
+                const coincidencias = prods.filter((p) =>
+                    (p.nombre || "").toLowerCase().includes(query) || (p.codigo_interno || "").toLowerCase().includes(query)
                 );
 
                 if (coincidencias.length === 1) {
@@ -597,22 +598,43 @@ function configurarBuscadorProductos() {
     $input.on("input", function () {
         clearTimeout(timeoutBusqueda);
         const query = $(this).val().trim().toLowerCase();
+        const prods = Array.isArray(catalogosSistema.productos) ? catalogosSistema.productos : [];
 
-        if (query.length < 2) {
-            $resultados.hide();
+        if (query.length < 1) {
+            if (prods.length > 0) {
+                renderizarResultadosBusqueda(prods.slice(0, 10), "");
+            } else {
+                $resultados.hide();
+            }
             return;
         }
 
         timeoutBusqueda = setTimeout(() => {
-            const coincidencias = catalogosSistema.productos.filter((p) => {
-                const nombreMatch = p.nombre.toLowerCase().includes(query);
+            const coincidencias = prods.filter((p) => {
+                const nombreMatch = (p.nombre || "").toLowerCase().includes(query);
                 const skuMatch = (p.codigo_interno || "").toLowerCase().includes(query);
                 const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => (cb || "").toLowerCase() === query);
                 return nombreMatch || skuMatch || barcodeMatch;
             });
 
             renderizarResultadosBusqueda(coincidencias, query);
-        }, 150);
+        }, 100);
+    });
+
+    $input.on("focus", function () {
+        const query = $(this).val().trim().toLowerCase();
+        const prods = Array.isArray(catalogosSistema.productos) ? catalogosSistema.productos : [];
+        if (query.length > 0) {
+            const coincidencias = prods.filter((p) => {
+                const nombreMatch = (p.nombre || "").toLowerCase().includes(query);
+                const skuMatch = (p.codigo_interno || "").toLowerCase().includes(query);
+                const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => (cb || "").toLowerCase() === query);
+                return nombreMatch || skuMatch || barcodeMatch;
+            });
+            renderizarResultadosBusqueda(coincidencias, query);
+        } else if (prods.length > 0) {
+            renderizarResultadosBusqueda(prods.slice(0, 10), "");
+        }
     });
 
     $(document).on("click", function (e) {

@@ -9,6 +9,7 @@ use App\Http\Controllers\Empresa\ConfiguracionController;
 use App\Http\Controllers\Empresa\CuentaPorCobrarController;
 use App\Http\Controllers\Empresa\CuentaPorPagarController;
 use App\Http\Controllers\Empresa\FacturaController;
+use App\Http\Controllers\Empresa\KardexController;
 use App\Http\Controllers\Empresa\MetodoPagoController;
 use App\Http\Controllers\Empresa\MotoController;
 use App\Http\Controllers\Empresa\PosController;
@@ -128,6 +129,17 @@ Route::middleware('auth')->group(function () {
         Route::post('/almacenes', 'guardar');
         Route::put('/almacenes/actualizar/{id}', 'actualizar');
         Route::delete('/almacenes/{id}', 'eliminar');
+    });
+
+    Route::middleware('permission:inventario.kardex')->controller(KardexController::class)->group(function () {
+        Route::get('/kardex', 'index')->name('kardex');
+        Route::get('/kardex/lista', 'lista');
+        Route::get('/kardex/kpis', 'kpis');
+        Route::get('/kardex/catalogos', 'catalogos');
+        Route::get('/kardex/stock-producto/{productoId}', 'stockProducto');
+        Route::post('/kardex/ajuste', 'ajustar');
+        Route::post('/kardex/traslado', 'trasladar');
+        Route::get('/kardex/comprobante/{id}', 'comprobante')->name('kardex.comprobante');
     });
 
     Route::middleware('permission:usuarios.ver')->controller(UsuarioController::class)->group(function () {

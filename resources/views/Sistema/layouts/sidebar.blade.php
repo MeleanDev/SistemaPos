@@ -117,12 +117,12 @@
                     <li class="list-divider"></li>
                     <li class="nav-small-cap"><span class="hide-menu">Inventario & Catálogo</span></li>
 
-                    <li class="sidebar-item @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*')) selected @endif">
-                        <a class="sidebar-link has-arrow @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*')) active @endif" href="javascript:void(0)" aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*')) true @else false @endif">
+                    <li class="sidebar-item @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*') || request()->routeIs('kardex*')) selected @endif">
+                        <a class="sidebar-link has-arrow @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*') || request()->routeIs('kardex*')) active @endif" href="javascript:void(0)" aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*') || request()->routeIs('kardex*')) true @else false @endif">
                             <i class="fas fa-boxes-stacked"></i>
                             <span class="hide-menu">Inventario & Catálogo</span>
                         </a>
-                        <ul aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*')) true @else false @endif" class="collapse first-level base-level-line @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*')) in @endif">
+                        <ul aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*') || request()->routeIs('kardex*')) true @else false @endif" class="collapse first-level base-level-line @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*') || request()->routeIs('kardex*')) in @endif">
                             @can('categorias.ver')
                                 <li class="sidebar-item @if (request()->routeIs('categoria*')) active @endif">
                                     <a href="{{ route('categoria') }}" class="sidebar-link @if (request()->routeIs('categoria*')) active @endif">
@@ -171,8 +171,8 @@
                             @endcan
 
                             @can('inventario.kardex')
-                                <li class="sidebar-item">
-                                    <a href="javascript:void(0)" class="sidebar-link">
+                                <li class="sidebar-item @if (request()->routeIs('kardex*')) active @endif">
+                                    <a href="{{ route('kardex') }}" class="sidebar-link @if (request()->routeIs('kardex*')) active @endif">
                                         <i class="fas fa-dolly me-2"></i>
                                         <span class="hide-menu">Movimiento Kardex</span>
                                     </a>

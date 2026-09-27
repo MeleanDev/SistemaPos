@@ -79,8 +79,11 @@ class RecepcionMotoClass
 
         $productos = Producto::with(['codigosBarra', 'stockAlmacenes.almacen', 'categoria'])
             ->where('empresa_id', $empresaId)
-            ->where('tipo', 'producto')
             ->where('estado', true)
+            ->where(function ($q) {
+                $q->whereNull('tipo')
+                    ->orWhere('tipo', '!=', 'servicio');
+            })
             ->orderBy('nombre')
             ->get()
             ->map(function ($p) {

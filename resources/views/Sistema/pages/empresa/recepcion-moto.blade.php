@@ -645,11 +645,12 @@
                                 </div>
 
                                 <div class="row g-3 mb-3">
-                                    <x-select name="prod_select_id" id="prod_select_id" label="Producto del Catálogo"
-                                        icon="fas fa-box text-success" required col="col-md-6"
+                                    <x-select2 name="prod_select_id" id="prod_select_id" label="Producto del Catálogo"
+                                        icon="fas fa-box text-success" placeholder="Buscar producto por nombre o SKU..."
+                                        modalParent="#modalRecepcionMoto" required col="col-md-6"
                                         onchange="seleccionarProductoDeCatalogo()">
                                         <option value="">Buscar o seleccionar producto...</option>
-                                    </x-select>
+                                    </x-select2>
 
                                     <x-select name="prod_almacen_id" id="prod_almacen_id" label="Almacén Destino"
                                         icon="fas fa-warehouse text-secondary" required col="col-md-6">
