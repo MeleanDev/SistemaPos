@@ -1,9 +1,9 @@
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
-const urlLista = urlBase + "/lista";
-const urlDetalles = urlBase + "/";
-const urlEliminar = urlBase + "/";
+const urlLista = `${urlBase}/lista`;
+const urlDetalles = `${urlBase}/`;
+const urlEliminar = `${urlBase}/`;
 const urlGuardar = urlBase;
-const urlEditar = urlBase + "/actualizar/";
+const urlEditar = `${urlBase}/actualizar/`;
 
 let urlAccion = urlGuardar;
 let isEditar = false;
@@ -75,13 +75,12 @@ const cargarAlmacenes = async function () {
     mostrarSkeletonLoading();
 
     try {
-        const respuesta = await $.ajax({
+        const respuesta = await peticionAjax({
             url: urlLista,
             type: "GET",
-            dataType: "json",
         });
 
-        if (respuesta.success && Array.isArray(respuesta.data)) {
+        if (respuesta && respuesta.success && Array.isArray(respuesta.data)) {
             listaAlmacenes = respuesta.data;
             renderizarAlmacenes(listaAlmacenes);
         } else {
@@ -218,18 +217,25 @@ const renderizarAlmacenes = function (almacenes, esFiltrado = false) {
     });
 };
 
+const resetearFormularioAlmacen = function () {
+    const $form = $("#formularioAlmacen");
+    $form[0].reset();
+    $("#modalAlmacen .is-invalid").removeClass("is-invalid");
+    $("#modalAlmacen .invalid-feedback").remove();
+    $form.find("input, select, textarea").prop("disabled", false);
+};
+
 const crear = function () {
     isEditar = false;
     idAlmacenActual = null;
     urlAccion = urlGuardar;
 
-    $("#formularioAlmacen")[0].reset();
-    $("#modalAlmacen .is-invalid").removeClass("is-invalid");
-    $("#modalAlmacen .invalid-feedback").remove();
+    resetearFormularioAlmacen();
 
     $("#modalAlmacenTitulo").text("Nuevo Almacén");
     $("#modalAlmacenSubtitulo").text("Completa la información del almacén o bodega");
     $("#modalAlmacenIcono").attr("class", "fas fa-warehouse text-warning fs-5");
+    $("#modalAlmacenBtnGuardar").prop("hidden", false).prop("disabled", false);
     $("#modalAlmacenTextoGuardar").text("Guardar");
 
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalAlmacen"));
@@ -240,18 +246,18 @@ const editar = async function (id) {
     try {
         isEditar = true;
         idAlmacenActual = id;
-        urlAccion = urlEditar + id;
+        urlAccion = `${urlEditar}${id}`;
 
-        const datos = await consultarRegistro(urlDetalles, id);
+        const res = await consultarRegistro(urlDetalles, id);
+        const datos = res && res.data ? res.data : res;
         if (!datos) return;
 
-        $("#formularioAlmacen")[0].reset();
-        $("#modalAlmacen .is-invalid").removeClass("is-invalid");
-        $("#modalAlmacen .invalid-feedback").remove();
+        resetearFormularioAlmacen();
 
         $("#modalAlmacenTitulo").text("Editar Almacén");
         $("#modalAlmacenSubtitulo").text("Modifica los datos del almacén seleccionado");
         $("#modalAlmacenIcono").attr("class", "fas fa-edit text-warning fs-5");
+        $("#modalAlmacenBtnGuardar").prop("hidden", false).prop("disabled", false);
         $("#modalAlmacenTextoGuardar").text("Actualizar");
 
         $("#codigo").val(datos.codigo || "");
@@ -273,27 +279,6 @@ const editar = async function (id) {
 
 $("#formularioAlmacen").on("submit", function (e) {
     e.preventDefault();
-
-    const codigo = $("#codigo").val().trim();
-    const nombre = $("#nombre").val().trim();
-
-    if (codigo.length < 2) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "El código debe tener al menos 2 caracteres",
-            });
-        }
-    }
-
-    if (nombre.length < 2) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "El nombre del almacén debe tener al menos 2 caracteres",
-            });
-        }
-    }
 
     enviarFormulario({
         form: this,

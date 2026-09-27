@@ -4,7 +4,7 @@
 @section('subtitulo', 'Gestión y control de depósitos, bodegas y sucursales físicas de almacenamiento')
 
 @section('rutas')
-    <a href="{{ route('dashboard') }}">Almacenes / Bodegas</a>
+    <a href="{{ route('dashboard') }}">Sistema</a>
     <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
     <span class="active">Almacenes</span>
 @endsection
