@@ -28,8 +28,9 @@ class RecepcionMotoClass
     public function lista(int $empresaId)
     {
         return RecepcionMoto::with(['proveedor', 'almacen', 'usuario', 'detalles.producto'])
-            ->where('empresa_id', $empresaId)
-            ->orderBy('id', 'desc');
+            ->select('recepcion_motos.*')
+            ->where('recepcion_motos.empresa_id', $empresaId)
+            ->orderBy('recepcion_motos.id', 'desc');
     }
 
     /**
@@ -477,6 +478,13 @@ class RecepcionMotoClass
 
             $totalGlobalUsd = round($subtotalGlobalUsd + $ivaGlobalUsd + ($incluirFlete ? $fleteGlobalUsd : 0), 2);
             $totalBs = round($totalGlobalUsd * $tasaCompra, 2);
+
+            $diferencia = abs(round($montoBrutoUsd, 2) - round($totalGlobalUsd, 2));
+            if ($diferencia > 0.00001) {
+                throw ValidationException::withMessages([
+                    'monto_bruto_usd' => 'El Monto de la Factura ($'.number_format($montoBrutoUsd, 2).') debe ser exactamente igual al Total Calculado de los renglones ($'.number_format($totalGlobalUsd, 2).'). La factura está descuadrada por $'.number_format($diferencia, 2).'. Debe ajustar los renglones o el monto antes de procesar.',
+                ]);
+            }
 
             // 3. Crear cabecera RecepcionMoto
             $diasCredito = ($datos['condicion_pago'] === 'credito') ? (int) ($datos['dias_credito'] ?? 30) : 0;

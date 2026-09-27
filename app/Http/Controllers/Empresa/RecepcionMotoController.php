@@ -5,14 +5,13 @@ namespace App\Http\Controllers\Empresa;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RecepcionMoto\CrearRequest;
 use App\Http\Requests\RecepcionMoto\GuardarBorradorRequest;
-use App\Models\Almacen;
 use App\Models\Empresa;
-use App\Models\Proveedor;
 use App\Service\Inventario\RecepcionMotoClass;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class RecepcionMotoController extends Controller
@@ -30,34 +29,11 @@ class RecepcionMotoController extends Controller
     {
         try {
             $empresaId = $this->obtenerEmpresaId();
-
-            $proveedores = Proveedor::where('empresa_id', $empresaId)
-                ->where('estado', true)
-                ->select('id', 'rif', 'nombre', 'razon_social', 'telefono', 'correo')
-                ->orderBy('nombre')
-                ->get();
-
-            $almacenes = Almacen::where('empresa_id', $empresaId)
-                ->where('estado', true)
-                ->select('id', 'nombre', 'codigo', 'direccion')
-                ->orderBy('nombre')
-                ->get();
-
-            $tasaOficial = $this->recepcionMotoService->obtenerTasaOficial($empresaId);
-            $codigoSugerido = $this->recepcionMotoService->generarCodigo($empresaId);
-            $proximaReferencia = $this->recepcionMotoService->generarReferenciaNumerica($empresaId);
+            $catalogos = $this->recepcionMotoService->catalogos($empresaId);
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'proveedores' => $proveedores,
-                    'almacenes' => $almacenes,
-                    'tasa_oficial' => $tasaOficial,
-                    'tasa_compra' => $tasaOficial,
-                    'tasa_venta' => $tasaOficial,
-                    'codigo_sugerido' => $codigoSugerido,
-                    'proxima_referencia' => $proximaReferencia,
-                ],
+                'data' => $catalogos,
             ]);
         } catch (Exception $e) {
             return response()->json([
@@ -76,14 +52,14 @@ class RecepcionMotoController extends Controller
             ->filter(function ($query) {
                 if ($search = request('search.value')) {
                     $query->where(function ($q) use ($search) {
-                        $q->where('codigo', 'LIKE', "%{$search}%")
-                            ->orWhere('numero_documento', 'LIKE', "%{$search}%")
+                        $q->where('recepcion_motos.codigo', 'LIKE', "%{$search}%")
+                            ->orWhere('recepcion_motos.numero_documento', 'LIKE', "%{$search}%")
                             ->orWhereHas('proveedor', function ($pq) use ($search) {
-                                $pq->where('nombre', 'LIKE', "%{$search}%")
-                                    ->orWhere('rif', 'LIKE', "%{$search}%");
+                                $pq->where('proveedores.nombre', 'LIKE', "%{$search}%")
+                                    ->orWhere('proveedores.rif', 'LIKE', "%{$search}%");
                             })
                             ->orWhereHas('almacen', function ($aq) use ($search) {
-                                $aq->where('nombre', 'LIKE', "%{$search}%");
+                                $aq->where('almacenes.nombre', 'LIKE', "%{$search}%");
                             });
                     });
                 }
@@ -104,6 +80,12 @@ class RecepcionMotoController extends Controller
                 'message' => "Recepción de motos {$recepcion->codigo} procesada exitosamente con {$recepcion->total_unidades} unidades y seriales registrados.",
                 'data' => $recepcion,
             ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'errors' => $e->errors(),
+            ], 422);
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,

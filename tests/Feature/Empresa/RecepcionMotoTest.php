@@ -82,7 +82,7 @@ test('empresa con maneja_motos en true puede acceder y procesar recepcion de mot
         'fecha_emision' => now()->toDateString(),
         'fecha_recepcion' => now()->toDateString(),
         'condicion_pago' => 'contado',
-        'monto_bruto_usd' => 1600.00,
+        'monto_bruto_usd' => 1856.00,
         'detalles' => [
             [
                 'referencia' => 'SBR-150-2025',
@@ -194,7 +194,7 @@ test('puede procesar recepcion de factura con multiples modelos de motos en lote
         'fecha_emision' => now()->toDateString(),
         'fecha_recepcion' => now()->toDateString(),
         'condicion_pago' => 'contado',
-        'monto_bruto_usd' => 3600.00,
+        'monto_bruto_usd' => 4176.00,
         'detalles' => [
             [
                 'referencia' => 'BERA-SBR-150',
@@ -354,7 +354,7 @@ test('recepcion de motos calcula fletes, costos totales y liquidacion fiscal glo
         'fecha_emision' => now()->toDateString(),
         'fecha_recepcion' => now()->toDateString(),
         'condicion_pago' => 'contado',
-        'monto_bruto_usd' => 2000.00,
+        'monto_bruto_usd' => 2420.00,
         'incluir_flete_en_factura' => 1,
         'detalles' => [
             [
@@ -491,7 +491,7 @@ test('recepcion de motos permite recepcion mixta de motos y productos con kardex
         'fecha_emision' => now()->toDateString(),
         'fecha_recepcion' => now()->toDateString(),
         'condicion_pago' => 'contado',
-        'monto_bruto_usd' => 1250.00,
+        'monto_bruto_usd' => 1363.00,
         'incluir_flete_en_factura' => 0,
         'detalles' => [
             [
@@ -569,4 +569,82 @@ test('recepcion de motos permite recepcion mixta de motos y productos con kardex
         'almacen_id' => $almacen->id,
         'cantidad_actual' => 5,
     ]);
+});
+
+test('rechaza terminantemente el procesamiento si el monto de la factura no coincide exactamente con el total de los renglones', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-44332211-9',
+        'nombre' => 'Motos Bloqueo Test',
+        'razon_social' => 'Motos Bloqueo Test C.A.',
+        'direccion' => 'Av. San Martin',
+        'maneja_motos' => true,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'ALM-BLOQ',
+        'nombre' => 'Almacén Bloqueo',
+        'tipo' => 'principal',
+        'estado' => true,
+    ]);
+
+    $proveedor = Proveedor::create([
+        'empresa_id' => $empresa->id,
+        'rif' => 'J-11112222-3',
+        'nombre' => 'Proveedor Ensamblador',
+        'razon_social' => 'Proveedor Ensamblador C.A.',
+        'direccion' => 'Zona Ind',
+        'estado' => true,
+    ]);
+
+    $user = User::factory()->create(['estado' => true]);
+    $user->syncRoles('SuperAdmin');
+    $user->empresas()->attach($empresa->id, ['es_predeterminada' => true, 'estado' => true]);
+
+    // Renglón: 1 moto @ $1000 + 16% IVA = $1160.00 total
+    // Monto factura erróneo: $1000.00 (descuadrado por $160)
+    $payload = [
+        'almacen_id' => $almacen->id,
+        'proveedor_id' => $proveedor->id,
+        'tipo_documento' => 'factura',
+        'numero_documento' => 'FACT-ERR-001',
+        'moneda_documento' => 'USD',
+        'tasa_cambio' => 50.00,
+        'fecha_emision' => now()->toDateString(),
+        'fecha_recepcion' => now()->toDateString(),
+        'condicion_pago' => 'contado',
+        'monto_bruto_usd' => 1000.00, // Descuadrado
+        'detalles' => [
+            [
+                'tipo_item' => 'moto',
+                'referencia' => 'MOTO-ERR-1',
+                'marca' => 'Bera',
+                'modelo' => 'SBR 150',
+                'anio' => '2026',
+                'color' => 'Negro',
+                'cilindrada' => '150cc',
+                'cantidad' => 1,
+                'costo_unitario_usd' => 1000.00,
+                'aplica_iva' => true,
+                'iva_porcentaje' => 16.00,
+                'seriales' => [
+                    [
+                        'numero_niv' => '8A1BERAERR0000001',
+                        'numero_chasis' => 'CHASIS-ERR-001',
+                        'numero_motor' => 'MOTOR-ERR-001',
+                        'certificado_origen' => 'CERT-ERR-001',
+                        'almacen_id' => $almacen->id,
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $response = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson(route('recepcion_moto'), $payload);
+
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['monto_bruto_usd']);
 });

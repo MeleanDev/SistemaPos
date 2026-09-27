@@ -269,7 +269,7 @@
 
                                     <div class="col-md-6">
                                         <label class="form-label-executive"><i class="fas fa-receipt text-secondary"></i>
-                                            Monto Bruto Fac. <span class="text-danger">*</span></label>
+                                            Monto Total Factura <span class="text-danger">*</span> <small class="text-muted fw-normal">(Total según documento físico)</small></label>
                                         <div class="input-group">
                                             <span
                                                 class="input-group-text bg-white text-primary fw-bold label-simbolo-moneda-fac">$</span>
@@ -281,17 +281,12 @@
                                         </div>
                                     </div>
 
-                                    <div class="col-md-6">
-                                        <label class="form-label-executive"><i class="fas fa-percent text-secondary"></i>
-                                            Descuento Global Fac. <small class="text-muted fw-normal">(%)</small></label>
-                                        <div class="input-group">
-                                            <input type="number" step="any" min="0" max="100"
-                                                name="descuento_global_porcentaje" id="descuento_global_porcentaje"
-                                                class="form-control form-control-executive font-monospace" value="0.00"
-                                                oninput="recalcularTotalesGenerales(); dispararAutoGuardado();">
-                                            <span class="input-group-text bg-white text-muted">%</span>
-                                        </div>
-                                    </div>
+                                    <x-input type="number" step="any" min="0" max="100"
+                                        name="descuento_global_porcentaje" id="descuento_global_porcentaje"
+                                        label="Descuento Global Fac." icon="fas fa-percent text-secondary"
+                                        optionalText="%" value="0.00" addonText="%" addonPosition="right"
+                                        col="col-md-6" class="font-monospace"
+                                        oninput="recalcularTotalesGenerales(); dispararAutoGuardado();" />
                                 </div>
                             </div>
                         </div>
@@ -648,8 +643,8 @@
                                 <div class="row g-3 mb-3">
                                     <x-select2 name="prod_select_id" id="prod_select_id" label="Producto del Catálogo"
                                         icon="fas fa-box text-success" placeholder="Buscar producto por nombre o SKU..."
-                                        modalParent="#modalRecepcionMoto" required col="col-md-6"
-                                        onchange="seleccionarProductoDeCatalogo()">
+                                        modalParent="#modalRecepcionMoto" actionText="Nuevo" actionIcon="fas fa-plus"
+                                        actionOnClick="abrirModalRapidoProducto()" required col="col-md-6">
                                         <option value="">Buscar o seleccionar producto...</option>
                                     </x-select2>
 
@@ -907,18 +902,18 @@
                                             </div>
 
                                             <div class="pt-2 border-top border-white border-opacity-10 d-flex align-items-center justify-content-between">
-                                                <div class="pe-2">
-                                                    <label for="switchIncluirFleteFactura" class="fw-semibold text-white small mb-0 cursor-pointer d-block">
-                                                        <i class="fas fa-file-invoice-dollar text-info me-1"></i> ¿Incluir flete en el total de la factura fiscal?
-                                                    </label>
-                                                    <small class="text-white-50 d-block" style="font-size: 0.72rem;">Suma el flete al monto total fiscal a liquidar</small>
-                                                </div>
-                                                <div class="form-check form-switch m-0 p-0">
-                                                    <input class="form-check-input ms-0" type="checkbox" role="switch"
-                                                        id="switchIncluirFleteFactura" name="incluir_flete_en_factura" value="1"
-                                                        onchange="recalcularTotalesGenerales(); dispararAutoGuardado();"
-                                                        style="cursor: pointer; width: 2.6em; height: 1.35em;">
-                                                </div>
+                                                <x-checkbox
+                                                    switch="true"
+                                                    id="switchIncluirFleteFactura"
+                                                    name="incluir_flete_en_factura"
+                                                    value="1"
+                                                    onchange="recalcularTotalesGenerales(); dispararAutoGuardado();"
+                                                    label="<i class='fas fa-file-invoice-dollar text-info me-1'></i> ¿Incluir flete en el total de la factura fiscal?"
+                                                    labelClass="fw-semibold text-white small mb-0 cursor-pointer d-block"
+                                                    description="Suma el flete al monto total fiscal a liquidar"
+                                                    wrapperClass="w-100 d-flex align-items-center justify-content-between flex-row-reverse"
+                                                    style="cursor: pointer; width: 2.6em; height: 1.35em;"
+                                                />
                                             </div>
                                         </div>
 
@@ -1017,6 +1012,83 @@
                         icon="fas fa-map-marker-alt" placeholder="Ciudad, Sector, Calle..." maxlength="255"
                         optionalText="Opcional" />
                 </div>
+            </div>
+        </form>
+    </x-modal>
+
+    <!-- MODAL RÁPIDO: REGISTRAR PRODUCTO DIRECTO CON COMPONENTE EJECUTIVO -->
+    <x-modal id="modalRapidoProducto" title="Nuevo Producto Rápido"
+        subtitle="Registra el producto sin perder el progreso de la recepción" icon="fas fa-box-open text-warning fs-5"
+        size="modal-lg" headerColor="bg-dark text-white" formId="formularioRapidoProducto"
+        submitText="Crear y Seleccionar Producto">
+        <form id="formularioRapidoProducto">
+            @csrf
+            <input type="hidden" name="tipo" value="producto">
+            <input type="hidden" name="aplica_igtf" value="0">
+            <input type="hidden" name="stock_minimo" value="0">
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <x-input name="codigo_interno" id="rapido_prod_codigo" label="Código Interno Numérico" icon="fas fa-hashtag"
+                        placeholder="[Generado automáticamente]" readonly maxlength="50" optionalText="Numérico auto" />
+                </div>
+                <div class="col-md-6">
+                    <x-input name="codigo_barra_principal" id="rapido_prod_barcode" label="Código de Barras" icon="fas fa-barcode"
+                        placeholder="Ej. 7591234567890" maxlength="100" optionalText="Opcional" />
+                </div>
+                <div class="col-12">
+                    <x-input name="nombre" id="rapido_prod_nombre" label="Nombre o Descripción del Producto" icon="fas fa-tag"
+                        placeholder="Ej. Casco Integral / Repuesto" required maxlength="150" />
+                </div>
+                <div class="col-md-6">
+                    <x-select name="categoria_id" id="rapido_prod_categoria_id" label="Categoría" icon="fas fa-folder" required>
+                        <option value="">Seleccione categoría...</option>
+                    </x-select>
+                </div>
+                <div class="col-md-6">
+                    <x-select name="unidad_medida" id="rapido_prod_unidad" label="Unidad de Medida" icon="fas fa-balance-scale" required>
+                        <option value="UND" selected>UND (Unidad)</option>
+                        <option value="KG">KG (Kilogramo)</option>
+                        <option value="GR">GR (Gramo)</option>
+                        <option value="LTS">LTS (Litro)</option>
+                        <option value="ML">ML (Mililitro)</option>
+                        <option value="MTS">MTS (Metro)</option>
+                        <option value="CAJA">CAJA (Caja)</option>
+                        <option value="PAQ">PAQ (Paquete)</option>
+                        <option value="BULTO">BULTO (Bulto)</option>
+                        <option value="SACO">SACO (Saco)</option>
+                        <option value="DOC">DOC (Docena)</option>
+                    </x-select>
+                </div>
+
+                <!-- Toggle Fiscal IVA -->
+                <div class="col-12">
+                    <div class="p-3 rounded-4 border bg-white shadow-xs">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="fas fa-percentage text-primary fs-5"></i>
+                                <div>
+                                    <h6 class="fw-bold text-dark mb-0">¿Aplica Impuesto al Valor Agregado (IVA)?</h6>
+                                    <small class="text-muted">Si está activo, se calculará el impuesto en las compras y ventas.</small>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" name="aplica_iva" id="rapido_prod_aplica_iva" value="1" checked onchange="toggleIvaRapidoProducto()">
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mt-2 pt-2 border-top" id="contenedorIvaPorcentajeRapido">
+                            <div class="col-md-6">
+                                <label class="form-label-executive small"><i class="fas fa-coins text-secondary"></i> Alícuota de IVA (%)</label>
+                                <div class="input-group">
+                                    <input type="number" step="any" min="0" max="100" name="iva_porcentaje" id="rapido_prod_iva_porcentaje" class="form-control form-control-executive font-monospace" value="16.00">
+                                    <span class="input-group-text bg-white text-muted">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </form>
     </x-modal>

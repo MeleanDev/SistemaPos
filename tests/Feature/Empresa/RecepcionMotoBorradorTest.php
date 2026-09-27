@@ -196,7 +196,7 @@ test('procesar recepcion final elimina automaticamente el borrador vinculado', f
         'tasa_cambio' => 50.00,
         'tasa_compra' => 50.00,
         'tasa_venta' => 50.00,
-        'monto_bruto_usd' => 850.00,
+        'monto_bruto_usd' => 986.00,
         'detalles' => [
             [
                 'tipo_item' => 'moto',
