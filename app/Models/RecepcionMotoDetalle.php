@@ -15,6 +15,7 @@ class RecepcionMotoDetalle extends Model
 
     protected $fillable = [
         'recepcion_moto_id',
+        'modelo_moto_id',
         'almacen_id',
         'tipo_item',
         'producto_id',
@@ -90,6 +91,11 @@ class RecepcionMotoDetalle extends Model
     public function recepcion(): BelongsTo
     {
         return $this->belongsTo(RecepcionMoto::class, 'recepcion_moto_id');
+    }
+
+    public function modeloMoto(): BelongsTo
+    {
+        return $this->belongsTo(ModeloMoto::class, 'modelo_moto_id');
     }
 
     public function producto(): BelongsTo

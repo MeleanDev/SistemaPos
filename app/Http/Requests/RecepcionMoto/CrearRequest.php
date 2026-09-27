@@ -34,6 +34,7 @@ class CrearRequest extends BaseRequest
 
             'detalles' => ['required', 'array', 'min:1'],
             'detalles.*.tipo_item' => ['nullable', 'string', 'in:moto,producto'],
+            'detalles.*.modelo_moto_id' => ['nullable', 'integer', 'exists:modelos_motos,id'],
             'detalles.*.producto_id' => ['nullable', 'integer', 'exists:productos,id'],
             'detalles.*.almacen_id' => ['nullable', 'integer', 'exists:almacenes,id'],
             'detalles.*.referencia' => ['nullable', 'string', 'max:100'],

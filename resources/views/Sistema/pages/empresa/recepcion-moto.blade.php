@@ -401,31 +401,55 @@
                                 </div>
 
                                 <div class="row g-3 mb-3">
-                                    <x-input name="lote_referencia" id="lote_referencia" label="Referencia"
-                                        icon="fas fa-barcode text-secondary" placeholder="Ej. 1001" required
-                                        maxlength="50" col="col-md-2" class="font-monospace fw-bold" inputmode="numeric"
-                                        oninput="this.value = this.value.replace(/[^0-9]/g, '')" />
-                                    <x-input name="lote_marca" id="lote_marca" label="Marca"
-                                        icon="fas fa-copyright text-primary" placeholder="Ej. Bera, Kavak, Empire..."
-                                        required maxlength="100" col="col-md-3" />
-                                    <x-input name="lote_modelo" id="lote_modelo" label="Modelo"
-                                        icon="fas fa-motorcycle text-primary" placeholder="Ej. SBR 150, TX 200..."
-                                        required maxlength="100" col="col-md-3" />
-                                    <x-input name="lote_anio" id="lote_anio" label="Año"
-                                        icon="fas fa-calendar text-secondary" placeholder="2025"
-                                        value="{{ date('Y') }}" maxlength="10" col="col-md-2"
-                                        class="font-monospace" />
-                                    <x-input name="lote_color" id="lote_color" label="Color"
-                                        icon="fas fa-palette text-secondary" placeholder="Ej. Negro / Rojo" required
-                                        maxlength="100" col="col-md-2" />
-                                    <x-input name="lote_cilindrada" id="lote_cilindrada" label="Cilindrada"
-                                        icon="fas fa-tachometer-alt text-secondary" placeholder="Ej. 150cc"
-                                        value="150cc" maxlength="50" col="col-md-2" />
+                                    <div class="col-md-9">
+                                        <x-select2 name="lote_modelo_moto_id" id="lote_modelo_moto_id"
+                                            label="Modelo de Moto (Catálogo Maestro)" icon="fas fa-motorcycle text-primary"
+                                            placeholder="Seleccione por Referencia, Marca, Modelo o Color..."
+                                            modalParent="#modalRecepcionMoto" actionText="Nuevo Modelo"
+                                            actionIcon="fas fa-plus" actionOnClick="abrirModalRapidoModelo()"
+                                            onchange="seleccionarModeloMotoCatalogo(this.value)" required col="col-12">
+                                            <option value="">Seleccione por Referencia, Marca, Modelo o Color...</option>
+                                        </x-select2>
+                                    </div>
+
                                     <x-input type="number" min="1" max="100" name="lote_cantidad"
-                                        id="lote_cantidad" label="Cantidad" icon="fas fa-hashtag text-primary"
-                                        value="1" required col="col-md-2"
-                                        class="font-monospace fw-bold text-center border-primary"
+                                        id="lote_cantidad" label="Cantidad de Unidades" icon="fas fa-hashtag text-primary"
+                                        value="1" required col="col-md-3"
+                                        class="font-monospace fw-bold text-center border-primary fs-6"
                                         oninput="generarMatrizSeriales()" />
+                                </div>
+
+                                <!-- PREVIEW EJECUTIVO DE CARACTERÍSTICAS DEL MODELO -->
+                                <div class="card border rounded-3 p-3 mb-3 shadow-xs" id="contenedorPreviewModelo"
+                                    style="background-color: #f8fafc; display: none;">
+                                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                        <div class="d-flex flex-wrap align-items-center gap-2">
+                                            <span class="badge rounded-pill px-3 py-1.5 fw-bold font-monospace shadow-xs" id="chipModeloRef"
+                                                style="background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.85rem;">
+                                                <i class="fas fa-hashtag me-1"></i> Ref: #--
+                                            </span>
+                                            <span class="badge rounded-pill px-3 py-1.5 fw-bold text-dark shadow-xs bg-white border" id="chipModeloNombre" style="font-size: 0.85rem;">
+                                                <i class="fas fa-motorcycle text-primary me-1"></i> --
+                                            </span>
+                                            <span class="badge rounded-pill px-3 py-1.5 fw-semibold shadow-xs bg-white border text-secondary" id="chipModeloSpecs" style="font-size: 0.82rem;">
+                                                Año: -- | Color: -- | Cilindrada: --
+                                            </span>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold" onclick="abrirModalRapidoModelo(true)">
+                                            <i class="fas fa-edit me-1"></i> Editar en Catálogo
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- CAMPOS OCULTOS PARA HISTORIAL FISCAL -->
+                                <input type="hidden" name="lote_referencia" id="lote_referencia">
+                                <input type="hidden" name="lote_marca" id="lote_marca">
+                                <input type="hidden" name="lote_modelo" id="lote_modelo">
+                                <input type="hidden" name="lote_anio" id="lote_anio">
+                                <input type="hidden" name="lote_color" id="lote_color">
+                                <input type="hidden" name="lote_cilindrada" id="lote_cilindrada">
+
+                                <div class="row g-3 mb-3">
 
                                     <div class="col-md-3">
                                         <x-input type="number" step="any" min="0.0001" name="lote_costo_unitario"
@@ -1089,6 +1113,47 @@
                     </div>
                 </div>
 
+            </div>
+        </form>
+    </x-modal>
+
+    <!-- MODAL RÁPIDO: REGISTRAR MODELO DE MOTO DIRECTO EN RECEPCIÓN -->
+    <x-modal id="modalRapidoModeloMoto" title="Nuevo Modelo de Moto"
+        subtitle="Registra el modelo en el catálogo sin salir de la recepción" icon="fas fa-layer-group text-primary fs-5"
+        size="modal-lg" headerColor="bg-dark text-white" formId="formularioRapidoModeloMoto"
+        submitText="Guardar y Seleccionar Modelo">
+        <form id="formularioRapidoModeloMoto">
+            @csrf
+            <input type="hidden" name="id" id="rapido_modelo_id">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <x-input name="referencia" id="rapido_modelo_referencia" label="Referencia / Código"
+                        icon="fas fa-hashtag text-primary" placeholder="Ej. 1" required class="font-monospace fw-bold" inputmode="numeric" />
+                </div>
+                <div class="col-md-3">
+                    <x-input name="marca" id="rapido_modelo_marca" label="Marca" icon="fas fa-copyright text-secondary"
+                        placeholder="Ej. Bera, Empire..." required maxlength="100" />
+                </div>
+                <div class="col-md-3">
+                    <x-input name="modelo" id="rapido_modelo_modelo" label="Modelo" icon="fas fa-motorcycle text-secondary"
+                        placeholder="Ej. SBR 150, TX 200..." required maxlength="100" />
+                </div>
+                <div class="col-md-3">
+                    <x-input type="number" name="anio" id="rapido_modelo_anio" label="Año" icon="fas fa-calendar text-secondary"
+                        value="{{ date('Y') }}" required min="1990" max="2099" class="font-monospace" />
+                </div>
+                <div class="col-md-6">
+                    <x-input name="color" id="rapido_modelo_color" label="Color" icon="fas fa-palette text-secondary"
+                        placeholder="Ej. Azul, Rojo, Negro..." required maxlength="100" />
+                </div>
+                <div class="col-md-6">
+                    <x-input name="cilindrada" id="rapido_modelo_cilindrada" label="Cilindrada" icon="fas fa-tachometer-alt text-secondary"
+                        placeholder="Ej. 150cc, 200cc..." value="150cc" required maxlength="50" class="font-monospace" />
+                </div>
+                <div class="col-12">
+                    <label class="form-label-executive"><i class="fas fa-comment-dots text-secondary me-1"></i> Descripción / Detalles</label>
+                    <textarea name="descripcion" id="rapido_modelo_descripcion" class="form-control form-control-executive" rows="2" placeholder="Observaciones generales (opcional)"></textarea>
+                </div>
             </div>
         </form>
     </x-modal>

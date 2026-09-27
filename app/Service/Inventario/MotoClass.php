@@ -13,7 +13,7 @@ class MotoClass
      */
     public function lista(int $empresaId)
     {
-        return Moto::with(['almacen', 'proveedor', 'recepcion'])
+        return Moto::with(['almacen', 'proveedor', 'recepcion', 'modeloMoto'])
             ->select('motos.*')
             ->where('motos.empresa_id', $empresaId)
             ->where('motos.estado', '!=', 'anulada')

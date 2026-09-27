@@ -1,35 +1,116 @@
 @extends('Sistema.layouts.app')
 
-@section('titulo', '🏍️ Motos & Seriales Únicos')
-@section('subtitulo', 'Inventario individual de vehículos, trazabilidad legal de seriales (N.I.V., Chasis, Motor) y ficha técnica 360°')
+@section('titulo', '🏍️ Motos & Catálogo de Modelos')
+@section('subtitulo', 'Gestión de catálogo maestro de modelos, referencias únicas, trazabilidad de seriales (N.I.V., Chasis, Motor) y stock por sede')
 
 @section('rutas')
     <a href="{{ route('dashboard') }}">Sistema</a>
     <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
-    <span class="active">Motos & Seriales</span>
+    <span class="active">Motos & Modelos</span>
 @endsection
 
 @section('acciones')
-    <x-button href="{{ route('recepcion_moto') }}" variant="primary" icon="fas fa-truck-ramp-box" text="Nueva Recepción de Motos" />
+    <div class="d-flex align-items-center gap-2">
+        <x-button variant="primary" icon="fas fa-plus" text="Nuevo Modelo de Moto" onclick="abrirModalCrearModelo()" />
+        <x-button href="{{ route('recepcion_moto') }}" variant="outline-primary" icon="fas fa-truck-ramp-box" text="Nueva Recepción" />
+    </div>
 @endsection
 
 @section('contenido')
-    <x-datatable
-        id="datatable_motos"
-        :headers="[
-            'Modelo / Marca',
-            'Año / Color',
-            'N.I.V. (VIN)',
-            'N° Chasis / Bastidor',
-            'N° Motor',
-            'Almacén Actual',
-            'Precio Detal',
-            'Precio Mayor',
-            'Estado',
-            'Acciones',
-        ]"
-    />
+    <!-- NAVEGACIÓN POR PESTAÑAS EJECUTIVAS -->
+    <div class="card border rounded-4 p-2 shadow-xs mb-4 bg-white">
+        <ul class="nav nav-pills nav-fill gap-2 p-1" id="pills-tab-motos" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active rounded-pill fw-bold py-2.5 d-flex align-items-center justify-content-center gap-2"
+                    id="pills-modelos-tab" data-bs-toggle="pill" data-bs-target="#pills-modelos" type="button" role="tab"
+                    aria-controls="pills-modelos" aria-selected="true">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Catálogo de Modelos & Referencias</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link rounded-pill fw-bold py-2.5 d-flex align-items-center justify-content-center gap-2"
+                    id="pills-unidades-tab" data-bs-toggle="pill" data-bs-target="#pills-unidades" type="button" role="tab"
+                    aria-controls="pills-unidades" aria-selected="false">
+                    <i class="fas fa-motorcycle"></i>
+                    <span>Inventario Físico & Seriales Únicos</span>
+                </button>
+            </li>
+        </ul>
+    </div>
 
+    <!-- CONTENIDO DE LAS PESTAÑAS -->
+    <div class="tab-content" id="pills-tabContentMotos">
+        <!-- PESTAÑA 1: CATÁLOGO DE MODELOS -->
+        <div class="tab-pane fade show active" id="pills-modelos" role="tabpanel" aria-labelledby="pills-modelos-tab">
+            <x-datatable
+                id="datatable_modelos"
+                :headers="[
+                    'Ref #',
+                    'Marca / Modelo',
+                    'Año / Color',
+                    'Cilindrada',
+                    'Stock Disponible',
+                    'Total Ingresadas',
+                    'Acciones',
+                ]"
+            />
+        </div>
+
+        <!-- PESTAÑA 2: INVENTARIO FÍSICO DE UNIDADES -->
+        <div class="tab-pane fade" id="pills-unidades" role="tabpanel" aria-labelledby="pills-unidades-tab">
+            <x-datatable
+                id="datatable_motos"
+                :headers="[
+                    'Ref / Modelo',
+                    'Año / Color',
+                    'N.I.V. (VIN)',
+                    'N° Chasis / Bastidor',
+                    'N° Motor',
+                    'Almacén Actual',
+                    'Precio Detal',
+                    'Precio Mayor',
+                    'Estado',
+                    'Acciones',
+                ]"
+            />
+        </div>
+    </div>
+
+    <!-- MODAL: CREAR / EDITAR MODELO DE MOTO -->
+    <x-modal
+        id="modalModeloMoto"
+        title="Registrar Modelo de Moto"
+        subtitle="Defina las características del modelo y su referencia única para el catálogo y el POS"
+        icon="fas fa-layer-group text-primary fs-5"
+        size="modal-lg"
+        headerColor="bg-dark text-white"
+        formId="formularioModeloMoto"
+        submitText="Guardar Modelo"
+        submitIcon="fas fa-save me-1"
+    >
+        <form id="formularioModeloMoto">
+            <input type="hidden" id="modelo_moto_id" name="id">
+
+            <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs">
+                <h6 class="fw-bold text-dark mb-3"><i class="fas fa-tag text-primary me-2"></i> Identificación & Especificaciones</h6>
+                <div class="row g-3">
+                    <x-input id="modelo_referencia" name="referencia" label="Referencia / Código Único" icon="fas fa-hashtag text-primary" placeholder="Ej. 1" required col="col-md-3" class="font-monospace fw-bold" inputmode="numeric" />
+                    <x-input id="modelo_marca" name="marca" label="Marca" icon="fas fa-copyright text-secondary" placeholder="Ej. Bera, Empire, Toro..." required col="col-md-3" />
+                    <x-input id="modelo_modelo" name="modelo" label="Modelo" icon="fas fa-motorcycle text-secondary" placeholder="Ej. SBR 150, Horse 150..." required col="col-md-3" />
+                    <x-input type="number" id="modelo_anio" name="anio" label="Año" icon="fas fa-calendar text-secondary" min="1990" max="2099" value="{{ date('Y') }}" required col="col-md-3" class="font-monospace" />
+                    <x-input id="modelo_color" name="color" label="Color" icon="fas fa-palette text-secondary" placeholder="Ej. Azul, Rojo, Negro, Blanco..." required col="col-md-6" />
+                    <x-input id="modelo_cilindrada" name="cilindrada" label="Cilindrada" icon="fas fa-tachometer-alt text-secondary" placeholder="Ej. 150cc, 200cc, 250cc..." value="150cc" required col="col-md-6" class="font-monospace" />
+                    <div class="col-12">
+                        <label class="form-label-executive"><i class="fas fa-comment-dots text-secondary me-1"></i> Descripción / Detalles Adicionales</label>
+                        <textarea id="modelo_descripcion" name="descripcion" class="form-control form-control-executive" rows="2" placeholder="Observaciones generales o detalles de equipamiento del modelo (opcional)"></textarea>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </x-modal>
+
+    <!-- MODAL: FICHA TÉCNICA 360° -->
     <x-modal
         id="modalFichaMoto"
         title="Ficha Técnica 360° del Vehículo"
@@ -39,8 +120,7 @@
         headerColor="bg-dark text-white"
         :submitButton="false"
     >
-        <div id="contenidoFichaMoto">
-        </div>
+        <div id="contenidoFichaMoto"></div>
 
         <x-slot:footer>
             <button type="button" class="btn btn-executive-cancel" data-bs-dismiss="modal">
@@ -52,6 +132,7 @@
         </x-slot:footer>
     </x-modal>
 
+    <!-- MODAL: EDITAR INFORMACIÓN DE MOTO INDIVIDUAL -->
     <x-modal
         id="modalEditarMoto"
         title="Modificar Datos del Vehículo"
@@ -71,7 +152,7 @@
                 <div class="row g-3">
                     <x-input id="edit_marca" name="marca" label="Marca" icon="fas fa-tag text-secondary" placeholder="Ej. Bera, Empire, Yamaha..." required col="col-md-3" />
                     <x-input id="edit_modelo" name="modelo" label="Modelo" icon="fas fa-file-signature text-secondary" placeholder="Ej. SBR, BR 150, Arsen..." required col="col-md-3" />
-                    <x-input id="edit_referencia" name="referencia" label="Referencia" icon="fas fa-hashtag text-secondary" placeholder="Ej. 1001" col="col-md-2" class="font-monospace" />
+                    <x-input id="edit_referencia" name="referencia" label="Referencia" icon="fas fa-hashtag text-secondary" placeholder="Ej. 1" col="col-md-2" class="font-monospace" />
                     <x-input type="number" id="edit_anio" name="anio" label="Año" icon="fas fa-calendar text-secondary" min="1990" max="2099" required col="col-md-2" class="font-monospace" />
                     <x-input id="edit_cilindrada" name="cilindrada" label="Cilindrada" icon="fas fa-tachometer-alt text-secondary" placeholder="Ej. 150cc" col="col-md-2" class="font-monospace" />
                 </div>

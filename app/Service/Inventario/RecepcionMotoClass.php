@@ -6,6 +6,7 @@ use App\Models\Almacen;
 use App\Models\Categoria;
 use App\Models\CuentaPorPagar;
 use App\Models\EmpresaMoneda;
+use App\Models\ModeloMoto;
 use App\Models\Moto;
 use App\Models\Producto;
 use App\Models\ProductoProveedor;
@@ -115,11 +116,31 @@ class RecepcionMotoClass
                 ];
             });
 
+        $modelosMotos = ModeloMoto::where('empresa_id', $empresaId)
+            ->where('estado', true)
+            ->orderBy('referencia', 'asc')
+            ->get(['id', 'referencia', 'marca', 'modelo', 'anio', 'color', 'cilindrada', 'descripcion'])
+            ->map(function ($m) {
+                return [
+                    'id' => $m->id,
+                    'referencia' => (string) $m->referencia,
+                    'marca' => $m->marca,
+                    'modelo' => $m->modelo,
+                    'anio' => $m->anio,
+                    'color' => $m->color,
+                    'cilindrada' => $m->cilindrada,
+                    'descripcion' => $m->descripcion,
+                    'nombre_completo' => "{$m->marca} {$m->modelo} ({$m->anio}) - {$m->color} [Ref: #{$m->referencia}]",
+                ];
+            })
+            ->toArray();
+
         return [
             'proveedores' => $proveedores,
             'almacenes' => $almacenes,
             'categorias' => $categorias,
             'productos' => $productos,
+            'modelos_motos' => $modelosMotos,
             'tasa_oficial' => $tasaOficial,
             'tasa_compra' => $tasaOficial,
             'tasa_venta' => $tasaOficial,
@@ -195,6 +216,7 @@ class RecepcionMotoClass
     public function guardar(array $datos, $user, int $empresaId): RecepcionMoto
     {
         return DB::transaction(function () use ($datos, $user, $empresaId) {
+            $userId = is_object($user) ? $user->id : (int) ($user ?: Auth::id());
             $tasaOficial = $this->obtenerTasaOficial($empresaId);
             $tasaCompra = ! empty($datos['tasa_compra']) && $datos['tasa_compra'] > 0
                 ? (float) $datos['tasa_compra']
@@ -214,8 +236,15 @@ class RecepcionMotoClass
             $chasisEnviados = [];
             $motoresEnviados = [];
 
+            $detallesInput = $datos['detalles'] ?? ($datos['lotesAgregados'] ?? []);
+            if (empty($detallesInput) || ! is_array($detallesInput)) {
+                throw ValidationException::withMessages([
+                    'detalles' => 'Debe incluir al menos un renglón (moto o producto) en la recepción.',
+                ]);
+            }
+
             // 1. Validar seriales únicos de las motos
-            foreach ($datos['detalles'] as $idxDetalle => $det) {
+            foreach ($detallesInput as $idxDetalle => $det) {
                 $tipoItem = $det['tipo_item'] ?? 'moto';
 
                 if ($tipoItem === 'moto') {
@@ -311,7 +340,7 @@ class RecepcionMotoClass
             $detallesCalculados = [];
             $ivaPorcentajeGeneral = 16.00;
 
-            foreach ($datos['detalles'] as $det) {
+            foreach ($detallesInput as $det) {
                 $tipoItem = $det['tipo_item'] ?? 'moto';
                 $cantidad = (int) $det['cantidad'];
                 $totalUnidades += $cantidad;
@@ -394,10 +423,11 @@ class RecepcionMotoClass
                 $renglonSubtotalUsd = round($costoNetoUsd * $cantidad, 2);
                 $renglonSubtotalBs = round($renglonSubtotalUsd * $tasaCompra, 2);
 
-                $renglonIvaUsd = round($ivaUnitarioUsd * $cantidad, 2);
+                $renglonIvaUsd = ($aplicaIva && $ivaPct > 0) ? round($renglonSubtotalUsd * ($ivaPct / 100), 2) : 0;
                 $renglonIvaBs = round($renglonIvaUsd * $tasaCompra, 2);
 
-                $renglonTotalUsd = round($renglonSubtotalUsd + $renglonIvaUsd + ($incluirFlete ? ($fleteUnitarioUsd * $cantidad) : 0), 2);
+                $renglonFleteUsd = $incluirFlete ? round($fleteUnitarioUsd * $cantidad, 2) : 0;
+                $renglonTotalUsd = round($renglonSubtotalUsd + $renglonIvaUsd + $renglonFleteUsd, 2);
                 $renglonTotalBs = round($renglonTotalUsd * $tasaCompra, 2);
 
                 if ($aplicaIva && $ivaPct > 0) {
@@ -407,21 +437,53 @@ class RecepcionMotoClass
                     $exentoUsd += $renglonSubtotalUsd;
                 }
 
-                $refLote = trim($det['referencia'] ?? '');
+                $modeloMotoId = ! empty($det['modelo_moto_id']) ? (int) $det['modelo_moto_id'] : null;
+                $modeloMotoObj = null;
+
+                if ($modeloMotoId) {
+                    $modeloMotoObj = ModeloMoto::where('empresa_id', $empresaId)->find($modeloMotoId);
+                }
+
+                if (! $modeloMotoObj && $tipoItem === 'moto' && ! empty($det['marca']) && ! empty($det['modelo'])) {
+                    $modeloMotoObj = ModeloMoto::firstOrCreate(
+                        [
+                            'empresa_id' => $empresaId,
+                            'marca' => trim($det['marca']),
+                            'modelo' => trim($det['modelo']),
+                            'anio' => ! empty($det['anio']) ? (int) $det['anio'] : (int) date('Y'),
+                            'color' => ! empty($det['color']) ? trim($det['color']) : 'ESTÁNDAR',
+                            'cilindrada' => ! empty($det['cilindrada']) ? trim($det['cilindrada']) : '150cc',
+                        ],
+                        [
+                            'referencia' => ! empty($det['referencia']) ? trim((string) $det['referencia']) : $this->generarReferenciaNumerica($empresaId),
+                            'estado' => true,
+                        ]
+                    );
+                    $modeloMotoId = $modeloMotoObj->id;
+                }
+
+                $refLote = $modeloMotoObj ? (string) $modeloMotoObj->referencia : trim($det['referencia'] ?? '');
                 if (empty($refLote)) {
                     $refLote = $this->generarReferenciaNumerica($empresaId);
                 }
 
+                $detMarca = $modeloMotoObj ? $modeloMotoObj->marca : (! empty($det['marca']) ? trim($det['marca']) : 'N/A');
+                $detModelo = $modeloMotoObj ? $modeloMotoObj->modelo : (! empty($det['modelo']) ? trim($det['modelo']) : 'N/A');
+                $detAnio = $modeloMotoObj ? $modeloMotoObj->anio : (! empty($det['anio']) ? trim($det['anio']) : date('Y'));
+                $detColor = $modeloMotoObj ? $modeloMotoObj->color : (! empty($det['color']) ? trim($det['color']) : 'N/A');
+                $detCilindrada = $modeloMotoObj ? $modeloMotoObj->cilindrada : (! empty($det['cilindrada']) ? trim($det['cilindrada']) : 'N/A');
+
                 $detallesCalculados[] = [
                     'tipo_item' => $tipoItem,
+                    'modelo_moto_id' => $modeloMotoId,
                     'producto_id' => ! empty($det['producto_id']) ? (int) $det['producto_id'] : null,
                     'almacen_id' => $det['almacen_id'] ?? $datos['almacen_id'],
                     'referencia' => $refLote,
-                    'marca' => ! empty($det['marca']) ? trim($det['marca']) : 'N/A',
-                    'modelo' => ! empty($det['modelo']) ? trim($det['modelo']) : 'N/A',
-                    'anio' => ! empty($det['anio']) ? trim($det['anio']) : date('Y'),
-                    'color' => ! empty($det['color']) ? trim($det['color']) : 'N/A',
-                    'cilindrada' => ! empty($det['cilindrada']) ? trim($det['cilindrada']) : 'N/A',
+                    'marca' => $detMarca,
+                    'modelo' => $detModelo,
+                    'anio' => $detAnio,
+                    'color' => $detColor,
+                    'cilindrada' => $detCilindrada,
                     'cantidad' => $cantidad,
                     'costo_unitario_usd' => $costoUnitarioUsd,
                     'costo_unitario_bs' => $costoUnitarioBs,
@@ -480,7 +542,7 @@ class RecepcionMotoClass
             $totalBs = round($totalGlobalUsd * $tasaCompra, 2);
 
             $diferencia = abs(round($montoBrutoUsd, 2) - round($totalGlobalUsd, 2));
-            if ($diferencia > 0.00001) {
+            if ($diferencia > 0.0001) {
                 throw ValidationException::withMessages([
                     'monto_bruto_usd' => 'El Monto de la Factura ($'.number_format($montoBrutoUsd, 2).') debe ser exactamente igual al Total Calculado de los renglones ($'.number_format($totalGlobalUsd, 2).'). La factura está descuadrada por $'.number_format($diferencia, 2).'. Debe ajustar los renglones o el monto antes de procesar.',
                 ]);
@@ -496,7 +558,7 @@ class RecepcionMotoClass
                 'empresa_id' => $empresaId,
                 'almacen_id' => $datos['almacen_id'],
                 'proveedor_id' => $datos['proveedor_id'],
-                'user_id' => $user->id,
+                'user_id' => $userId,
                 'codigo' => $this->generarCodigo($empresaId),
                 'tipo_documento' => $datos['tipo_documento'] ?? 'factura',
                 'numero_documento' => trim($datos['numero_documento']),
@@ -547,6 +609,7 @@ class RecepcionMotoClass
 
                         Moto::create([
                             'empresa_id' => $empresaId,
+                            'modelo_moto_id' => $det['modelo_moto_id'] ?? null,
                             'almacen_id' => $almacenMotoId,
                             'proveedor_id' => $datos['proveedor_id'],
                             'recepcion_moto_id' => $recepcionMoto->id,
@@ -615,7 +678,7 @@ class RecepcionMotoClass
                         'empresa_id' => $empresaId,
                         'almacen_id' => $det['almacen_id'],
                         'producto_id' => $producto->id,
-                        'user_id' => $user->id,
+                        'user_id' => $userId,
                         'tipo_movimiento' => 'entrada_recepcion',
                         'documento_tipo' => 'recepcion_moto',
                         'documento_id' => $recepcionMoto->id,

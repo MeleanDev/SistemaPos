@@ -11,6 +11,7 @@ use App\Http\Controllers\Empresa\CuentaPorPagarController;
 use App\Http\Controllers\Empresa\FacturaController;
 use App\Http\Controllers\Empresa\KardexController;
 use App\Http\Controllers\Empresa\MetodoPagoController;
+use App\Http\Controllers\Empresa\ModeloMotoController;
 use App\Http\Controllers\Empresa\MotoController;
 use App\Http\Controllers\Empresa\PosController;
 use App\Http\Controllers\Empresa\ProductoController;
@@ -78,6 +79,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/motos/{id}', 'detalle');
         Route::put('/motos/actualizar/{id}', 'actualizar');
         Route::post('/motos/{id}/cambiar-estado', 'cambiarEstado');
+    });
+
+    Route::middleware('permission:motos.ver')->controller(ModeloMotoController::class)->group(function () {
+        Route::get('/modelos-motos/lista', 'lista');
+        Route::get('/modelos-motos/catalogos', 'catalogos');
+        Route::get('/modelos-motos/proxima-referencia', 'proximaReferencia');
+        Route::get('/modelos-motos/{id}', 'detalle');
+        Route::post('/modelos-motos', 'guardar');
+        Route::put('/modelos-motos/actualizar/{id}', 'actualizar');
+        Route::delete('/modelos-motos/{id}', 'eliminar');
     });
 
     Route::middleware('permission:compras.recepcion')->controller(RecepcionController::class)->group(function () {

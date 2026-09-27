@@ -14,6 +14,7 @@ class Moto extends Model
 
     protected $fillable = [
         'empresa_id',
+        'modelo_moto_id',
         'almacen_id',
         'proveedor_id',
         'recepcion_moto_id',
@@ -74,6 +75,11 @@ class Moto extends Model
     public function empresa(): BelongsTo
     {
         return $this->belongsTo(Empresa::class, 'empresa_id');
+    }
+
+    public function modeloMoto(): BelongsTo
+    {
+        return $this->belongsTo(ModeloMoto::class, 'modelo_moto_id');
     }
 
     public function almacen(): BelongsTo

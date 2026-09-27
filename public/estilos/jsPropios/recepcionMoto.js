@@ -14,6 +14,7 @@ let proveedoresLista = [];
 let almacenesLista = [];
 let categoriasLista = [];
 let productosLista = [];
+let modelosMotosLista = [];
 let tasaOficialActual = 1.0;
 let tasaCompraActual = 1.0;
 let tasaVentaActual = 1.0;
@@ -38,6 +39,21 @@ $(document).ready(function () {
         modalSelector: "#modalRecepcionMoto",
         placeholder: "Buscar producto por nombre o SKU...",
     });
+
+    crearSelect2({
+        selector: "#lote_modelo_moto_id",
+        modalSelector: "#modalRecepcionMoto",
+        placeholder: "Seleccione por Referencia, Marca, Modelo o Color...",
+    });
+
+    $(document).on(
+        "change select2:select select2:clear",
+        "#lote_modelo_moto_id",
+        function () {
+            seleccionarModeloMotoCatalogo($(this).val());
+            dispararAutoGuardado();
+        },
+    );
 
     $(document).on(
         "change select2:select select2:clear",
@@ -66,6 +82,10 @@ $(document).ready(function () {
     $("#formularioRapidoProducto").on("submit", function (e) {
         e.preventDefault();
         guardarRapidoProducto();
+    });
+    $("#formularioRapidoModeloMoto").on("submit", function (e) {
+        e.preventDefault();
+        guardarRapidoModelo();
     });
 
     $("#lote_referencia").on("input", function () {
@@ -247,6 +267,7 @@ const cargarCatalogos = async function () {
             almacenesLista = respuesta.data.almacenes || [];
             categoriasLista = respuesta.data.categorias || [];
             productosLista = respuesta.data.productos || [];
+            modelosMotosLista = respuesta.data.modelos_motos || [];
             tasaOficialActual = parseFloat(respuesta.data.tasa_oficial) || 1.0;
             tasaCompraActual =
                 parseFloat(
@@ -320,6 +341,26 @@ const restablecerTasaOficial = function (tipo) {
 };
 
 const poblarSelects = function () {
+    const $selectModelo = $("#lote_modelo_moto_id");
+    const valorModeloSeleccionado = $selectModelo.val();
+    $selectModelo
+        .empty()
+        .append('<option value="">Seleccione por Referencia, Marca, Modelo o Color...</option>');
+    modelosMotosLista.forEach((m) => {
+        $selectModelo.append(
+            `<option value="${m.id}">[Ref: #${m.referencia}] ${m.marca} ${m.modelo} (${m.anio}) - ${m.color} (${m.cilindrada})</option>`,
+        );
+    });
+
+    crearSelect2({
+        selector: "#lote_modelo_moto_id",
+        modalSelector: "#modalRecepcionMoto",
+        placeholder: "Seleccione por Referencia, Marca, Modelo o Color...",
+    });
+
+    if (valorModeloSeleccionado) {
+        establecerValorSelect2("#lote_modelo_moto_id", valorModeloSeleccionado);
+    }
     const $selectProv = $("#proveedor_id");
     const valorSeleccionado = $selectProv.val();
     $selectProv
@@ -418,6 +459,96 @@ const cambiarModoItem = function (modo) {
         $("#cardConstructorMoto").slideUp(200);
     }
     dispararAutoGuardado();
+};
+
+const seleccionarModeloMotoCatalogo = function (modeloId) {
+    const id = parseInt(modeloId) || parseInt($("#lote_modelo_moto_id").val()) || 0;
+    if (id <= 0) {
+        $("#contenedorPreviewModelo").slideUp(150);
+        $("#lote_referencia").val("");
+        $("#lote_marca").val("");
+        $("#lote_modelo").val("");
+        $("#lote_anio").val("");
+        $("#lote_color").val("");
+        $("#lote_cilindrada").val("");
+        return;
+    }
+
+    const m = modelosMotosLista.find((x) => x.id === id);
+    if (!m) return;
+
+    $("#lote_referencia").val(m.referencia);
+    $("#lote_marca").val(m.marca);
+    $("#lote_modelo").val(m.modelo);
+    $("#lote_anio").val(m.anio);
+    $("#lote_color").val(m.color);
+    $("#lote_cilindrada").val(m.cilindrada);
+
+    $("#chipModeloRef").html(`<i class="fas fa-hashtag me-1"></i> Ref: #${m.referencia}`);
+    $("#chipModeloNombre").html(`<i class="fas fa-motorcycle text-primary me-1"></i> ${m.marca} ${m.modelo}`);
+    $("#chipModeloSpecs").text(`Año: ${m.anio} | Color: ${m.color} | Cilindrada: ${m.cilindrada}`);
+    $("#contenedorPreviewModelo").slideDown(150);
+};
+
+const abrirModalRapidoModelo = async function (esEditar = false) {
+    if (esEditar) {
+        const id = parseInt($("#lote_modelo_moto_id").val()) || 0;
+        const m = modelosMotosLista.find((x) => x.id === id);
+        if (m) {
+            $("#rapido_modelo_id").val(m.id);
+            $("#rapido_modelo_referencia").val(m.referencia);
+            $("#rapido_modelo_marca").val(m.marca);
+            $("#rapido_modelo_modelo").val(m.modelo);
+            $("#rapido_modelo_anio").val(m.anio);
+            $("#rapido_modelo_color").val(m.color);
+            $("#rapido_modelo_cilindrada").val(m.cilindrada);
+            $("#rapido_modelo_descripcion").val(m.descripcion || "");
+            $("#modalRapidoModeloMotoTitulo").text("Editar Modelo de Moto");
+            $("#modalRapidoModeloMotoBtnGuardar").find("#modalRapidoModeloMotoTextoGuardar").text("Guardar Cambios");
+        }
+    } else {
+        $("#formularioRapidoModeloMoto")[0].reset();
+        $("#rapido_modelo_id").val("");
+        $("#rapido_modelo_anio").val(new Date().getFullYear());
+        $("#rapido_modelo_cilindrada").val("150cc");
+        $("#modalRapidoModeloMotoTitulo").text("Nuevo Modelo de Moto");
+        $("#modalRapidoModeloMotoBtnGuardar").find("#modalRapidoModeloMotoTextoGuardar").text("Guardar y Seleccionar Modelo");
+
+        try {
+            const res = await peticionAjax({
+                url: `${window.location.origin}/modelos-motos/proxima-referencia`,
+                type: "GET",
+            });
+            if (res && res.success && res.data) {
+                $("#rapido_modelo_referencia").val(res.data.referencia || "1");
+            }
+        } catch (e) {
+            $("#rapido_modelo_referencia").val("1");
+        }
+    }
+
+    const modalEl = document.getElementById("modalRapidoModeloMoto");
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+};
+
+const guardarRapidoModelo = function () {
+    const id = $("#rapido_modelo_id").val();
+    const url = id ? `${window.location.origin}/modelos-motos/actualizar/${id}` : `${window.location.origin}/modelos-motos`;
+
+    enviarFormulario({
+        form: "#formularioRapidoModeloMoto",
+        url: url,
+        isEditar: Boolean(id),
+        modalSelector: "#modalRapidoModeloMoto",
+        btnSubmit: "#modalRapidoModeloMotoBtnGuardar",
+        onSuccess: async function (respuesta) {
+            await cargarCatalogos();
+            if (respuesta.data?.id) {
+                establecerValorSelect2("#lote_modelo_moto_id", respuesta.data.id);
+                seleccionarModeloMotoCatalogo(respuesta.data.id);
+            }
+        }
+    });
 };
 
 const seleccionarProductoDeCatalogo = function () {
@@ -625,11 +756,11 @@ const agregarProductoAFactura = function () {
             : costoUnitarioBs / tVenta;
     }
 
-    const descUsd = costoUnitarioUsd * (descPct / 100);
-    const costoNetoUsd = costoUnitarioUsd - descUsd;
-    const subtotalUsd = costoNetoUsd * cantidad;
-    const ivaUsd = aplicaIva ? subtotalUsd * (ivaPct / 100) : 0;
-    const totalUsd = subtotalUsd + ivaUsd;
+    const descUsd = parseFloat((costoUnitarioUsd * (descPct / 100)).toFixed(2));
+    const costoNetoUsd = parseFloat((costoUnitarioUsd - descUsd).toFixed(4));
+    const subtotalUsd = parseFloat((costoNetoUsd * cantidad).toFixed(2));
+    const ivaUsd = aplicaIva ? parseFloat((subtotalUsd * (ivaPct / 100)).toFixed(2)) : 0;
+    const totalUsd = parseFloat((subtotalUsd + ivaUsd).toFixed(2));
 
     const costoTotalProdUsd =
         costoNetoUsd + (aplicaIva ? costoNetoUsd * (ivaPct / 100) : 0);
@@ -1101,6 +1232,7 @@ const calcularMargenMayoristaLote = function () {
 };
 
 const agregarLoteAFactura = function () {
+    const modeloMotoId = parseInt($("#lote_modelo_moto_id").val()) || null;
     const referencia = $("#lote_referencia").val().trim();
     const marca = $("#lote_marca").val().trim();
     const modelo = $("#lote_modelo").val().trim();
@@ -1111,6 +1243,11 @@ const agregarLoteAFactura = function () {
     const costoUnitarioInput = parseFloat($("#lote_costo_unitario").val()) || 0;
     const fleteUnitarioInput = parseFloat($("#lote_flete_unitario").val()) || 0;
 
+    if (!modeloMotoId)
+        return notificacion.fire({
+            icon: "warning",
+            title: "Debes seleccionar un Modelo de Moto del catálogo.",
+        });
     if (!referencia)
         return notificacion.fire({
             icon: "warning",
@@ -1220,9 +1357,9 @@ const agregarLoteAFactura = function () {
     const margenDetal = parseFloat($("#lote_margen_detal").val()) || 0;
     const margenMayorista = parseFloat($("#lote_margen_mayorista").val()) || 0;
 
-    const descUsd = costoUnitarioUsd * (descPct / 100);
-    const costoNetoUsd = costoUnitarioUsd - descUsd;
-    const ivaUnitarioUsd = aplicaIva ? costoNetoUsd * (ivaPct / 100) : 0;
+    const descUsd = parseFloat((costoUnitarioUsd * (descPct / 100)).toFixed(2));
+    const costoNetoUsd = parseFloat((costoUnitarioUsd - descUsd).toFixed(4));
+    const ivaUnitarioUsd = aplicaIva ? parseFloat((costoNetoUsd * (ivaPct / 100)).toFixed(4)) : 0;
     const costoTotalUnitarioUsd =
         costoNetoUsd + ivaUnitarioUsd + fleteUnitarioUsd;
     const costoTotalUnitarioBs =
@@ -1261,12 +1398,13 @@ const agregarLoteAFactura = function () {
     const precioMayoristaBs = precioMayoristaUsd * tVenta;
     const precioMayoristaConIvaBs = precioMayoristaConIvaUsd * tVenta;
 
-    const subtotalRenglonUsd = costoNetoUsd * cantidad;
-    const ivaRenglonUsd = ivaUnitarioUsd * cantidad;
-    const totalRenglonUsd = subtotalRenglonUsd + ivaRenglonUsd;
+    const subtotalRenglonUsd = parseFloat((costoNetoUsd * cantidad).toFixed(2));
+    const ivaRenglonUsd = aplicaIva ? parseFloat((subtotalRenglonUsd * (ivaPct / 100)).toFixed(2)) : 0;
+    const totalRenglonUsd = parseFloat((subtotalRenglonUsd + ivaRenglonUsd).toFixed(2));
 
     const loteData = {
         tipo_item: "moto",
+        modelo_moto_id: modeloMotoId,
         producto_id: null,
         almacen_id: $("#almacen_id").val(),
         referencia: referencia,
@@ -1421,6 +1559,13 @@ const editarLote = function (index) {
     }
 
     cambiarModoItem("moto");
+    if (lote.modelo_moto_id) {
+        establecerValorSelect2("#lote_modelo_moto_id", lote.modelo_moto_id);
+        seleccionarModeloMotoCatalogo(lote.modelo_moto_id);
+    } else {
+        limpiarSelect2("#lote_modelo_moto_id");
+        seleccionarModeloMotoCatalogo(null);
+    }
     $("#lote_referencia").val(lote.referencia);
     $("#lote_marca").val(lote.marca);
     $("#lote_modelo").val(lote.modelo);
@@ -1524,6 +1669,8 @@ const editarLote = function (index) {
 
 const cancelarEdicionLote = function () {
     editandoLoteIndex = null;
+    limpiarSelect2("#lote_modelo_moto_id");
+    seleccionarModeloMotoCatalogo(null);
 
     let maxRef = parseInt(proximaReferenciaSugerida) || 1;
     lotesAgregados.forEach((l) => {
@@ -1785,43 +1932,48 @@ const recalcularTotalesGenerales = function () {
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
 
     lotesAgregados.forEach((l) => {
+        const sub = parseFloat(parseFloat(l.subtotal_usd || 0).toFixed(2));
+        const iva = parseFloat(parseFloat(l.iva_usd || 0).toFixed(2));
+
         if (l.aplica_iva && l.iva_porcentaje > 0) {
-            baseImponibleUsd += l.subtotal_usd;
-            ivaUsd += l.iva_usd;
+            baseImponibleUsd = parseFloat((baseImponibleUsd + sub).toFixed(2));
+            ivaUsd = parseFloat((ivaUsd + iva).toFixed(2));
             ivaPctGeneral = l.iva_porcentaje;
         } else {
-            exentoUsd += l.subtotal_usd;
+            exentoUsd = parseFloat((exentoUsd + sub).toFixed(2));
         }
         if (l.tipo_item === "moto") {
-            fleteTotalUsd += (l.flete_unitario_usd || 0) * l.cantidad;
+            const fleteUnit = parseFloat(l.flete_unitario_usd || 0);
+            fleteTotalUsd = parseFloat((fleteTotalUsd + parseFloat((fleteUnit * l.cantidad).toFixed(2))).toFixed(2));
         }
     });
 
     const descGlobalPct =
         parseFloat($("#descuento_global_porcentaje").val()) || 0;
-    const subtotalBruto = baseImponibleUsd + exentoUsd;
-    const descGlobalUsd = subtotalBruto * (descGlobalPct / 100);
+    const subtotalBruto = parseFloat((baseImponibleUsd + exentoUsd).toFixed(2));
+    const descGlobalUsd = parseFloat((subtotalBruto * (descGlobalPct / 100)).toFixed(2));
 
     let baseFinalUsd = baseImponibleUsd;
     let exentoFinalUsd = exentoUsd;
 
     if (descGlobalPct > 0) {
-        baseFinalUsd = baseImponibleUsd * (1 - descGlobalPct / 100);
-        exentoFinalUsd = exentoUsd * (1 - descGlobalPct / 100);
-        ivaUsd = baseFinalUsd * (ivaPctGeneral / 100);
+        baseFinalUsd = parseFloat((baseImponibleUsd * (1 - descGlobalPct / 100)).toFixed(2));
+        exentoFinalUsd = parseFloat((exentoUsd * (1 - descGlobalPct / 100)).toFixed(2));
+        ivaUsd = parseFloat((baseFinalUsd * (ivaPctGeneral / 100)).toFixed(2));
     }
 
     const incluirFlete = $("#switchIncluirFleteFactura").is(":checked");
-    const subtotalNetoUsd = baseFinalUsd + exentoFinalUsd;
-    const totalFacturaUsd =
-        subtotalNetoUsd + ivaUsd + (incluirFlete ? fleteTotalUsd : 0);
+    const subtotalNetoUsd = parseFloat((baseFinalUsd + exentoFinalUsd).toFixed(2));
+    const totalFacturaUsd = parseFloat(
+        (subtotalNetoUsd + ivaUsd + (incluirFlete ? fleteTotalUsd : 0)).toFixed(2),
+    );
 
-    const baseFinalBs = baseFinalUsd * tCompra;
-    const descGlobalBs = descGlobalUsd * tCompra;
-    const exentoFinalBs = exentoFinalUsd * tCompra;
-    const ivaBs = ivaUsd * tCompra;
-    const fleteTotalBs = fleteTotalUsd * tCompra;
-    const totalFacturaBs = totalFacturaUsd * tCompra;
+    const baseFinalBs = parseFloat((baseFinalUsd * tCompra).toFixed(2));
+    const descGlobalBs = parseFloat((descGlobalUsd * tCompra).toFixed(2));
+    const exentoFinalBs = parseFloat((exentoFinalUsd * tCompra).toFixed(2));
+    const ivaBs = parseFloat((ivaUsd * tCompra).toFixed(2));
+    const fleteTotalBs = parseFloat((fleteTotalUsd * tCompra).toFixed(2));
+    const totalFacturaBs = parseFloat((totalFacturaUsd * tCompra).toFixed(2));
 
     const fleteFacturadoUsd = incluirFlete ? fleteTotalUsd : 0;
     const fleteFacturadoBs = incluirFlete ? fleteTotalBs : 0;
@@ -1918,15 +2070,19 @@ const actualizarCuadreFactura = function () {
     let ivaPctGeneral = 16.0;
 
     lotesAgregados.forEach((l) => {
+        const sub = parseFloat(parseFloat(l.subtotal_usd || 0).toFixed(2));
+        const iva = parseFloat(parseFloat(l.iva_usd || 0).toFixed(2));
+
         if (l.aplica_iva && l.iva_porcentaje > 0) {
-            baseImponibleUsd += l.subtotal_usd;
-            ivaUsd += l.iva_usd;
+            baseImponibleUsd = parseFloat((baseImponibleUsd + sub).toFixed(2));
+            ivaUsd = parseFloat((ivaUsd + iva).toFixed(2));
             ivaPctGeneral = l.iva_porcentaje;
         } else {
-            exentoUsd += l.subtotal_usd;
+            exentoUsd = parseFloat((exentoUsd + sub).toFixed(2));
         }
         if (l.tipo_item === "moto") {
-            fleteTotalUsd += (l.flete_unitario_usd || 0) * l.cantidad;
+            const fleteUnit = parseFloat(l.flete_unitario_usd || 0);
+            fleteTotalUsd = parseFloat((fleteTotalUsd + parseFloat((fleteUnit * l.cantidad).toFixed(2))).toFixed(2));
         }
     });
 
@@ -1936,22 +2092,22 @@ const actualizarCuadreFactura = function () {
     let exentoFinalUsd = exentoUsd;
 
     if (descGlobalPct > 0) {
-        baseFinalUsd = baseImponibleUsd * (1 - descGlobalPct / 100);
-        exentoFinalUsd = exentoUsd * (1 - descGlobalPct / 100);
-        ivaUsd = baseFinalUsd * (ivaPctGeneral / 100);
+        baseFinalUsd = parseFloat((baseImponibleUsd * (1 - descGlobalPct / 100)).toFixed(2));
+        exentoFinalUsd = parseFloat((exentoUsd * (1 - descGlobalPct / 100)).toFixed(2));
+        ivaUsd = parseFloat((baseFinalUsd * (ivaPctGeneral / 100)).toFixed(2));
     }
 
     const incluirFlete = $("#switchIncluirFleteFactura").is(":checked");
-    const subtotalNetoUsd = baseFinalUsd + exentoFinalUsd;
-    const totalRenglonesUsd =
-        subtotalNetoUsd + ivaUsd + (incluirFlete ? fleteTotalUsd : 0);
-
-    const diferencia = Math.abs(
-        parseFloat(montoFacturaUsd.toFixed(2)) -
-            parseFloat(totalRenglonesUsd.toFixed(2)),
+    const subtotalNetoUsd = parseFloat((baseFinalUsd + exentoFinalUsd).toFixed(2));
+    const totalRenglonesUsd = parseFloat(
+        (subtotalNetoUsd + ivaUsd + (incluirFlete ? fleteTotalUsd : 0)).toFixed(2),
     );
 
-    if (diferencia <= 0.00001) {
+    const diferencia = parseFloat(
+        Math.abs(montoFacturaUsd - totalRenglonesUsd).toFixed(2),
+    );
+
+    if (diferencia === 0.00) {
         $badgeCuadre
             .html(
                 '<i class="fas fa-check-circle me-1"></i> Factura Cuadrada ($ ' +
@@ -2027,12 +2183,13 @@ const procesarRecepcionMoto = async function () {
     }
 
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
-    const montoBrutoUsd =
+    const montoBrutoUsd = parseFloat((
         monedaSeleccionada === "VES"
             ? tCompra > 0
                 ? montoBrutoInput / tCompra
                 : montoBrutoInput
-            : montoBrutoInput;
+            : montoBrutoInput
+    ).toFixed(2));
 
     let baseImponibleUsd = 0;
     let exentoUsd = 0;
@@ -2041,15 +2198,19 @@ const procesarRecepcionMoto = async function () {
     let ivaPctGeneral = 16.0;
 
     lotesAgregados.forEach((l) => {
+        const sub = parseFloat(parseFloat(l.subtotal_usd || 0).toFixed(2));
+        const iva = parseFloat(parseFloat(l.iva_usd || 0).toFixed(2));
+
         if (l.aplica_iva && l.iva_porcentaje > 0) {
-            baseImponibleUsd += l.subtotal_usd;
-            ivaUsd += l.iva_usd;
+            baseImponibleUsd = parseFloat((baseImponibleUsd + sub).toFixed(2));
+            ivaUsd = parseFloat((ivaUsd + iva).toFixed(2));
             ivaPctGeneral = l.iva_porcentaje;
         } else {
-            exentoUsd += l.subtotal_usd;
+            exentoUsd = parseFloat((exentoUsd + sub).toFixed(2));
         }
         if (l.tipo_item === "moto") {
-            fleteTotalUsd += (l.flete_unitario_usd || 0) * l.cantidad;
+            const fleteUnit = parseFloat(l.flete_unitario_usd || 0);
+            fleteTotalUsd = parseFloat((fleteTotalUsd + parseFloat((fleteUnit * l.cantidad).toFixed(2))).toFixed(2));
         }
     });
 
@@ -2059,22 +2220,22 @@ const procesarRecepcionMoto = async function () {
     let exentoFinalUsd = exentoUsd;
 
     if (descGlobalPct > 0) {
-        baseFinalUsd = baseImponibleUsd * (1 - descGlobalPct / 100);
-        exentoFinalUsd = exentoUsd * (1 - descGlobalPct / 100);
-        ivaUsd = baseFinalUsd * (ivaPctGeneral / 100);
+        baseFinalUsd = parseFloat((baseImponibleUsd * (1 - descGlobalPct / 100)).toFixed(2));
+        exentoFinalUsd = parseFloat((exentoUsd * (1 - descGlobalPct / 100)).toFixed(2));
+        ivaUsd = parseFloat((baseFinalUsd * (ivaPctGeneral / 100)).toFixed(2));
     }
 
     const incluirFlete = $("#switchIncluirFleteFactura").is(":checked");
-    const subtotalNetoUsd = baseFinalUsd + exentoFinalUsd;
-    const totalFacturaCalculadoUsd =
-        subtotalNetoUsd + ivaUsd + (incluirFlete ? fleteTotalUsd : 0);
-
-    const diferencia = Math.abs(
-        parseFloat(montoBrutoUsd.toFixed(2)) -
-            parseFloat(totalFacturaCalculadoUsd.toFixed(2)),
+    const subtotalNetoUsd = parseFloat((baseFinalUsd + exentoFinalUsd).toFixed(2));
+    const totalFacturaCalculadoUsd = parseFloat(
+        (subtotalNetoUsd + ivaUsd + (incluirFlete ? fleteTotalUsd : 0)).toFixed(2),
     );
 
-    if (diferencia > 0.00001) {
+    const diferencia = parseFloat(
+        Math.abs(montoBrutoUsd - totalFacturaCalculadoUsd).toFixed(2),
+    );
+
+    if (diferencia > 0.00) {
         const simbolo = monedaSeleccionada === "VES" ? "Bs." : "$";
         const factorMoneda = monedaSeleccionada === "VES" ? tCompra : 1.0;
         const totalCalculadoMostrar = totalFacturaCalculadoUsd * factorMoneda;
@@ -2463,6 +2624,7 @@ const obtenerEstadoActualFormulario = function () {
         lotesAgregados: lotesAgregados,
         modoItemActual: modoItemActual,
         lote_actual: {
+            modelo_moto_id: $("#lote_modelo_moto_id").val(),
             referencia: $("#lote_referencia").val(),
             marca: $("#lote_marca").val(),
             modelo: $("#lote_modelo").val(),
@@ -2781,6 +2943,10 @@ const restaurarEstado = function (datos) {
 
     if (datos.lote_actual) {
         const la = datos.lote_actual;
+        if (la.modelo_moto_id) {
+            establecerValorSelect2("#lote_modelo_moto_id", la.modelo_moto_id);
+            seleccionarModeloMotoCatalogo(la.modelo_moto_id);
+        }
         if (la.referencia) $("#lote_referencia").val(la.referencia);
         if (la.marca) $("#lote_marca").val(la.marca);
         if (la.modelo) $("#lote_modelo").val(la.modelo);

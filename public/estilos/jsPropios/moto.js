@@ -1,14 +1,20 @@
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
-const urlLista = `${urlBase}/lista`;
-const urlCatalogos = `${urlBase}/catalogos`;
-const urlDetalles = `${urlBase}/`;
-const urlEliminar = `${urlBase}/`;
-const urlGuardar = urlBase;
-const urlEditar = `${urlBase}/actualizar/`;
-const urlCambiarEstado = `${urlBase}/`;
+const urlListaMotos = `${urlBase}/lista`;
+const urlCatalogosMotos = `${urlBase}/catalogos`;
+const urlDetallesMoto = `${urlBase}/`;
+const urlEditarMoto = `${urlBase}/actualizar/`;
+const urlCambiarEstadoMoto = `${urlBase}/`;
 
-let urlAccion = urlGuardar;
-let isEditar = false;
+const urlBaseModelos = `${window.location.origin}/modelos-motos`;
+const urlListaModelos = `${urlBaseModelos}/lista`;
+const urlCatalogosModelos = `${urlBaseModelos}/catalogos`;
+const urlProximaReferenciaModelo = `${urlBaseModelos}/proxima-referencia`;
+const urlGuardarModelo = urlBaseModelos;
+const urlEditarModelo = `${urlBaseModelos}/actualizar/`;
+const urlEliminarModelo = `${urlBaseModelos}/`;
+
+let isEditarModelo = false;
+let idModeloActual = null;
 let idMotoActual = null;
 let tasaBcvActual = 1.0000;
 let monedaSimboloActual = "Bs.";
@@ -17,15 +23,130 @@ let catalogosSistema = {
 };
 
 $(document).ready(function () {
-    inicializarTabla();
+    inicializarTablaModelos();
+    inicializarTablaMotos();
     cargarCatalogos();
     inicializarEventos();
 });
 
-const inicializarTabla = function () {
+const inicializarTablaModelos = function () {
+    crearDataTable({
+        selector: "#datatable_modelos",
+        url: urlListaModelos,
+        searchPlaceholder: "Buscar por referencia, marca, modelo, color...",
+        columns: [
+            {
+                data: "referencia",
+                name: "referencia",
+                className: "text-center align-middle",
+                render: function (data) {
+                    return `
+                        <span class="badge rounded-pill font-monospace fw-bold px-3 py-1.5 shadow-xs"
+                            style="background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.84rem;">
+                            # ${data || "—"}
+                        </span>
+                    `;
+                }
+            },
+            {
+                data: "modelo",
+                name: "modelo",
+                className: "text-start align-middle",
+                render: function (data, type, row) {
+                    return `
+                        <div class="d-flex align-items-center gap-2 py-1">
+                            <div class="avatar-executive-sm rounded-3 shadow-xs"
+                                style="width: 36px; height: 36px; min-width: 36px; display: flex; align-items: center; justify-content: center; background-color: #f1f5f9; color: #0f172a; font-size: 1rem;">
+                                <i class="fas fa-layer-group text-primary"></i>
+                            </div>
+                            <div class="d-flex flex-column">
+                                <span class="fw-bold text-dark text-capitalize" style="font-size: 0.88rem;">${row.marca || ""} ${data || ""}</span>
+                                <small class="text-muted" style="font-size: 0.74rem;">${row.descripcion ? row.descripcion.substring(0, 45) + '...' : 'Modelo de catálogo'}</small>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            {
+                data: "anio",
+                name: "anio",
+                className: "text-center align-middle",
+                render: function (data, type, row) {
+                    return `
+                        <div class="d-flex flex-column align-items-center py-1">
+                            <span class="fw-bold text-dark font-monospace" style="font-size: 0.88rem;">${data || "—"}</span>
+                            <span class="badge rounded-pill px-2.5 py-0.5 text-capitalize fw-semibold mt-0.5"
+                                style="font-size: 0.72rem; background-color: #f8fafc; color: #475569; border: 1px solid #cbd5e1;">
+                                ${row.color || "Sin color"}
+                            </span>
+                        </div>
+                    `;
+                }
+            },
+            {
+                data: "cilindrada",
+                name: "cilindrada",
+                className: "text-center align-middle",
+                render: function (data) {
+                    return `<span class="badge rounded-pill bg-white text-secondary font-monospace border px-2.5 py-1" style="font-size: 0.76rem;">${data || "N/A"}</span>`;
+                }
+            },
+            {
+                data: "stock_disponible",
+                name: "stock_disponible",
+                className: "text-center align-middle",
+                render: function (data) {
+                    const cant = parseInt(data || 0);
+                    if (cant > 0) {
+                        return `
+                            <span class="badge rounded-pill px-3 py-1.5 fw-bold font-monospace shadow-xs"
+                                style="background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; font-size: 0.82rem;">
+                                <i class="fas fa-check-circle me-1"></i> ${cant} Disponibles
+                            </span>
+                        `;
+                    }
+                    return `
+                        <span class="badge rounded-pill px-3 py-1.5 fw-semibold font-monospace"
+                            style="background-color: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; font-size: 0.80rem;">
+                            Sin Stock
+                        </span>
+                    `;
+                }
+            },
+            {
+                data: "total_unidades",
+                name: "total_unidades",
+                className: "text-center align-middle",
+                render: function (data) {
+                    return `<span class="font-monospace fw-bold text-secondary" style="font-size: 0.84rem;">${data || 0} Unds</span>`;
+                }
+            },
+            {
+                data: null,
+                width: "100px",
+                className: "text-center align-middle",
+                orderable: false,
+                searchable: false,
+                render: function (data, type, row) {
+                    return `
+                    <div class="d-flex justify-content-center gap-1">
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-circle shadow-sm" onclick="editarModelo(${row.id});" title="Editar modelo" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="eliminarModelo(${row.id});" title="Desactivar modelo" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>`;
+                }
+            }
+        ]
+    });
+};
+
+const inicializarTablaMotos = function () {
     crearDataTable({
         selector: "#datatable_motos",
-        url: urlLista,
+        url: urlListaMotos,
         searchPlaceholder: "NIV, chasis, motor, marca, modelo, almacén...",
         columns: [
             {
@@ -33,7 +154,7 @@ const inicializarTabla = function () {
                 name: "modelo",
                 className: "text-start align-middle",
                 render: function (data, type, row) {
-                    const ref = row.referencia ? `Ref: ${row.referencia}` : "";
+                    const ref = row.referencia ? `Ref: #${row.referencia}` : "";
                     const cil = row.cilindrada ? ` • ${row.cilindrada}` : "";
                     return `
                         <div class="d-flex align-items-center gap-2 py-1">
@@ -42,7 +163,7 @@ const inicializarTabla = function () {
                             </div>
                             <div class="d-flex flex-column">
                                 <span class="fw-bold text-dark text-capitalize" style="font-size: 0.88rem; letter-spacing: -0.01em;">${row.marca || ""} ${data || ""}</span>
-                                <small class="text-muted font-monospace" style="font-size: 0.74rem;">${ref}${cil}</small>
+                                <small class="text-primary font-monospace fw-semibold" style="font-size: 0.74rem;">${ref}${cil}</small>
                             </div>
                         </div>
                     `;
@@ -185,11 +306,122 @@ const inicializarEventos = function () {
         guardar();
     });
 
+    $("#formularioModeloMoto").on("submit", function (e) {
+        e.preventDefault();
+        guardarModelo();
+    });
+
     $("#btnEditarDesdeFicha").on("click", function () {
         const id = $(this).data("moto-id");
         if (id) {
-            $("#modalFichaMoto").modal("hide");
+            const modalFichaEl = document.getElementById("modalFichaMoto");
+            const modalFicha = bootstrap.Modal.getOrCreateInstance(modalFichaEl);
+            modalFicha.hide();
             editar(id);
+        }
+    });
+
+    $('button[data-bs-toggle="pill"]').on("shown.bs.tab", function (e) {
+        const targetId = $(e.target).attr("data-bs-target");
+        if (targetId === "#pills-modelos") {
+            recargarDataTable("#datatable_modelos");
+        } else if (targetId === "#pills-unidades") {
+            recargarDataTable("#datatable_motos");
+        }
+    });
+};
+
+const abrirModalCrearModelo = async function () {
+    isEditarModelo = false;
+    idModeloActual = null;
+    $("#formularioModeloMoto")[0].reset();
+    $("#modelo_moto_id").val("");
+    $("#modelo_anio").val(new Date().getFullYear());
+    $("#modelo_cilindrada").val("150cc");
+
+    $("#modalModeloMotoTitulo").text("Registrar Modelo de Moto");
+    $("#modalModeloMotoSubtitulo").text("Defina las características del modelo y su referencia única para el catálogo y el POS");
+    $("#modalModeloMotoBtnGuardar").find("#modalModeloMotoTextoGuardar").text("Guardar Modelo");
+
+    try {
+        const res = await peticionAjax({
+            url: urlProximaReferenciaModelo,
+            type: "GET",
+        });
+        if (res && res.success && res.data) {
+            $("#modelo_referencia").val(res.data.referencia || "1");
+        }
+    } catch (e) {
+        $("#modelo_referencia").val("1");
+    }
+
+    const modalEl = document.getElementById("modalModeloMoto");
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+};
+
+const editarModelo = async function (id) {
+    try {
+        const res = await consultarRegistro(urlBaseModelos, id);
+        if (res && res.success && res.data) {
+            const m = res.data;
+            isEditarModelo = true;
+            idModeloActual = m.id;
+
+            $("#modelo_moto_id").val(m.id);
+            $("#modelo_referencia").val(m.referencia || "");
+            $("#modelo_marca").val(m.marca || "");
+            $("#modelo_modelo").val(m.modelo || "");
+            $("#modelo_anio").val(m.anio || new Date().getFullYear());
+            $("#modelo_color").val(m.color || "");
+            $("#modelo_cilindrada").val(m.cilindrada || "150cc");
+            $("#modelo_descripcion").val(m.descripcion || "");
+
+            $("#modalModeloMotoTitulo").text("Editar Modelo de Moto");
+            $("#modalModeloMotoSubtitulo").text(`Modificando modelo Ref #${m.referencia} — ${m.marca} ${m.modelo}`);
+            $("#modalModeloMotoBtnGuardar").find("#modalModeloMotoTextoGuardar").text("Guardar Cambios");
+
+            const modalEl = document.getElementById("modalModeloMoto");
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        }
+    } catch (e) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "error",
+                title: "Error",
+                text: "No se pudieron cargar los datos del modelo.",
+            });
+        }
+    }
+};
+
+const guardarModelo = function () {
+    const url = isEditarModelo ? `${urlEditarModelo}${idModeloActual}` : urlGuardarModelo;
+
+    enviarFormulario({
+        form: "#formularioModeloMoto",
+        url: url,
+        isEditar: isEditarModelo,
+        modalSelector: "#modalModeloMoto",
+        tablaSelector: "#datatable_modelos",
+        btnSubmit: "#modalModeloMotoBtnGuardar",
+        textoGuardarOriginal: isEditarModelo ? "Guardar Cambios" : "Guardar Modelo",
+        onSuccess: function () {
+            recargarDataTable("#datatable_modelos");
+            recargarDataTable("#datatable_motos");
+        }
+    });
+};
+
+const eliminarModelo = function (id) {
+    cambiarEstadoRegistro({
+        url: urlEliminarModelo,
+        id: id,
+        tablaSelector: "#datatable_modelos",
+        nombre: "el modelo de moto seleccionado",
+        onSuccess: function () {
+            recargarDataTable("#datatable_modelos");
         }
     });
 };
@@ -211,8 +443,8 @@ const actualizarPreciosBsPreview = function () {
 const cargarCatalogos = async function () {
     try {
         const respuesta = await peticionAjax({
-            url: urlCatalogos,
-            method: "GET"
+            url: urlCatalogosMotos,
+            type: "GET"
         });
 
         if (respuesta.success && respuesta.data) {
@@ -250,7 +482,7 @@ const cargarCatalogos = async function () {
 
 const ver = async function (id) {
     try {
-        const respuesta = await consultarRegistro(urlDetalles, id);
+        const respuesta = await consultarRegistro(urlDetallesMoto, id);
 
         if (respuesta.success && respuesta.data) {
             const m = respuesta.data;
@@ -288,7 +520,7 @@ const ver = async function (id) {
                                 <span class="badge rounded-pill px-2.5 py-1 text-white fw-semibold" style="background: rgba(255,255,255,0.12);">Año: <strong class="text-white">${m.anio || "—"}</strong></span>
                                 <span class="badge rounded-pill px-2.5 py-1 text-white fw-semibold" style="background: rgba(255,255,255,0.12);">Color: <strong class="text-white text-capitalize">${m.color || "Sin color"}</strong></span>
                                 <span class="badge rounded-pill px-2.5 py-1 text-white fw-semibold" style="background: rgba(255,255,255,0.12);">Cilindrada: <strong class="text-white">${m.cilindrada || "N/A"}</strong></span>
-                                ${m.referencia ? `<span class="badge rounded-pill px-2.5 py-1 text-white fw-semibold" style="background: rgba(255,255,255,0.12);">Ref: <strong class="text-white">${m.referencia}</strong></span>` : ""}
+                                ${m.referencia ? `<span class="badge rounded-pill px-2.5 py-1 text-white fw-semibold" style="background: rgba(255,255,255,0.12);">Ref: <strong class="text-white">#${m.referencia}</strong></span>` : ""}
                             </div>
                         </div>
                         <div>
@@ -398,7 +630,9 @@ const ver = async function (id) {
             `);
 
             $("#btnEditarDesdeFicha").data("moto-id", m.id);
-            $("#modalFichaMoto").modal("show");
+            const modalEl = document.getElementById("modalFichaMoto");
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
         }
     } catch (e) {
         if (window.notificacion) {
@@ -413,13 +647,11 @@ const ver = async function (id) {
 
 const editar = async function (id) {
     try {
-        const respuesta = await consultarRegistro(urlDetalles, id);
+        const respuesta = await consultarRegistro(urlDetallesMoto, id);
 
         if (respuesta.success && respuesta.data) {
             const m = respuesta.data;
             idMotoActual = m.id;
-            isEditar = true;
-            urlAccion = `${urlEditar}${idMotoActual}`;
 
             $("#edit_moto_id").val(m.id);
             $("#modalEditarMotoSubtitulo").text(`${m.marca || ""} ${m.modelo || ""} — NIV: ${m.numero_niv || ""}`);
@@ -444,7 +676,9 @@ const editar = async function (id) {
             $("#edit_observaciones").val(m.observaciones || "");
 
             actualizarPreciosBsPreview();
-            $("#modalEditarMoto").modal("show");
+            const modalEl = document.getElementById("modalEditarMoto");
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
         }
     } catch (e) {
         if (window.notificacion) {
@@ -471,7 +705,7 @@ const guardar = function () {
 
     enviarFormulario({
         form: "#formularioEditarMoto",
-        url: `${urlEditar}${idMotoActual}`,
+        url: `${urlEditarMoto}${idMotoActual}`,
         isEditar: true,
         modalSelector: "#modalEditarMoto",
         tablaSelector: "#datatable_motos",
@@ -485,8 +719,8 @@ const guardar = function () {
 const cambiarEstadoMoto = async function (id, nuevoEstado) {
     try {
         const respuesta = await peticionAjax({
-            url: `${urlCambiarEstado}${id}/cambiar-estado`,
-            method: "POST",
+            url: `${urlCambiarEstadoMoto}${id}/cambiar-estado`,
+            type: "POST",
             data: {
                 estado: nuevoEstado,
             },
