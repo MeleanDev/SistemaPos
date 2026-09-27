@@ -1,9 +1,9 @@
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
-const urlLista = urlBase + "/lista";
-const urlDetalles = urlBase + "/";
-const urlEliminar = urlBase + "/";
+const urlLista = `${urlBase}/lista`;
+const urlDetalles = `${urlBase}/`;
+const urlEliminar = `${urlBase}/`;
 const urlGuardar = urlBase;
-const urlEditar = urlBase + "/actualizar/";
+const urlEditar = `${urlBase}/actualizar/`;
 
 let urlAccion = urlGuardar;
 let isEditar = false;
@@ -91,21 +91,24 @@ $(document).ready(function () {
     aplicarRestriccionesInput();
 });
 
+const resetearFormularioCategoria = function () {
+    const $form = $("#formularioCategoria");
+    $form[0].reset();
+    $("#modalCategoria .is-invalid").removeClass("is-invalid");
+    $("#modalCategoria .invalid-feedback").remove();
+    $form.find("input, select, textarea").prop("disabled", false);
+};
+
 const crear = function () {
     isEditar = false;
     idCategoriaActual = null;
     urlAccion = urlGuardar;
 
-    $("#formularioCategoria")[0].reset();
-    $("#formularioCategoria .is-invalid").removeClass("is-invalid");
-    $("#formularioCategoria .invalid-feedback").remove();
-
-    $("#formularioCategoria").find("input, select, textarea").prop("disabled", false);
+    resetearFormularioCategoria();
 
     $("#modalCategoriaTitulo").text("Nueva Categoría");
     $("#modalCategoriaSubtitulo").text("Completa la información de la categoría de productos");
     $("#modalCategoriaIcono").attr("class", "fas fa-tags text-warning fs-5");
-
     $("#modalCategoriaBtnGuardar").prop("hidden", false).prop("disabled", false);
     $("#modalCategoriaTextoGuardar").text("Guardar");
 
@@ -113,26 +116,26 @@ const crear = function () {
     modal.show();
 };
 
+const llenarFormularioCategoria = function (data) {
+    $("#codigo").val(data.codigo || "");
+    $("#nombre").val(data.nombre || "");
+    $("#descripcion").val(data.descripcion || "");
+};
+
 const ver = async function (id) {
     try {
         idCategoriaActual = id;
-        const categoria = await consultarRegistro(urlDetalles, id);
+        const res = await consultarRegistro(urlDetalles, id);
+        const categoria = res && res.data ? res.data : res;
         if (!categoria) return;
 
-        $("#formularioCategoria")[0].reset();
-        $("#formularioCategoria .is-invalid").removeClass("is-invalid");
-        $("#formularioCategoria .invalid-feedback").remove();
-
-        $("#codigo").val(categoria.codigo || "");
-        $("#nombre").val(categoria.nombre || "");
-        $("#descripcion").val(categoria.descripcion || "");
+        resetearFormularioCategoria();
+        llenarFormularioCategoria(categoria);
 
         $("#formularioCategoria").find("input, select, textarea").prop("disabled", true);
-
         $("#modalCategoriaTitulo").text("Detalles de la Categoría");
         $("#modalCategoriaSubtitulo").text("Consulta la información de la categoría seleccionada");
         $("#modalCategoriaIcono").attr("class", "fas fa-eye text-info fs-5");
-
         $("#modalCategoriaBtnGuardar").prop("hidden", true);
 
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalCategoria"));
@@ -152,25 +155,18 @@ const editar = async function (id) {
     try {
         isEditar = true;
         idCategoriaActual = id;
-        urlAccion = urlEditar + id;
+        urlAccion = `${urlEditar}${id}`;
 
-        const categoria = await consultarRegistro(urlDetalles, id);
+        const res = await consultarRegistro(urlDetalles, id);
+        const categoria = res && res.data ? res.data : res;
         if (!categoria) return;
 
-        $("#formularioCategoria")[0].reset();
-        $("#formularioCategoria .is-invalid").removeClass("is-invalid");
-        $("#formularioCategoria .invalid-feedback").remove();
-
-        $("#codigo").val(categoria.codigo || "");
-        $("#nombre").val(categoria.nombre || "");
-        $("#descripcion").val(categoria.descripcion || "");
-
-        $("#formularioCategoria").find("input, select, textarea").prop("disabled", false);
+        resetearFormularioCategoria();
+        llenarFormularioCategoria(categoria);
 
         $("#modalCategoriaTitulo").text(`Editar Categoría: ${categoria.nombre}`);
         $("#modalCategoriaSubtitulo").text("Modifica los datos de la categoría seleccionada");
         $("#modalCategoriaIcono").attr("class", "fas fa-edit text-warning fs-5");
-
         $("#modalCategoriaBtnGuardar").prop("hidden", false).prop("disabled", false);
         $("#modalCategoriaTextoGuardar").text("Actualizar Cambios");
 
@@ -189,27 +185,6 @@ const editar = async function (id) {
 
 $("#formularioCategoria").on("submit", function (e) {
     e.preventDefault();
-
-    const codigo = $("#codigo").val().trim();
-    const nombre = $("#nombre").val().trim();
-
-    if (codigo.length < 2) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "El código debe tener al menos 2 caracteres",
-            });
-        }
-    }
-
-    if (nombre.length < 2) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "El nombre de la categoría debe tener al menos 2 caracteres",
-            });
-        }
-    }
 
     enviarFormulario({
         form: this,

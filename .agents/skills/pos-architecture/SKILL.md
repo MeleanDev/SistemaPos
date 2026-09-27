@@ -676,7 +676,7 @@ When refactoring any module in the system, adhere strictly to the following cont
 | 5 | **Clientes** | `Sistema/pages/empresa/cliente.blade.php` | `cliente.js` | ✅ **Terminado** |
 | 6 | **Proveedores** | `Sistema/pages/empresa/proveedor.blade.php` | `proveedor.js` | ✅ **Terminado** |
 | 7 | **Métodos de Pago** | `Sistema/pages/empresa/metodo_pago.blade.php` | `metodo_pago.js` | ✅ **Terminado** |
-| 8 | **Categorías** | `Sistema/pages/empresa/categoria.blade.php` | `categoria.js` | ⏳ Pendiente |
+| 8 | **Categorías** | `Sistema/pages/empresa/categoria.blade.php` | `categoria.js` | ✅ **Terminado** |
 | 9 | **Servicios** | `Sistema/pages/empresa/servicio.blade.php` | `servicio.js` | ⏳ Pendiente |
 | 10 | **Productos & Inventario** | `Sistema/pages/empresa/producto.blade.php` | `producto.js` | ⏳ Pendiente |
 | 11 | **Recepción de Mercancía** | `Sistema/pages/empresa/recepcion.blade.php` | `recepcion.js` | ⏳ Pendiente |
