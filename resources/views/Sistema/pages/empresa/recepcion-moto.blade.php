@@ -276,7 +276,8 @@
                                             <input type="number" step="any" min="0" name="monto_bruto_input"
                                                 id="monto_bruto_input"
                                                 class="form-control form-control-executive font-monospace"
-                                                placeholder="0.00" required>
+                                                placeholder="0.00" required
+                                                oninput="recalcularTotalesGenerales(); dispararAutoGuardado();">
                                         </div>
                                     </div>
 
@@ -287,7 +288,7 @@
                                             <input type="number" step="any" min="0" max="100"
                                                 name="descuento_global_porcentaje" id="descuento_global_porcentaje"
                                                 class="form-control form-control-executive font-monospace" value="0.00"
-                                                oninput="recalcularTotalesGenerales()">
+                                                oninput="recalcularTotalesGenerales(); dispararAutoGuardado();">
                                             <span class="input-group-text bg-white text-muted">%</span>
                                         </div>
                                     </div>
@@ -841,10 +842,9 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <div class="card border rounded-4 p-3 shadow-xs h-100 bg-white">
-                                        <label class="form-label-executive"><i
-                                                class="fas fa-comment-alt text-secondary"></i> Observaciones Generales de
-                                            la Compra</label>
-                                        <textarea name="observaciones" id="observaciones" class="form-control form-control-executive" rows="4"
+                                        <label class="form-label-executive mb-2"><i
+                                                class="fas fa-comment-alt text-secondary me-1"></i> Observaciones Generales de la Compra</label>
+                                        <textarea name="observaciones" id="observaciones" class="form-control form-control-executive" rows="7"
                                             placeholder="Información sobre la factura de compra, transporte, fletes, contenedor, precintos o condiciones especiales..."></textarea>
                                     </div>
                                 </div>
@@ -859,7 +859,7 @@
                                                 Global
                                             </h6>
                                             <span
-                                                class="badge rounded-pill bg-white bg-opacity-10 text-white-50 px-2 py-1 font-monospace small">
+                                                class="badge rounded-pill bg-white bg-opacity-10 text-white-50 px-2.5 py-1 font-monospace small">
                                                 Base + IVA + Flete
                                             </span>
                                         </div>
@@ -867,49 +867,58 @@
                                         <div
                                             class="d-flex justify-content-between align-items-center mb-1.5 font-monospace">
                                             <span class="text-white-50">Base Imponible:</span>
-                                            <span class="fw-bold text-white fs-6" id="resumenBaseImponible">$ 0.00 | Bs.
-                                                0.00</span>
+                                            <span class="fw-bold text-white fs-6" id="resumenBaseImponible">$ 0.00 | Bs. 0.00</span>
                                         </div>
 
                                         <div
                                             class="d-flex justify-content-between align-items-center mb-1.5 font-monospace">
                                             <span class="text-white-50">Descuento:</span>
-                                            <span class="fw-bold text-danger fs-6" id="resumenDescuentoUsd">-$ 0.00 | -Bs.
-                                                0.00</span>
+                                            <span class="fw-bold text-danger fs-6" id="resumenDescuentoUsd">-$ 0.00 | -Bs. 0.00</span>
                                         </div>
 
                                         <div
                                             class="d-flex justify-content-between align-items-center mb-1.5 font-monospace">
                                             <span class="text-white-50">Exento (0% IVA):</span>
-                                            <span class="fw-bold text-white-50 fs-6" id="resumenExento">$ 0.00 | Bs.
-                                                0.00</span>
+                                            <span class="fw-bold text-white-50 fs-6" id="resumenExento">$ 0.00 | Bs. 0.00</span>
                                         </div>
 
                                         <div
-                                            class="d-flex justify-content-between align-items-center mb-1.5 font-monospace">
+                                            class="d-flex justify-content-between align-items-center mb-2 font-monospace">
                                             <span class="text-white-50" id="labelResumenIva">IVA (16%):</span>
-                                            <span class="fw-bold text-white fs-6" id="resumenIvaUsd">$ 0.00 | Bs.
-                                                0.00</span>
+                                            <span class="fw-bold text-white fs-6" id="resumenIvaUsd">$ 0.00 | Bs. 0.00</span>
                                         </div>
 
-                                        <!-- FLETE Y SWITCH DE INCLUSIÓN EN FACTURA -->
-                                        <div
-                                            class="p-2.5 rounded-3 bg-white bg-opacity-10 my-2 border border-white border-opacity-10">
-                                            <div
-                                                class="d-flex justify-content-between align-items-center mb-1.5 font-monospace">
-                                                <span class="text-warning small fw-bold"><i
-                                                        class="fas fa-truck-fast me-1"></i> Flete Total Motos:</span>
-                                                <span class="fw-bold text-warning fs-6" id="resumenFleteTotal">$ 0.00 |
-                                                    Bs. 0.00</span>
+                                        <!-- SECCIÓN DE FLETE EJECUTIVA INTEGRADA -->
+                                        <div class="rounded-4 p-3 my-2" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12);">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <div class="rounded-3 d-flex align-items-center justify-content-center"
+                                                        style="width: 32px; height: 32px; background: rgba(245, 158, 11, 0.18); color: #fbbf24; font-size: 0.95rem;">
+                                                        <i class="fas fa-truck-fast"></i>
+                                                    </div>
+                                                    <div>
+                                                        <span class="fw-bold text-white small d-block">Flete Total Motos</span>
+                                                        <small class="text-white-50 font-monospace" style="font-size: 0.72rem;">Acumulado de flete</small>
+                                                    </div>
+                                                </div>
+                                                <div class="text-end font-monospace">
+                                                    <span class="fw-bold text-warning fs-6 d-block" id="resumenFleteTotal">$ 0.00 | Bs. 0.00</span>
+                                                </div>
                                             </div>
-                                            <div class="pt-1.5 border-top border-white border-opacity-10">
-                                                <x-checkbox switch="true" id="switchIncluirFleteFactura"
-                                                    name="incluir_flete_en_factura" value="1"
-                                                    onchange="recalcularTotalesGenerales()"
-                                                    labelClass="text-white small mb-0 cursor-pointer d-flex align-items-center"
-                                                    wrapperClass="p-0 d-flex align-items-center justify-content-between m-0 w-100 flex-row-reverse"
-                                                    style="cursor: pointer; width: 2.3em; height: 1.2em;"
-                                                    label="<span><i class='fas fa-file-invoice-dollar text-info me-1.5'></i> ¿Incluir flete en el total de la factura fiscal?</span>" />
+
+                                            <div class="pt-2 border-top border-white border-opacity-10 d-flex align-items-center justify-content-between">
+                                                <div class="pe-2">
+                                                    <label for="switchIncluirFleteFactura" class="fw-semibold text-white small mb-0 cursor-pointer d-block">
+                                                        <i class="fas fa-file-invoice-dollar text-info me-1"></i> ¿Incluir flete en el total de la factura fiscal?
+                                                    </label>
+                                                    <small class="text-white-50 d-block" style="font-size: 0.72rem;">Suma el flete al monto total fiscal a liquidar</small>
+                                                </div>
+                                                <div class="form-check form-switch m-0 p-0">
+                                                    <input class="form-check-input ms-0" type="checkbox" role="switch"
+                                                        id="switchIncluirFleteFactura" name="incluir_flete_en_factura" value="1"
+                                                        onchange="recalcularTotalesGenerales(); dispararAutoGuardado();"
+                                                        style="cursor: pointer; width: 2.6em; height: 1.35em;">
+                                                </div>
                                             </div>
                                         </div>
 

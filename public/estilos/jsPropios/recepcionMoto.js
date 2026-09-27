@@ -1377,12 +1377,24 @@ const recalcularTotalesGenerales = function () {
     const fleteTotalBs = fleteTotalUsd * tCompra;
     const totalFacturaBs = totalFacturaUsd * tCompra;
 
+    const fleteFacturadoUsd = incluirFlete ? fleteTotalUsd : 0;
+    const fleteFacturadoBs = incluirFlete ? fleteTotalBs : 0;
+
     $('#resumenBaseImponible').text(`$ ${baseFinalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Bs. ${baseFinalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     $('#resumenDescuentoUsd').text(`-$ ${descGlobalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | -Bs. ${descGlobalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     $('#resumenExento').text(`$ ${exentoFinalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Bs. ${exentoFinalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     $('#labelResumenIva').text(`IVA (${ivaPctGeneral}%):`);
     $('#resumenIvaUsd').text(`$ ${ivaUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Bs. ${ivaBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     $('#resumenFleteTotal').text(`$ ${fleteTotalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Bs. ${fleteTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+
+    if (incluirFlete) {
+        $('#resumenFleteLiquidacion').text(`$ ${fleteFacturadoUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Bs. ${fleteFacturadoBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        $('#badgeEstadoFleteFactura').html('<i class="fas fa-check-circle text-success me-1"></i> Incluido en Factura').removeClass('bg-secondary-subtle text-secondary').addClass('bg-success-subtle text-success');
+    } else {
+        $('#resumenFleteLiquidacion').text(`$ 0.00 | Bs. 0.00 (Excluido)`);
+        $('#badgeEstadoFleteFactura').html('<i class="fas fa-info-circle text-secondary me-1"></i> Excluido de Factura').removeClass('bg-success-subtle text-success').addClass('bg-secondary-subtle text-secondary');
+    }
+
     $('#resumenTotalUsd').text(`$ ${totalFacturaUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     $('#resumenTotalBs').text(`Bs. ${totalFacturaBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 
@@ -1718,7 +1730,9 @@ const obtenerEstadoActualFormulario = function () {
         condicion_pago: $('#condicion_pago').val(),
         dias_credito: $('#dias_credito').val(),
         monto_bruto_usd: $('#monto_bruto_input').val(),
+        monto_bruto_input: $('#monto_bruto_input').val(),
         descuento_global_porcentaje: $('#descuento_global_porcentaje').val(),
+        descuento_global: $('#descuento_global_porcentaje').val(),
         incluir_flete_en_factura: $('#switchIncluirFleteFactura').is(':checked') ? 1 : 0,
         observaciones: $('#observaciones').val(),
         lotesAgregados: lotesAgregados,
@@ -1754,7 +1768,11 @@ const dispararAutoGuardado = function () {
         const tieneContenido = (estado.numero_documento && estado.numero_documento.trim().length > 0) ||
             (estado.proveedor_id && estado.proveedor_id !== '') ||
             (estado.lotesAgregados && estado.lotesAgregados.length > 0) ||
-            (estado.lote_actual && estado.lote_actual.modelo && estado.lote_actual.modelo.trim().length > 0);
+            (estado.lote_actual && estado.lote_actual.modelo && estado.lote_actual.modelo.trim().length > 0) ||
+            (estado.monto_bruto_input && String(estado.monto_bruto_input).trim().length > 0 && parseFloat(estado.monto_bruto_input) > 0) ||
+            (estado.descuento_global_porcentaje && String(estado.descuento_global_porcentaje).trim().length > 0 && parseFloat(estado.descuento_global_porcentaje) > 0) ||
+            (estado.numero_control && estado.numero_control.trim().length > 0) ||
+            (estado.observaciones && estado.observaciones.trim().length > 0);
 
         if (tieneContenido) {
             localStorage.setItem('draft_recepcion_moto', JSON.stringify(estado));
@@ -1762,7 +1780,7 @@ const dispararAutoGuardado = function () {
         } else {
             $('#badgeAutoSaveStatus').html('<i class="fas fa-shield-alt text-white-50 me-1"></i> Auto-guardado activo');
         }
-    }, 400);
+    }, 300);
 };
 
 const verificarBorradorPendiente = function () {
@@ -1847,12 +1865,23 @@ const restaurarEstado = function (datos) {
         $('#dias_credito').val(datos.dias_credito);
         calcularFechaVencimiento();
     }
-    if (datos.monto_bruto_usd) {
-        $('#monto_bruto_input').val(datos.monto_bruto_usd);
+
+    const montoBrutoVal = datos.monto_bruto_usd !== undefined && datos.monto_bruto_usd !== null && datos.monto_bruto_usd !== ''
+        ? datos.monto_bruto_usd
+        : (datos.monto_bruto_input !== undefined && datos.monto_bruto_input !== null && datos.monto_bruto_input !== ''
+            ? datos.monto_bruto_input
+            : (datos.monto_bruto !== undefined && datos.monto_bruto !== null ? datos.monto_bruto : ''));
+    if (montoBrutoVal !== '') {
+        $('#monto_bruto_input').val(montoBrutoVal);
     }
-    if (datos.descuento_global_porcentaje) {
-        $('#descuento_global_porcentaje').val(datos.descuento_global_porcentaje);
+
+    const descGlobalVal = datos.descuento_global_porcentaje !== undefined && datos.descuento_global_porcentaje !== null && datos.descuento_global_porcentaje !== ''
+        ? datos.descuento_global_porcentaje
+        : (datos.descuento_global !== undefined && datos.descuento_global !== null && datos.descuento_global !== '' ? datos.descuento_global : '');
+    if (descGlobalVal !== '') {
+        $('#descuento_global_porcentaje').val(descGlobalVal);
     }
+
     if (datos.observaciones) {
         $('#observaciones').val(datos.observaciones);
     }
@@ -1906,6 +1935,13 @@ const restaurarEstado = function (datos) {
 
     if (datos.modoItemActual) {
         cambiarModoItem(datos.modoItemActual);
+    }
+
+    if (montoBrutoVal !== '') {
+        $('#monto_bruto_input').val(montoBrutoVal);
+    }
+    if (descGlobalVal !== '') {
+        $('#descuento_global_porcentaje').val(descGlobalVal);
     }
 
     recalcularTotalesGenerales();
