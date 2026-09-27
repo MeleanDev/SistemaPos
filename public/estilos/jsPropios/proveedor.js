@@ -1,9 +1,9 @@
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
-const urlLista = urlBase + "/lista";
-const urlDetalles = urlBase + "/";
-const urlEliminar = urlBase + "/";
+const urlLista = `${urlBase}/lista`;
+const urlDetalles = `${urlBase}/`;
+const urlEliminar = `${urlBase}/`;
 const urlGuardar = urlBase;
-const urlEditar = urlBase + "/actualizar/";
+const urlEditar = `${urlBase}/actualizar/`;
 
 let urlAccion = urlGuardar;
 let isEditar = false;
@@ -106,20 +106,22 @@ $(document).ready(function () {
     aplicarRestriccionesInput();
 });
 
+const resetearFormularioProveedor = function () {
+    const $form = $("#formularioProveedor");
+    $form[0].reset();
+    $("#modalProveedor .is-invalid").removeClass("is-invalid");
+    $("#modalProveedor .invalid-feedback").remove();
+    $form.find("input, select, textarea").prop("disabled", false);
+    $("#tipo_cedula").val("J-");
+    $("#codigo_pais").val("+58");
+};
+
 const crear = function () {
     isEditar = false;
     idProveedorActual = null;
     urlAccion = urlGuardar;
 
-    $("#formularioProveedor")[0].reset();
-    $("#formularioProveedor .is-invalid").removeClass("is-invalid");
-    $("#formularioProveedor .invalid-feedback").remove();
-
-    $("#formularioProveedor")
-        .find("input, select, textarea")
-        .prop("disabled", false);
-    $("#tipo_cedula").val("J-");
-    $("#codigo_pais").val("+58");
+    resetearFormularioProveedor();
 
     $("#modalProveedorTitulo").text("Nuevo Proveedor");
     $("#modalProveedorSubtitulo").text("Completa la información del proveedor");
@@ -132,25 +134,36 @@ const crear = function () {
     modal.show();
 };
 
+const llenarFormularioProveedor = function (data) {
+    $("#nombre").val(data.nombre || "");
+    $("#razon_social").val(data.razon_social || "");
+    $("#nombre_contacto").val(data.nombre_contacto || "");
+    $("#correo").val(data.correo || "");
+    $("#direccion").val(data.direccion || "");
+
+    const rif = desglosarCedula(data.rif);
+    $("#tipo_cedula").val(rif.tipo || "J-");
+    $("#cedula_numero").val(rif.numero || "");
+
+    const telefono = desglosarTelefono(data.telefono);
+    $("#codigo_pais").val(telefono.codigo || "+58");
+    $("#telefono_numero").val(telefono.numero || "");
+};
+
 const ver = async function (id) {
     try {
         idProveedorActual = id;
-        const proveedor = await consultarRegistro(urlDetalles, id);
+        const res = await consultarRegistro(urlDetalles, id);
+        const proveedor = res && res.data ? res.data : res;
         if (!proveedor) return;
 
-        $("#formularioProveedor")[0].reset();
-        $("#formularioProveedor .is-invalid").removeClass("is-invalid");
-        $("#formularioProveedor .invalid-feedback").remove();
+        resetearFormularioProveedor();
+        llenarFormularioProveedor(proveedor);
 
+        $("#formularioProveedor").find("input, select, textarea").prop("disabled", true);
         $("#modalProveedorTitulo").text("Detalles del Proveedor");
         $("#modalProveedorSubtitulo").text("Consulta la información del proveedor");
         $("#modalProveedorIcono").attr("class", "fas fa-eye text-info fs-5");
-
-        llenarFormularioProveedor(proveedor);
-
-        $("#formularioProveedor")
-            .find("input, select, textarea")
-            .prop("disabled", true);
         $("#modalProveedorBtnGuardar").prop("hidden", true);
 
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalProveedor"));
@@ -170,26 +183,19 @@ const editar = async function (id) {
     try {
         isEditar = true;
         idProveedorActual = id;
-        urlAccion = urlEditar + id;
-        const proveedor = await consultarRegistro(urlDetalles, id);
+        urlAccion = `${urlEditar}${id}`;
+
+        const res = await consultarRegistro(urlDetalles, id);
+        const proveedor = res && res.data ? res.data : res;
         if (!proveedor) return;
 
-        $("#formularioProveedor")[0].reset();
-        $("#formularioProveedor .is-invalid").removeClass("is-invalid");
-        $("#formularioProveedor .invalid-feedback").remove();
+        resetearFormularioProveedor();
+        llenarFormularioProveedor(proveedor);
 
         $("#modalProveedorTitulo").text(`Editar Proveedor: ${proveedor.nombre}`);
         $("#modalProveedorSubtitulo").text("Modifica los datos del proveedor");
         $("#modalProveedorIcono").attr("class", "fas fa-edit text-warning fs-5");
-
-        $("#formularioProveedor")
-            .find("input, select, textarea")
-            .prop("disabled", false);
-        llenarFormularioProveedor(proveedor);
-
-        $("#modalProveedorBtnGuardar")
-            .prop("hidden", false)
-            .prop("disabled", false);
+        $("#modalProveedorBtnGuardar").prop("hidden", false).prop("disabled", false);
         $("#modalProveedorTextoGuardar").text("Actualizar Cambios");
 
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalProveedor"));
@@ -203,22 +209,6 @@ const editar = async function (id) {
             });
         }
     }
-};
-
-const llenarFormularioProveedor = function (data) {
-    $("#nombre").val(data.nombre || "");
-    $("#razon_social").val(data.razon_social || "");
-    $("#nombre_contacto").val(data.nombre_contacto || "");
-    $("#correo").val(data.correo || "");
-    $("#direccion").val(data.direccion || "");
-
-    const rif = desglosarCedula(data.rif);
-    $("#tipo_cedula").val(rif.tipo || "J-");
-    $("#cedula_numero").val(rif.numero || "");
-
-    const telefono = desglosarTelefono(data.telefono);
-    $("#codigo_pais").val(telefono.codigo || "+58");
-    $("#telefono_numero").val(telefono.numero || "");
 };
 
 const eliminar = function (id, nombreProveedor) {
@@ -236,37 +226,6 @@ const eliminar = function (id, nombreProveedor) {
 $("#formularioProveedor").on("submit", function (e) {
     e.preventDefault();
 
-    const nombre = $("#nombre").val().trim();
-    const razonSocial = $("#razon_social").val().trim();
-    const rifNum = $("#cedula_numero").val().trim();
-
-    if (nombre.length < 2) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "El nombre comercial debe tener al menos 2 caracteres",
-            });
-        }
-    }
-
-    if (razonSocial.length < 2) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "La razón social debe tener al menos 2 caracteres",
-            });
-        }
-    }
-
-    if (rifNum.length < 5) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "Número de RIF / Identificación incompleto",
-            });
-        }
-    }
-
     enviarFormulario({
         form: this,
         url: urlAccion,
@@ -276,12 +235,14 @@ $("#formularioProveedor").on("submit", function (e) {
         btnSubmit: "#modalProveedorBtnGuardar",
         textoGuardarOriginal: $("#modalProveedorTextoGuardar").text(),
         antesDeEnviar: function (formData) {
-            const rifCompleto = $("#tipo_cedula").val() + rifNum;
-            formData.set("rif", rifCompleto);
+            const rifNum = ($("#cedula_numero").val() || "").trim();
+            if (rifNum) {
+                formData.set("rif", `${$("#tipo_cedula").val()}${rifNum}`);
+            }
 
-            const telNum = $("#telefono_numero").val().trim();
+            const telNum = ($("#telefono_numero").val() || "").trim();
             if (telNum) {
-                formData.set("telefono", $("#codigo_pais").val() + telNum);
+                formData.set("telefono", `${$("#codigo_pais").val()}${telNum}`);
             } else {
                 formData.delete("telefono");
             }

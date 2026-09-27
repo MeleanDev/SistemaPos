@@ -4,7 +4,7 @@
 @section('subtitulo', 'Directorio y administración de proveedores para compras e inventario')
 
 @section('rutas')
-    <a href="{{ route('proveedor') }}">Compras</a>
+    <a href="{{ route('dashboard') }}">Sistema</a>
     <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
     <span class="active">Proveedores</span>
 @endsection
