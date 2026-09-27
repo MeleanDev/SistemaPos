@@ -5,7 +5,7 @@
     autorizadas')
 
 @section('rutas')
-    <a href="{{ route('usuario') }}">Sistema</a>
+    <a href="{{ route('dashboard') }}">Sistema</a>
     <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
     <span class="active">Usuarios</span>
 @endsection
@@ -95,7 +95,7 @@
                                             onclick="toggleEmpresaCard(this)" id="card_empresa_{{ $empresa->id }}"
                                             style="border: 1.5px solid #e2e8f0; background: #ffffff; cursor: pointer; transition: all 0.2s ease;">
                                             <div class="d-flex align-items-center gap-2.5 overflow-hidden me-2">
-                                                <div class="rounded-3 bg-light-primary text-primary p-2 d-flex align-items-center justify-content-center"
+                                                <div class="rounded-3 bg-primary-subtle text-primary p-2 d-flex align-items-center justify-content-center"
                                                     style="width: 36px; height: 36px; min-width: 36px; font-size: 1.1rem;">
                                                     <i class="fas fa-store"></i>
                                                 </div>

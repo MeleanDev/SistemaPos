@@ -1,9 +1,9 @@
-const baseUrl = window.location.origin + window.location.pathname.replace(/\/$/, "");
-const urlLista = baseUrl + "/lista";
-const urlDetalles = baseUrl + "/";
-const urlEliminar = baseUrl + "/";
-const urlGuardar = baseUrl;
-const urlEditar = baseUrl + "/actualizar/";
+const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
+const urlLista = `${urlBase}/lista`;
+const urlDetalles = `${urlBase}/`;
+const urlEliminar = `${urlBase}/`;
+const urlGuardar = urlBase;
+const urlEditar = `${urlBase}/actualizar/`;
 
 let urlAccion = urlGuardar;
 let isEditar = false;
@@ -76,7 +76,7 @@ const renderizarUsuarios = function (usuarios, esBusqueda = false) {
             contenedor.html(`
                 <div class="col-12 text-center py-5">
                     <div class="p-5 bg-white rounded-4 shadow-sm d-inline-block" style="max-width: 500px;">
-                        <div class="avatar-executive-md mx-auto mb-3 bg-light-primary text-primary" style="width: 70px; height: 70px; font-size: 1.8rem;">
+                        <div class="avatar-executive-md mx-auto mb-3 bg-primary-subtle text-primary" style="width: 70px; height: 70px; font-size: 1.8rem;">
                             <i class="fas fa-user-plus"></i>
                         </div>
                         <h4 class="fw-bold text-dark">No hay usuarios registrados</h4>
@@ -241,7 +241,7 @@ const renderizarUsuarios = function (usuarios, esBusqueda = false) {
                                 <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-1 fw-bold shadow-none text-nowrap" onclick="editar(${usuario.id})" title="Editar Usuario" style="font-size: 0.76rem;">
                                     <i class="fas fa-edit me-1"></i> Editar
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-danger rounded-circle p-0 shadow-none d-flex align-items-center justify-content-center flex-shrink-0" style="width: 30px; height: 30px;" onclick="eliminar(${usuario.id}, '${nombreCompleto}')" title="Eliminar Usuario">
+                                <button type="button" class="btn btn-sm btn-outline-danger rounded-circle p-0 shadow-none d-flex align-items-center justify-content-center flex-shrink-0" style="width: 30px; height: 30px;" onclick="eliminar(${usuario.id}, '${nombreCompleto.replace(/'/g, "\\'")}')" title="Eliminar Usuario">
                                     <i class="fas fa-trash-alt" style="font-size: 0.75rem;"></i>
                                 </button>
                             </div>
@@ -352,7 +352,9 @@ const cargarUsuarios = async function () {
 
 const abrirModalPermisos = async function (id) {
     try {
-        const datos = await consultarRegistro(urlDetalles, id);
+        const res = await consultarRegistro(urlDetalles, id);
+        const datos = res && res.data ? res.data : res;
+        if (!datos) return;
 
         const nombreCompleto = `${datos.nombre || ""} ${datos.apellido || ""}`.trim() || datos.name;
         const iniciales = (datos.nombre ? datos.nombre.substring(0, 1) : "") + (datos.apellido ? datos.apellido.substring(0, 1) : "");
@@ -396,12 +398,11 @@ const toggleModuloPermisosModal = function (btn) {
     checks.prop("checked", marcados < total);
 };
 
-const crear = function () {
-    isEditar = false;
-    idUsuarioActual = null;
-    urlAccion = urlGuardar;
-
-    $("#formularioUsuario")[0].reset();
+const resetearFormularioUsuario = function () {
+    const $form = $("#formularioUsuario");
+    $form[0].reset();
+    $("#modalUsuario .is-invalid").removeClass("is-invalid");
+    $("#modalUsuario .invalid-feedback").remove();
 
     $(".card-empresa-select").each(function () {
         actualizarEstiloCardEmpresa($(this), false);
@@ -412,10 +413,20 @@ const crear = function () {
 
     $("#password").prop("required", true);
     $("#password").attr("placeholder", "Mínimo 6 caracteres");
+    $form.find("input, select, textarea").prop("disabled", false);
+};
+
+const crear = function () {
+    isEditar = false;
+    idUsuarioActual = null;
+    urlAccion = urlGuardar;
+
+    resetearFormularioUsuario();
 
     $("#modalUsuarioTitulo").text("Nuevo Usuario");
     $("#modalUsuarioSubtitulo").text("Completa los datos de acceso, rol y sedes del usuario");
     $("#modalUsuarioIcono").attr("class", "fas fa-user-plus text-warning fs-5");
+    $("#modalUsuarioBtnGuardar").prop("hidden", false).prop("disabled", false);
     $("#modalUsuarioTextoGuardar").text("Guardar Usuario");
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById("modalUsuario")).show();
@@ -425,29 +436,27 @@ const editar = async function (id) {
     try {
         isEditar = true;
         idUsuarioActual = id;
-        urlAccion = urlEditar + id;
+        urlAccion = `${urlEditar}${id}`;
 
-        const datos = await consultarRegistro(urlDetalles, id);
+        const res = await consultarRegistro(urlDetalles, id);
+        const datos = res && res.data ? res.data : res;
+        if (!datos) return;
 
-        $("#formularioUsuario")[0].reset();
+        resetearFormularioUsuario();
 
         const desglosado = desglosarCedula(datos.name);
         $("#tipo_cedula").val(desglosado.tipo || desglosado.prefijo || "V-").trigger("change");
         $("#cedula_numero").val(desglosado.numero);
 
-        $("#email").val(datos.email);
-        $("#nombre").val(datos.nombre);
-        $("#apellido").val(datos.apellido);
+        $("#email").val(datos.email || "");
+        $("#nombre").val(datos.nombre || "");
+        $("#apellido").val(datos.apellido || "");
 
         $("#password").prop("required", false);
         $("#password").attr("placeholder", "Dejar en blanco para no cambiar");
 
         $("#rol").val(datos.rol || "Operador");
         ajustarVisibilidadPorRol(datos.rol || "Operador");
-
-        $(".card-empresa-select").each(function () {
-            actualizarEstiloCardEmpresa($(this), false);
-        });
 
         if (Array.isArray(datos.empresas)) {
             datos.empresas.forEach(empId => {
@@ -461,6 +470,7 @@ const editar = async function (id) {
         $("#modalUsuarioTitulo").text("Editar Usuario");
         $("#modalUsuarioSubtitulo").text(`Modificando credenciales y sedes de ${datos.nombre || datos.name}`);
         $("#modalUsuarioIcono").attr("class", "fas fa-user-edit text-warning fs-5");
+        $("#modalUsuarioBtnGuardar").prop("hidden", false).prop("disabled", false);
         $("#modalUsuarioTextoGuardar").text("Actualizar Usuario");
 
         bootstrap.Modal.getOrCreateInstance(document.getElementById("modalUsuario")).show();
@@ -477,7 +487,7 @@ const editar = async function (id) {
 
 const eliminar = function (id, nombre) {
     cambiarEstadoRegistro({
-        url: urlEliminar + id,
+        url: urlEliminar,
         id: id,
         nombre: `al usuario "${nombre}"`,
         titulo: "¿Eliminar usuario del sistema?",
@@ -534,7 +544,7 @@ $(document).ready(function () {
 
         enviarFormulario({
             form: this,
-            url: `${baseUrl}/${usuarioId}/permisos`,
+            url: `${urlBase}/${usuarioId}/permisos`,
             isEditar: false,
             modalSelector: "#modalPermisosUsuario",
             btnSubmit: "#modalPermisosUsuarioBtnGuardar",
@@ -548,47 +558,8 @@ $(document).ready(function () {
     $("#formularioUsuario").on("submit", function (e) {
         e.preventDefault();
 
-        const cedulaNum = $("#cedula_numero").val().trim();
-        const nombre = $("#nombre").val().trim();
-        const apellido = $("#apellido").val().trim();
-        const email = $("#email").val().trim();
-        const rol = $("#rol").val();
-        const password = $("#password").val().trim();
-
-        if (cedulaNum.length < 5) {
-            return window.notificacion && window.notificacion.fire({
-                icon: "warning",
-                title: "Cédula / Identificación incompleta",
-                text: "Ingresa al menos 5 dígitos numéricos.",
-            });
-        }
-
-        if (nombre.length < 2 || apellido.length < 2) {
-            return window.notificacion && window.notificacion.fire({
-                icon: "warning",
-                title: "Nombre y Apellido requeridos",
-                text: "Deben tener al menos 2 caracteres cada uno.",
-            });
-        }
-
-        if (!isEditar && password.length < 6) {
-            return window.notificacion && window.notificacion.fire({
-                icon: "warning",
-                title: "Contraseña requerida",
-                text: "La contraseña debe tener al menos 6 caracteres.",
-            });
-        }
-
-        if (rol !== "SuperAdmin") {
-            const empresasSeleccionadas = $(".check-empresa:checked").length;
-            if (empresasSeleccionadas === 0) {
-                return window.notificacion && window.notificacion.fire({
-                    icon: "warning",
-                    title: "Empresa requerida",
-                    text: "Debes asignar al menos 1 sede autorizada para este usuario.",
-                });
-            }
-        }
+        const cedulaNum = ($("#cedula_numero").val() || "").trim();
+        const password = ($("#password").val() || "").trim();
 
         enviarFormulario({
             form: this,
@@ -598,8 +569,10 @@ $(document).ready(function () {
             btnSubmit: "#modalUsuarioBtnGuardar",
             textoGuardarOriginal: $("#modalUsuarioTextoGuardar").text(),
             antesDeEnviar: function (formData) {
-                const cedulaCompleta = $("#tipo_cedula").val() + cedulaNum;
-                formData.set("name", cedulaCompleta);
+                if (cedulaNum) {
+                    const cedulaCompleta = $("#tipo_cedula").val() + cedulaNum;
+                    formData.set("name", cedulaCompleta);
+                }
 
                 if (isEditar && !password) {
                     formData.delete("password");
