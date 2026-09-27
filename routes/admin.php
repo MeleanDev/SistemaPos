@@ -74,6 +74,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('permission:motos.ver')->controller(MotoController::class)->group(function () {
         Route::get('/motos', 'index')->name('moto');
         Route::get('/motos/lista', 'lista');
+        Route::get('/motos/catalogos', 'catalogos');
         Route::get('/motos/{id}', 'detalle');
         Route::put('/motos/actualizar/{id}', 'actualizar');
         Route::post('/motos/{id}/cambiar-estado', 'cambiarEstado');

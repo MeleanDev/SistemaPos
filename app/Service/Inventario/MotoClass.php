@@ -2,6 +2,8 @@
 
 namespace App\Service\Inventario;
 
+use App\Models\Almacen;
+use App\Models\EmpresaMoneda;
 use App\Models\Moto;
 
 class MotoClass
@@ -16,6 +18,31 @@ class MotoClass
             ->where('motos.empresa_id', $empresaId)
             ->where('motos.estado', '!=', 'anulada')
             ->orderBy('motos.id', 'desc');
+    }
+
+    /**
+     * Catálogos para el módulo de motos (almacenes activos y tasa vigente)
+     */
+    public function catalogos(int $empresaId): array
+    {
+        $almacenes = Almacen::where('empresa_id', $empresaId)
+            ->where('estado', true)
+            ->orderBy('nombre', 'asc')
+            ->get(['id', 'nombre', 'codigo']);
+
+        $monedaUsd = EmpresaMoneda::where('empresa_id', $empresaId)
+            ->where('codigo', 'USD')
+            ->first();
+
+        $monedaPrincipal = EmpresaMoneda::where('empresa_id', $empresaId)
+            ->where('es_principal', true)
+            ->first();
+
+        return [
+            'almacenes' => $almacenes,
+            'tasa_bcv' => $monedaUsd && $monedaUsd->tasa_cambio > 0 ? (float) $monedaUsd->tasa_cambio : 1.0,
+            'moneda_simbolo' => $monedaPrincipal ? $monedaPrincipal->simbolo : 'Bs.',
+        ];
     }
 
     /**
@@ -34,6 +61,18 @@ class MotoClass
     public function actualizar(array $datos, int $id, int $empresaId): Moto
     {
         $moto = Moto::where('empresa_id', $empresaId)->findOrFail($id);
+        $monedaUsd = EmpresaMoneda::where('empresa_id', $empresaId)
+            ->where('codigo', 'USD')
+            ->first();
+        $tasaBcv = $monedaUsd && $monedaUsd->tasa_cambio > 0 ? (float) $monedaUsd->tasa_cambio : 1.0;
+
+        $costoUsd = isset($datos['precio_costo_usd']) ? (float) $datos['precio_costo_usd'] : (float) $moto->precio_costo_usd;
+        $detalUsd = isset($datos['precio_detal_usd']) ? (float) $datos['precio_detal_usd'] : (float) $moto->precio_detal_usd;
+        $mayorUsd = isset($datos['precio_mayorista_usd']) ? (float) $datos['precio_mayorista_usd'] : (float) $moto->precio_mayorista_usd;
+
+        $costoBs = isset($datos['precio_costo_bs']) ? (float) $datos['precio_costo_bs'] : round($costoUsd * $tasaBcv, 2);
+        $detalBs = isset($datos['precio_detal_bs']) ? (float) $datos['precio_detal_bs'] : round($detalUsd * $tasaBcv, 2);
+        $mayorBs = isset($datos['precio_mayorista_bs']) ? (float) $datos['precio_mayorista_bs'] : round($mayorUsd * $tasaBcv, 2);
 
         $moto->update([
             'marca' => $datos['marca'] ?? $moto->marca,
@@ -48,14 +87,14 @@ class MotoClass
             'certificado_origen' => $datos['certificado_origen'] ?? $moto->certificado_origen,
             'almacen_id' => $datos['almacen_id'] ?? $moto->almacen_id,
             'placa' => ! empty($datos['placa']) ? strtoupper(trim($datos['placa'])) : $moto->placa,
-            'precio_costo_usd' => $datos['precio_costo_usd'] ?? $moto->precio_costo_usd,
-            'precio_costo_bs' => $datos['precio_costo_bs'] ?? $moto->precio_costo_bs,
+            'precio_costo_usd' => $costoUsd,
+            'precio_costo_bs' => $costoBs,
             'margen_detal' => $datos['margen_detal'] ?? $moto->margen_detal,
-            'precio_detal_usd' => $datos['precio_detal_usd'] ?? $moto->precio_detal_usd,
-            'precio_detal_bs' => $datos['precio_detal_bs'] ?? $moto->precio_detal_bs,
+            'precio_detal_usd' => $detalUsd,
+            'precio_detal_bs' => $detalBs,
             'margen_mayorista' => $datos['margen_mayorista'] ?? $moto->margen_mayorista,
-            'precio_mayorista_usd' => $datos['precio_mayorista_usd'] ?? $moto->precio_mayorista_usd,
-            'precio_mayorista_bs' => $datos['precio_mayorista_bs'] ?? $moto->precio_mayorista_bs,
+            'precio_mayorista_usd' => $mayorUsd,
+            'precio_mayorista_bs' => $mayorBs,
             'estado' => $datos['estado'] ?? $moto->estado,
             'observaciones' => $datos['observaciones'] ?? $moto->observaciones,
         ]);

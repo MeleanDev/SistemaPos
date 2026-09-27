@@ -47,6 +47,16 @@ class MotoController extends Controller
             ->toJson();
     }
 
+    public function catalogos(): JsonResponse
+    {
+        $catalogos = $this->motoService->catalogos($this->obtenerEmpresaId());
+
+        return response()->json([
+            'success' => true,
+            'data' => $catalogos,
+        ]);
+    }
+
     public function detalle($id): JsonResponse
     {
         try {

@@ -689,7 +689,7 @@ For every single module in the 18-module list, strictly execute these 4 phases i
 | 10 | **Productos & Inventario** | `Sistema/pages/empresa/producto.blade.php` | `producto.js` | ✅ **Terminado** |
 | 11 | **Recepción de Mercancía** | `Sistema/pages/empresa/recepcion.blade.php` | `recepcion.js` | ⏳ Pendiente |
 | 12 | **Kardex** | `Sistema/pages/empresa/kardex.blade.php` | `kardex.js` | ⏳ Pendiente |
-| 13 | **Motos & Seriales** | `Sistema/pages/empresa/moto.blade.php` | `moto.js` | ⏳ Pendiente |
+| 13 | **Motos & Seriales** | `Sistema/pages/empresa/moto.blade.php` | `moto.js` | ✅ **Terminado** |
 | 14 | **Recepción de Motos** | `Sistema/pages/empresa/recepcion-moto.blade.php` | `recepcionMoto.js` | ✅ **Terminado** |
 | 15 | **Punto de Venta (POS)** | `Sistema/pages/empresa/pos.blade.php` | `pos.js` | ⏳ Pendiente |
 | 16 | **Facturación / Historial** | `Sistema/pages/empresa/facturas.blade.php` | `facturas.js` | ⏳ Pendiente |

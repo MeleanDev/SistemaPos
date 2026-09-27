@@ -14,7 +14,6 @@
 @endsection
 
 @section('contenido')
-    <!-- TABLA PRINCIPAL DE MOTOS EN STOCK -->
     <x-datatable
         id="datatable_motos"
         :headers="[
@@ -31,7 +30,6 @@
         ]"
     />
 
-    <!-- MODAL FICHA TÉCNICA 360° DE LA MOTO -->
     <x-modal
         id="modalFichaMoto"
         title="Ficha Técnica 360° del Vehículo"
@@ -42,18 +40,18 @@
         :submitButton="false"
     >
         <div id="contenidoFichaMoto">
-            <!-- Contenido cargado dinámicamente -->
         </div>
 
         <x-slot:footer>
             <button type="button" class="btn btn-executive-cancel" data-bs-dismiss="modal">
                 <i class="fas fa-times me-1"></i> Cerrar
             </button>
-            <x-button variant="primary" id="btnEditarDesdeFicha" icon="fas fa-edit" text="Editar Información" />
+            <button type="button" class="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-sm" id="btnEditarDesdeFicha">
+                <i class="fas fa-edit me-1"></i> Editar Información
+            </button>
         </x-slot:footer>
     </x-modal>
 
-    <!-- MODAL DE EDICIÓN COMPLETA DE LA MOTO Y SERIALES -->
     <x-modal
         id="modalEditarMoto"
         title="Modificar Datos del Vehículo"
@@ -63,12 +61,11 @@
         headerColor="bg-dark text-white"
         formId="formularioEditarMoto"
         submitText="Guardar Cambios"
+        submitIcon="fas fa-save me-1"
     >
         <form id="formularioEditarMoto">
-            @csrf
             <input type="hidden" id="edit_moto_id" name="moto_id">
 
-            <!-- 1. DATOS BÁSICOS DEL VEHÍCULO -->
             <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs">
                 <h6 class="fw-bold text-dark mb-3"><i class="fas fa-motorcycle text-primary me-2"></i> Información General del Modelo</h6>
                 <div class="row g-3">
@@ -80,7 +77,6 @@
                 </div>
             </div>
 
-            <!-- 2. IDENTIFICADORES ÚNICOS Y TRAZABILIDAD LEGAL -->
             <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs">
                 <h6 class="fw-bold text-dark mb-3"><i class="fas fa-fingerprint text-success me-2"></i> Identificadores Legales & Seriales Únicos</h6>
                 <div class="row g-3">
@@ -93,12 +89,10 @@
                 </div>
             </div>
 
-            <!-- 3. PRECIOS, COSTO, ALMACÉN Y ESTADO -->
             <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs">
                 <h6 class="fw-bold text-dark mb-3"><i class="fas fa-coins text-warning me-2"></i> Ubicación, Estado & Estructura de Precios</h6>
                 <div class="row g-3">
                     <x-select id="edit_almacen_id" name="almacen_id" label="Almacén de Ubicación" icon="fas fa-warehouse text-primary" required col="col-md-3">
-                        <!-- Opciones cargadas dinámicamente -->
                     </x-select>
                     <x-select id="edit_estado" name="estado" label="Estado del Vehículo" icon="fas fa-traffic-light text-warning" required col="col-md-3">
                         <option value="disponible">🟢 Disponible para Venta</option>
@@ -106,9 +100,18 @@
                         <option value="en_mantenimiento">🔧 En Mantenimiento / Taller</option>
                         <option value="vendida">🔵 Vendida</option>
                     </x-select>
-                    <x-input type="number" step="any" min="0" id="edit_precio_costo_usd" name="precio_costo_usd" label="Costo ($ USD)" icon="fas fa-money-bill text-secondary" col="col-md-2" class="font-monospace fw-bold" />
-                    <x-input type="number" step="any" min="0" id="edit_precio_detal_usd" name="precio_detal_usd" label="Precio Detal ($ USD)" icon="fas fa-store text-primary" required col="col-md-2" class="font-monospace fw-bold text-primary" />
-                    <x-input type="number" step="any" min="0" id="edit_precio_mayorista_usd" name="precio_mayorista_usd" label="Mayorista ($ USD)" icon="fas fa-truck-moving" required col="col-md-2" class="font-monospace fw-bold" style="color: #7e22ce;" />
+                    <div class="col-md-2">
+                        <x-input type="number" step="any" min="0" id="edit_precio_costo_usd" name="precio_costo_usd" label="Costo ($ USD)" icon="fas fa-money-bill text-secondary" col="col-12" class="font-monospace fw-bold" />
+                        <small class="text-muted font-monospace d-block text-end mt-1" id="edit_costo_bs_preview">≈ Bs. 0,00</small>
+                    </div>
+                    <div class="col-md-2">
+                        <x-input type="number" step="any" min="0" id="edit_precio_detal_usd" name="precio_detal_usd" label="Precio Detal ($ USD)" icon="fas fa-store text-primary" required col="col-12" class="font-monospace fw-bold text-primary" />
+                        <small class="text-muted font-monospace d-block text-end mt-1" id="edit_detal_bs_preview">≈ Bs. 0,00</small>
+                    </div>
+                    <div class="col-md-2">
+                        <x-input type="number" step="any" min="0" id="edit_precio_mayorista_usd" name="precio_mayorista_usd" label="Mayorista ($ USD)" icon="fas fa-truck-moving" required col="col-12" class="font-monospace fw-bold" style="color: #7e22ce;" />
+                        <small class="text-muted font-monospace d-block text-end mt-1" id="edit_mayorista_bs_preview">≈ Bs. 0,00</small>
+                    </div>
                     <div class="col-12">
                         <label class="form-label-executive"><i class="fas fa-comment-dots text-secondary"></i> Observaciones</label>
                         <textarea id="edit_observaciones" name="observaciones" class="form-control form-control-executive" rows="2" placeholder="Notas sobre el estado de la moto, detalles estéticos, condición física, etc."></textarea>
@@ -117,7 +120,6 @@
             </div>
         </form>
     </x-modal>
-
 @endsection
 
 @section('scripts')
