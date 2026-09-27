@@ -1,9 +1,9 @@
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
-const urlLista = urlBase + "/lista";
-const urlDetalles = urlBase + "/";
-const urlEliminar = urlBase + "/";
+const urlLista = `${urlBase}/lista`;
+const urlDetalles = `${urlBase}/`;
+const urlEliminar = `${urlBase}/`;
 const urlGuardar = urlBase;
-const urlEditar = urlBase + "/actualizar/";
+const urlEditar = `${urlBase}/actualizar/`;
 
 let urlAccion = urlGuardar;
 let isEditar = false;
@@ -99,22 +99,23 @@ $(document).ready(function () {
     aplicarRestriccionesInput();
 });
 
+const resetearFormularioCliente = function () {
+    const $form = $("#formularioCliente");
+    $form[0].reset();
+    $form.find(".is-invalid").removeClass("is-invalid");
+    $form.find(".invalid-feedback").remove();
+    $form.find("input, select, textarea").prop("disabled", false);
+    $("#tipo_cedula").val("V-");
+    $("#codigo_pais").val("+58");
+    $("#tipo_cliente").val("detal");
+};
+
 const crear = function () {
     isEditar = false;
     idClienteActual = null;
     urlAccion = urlGuardar;
 
-    $("#formularioCliente")[0].reset();
-    $("#formularioCliente .is-invalid").removeClass("is-invalid");
-    $("#formularioCliente .invalid-feedback").remove();
-
-    $("#formularioCliente")
-        .find("input, select, textarea")
-        .prop("disabled", false);
-
-    $("#tipo_cedula").val("V-");
-    $("#codigo_pais").val("+58");
-    $("#tipo_cliente").val("detal");
+    resetearFormularioCliente();
 
     $("#modalClienteTitulo").text("Nuevo Cliente");
     $("#modalClienteSubtitulo").text("Completa la información del cliente");
@@ -127,21 +128,33 @@ const crear = function () {
     modal.show();
 };
 
+const llenarFormularioCliente = function (data) {
+    $("#nombre").val(data.nombre || "");
+    $("#apellido").val(data.apellido || "");
+    $("#correo").val(data.correo || "");
+    $("#direccion").val(data.direccion || "");
+    $("#tipo_cliente").val(data.tipo_cliente || "detal");
+
+    const cedula = desglosarCedula(data.cedula);
+    $("#tipo_cedula").val(cedula.tipo || "V-");
+    $("#cedula_numero").val(cedula.numero || "");
+
+    const telefono = desglosarTelefono(data.telefono);
+    $("#codigo_pais").val(telefono.codigo || "+58");
+    $("#telefono_numero").val(telefono.numero || "");
+};
+
 const ver = async function (id) {
     try {
         idClienteActual = id;
-        const cliente = await consultarRegistro(urlDetalles, id);
+        const res = await consultarRegistro(urlDetalles, id);
+        const cliente = res && res.data ? res.data : res;
         if (!cliente) return;
 
-        $("#formularioCliente")[0].reset();
-        $("#formularioCliente .is-invalid").removeClass("is-invalid");
-        $("#formularioCliente .invalid-feedback").remove();
-
+        resetearFormularioCliente();
         llenarFormularioCliente(cliente);
 
-        $("#formularioCliente")
-            .find("input, select, textarea")
-            .prop("disabled", true);
+        $("#formularioCliente").find("input, select, textarea").prop("disabled", true);
 
         $("#modalClienteTitulo").text("Detalles del Cliente");
         $("#modalClienteSubtitulo").text("Consulta la información del cliente");
@@ -166,27 +179,19 @@ const editar = async function (id) {
     try {
         isEditar = true;
         idClienteActual = id;
-        urlAccion = urlEditar + id;
-        const cliente = await consultarRegistro(urlDetalles, id);
+        urlAccion = `${urlEditar}${id}`;
+        const res = await consultarRegistro(urlDetalles, id);
+        const cliente = res && res.data ? res.data : res;
         if (!cliente) return;
 
-        $("#formularioCliente")[0].reset();
-        $("#formularioCliente .is-invalid").removeClass("is-invalid");
-        $("#formularioCliente .invalid-feedback").remove();
-
+        resetearFormularioCliente();
         llenarFormularioCliente(cliente);
-
-        $("#formularioCliente")
-            .find("input, select, textarea")
-            .prop("disabled", false);
 
         $("#modalClienteTitulo").text(`Editar Cliente: ${cliente.nombre} ${cliente.apellido}`);
         $("#modalClienteSubtitulo").text("Modifica los datos del cliente");
         $("#modalClienteIcono").attr("class", "fas fa-user-edit text-warning fs-5");
 
-        $("#modalClienteBtnGuardar")
-            .prop("hidden", false)
-            .prop("disabled", false);
+        $("#modalClienteBtnGuardar").prop("hidden", false).prop("disabled", false);
         $("#modalClienteTextoGuardar").text("Actualizar Cambios");
 
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalCliente"));
@@ -200,22 +205,6 @@ const editar = async function (id) {
             });
         }
     }
-};
-
-const llenarFormularioCliente = (data) => {
-    $("#nombre").val(data.nombre || "");
-    $("#apellido").val(data.apellido || "");
-    $("#correo").val(data.correo || "");
-    $("#direccion").val(data.direccion || "");
-    $("#tipo_cliente").val(data.tipo_cliente || "detal");
-
-    const cedula = desglosarCedula(data.cedula);
-    $("#tipo_cedula").val(cedula.tipo || "V-");
-    $("#cedula_numero").val(cedula.numero || "");
-
-    const telefono = desglosarTelefono(data.telefono);
-    $("#codigo_pais").val(telefono.codigo || "+58");
-    $("#telefono_numero").val(telefono.numero || "");
 };
 
 const eliminar = function (id, nombreCliente) {
@@ -233,28 +222,6 @@ const eliminar = function (id, nombreCliente) {
 $("#formularioCliente").on("submit", function (e) {
     e.preventDefault();
 
-    const nombre = $("#nombre").val().trim();
-    const apellido = $("#apellido").val().trim();
-    const cedulaNum = $("#cedula_numero").val().trim();
-
-    if (nombre.length < 2 || apellido.length < 2) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "Nombre o Apellido demasiado corto",
-            });
-        }
-    }
-
-    if (cedulaNum.length < 5) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "Número de Cédula/RIF incompleto",
-            });
-        }
-    }
-
     enviarFormulario({
         form: this,
         url: urlAccion,
@@ -264,12 +231,14 @@ $("#formularioCliente").on("submit", function (e) {
         btnSubmit: "#modalClienteBtnGuardar",
         textoGuardarOriginal: $("#modalClienteTextoGuardar").text(),
         antesDeEnviar: function (formData) {
-            const cedulaCompleta = $("#tipo_cedula").val() + cedulaNum;
-            formData.set("cedula", cedulaCompleta);
+            const cedulaNum = ($("#cedula_numero").val() || "").trim();
+            if (cedulaNum) {
+                formData.set("cedula", `${$("#tipo_cedula").val()}${cedulaNum}`);
+            }
 
-            const telNum = $("#telefono_numero").val().trim();
+            const telNum = ($("#telefono_numero").val() || "").trim();
             if (telNum) {
-                formData.set("telefono", $("#codigo_pais").val() + telNum);
+                formData.set("telefono", `${$("#codigo_pais").val()}${telNum}`);
             } else {
                 formData.delete("telefono");
             }
