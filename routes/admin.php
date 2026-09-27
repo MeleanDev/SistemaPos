@@ -95,6 +95,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/recepciones', 'index')->name('recepcion');
         Route::get('/recepciones/lista', 'lista');
         Route::get('/recepciones/catalogos', 'catalogos');
+        Route::get('/recepciones/borradores', 'listarBorradores');
+        Route::get('/recepciones/borradores/{id}', 'recuperarBorrador');
+        Route::post('/recepciones/borradores', 'guardarBorrador');
+        Route::delete('/recepciones/borradores/{id}', 'eliminarBorrador');
         Route::get('/recepciones/{id}', 'detalle');
         Route::get('/recepciones/{id}/imprimir', 'imprimir')->name('recepcion.imprimir');
         Route::post('/recepciones', 'guardar');

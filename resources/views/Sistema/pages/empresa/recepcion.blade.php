@@ -10,11 +10,16 @@
 @endsection
 
 @section('acciones')
-    <x-btn-action
-        icon="fas fa-plus"
-        text="Nueva Recepción"
-        onclick="crear()"
-    />
+    <div class="d-flex align-items-center gap-2">
+        <x-button variant="outline-primary" icon="fas fa-folder-open" text="Borradores Guardados" badge="0"
+            badgeId="badgeConteoBorradores" onclick="abrirModalBorradores()" id="btnAbrirBorradores"
+            class="font-monospace" />
+        <x-btn-action
+            icon="fas fa-plus"
+            text="Nueva Recepción"
+            onclick="crear()"
+        />
+    </div>
 @endsection
 
 @section('contenido')
@@ -73,8 +78,36 @@
 
                 <!-- BODY DEL MODAL -->
                 <div class="modal-body p-4 bg-white">
+                    <!-- ALERTA EJECUTIVA DE BORRADOR / PROGRESO DETECTADO -->
+                    <div id="alertaBorradorDetectado"
+                        class="card border border-warning rounded-4 p-3 bg-white shadow-sm mb-3"
+                        style="display: none; border-left: 5px solid #f59e0b !important;">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="avatar-executive-sm rounded-circle bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center"
+                                    style="width: 40px; height: 40px; font-size: 1.15rem;">
+                                    <i class="fas fa-history"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold text-dark mb-0"><i
+                                            class="fas fa-exclamation-triangle text-warning me-1"></i> Progreso en Espera /
+                                        Borrador Detectado</h6>
+                                    <small class="text-muted" id="textoAlertaBorrador">Existe una recepción guardada
+                                        previamente con productos pendientes.</small>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <x-button variant="warning" size="sm" icon="fas fa-undo-alt" text="Restaurar Progreso"
+                                    onclick="restaurarBorradorDetectado()" class="font-monospace text-dark" />
+                                <x-button variant="outline-danger" size="sm" icon="fas fa-trash-alt" text="Descartar"
+                                    onclick="descartarBorradorDetectado()" class="font-monospace" />
+                            </div>
+                        </div>
+                    </div>
+
                     <form id="formularioRecepcion">
                         @csrf
+                        <input type="hidden" name="borrador_id" id="borrador_id" value="">
                         <input type="hidden" name="tasa_cambio" id="tasa_cambio" value="1.0000">
                         <input type="hidden" name="moneda_documento" id="moneda_documento" value="USD">
 
@@ -643,9 +676,14 @@
 
                 <!-- FOOTER DEL MODAL -->
                 <div class="modal-footer bg-white border-top py-3 px-4 rounded-bottom-4 d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-danger rounded-pill px-4 fw-bold shadow-xs" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i> Cancelar
-                    </button>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-danger rounded-pill px-4 fw-bold shadow-xs" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </button>
+                        <x-button variant="outline-warning" id="btnGuardarBorradorModal"
+                            onclick="guardarBorradorEnServidor()" title="Guardar progreso actual en la base de datos"
+                            icon="fas fa-pause-circle" text="Guardar Borrador" />
+                    </div>
                     
                     <div class="d-flex gap-2" id="footerAccionesRecepcion">
                         <button type="button" class="btn btn-outline-primary rounded-pill px-4 fw-bold shadow-xs" id="btnVolverFase1Footer" style="display: none;" onclick="volverAFase1()">
@@ -823,6 +861,21 @@
 
             </div>
         </form>
+    </x-modal>
+
+    <!-- MODAL DE GESTIÓN DE BORRADORES GUARDADOS -->
+    <x-modal id="modalBorradoresRecepcion" title="Borradores de Recepción Guardados"
+        subtitle="Retoma recepciones de mercancía pausadas o no finalizadas" icon="fas fa-folder-open text-warning fs-5"
+        size="modal-lg" :submitButton="false">
+        <div id="contenedorListaBorradores">
+            <div class="text-center py-4 text-muted font-monospace">
+                <i class="fas fa-spinner fa-spin fa-2x mb-2 text-primary"></i>
+                <p class="mb-0">Cargando borradores guardados...</p>
+            </div>
+        </div>
+        <x-slot:footer>
+            <x-button variant="outline-danger" data-bs-dismiss="modal" icon="fas fa-times" text="Cerrar" />
+        </x-slot:footer>
     </x-modal>
 @endsection
 

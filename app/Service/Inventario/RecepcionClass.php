@@ -10,6 +10,7 @@ use App\Models\Producto;
 use App\Models\ProductoProveedor;
 use App\Models\Proveedor;
 use App\Models\Recepcion;
+use App\Models\RecepcionBorrador;
 use App\Models\RecepcionDetalle;
 use Carbon\Carbon;
 use Exception;
@@ -577,5 +578,92 @@ class RecepcionClass
 
             return $recepcion;
         });
+    }
+
+    /**
+     * Guardar o actualizar un borrador de recepción
+     */
+    public function guardarBorrador(array $datos, int $userId, int $empresaId): RecepcionBorrador
+    {
+        $borradorId = ! empty($datos['borrador_id']) ? (int) $datos['borrador_id'] : null;
+        $referencia = $datos['referencia'] ?? null;
+        $proveedorId = ! empty($datos['proveedor_id']) ? (int) $datos['proveedor_id'] : null;
+        $numeroDoc = $datos['numero_documento'] ?? null;
+        $totalUnidades = isset($datos['total_unidades']) ? (int) $datos['total_unidades'] : 0;
+        $datosJson = $datos['datos_json'] ?? [];
+
+        if ($borradorId) {
+            $borrador = RecepcionBorrador::where('id', $borradorId)
+                ->where('empresa_id', $empresaId)
+                ->first();
+
+            if ($borrador) {
+                $borrador->update([
+                    'user_id' => $userId,
+                    'proveedor_id' => $proveedorId,
+                    'referencia' => $referencia,
+                    'numero_documento' => $numeroDoc,
+                    'total_unidades' => $totalUnidades,
+                    'datos_json' => $datosJson,
+                ]);
+
+                return $borrador->fresh(['proveedor', 'usuario']);
+            }
+        }
+
+        return RecepcionBorrador::create([
+            'empresa_id' => $empresaId,
+            'user_id' => $userId,
+            'proveedor_id' => $proveedorId,
+            'referencia' => $referencia,
+            'numero_documento' => $numeroDoc,
+            'total_unidades' => $totalUnidades,
+            'datos_json' => $datosJson,
+        ])->load(['proveedor', 'usuario']);
+    }
+
+    /**
+     * Listar borradores guardados de la empresa
+     */
+    public function listarBorradores(int $empresaId): array
+    {
+        return RecepcionBorrador::with(['proveedor', 'usuario'])
+            ->where('empresa_id', $empresaId)
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->toArray();
+    }
+
+    /**
+     * Recuperar datos de un borrador específico
+     */
+    public function recuperarBorrador(int $id, int $empresaId): array
+    {
+        $borrador = RecepcionBorrador::with(['proveedor', 'usuario'])
+            ->where('id', $id)
+            ->where('empresa_id', $empresaId)
+            ->firstOrFail();
+
+        return [
+            'id' => $borrador->id,
+            'referencia' => $borrador->referencia,
+            'numero_documento' => $borrador->numero_documento,
+            'proveedor_id' => $borrador->proveedor_id,
+            'total_unidades' => $borrador->total_unidades,
+            'datos_json' => $borrador->datos_json,
+            'updated_at' => $borrador->updated_at?->format('d/m/Y H:i'),
+        ];
+    }
+
+    /**
+     * Eliminar un borrador
+     */
+    public function eliminarBorrador(int $id, int $empresaId): bool
+    {
+        $borrador = RecepcionBorrador::where('id', $id)
+            ->where('empresa_id', $empresaId)
+            ->firstOrFail();
+
+        return (bool) $borrador->delete();
     }
 }

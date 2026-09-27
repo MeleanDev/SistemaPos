@@ -1,6 +1,7 @@
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
 const urlLista = urlBase + "/lista";
 const urlCatalogos = urlBase + "/catalogos";
+const urlBorradores = urlBase + "/borradores";
 const urlDetalles = urlBase + "/";
 const urlGuardar = urlBase;
 const urlGuardarProveedor = window.location.origin + "/proveedores";
@@ -10,6 +11,8 @@ let tasaUsdActual = 1.0000;
 let tasaCompraActual = 1.0000;
 let tasaVentaActual = 1.0000;
 let monedaDocumentoActual = "USD";
+let borradorActualId = null;
+let autoSaveTimeout = null;
 
 let catalogosSistema = {
     proveedores: [],
@@ -253,6 +256,11 @@ $(document).ready(function () {
     configurarBuscadorProductos();
     configurarNavegacionTeclado();
     aplicarRestriccionesInput();
+    actualizarContadorBorradores();
+
+    $(document).on("input change", "#formularioRecepcion input, #formularioRecepcion select, #panelFormularioRenglon input, #panelFormularioRenglon select", function () {
+        dispararAutoGuardado();
+    });
 
     $("#formularioRecepcion").on("submit", function (e) {
         e.preventDefault();
@@ -308,6 +316,7 @@ function actualizarTasasDesdeInput() {
     recalcularFormularioRenglon();
     renderizarTablaDetalles();
     recalcularTotalesGenerales();
+    dispararAutoGuardado();
 }
 
 function restablecerTasaOficial(tipo) {
@@ -419,6 +428,7 @@ function aplicarCambioMoneda(moneda) {
     }
 
     recalcularTotalesGenerales();
+    dispararAutoGuardado();
 }
 
 function avanzarAFase2() {
@@ -1236,6 +1246,7 @@ function agregarOActualizarRenglon() {
     cancelarEdicionRenglon();
     renderizarTablaDetalles();
     recalcularTotalesGenerales();
+    dispararAutoGuardado();
 
     $("#inputEscaneoProducto").focus();
 }
@@ -1269,6 +1280,7 @@ function eliminarRenglon(indice) {
 
     renderizarTablaDetalles();
     recalcularTotalesGenerales();
+    dispararAutoGuardado();
 }
 
 function cancelarEdicionRenglon() {
@@ -1289,6 +1301,7 @@ function limpiarTablaProductos() {
     cancelarEdicionRenglon();
     renderizarTablaDetalles();
     recalcularTotalesGenerales();
+    dispararAutoGuardado();
 }
 
 function renderizarTablaDetalles() {
@@ -1474,7 +1487,9 @@ function recalcularTotalesGenerales() {
     $("#resumenTotalGeneralBs").text(`Bs. ${formatearMonto(totalGeneralBs, 2)}`);
 }
 
-function crear() {
+function crear(verificarBorrador = true) {
+    borradorActualId = null;
+    $("#borrador_id").val("");
     $("#formularioRecepcion")[0].reset();
     $("#formularioRecepcion .is-invalid").removeClass("is-invalid");
     $("#formularioRecepcion .invalid-feedback").remove();
@@ -1500,6 +1515,12 @@ function crear() {
     $("#badgeTasaCompraFase2").text(formatearMonto(tasaCompraActual, 4));
     $("#badgeTasaVentaFase2").text(formatearMonto(tasaVentaActual, 4));
     $("#badgeCodigoRecepcion").html(`<i class="fas fa-hashtag me-1"></i>${catalogosSistema.proximo_codigo || "REC-00001"}`);
+
+    if (verificarBorrador) {
+        verificarBorradorPendiente();
+    } else {
+        $("#alertaBorradorDetectado").hide();
+    }
 
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRecepcion"));
     modal.show();
@@ -1548,6 +1569,20 @@ async function guardarRecepcion() {
         });
 
         if (res.success) {
+            localStorage.removeItem("draft_recepcion_producto");
+            $("#alertaBorradorDetectado").hide();
+            if (borradorActualId) {
+                try {
+                    await peticionAjax({
+                        url: `${urlBorradores}/${borradorActualId}`,
+                        method: "DELETE",
+                    });
+                } catch (e) {}
+                borradorActualId = null;
+                $("#borrador_id").val("");
+            }
+            actualizarContadorBorradores();
+
             const modal = bootstrap.Modal.getInstance(document.getElementById("modalRecepcion"));
             if (modal) modal.hide();
 
@@ -1596,6 +1631,471 @@ async function guardarRecepcion() {
         }
     } finally {
         $btn.prop("disabled", false).html(textoOriginal);
+    }
+}
+
+function dispararAutoGuardado() {
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = setTimeout(() => {
+        const estado = obtenerEstadoActualFormulario();
+        if (estado) {
+            localStorage.setItem("draft_recepcion_producto", JSON.stringify(estado));
+        }
+    }, 500);
+}
+
+function obtenerEstadoActualFormulario() {
+    const provId = $("#proveedor_id").val();
+    const numDoc = ($("#numero_documento").val() || "").trim();
+    const almId = $("#almacen_id").val();
+    const tipoDoc = $("#tipo_documento").val();
+    const numControl = ($("#numero_control").val() || "").trim();
+    const fechaEmis = $("#fecha_emision").val();
+    const fechaRecep = $("#fecha_recepcion").val();
+    const condPago = $("#condicion_pago").val();
+    const diasCred = $("#dias_credito").val();
+    const montoBruto = $("#monto_bruto_input").val();
+    const descGlobal = $("#descuento_global_porcentaje").val();
+    const obs = $("#observaciones").val();
+
+    let renglonActual = null;
+    if (productoSeleccionadoActual) {
+        renglonActual = {
+            producto: productoSeleccionadoActual,
+            almacen_id: $("#form_renglon_almacen_id").val(),
+            bultos: $("#form_renglon_bultos").val(),
+            unid_bulto: $("#form_renglon_unid_bulto").val(),
+            cantidad: $("#form_renglon_cantidad").val(),
+            costo_bulto: $("#form_renglon_costo_bulto").val(),
+            costo_unitario: $("#form_renglon_costo_unitario").val(),
+            descuento: $("#form_renglon_descuento").val(),
+            iva: $("#form_renglon_iva").val(),
+            margen_detal: $("#form_renglon_margen_detal").val(),
+            precio_detal: $("#form_renglon_precio_detal").val(),
+            margen_mayorista: $("#form_renglon_margen_mayorista").val(),
+            precio_mayorista: $("#form_renglon_precio_mayorista").val(),
+        };
+    }
+
+    const tieneContenido =
+        provId ||
+        numDoc ||
+        listaProductosCargados.length > 0 ||
+        renglonActual !== null;
+
+    if (!tieneContenido) return null;
+
+    return {
+        borrador_id: $("#borrador_id").val() || borradorActualId || null,
+        proveedor_id: provId,
+        almacen_id: almId,
+        tipo_documento: tipoDoc,
+        numero_documento: numDoc,
+        numero_control: numControl,
+        fecha_emision: fechaEmis,
+        fecha_recepcion: fechaRecep,
+        condicion_pago: condPago,
+        dias_credito: diasCred,
+        monto_bruto_input: montoBruto,
+        descuento_global_porcentaje: descGlobal,
+        observaciones: obs,
+        moneda_documento: monedaDocumentoActual,
+        tasa_compra: tasaCompraActual,
+        tasa_venta: tasaVentaActual,
+        tasa_cambio: $("#tasa_cambio").val(),
+        listaProductosCargados: listaProductosCargados,
+        renglon_actual: renglonActual,
+        indiceEdicionActual: indiceEdicionActual,
+        fase_actual: $("#seccionFase2").is(":visible") ? 2 : 1,
+    };
+}
+
+function restaurarEstado(datos) {
+    if (!datos) return;
+
+    $("#borrador_id").val(datos.borrador_id || "");
+    borradorActualId = datos.borrador_id || null;
+
+    if (datos.moneda_documento) {
+        seleccionarMonedaDocumento(datos.moneda_documento);
+    }
+    if (datos.tasa_compra) {
+        tasaCompraActual = parseFloat(datos.tasa_compra);
+        $("#tasa_compra").val(tasaCompraActual.toFixed(4));
+        $("#badgeTasaCompraFase2").text(formatearMonto(tasaCompraActual, 4));
+    }
+    if (datos.tasa_venta) {
+        tasaVentaActual = parseFloat(datos.tasa_venta);
+        $("#tasa_venta").val(tasaVentaActual.toFixed(4));
+        $("#badgeTasaVentaFase2").text(formatearMonto(tasaVentaActual, 4));
+        $("#tasa_cambio").val(tasaVentaActual.toFixed(4));
+    }
+
+    if (datos.proveedor_id) {
+        establecerValorSelect2("#proveedor_id", datos.proveedor_id);
+    }
+    if (datos.almacen_id) {
+        $("#almacen_id").val(datos.almacen_id);
+    }
+    if (datos.tipo_documento) {
+        $("#tipo_documento").val(datos.tipo_documento);
+    }
+    if (datos.numero_documento) {
+        $("#numero_documento").val(datos.numero_documento);
+    }
+    if (datos.numero_control) {
+        $("#numero_control").val(datos.numero_control);
+    }
+    if (datos.fecha_emision) {
+        $("#fecha_emision").val(datos.fecha_emision);
+    }
+    if (datos.fecha_recepcion) {
+        $("#fecha_recepcion").val(datos.fecha_recepcion);
+    }
+    if (datos.condicion_pago) {
+        $("#condicion_pago").val(datos.condicion_pago);
+        toggleCondicionPago();
+    }
+    if (datos.dias_credito) {
+        $("#dias_credito").val(datos.dias_credito);
+        calcularFechaVencimiento();
+    }
+    if (datos.monto_bruto_input !== undefined && datos.monto_bruto_input !== null) {
+        $("#monto_bruto_input").val(datos.monto_bruto_input);
+    }
+    if (datos.descuento_global_porcentaje !== undefined && datos.descuento_global_porcentaje !== null) {
+        $("#descuento_global_porcentaje").val(datos.descuento_global_porcentaje);
+    }
+    if (datos.observaciones) {
+        $("#observaciones").val(datos.observaciones);
+    }
+
+    listaProductosCargados = Array.isArray(datos.listaProductosCargados) ? datos.listaProductosCargados : [];
+    renderizarTablaDetalles();
+    recalcularTotalesGenerales();
+
+    if (datos.renglon_actual && datos.renglon_actual.producto) {
+        const ra = datos.renglon_actual;
+        seleccionarProductoParaCarga(ra.producto);
+        if (ra.almacen_id) $("#form_renglon_almacen_id").val(ra.almacen_id);
+        if (ra.bultos) $("#form_renglon_bultos").val(ra.bultos);
+        if (ra.unid_bulto) $("#form_renglon_unid_bulto").val(ra.unid_bulto);
+        if (ra.cantidad) $("#form_renglon_cantidad").val(ra.cantidad);
+        if (ra.costo_bulto) $("#form_renglon_costo_bulto").val(ra.costo_bulto);
+        if (ra.costo_unitario) $("#form_renglon_costo_unitario").val(ra.costo_unitario);
+        if (ra.descuento) $("#form_renglon_descuento").val(ra.descuento);
+        if (ra.iva) $("#form_renglon_iva").val(ra.iva);
+        if (ra.margen_detal) $("#form_renglon_margen_detal").val(ra.margen_detal);
+        if (ra.precio_detal) $("#form_renglon_precio_detal").val(ra.precio_detal);
+        if (ra.margen_mayorista) $("#form_renglon_margen_mayorista").val(ra.margen_mayorista);
+        if (ra.precio_mayorista) $("#form_renglon_precio_mayorista").val(ra.precio_mayorista);
+        recalcularFormularioRenglon();
+    }
+
+    if (datos.fase_actual === 2 && listaProductosCargados.length > 0) {
+        avanzarAFase2();
+    }
+}
+
+async function guardarBorradorEnServidor() {
+    const estado = obtenerEstadoActualFormulario();
+    if (!estado) {
+        if (window.notificacion) {
+            return window.notificacion.fire({
+                icon: "warning",
+                title: "Formulario Vacío",
+                text: "Debes ingresar al menos un número de factura, proveedor o producto para guardar un borrador.",
+            });
+        }
+        return;
+    }
+
+    const totalUnidades = (estado.listaProductosCargados || []).reduce(
+        (acc, l) => acc + (parseFloat(l.cantidad) || 0),
+        0
+    ) + (parseFloat(estado.renglon_actual?.cantidad) || 0);
+
+    const numDoc = estado.numero_documento || "Sin Factura";
+    let nombreReferencia = `Borrador Factura ${numDoc} (${totalUnidades} unidades)`;
+    if (estado.proveedor_id && Array.isArray(catalogosSistema.proveedores)) {
+        const prov = catalogosSistema.proveedores.find((p) => p.id == estado.proveedor_id);
+        if (prov) {
+            nombreReferencia += ` - ${prov.nombre}`;
+        }
+    }
+
+    const payload = {
+        borrador_id: $("#borrador_id").val() || borradorActualId || null,
+        referencia: nombreReferencia,
+        proveedor_id: estado.proveedor_id || null,
+        numero_documento: estado.numero_documento || null,
+        total_unidades: Math.round(totalUnidades),
+        datos_json: estado,
+    };
+
+    const $btn = $("#btnGuardarBorradorModal");
+    const txtOrig = $btn.html();
+
+    try {
+        $btn.prop("disabled", true).html('<i class="fas fa-spinner fa-spin me-1"></i> Guardando...');
+        const res = await peticionAjax({
+            url: urlBorradores,
+            method: "POST",
+            data: JSON.stringify(payload),
+            contentType: "application/json",
+        });
+
+        if (res.success && res.data) {
+            borradorActualId = res.data.id;
+            $("#borrador_id").val(res.data.id);
+            localStorage.setItem("draft_recepcion_producto", JSON.stringify(estado));
+            actualizarContadorBorradores();
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "success",
+                    title: "Borrador Guardado",
+                    text: "El progreso actual se ha guardado de forma segura en el servidor.",
+                });
+            }
+        }
+    } catch (err) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "error",
+                title: "Error al Guardar Borrador",
+                text: err.responseJSON?.message || "No se pudo guardar el borrador en el servidor.",
+            });
+        }
+    } finally {
+        $btn.prop("disabled", false).html(txtOrig);
+    }
+}
+
+async function abrirModalBorradores() {
+    bootstrap.Modal.getOrCreateInstance(
+        document.getElementById("modalBorradoresRecepcion")
+    ).show();
+
+    $("#contenedorListaBorradores").html(`
+        <div class="text-center py-4 text-muted font-monospace">
+            <i class="fas fa-spinner fa-spin fa-2x mb-2 text-primary"></i>
+            <p class="mb-0">Cargando borradores guardados...</p>
+        </div>
+    `);
+
+    try {
+        const res = await peticionAjax({
+            url: urlBorradores,
+            method: "GET",
+        });
+
+        if (res.success && Array.isArray(res.data)) {
+            actualizarBadgeContador(res.data.length);
+            if (res.data.length === 0) {
+                $("#contenedorListaBorradores").html(`
+                    <div class="text-center py-5 text-muted">
+                        <div class="avatar-executive-sm rounded-circle bg-warning bg-opacity-10 text-warning mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px; font-size: 1.5rem;">
+                            <i class="fas fa-folder-open"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark">No hay borradores guardados</h6>
+                        <small class="text-muted">Cuando pauses una recepción y presiones "Guardar Borrador", aparecerá aquí para que la retomes en cualquier momento.</small>
+                    </div>
+                `);
+                return;
+            }
+
+            let html = '<div class="list-group gap-2">';
+            res.data.forEach((b) => {
+                const provNombre = b.proveedor ? b.proveedor.nombre : "Sin proveedor asignado";
+                const docNum = b.numero_documento || "Sin número";
+                const fecha = b.updated_at ? new Date(b.updated_at).toLocaleString() : "--";
+                const unidades = b.total_unidades || 0;
+                const usuarioNombre = b.usuario ? b.usuario.name : "Usuario";
+
+                html += `
+                    <div class="list-group-item list-group-item-action border rounded-4 p-3 shadow-xs bg-white">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <strong class="text-dark fs-6">${b.referencia || `Borrador Doc: ${docNum}`}</strong>
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary font-monospace">${unidades} ${unidades === 1 ? "unidad" : "unidades"}</span>
+                                </div>
+                                <div class="font-monospace small text-muted">
+                                    <span><i class="fas fa-truck text-secondary me-1"></i>${provNombre}</span> •
+                                    <span><i class="fas fa-file-invoice text-secondary me-1"></i>Doc: ${docNum}</span> •
+                                    <span><i class="fas fa-clock text-secondary me-1"></i>${fecha}</span> •
+                                    <span><i class="fas fa-user text-secondary me-1"></i>${usuarioNombre}</span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-success rounded-pill px-3 py-1.5 font-monospace fw-bold shadow-xs" onclick="cargarBorradorServidor(${b.id})">
+                                    <i class="fas fa-download me-1"></i> Cargar Borrador
+                                </button>
+                                <button type="button" class="btn btn-outline-danger rounded-pill px-2.5 py-1.5 font-monospace small" onclick="eliminarBorradorServidor(${b.id})">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += "</div>";
+            $("#contenedorListaBorradores").html(html);
+        }
+    } catch (err) {
+        $("#contenedorListaBorradores").html(`
+            <div class="alert alert-danger rounded-4">
+                <i class="fas fa-exclamation-triangle me-1"></i> Error al cargar los borradores: ${err.message || "Error del servidor"}
+            </div>
+        `);
+    }
+}
+
+async function cargarBorradorServidor(id) {
+    try {
+        Swal.fire({
+            title: "Cargando borrador...",
+            text: "Restaurando productos y configuración fiscal...",
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading(),
+        });
+
+        const res = await consultarRegistro(urlBorradores, id);
+
+        if (res.success && res.data) {
+            Swal.close();
+            bootstrap.Modal.getOrCreateInstance(
+                document.getElementById("modalBorradoresRecepcion")
+            ).hide();
+            crear(false);
+            const datos = typeof res.data.datos_json === "string" ? JSON.parse(res.data.datos_json) : (res.data.datos_json || {});
+            datos.borrador_id = res.data.id;
+            restaurarEstado(datos);
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "success",
+                    title: "Borrador Cargado",
+                    text: `Se restauró el progreso de la factura ${res.data.numero_documento || ""}.`,
+                });
+            }
+        }
+    } catch (err) {
+        Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "No se pudo cargar el borrador seleccionado.",
+        });
+    }
+}
+
+async function eliminarBorradorServidor(id) {
+    const confirm = await Swal.fire({
+        title: "¿Eliminar Borrador?",
+        text: "Esta acción descartará el borrador guardado en el servidor permanentemente.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#ef4444",
+        cancelButtonColor: "#64748b",
+        confirmButtonText: '<i class="fas fa-trash-alt me-1"></i> Sí, eliminar',
+        cancelButtonText: "Cancelar",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+        const res = await peticionAjax({
+            url: `${urlBorradores}/${id}`,
+            method: "DELETE",
+        });
+
+        if (res.success) {
+            if (borradorActualId == id) {
+                borradorActualId = null;
+                $("#borrador_id").val("");
+            }
+            abrirModalBorradores();
+            actualizarContadorBorradores();
+        }
+    } catch (err) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "error",
+                title: "Error",
+                text: err.responseJSON?.message || "No se pudo eliminar el borrador.",
+            });
+        }
+    }
+}
+
+async function actualizarContadorBorradores() {
+    try {
+        const res = await peticionAjax({
+            url: urlBorradores,
+            method: "GET",
+        });
+        if (res.success && Array.isArray(res.data)) {
+            actualizarBadgeContador(res.data.length);
+        }
+    } catch (e) {}
+}
+
+function actualizarBadgeContador(conteo) {
+    $("#badgeConteoBorradores").text(conteo);
+    if (conteo > 0) {
+        $("#btnAbrirBorradores").removeClass("btn-outline-primary").addClass("btn-primary text-white");
+    } else {
+        $("#btnAbrirBorradores").removeClass("btn-primary text-white").addClass("btn-outline-primary");
+    }
+}
+
+function verificarBorradorPendiente() {
+    const raw = localStorage.getItem("draft_recepcion_producto");
+    if (!raw) {
+        $("#alertaBorradorDetectado").hide();
+        return;
+    }
+    try {
+        const datos = JSON.parse(raw);
+        if (datos && (datos.proveedor_id || datos.numero_documento || (Array.isArray(datos.listaProductosCargados) && datos.listaProductosCargados.length > 0))) {
+            const cantProds = Array.isArray(datos.listaProductosCargados) ? datos.listaProductosCargados.length : 0;
+            const docInfo = datos.numero_documento ? `Factura: ${datos.numero_documento}` : "Borrador sin número";
+            $("#textoAlertaBorrador").text(`Existe un progreso guardado localmente (${docInfo} con ${cantProds} producto(s)). ¿Deseas restaurarlo?`);
+            $("#alertaBorradorDetectado").slideDown(150);
+        } else {
+            $("#alertaBorradorDetectado").hide();
+        }
+    } catch (e) {
+        $("#alertaBorradorDetectado").hide();
+    }
+}
+
+function restaurarBorradorDetectado() {
+    const raw = localStorage.getItem("draft_recepcion_producto");
+    if (raw) {
+        try {
+            const datos = JSON.parse(raw);
+            restaurarEstado(datos);
+            $("#alertaBorradorDetectado").slideUp(150);
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "success",
+                    title: "Progreso Restaurado",
+                    text: "Se ha recuperado el borrador previo exitosamente.",
+                });
+            }
+        } catch (e) {}
+    }
+}
+
+function descartarBorradorDetectado() {
+    localStorage.removeItem("draft_recepcion_producto");
+    $("#alertaBorradorDetectado").slideUp(150);
+    if (window.notificacion) {
+        window.notificacion.fire({
+            icon: "info",
+            title: "Borrador Descartado",
+            text: "El progreso anterior ha sido descartado.",
+        });
     }
 }
 
