@@ -693,7 +693,7 @@ For every single module in the 18-module list, strictly execute these 4 phases i
 | 14 | **Recepción de Motos** | `Sistema/pages/empresa/recepcion-moto.blade.php` | `recepcionMoto.js` | ✅ **Terminado** |
 | 15 | **Punto de Venta (POS)** | `Sistema/pages/empresa/pos.blade.php` | `pos.js` | ⏳ Pendiente |
 | 16 | **Facturación / Historial** | `Sistema/pages/empresa/facturas.blade.php` | `facturas.js` | ⏳ Pendiente |
-| 17 | **Cuentas por Cobrar (CXC)** | `Sistema/pages/empresa/cxc.blade.php` | `cxc.js` | ⏳ Pendiente |
+| 17 | **Cuentas por Cobrar (CXC)** | `Sistema/pages/empresa/cxc.blade.php` | `cxc.js` | ✅ **Terminado** |
 | 18 | **Cuentas por Pagar (CXP)** | `Sistema/pages/empresa/cxp.blade.php` | `cxp.js` | ⏳ Pendiente |
 
 
