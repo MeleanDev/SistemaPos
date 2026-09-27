@@ -4,7 +4,7 @@
 @section('subtitulo', 'Directorio y administración de razones sociales, sedes y filiales del sistema')
 
 @section('rutas')
-    <a href="{{ route('empresa') }}">Sistema</a>
+    <a href="{{ route('dashboard') }}">Sistema</a>
     <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
     <span class="active">Empresas</span>
 @endsection
@@ -50,10 +50,10 @@
 
                 <div class="col-12">
                     <label class="form-label-executive">
-                        <i class="fas fa-image"></i> Logo de la Empresa <span class="badge bg-light-subtle text-secondary border ms-1">Opcional</span>
+                        <i class="fas fa-image"></i> Logo de la Empresa <span class="badge bg-white text-secondary border shadow-xs ms-1">Opcional</span>
                     </label>
                     <div class="d-flex align-items-center gap-3 p-2.5 border rounded-4 bg-white shadow-xs">
-                        <div id="contenedorPreviewLogo" class="border rounded-3 p-1 bg-white shadow-xs d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; min-width: 56px; overflow: hidden; background-color: #f8fafc;">
+                        <div id="contenedorPreviewLogo" class="border rounded-3 p-1 bg-white shadow-xs d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; min-width: 56px; overflow: hidden;">
                             <i class="fas fa-building text-muted fs-4" id="iconoPlaceholderLogo"></i>
                             <img id="previewLogo" src="" alt="Logo preview" class="img-fluid rounded-2 d-none" style="max-height: 100%; object-fit: contain;">
                         </div>

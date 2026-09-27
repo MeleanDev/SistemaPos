@@ -1,9 +1,9 @@
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
-const urlLista = urlBase + "/lista";
-const urlDetalles = urlBase + "/";
-const urlEliminar = urlBase + "/";
+const urlLista = `${urlBase}/lista`;
+const urlDetalles = `${urlBase}/`;
+const urlEliminar = `${urlBase}/`;
 const urlGuardar = urlBase;
-const urlEditar = urlBase + "/actualizar/";
+const urlEditar = `${urlBase}/actualizar/`;
 
 let urlAccion = urlGuardar;
 let isEditar = false;
@@ -98,7 +98,7 @@ const cargarEmpresas = async function () {
     try {
         const respuesta = await peticionAjax({ url: urlLista });
 
-        if (respuesta.success && Array.isArray(respuesta.data)) {
+        if (respuesta && respuesta.success && Array.isArray(respuesta.data)) {
             listaEmpresas = respuesta.data;
             renderizarEmpresas(listaEmpresas);
         } else {
@@ -118,7 +118,7 @@ const cargarEmpresas = async function () {
             </div>
         `);
         $("#contadorEmpresas").html(
-            '<i class="fas fa-times-circle me-1"></i> Error al cargar',
+            '<i class="fas fa-times-circle me-1"></i> Error al cargar'
         );
     }
 };
@@ -264,22 +264,24 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
     });
 };
 
+const resetearFormularioEmpresa = function () {
+    const $form = $("#formularioEmpresa");
+    $form[0].reset();
+    $("#modalEmpresa .is-invalid").removeClass("is-invalid");
+    $("#modalEmpresa .invalid-feedback").remove();
+    resetPreviewLogo();
+    $("#maneja_motos").prop("checked", false);
+    $form.find("input, select, textarea").prop("disabled", false);
+    $("#tipo_cedula").val("J-");
+    $("#codigo_pais").val("+58");
+};
+
 const crear = function () {
     isEditar = false;
     idEmpresaActual = null;
     urlAccion = urlGuardar;
 
-    $("#formularioEmpresa")[0].reset();
-    $("#modalEmpresa .is-invalid").removeClass("is-invalid");
-    $("#modalEmpresa .invalid-feedback").remove();
-
-    resetPreviewLogo();
-    $("#maneja_motos").prop("checked", false);
-    $("#formularioEmpresa")
-        .find("input, select, textarea")
-        .prop("disabled", false);
-    $("#tipo_cedula").val("J-");
-    $("#codigo_pais").val("+58");
+    resetearFormularioEmpresa();
 
     $("#modalEmpresaTitulo").text("Nueva Empresa");
     $("#modalEmpresaSubtitulo").text("Completa la información de la empresa o sede");
@@ -292,85 +294,16 @@ const crear = function () {
     modal.show();
 };
 
-const ver = async function (id) {
-    try {
-        idEmpresaActual = id;
-        const empresa = await consultarRegistro(urlDetalles, id);
-        if (!empresa) return;
-
-        $("#formularioEmpresa")[0].reset();
-        $("#modalEmpresa .is-invalid").removeClass("is-invalid");
-        $("#modalEmpresa .invalid-feedback").remove();
-
-        $("#modalEmpresaTitulo").text("Detalles de la Empresa");
-        $("#modalEmpresaSubtitulo").text("Consulta la información de la empresa");
-        $("#modalEmpresaIcono").attr("class", "fas fa-eye text-info fs-5");
-
-        llenarFormularioEmpresa(empresa);
-
-        $("#formularioEmpresa")
-            .find("input, select, textarea")
-            .prop("disabled", true);
-        $("#modalEmpresaBtnGuardar").prop("hidden", true);
-
-        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalEmpresa"));
-        modal.show();
-    } catch (error) {
-        notificacion.fire({
-            icon: "error",
-            title: "Error",
-            text: "No se pudieron cargar los datos de la empresa.",
-        });
-    }
-};
-
-const editar = async function (id) {
-    try {
-        isEditar = true;
-        idEmpresaActual = id;
-        urlAccion = urlEditar + id;
-        const empresa = await consultarRegistro(urlDetalles, id);
-        if (!empresa) return;
-
-        $("#formularioEmpresa")[0].reset();
-        $("#modalEmpresa .is-invalid").removeClass("is-invalid");
-        $("#modalEmpresa .invalid-feedback").remove();
-
-        $("#modalEmpresaTitulo").text(`Editar Empresa: ${empresa.nombre}`);
-        $("#modalEmpresaSubtitulo").text("Modifica los datos de la empresa");
-        $("#modalEmpresaIcono").attr("class", "fas fa-edit text-warning fs-5");
-
-        $("#formularioEmpresa")
-            .find("input, select, textarea")
-            .prop("disabled", false);
-        llenarFormularioEmpresa(empresa);
-
-        $("#modalEmpresaBtnGuardar")
-            .prop("hidden", false)
-            .prop("disabled", false);
-        $("#modalEmpresaTextoGuardar").text("Actualizar Cambios");
-
-        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalEmpresa"));
-        modal.show();
-    } catch (error) {
-        notificacion.fire({
-            icon: "error",
-            title: "Error",
-            text: "No se pudo cargar la información de la empresa.",
-        });
-    }
-};
-
 const llenarFormularioEmpresa = function (data) {
     $("#nombre").val(data.nombre || "");
     $("#razon_social").val(data.razon_social || "");
     $("#correo").val(data.correo || "");
     $("#direccion").val(data.direccion || "");
     $("#logo").val("");
-    $("#maneja_motos").prop("checked", !!data.maneja_motos);
+    $("#maneja_motos").prop("checked", Boolean(data.maneja_motos));
 
     if (data.logo) {
-        $("#previewLogo").attr("src", "/storage/" + data.logo).removeClass("d-none");
+        $("#previewLogo").attr("src", `/storage/${data.logo}`).removeClass("d-none");
         $("#iconoPlaceholderLogo").addClass("d-none");
     } else {
         resetPreviewLogo();
@@ -383,6 +316,67 @@ const llenarFormularioEmpresa = function (data) {
     const telefono = desglosarTelefono(data.telefono);
     $("#codigo_pais").val(telefono.codigo || "+58");
     $("#telefono_numero").val(telefono.numero || "");
+};
+
+const ver = async function (id) {
+    try {
+        idEmpresaActual = id;
+        const res = await consultarRegistro(urlDetalles, id);
+        const empresa = res && res.data ? res.data : res;
+        if (!empresa) return;
+
+        resetearFormularioEmpresa();
+        llenarFormularioEmpresa(empresa);
+
+        $("#formularioEmpresa").find("input, select, textarea").prop("disabled", true);
+        $("#modalEmpresaTitulo").text("Detalles de la Empresa");
+        $("#modalEmpresaSubtitulo").text("Consulta la información de la empresa");
+        $("#modalEmpresaIcono").attr("class", "fas fa-eye text-info fs-5");
+        $("#modalEmpresaBtnGuardar").prop("hidden", true);
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalEmpresa"));
+        modal.show();
+    } catch (error) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "error",
+                title: "Error",
+                text: "No se pudieron cargar los datos de la empresa.",
+            });
+        }
+    }
+};
+
+const editar = async function (id) {
+    try {
+        isEditar = true;
+        idEmpresaActual = id;
+        urlAccion = `${urlEditar}${id}`;
+
+        const res = await consultarRegistro(urlDetalles, id);
+        const empresa = res && res.data ? res.data : res;
+        if (!empresa) return;
+
+        resetearFormularioEmpresa();
+        llenarFormularioEmpresa(empresa);
+
+        $("#modalEmpresaTitulo").text(`Editar Empresa: ${empresa.nombre}`);
+        $("#modalEmpresaSubtitulo").text("Modifica los datos de la empresa");
+        $("#modalEmpresaIcono").attr("class", "fas fa-edit text-warning fs-5");
+        $("#modalEmpresaBtnGuardar").prop("hidden", false).prop("disabled", false);
+        $("#modalEmpresaTextoGuardar").text("Actualizar Cambios");
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalEmpresa"));
+        modal.show();
+    } catch (error) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "error",
+                title: "Error",
+                text: "No se pudo cargar la información de la empresa.",
+            });
+        }
+    }
 };
 
 const eliminar = function (id, nombreEmpresa) {
@@ -402,39 +396,6 @@ const eliminar = function (id, nombreEmpresa) {
 $("#formularioEmpresa").on("submit", function (e) {
     e.preventDefault();
 
-    const nombre = $("#nombre").val().trim();
-    const razonSocial = $("#razon_social").val().trim();
-    const rifNum = $("#cedula_numero").val().trim();
-    const direccion = $("#direccion").val().trim();
-
-    if (nombre.length < 2) {
-        return notificacion.fire({
-            icon: "warning",
-            title: "El nombre comercial debe tener al menos 2 caracteres",
-        });
-    }
-
-    if (razonSocial.length < 2) {
-        return notificacion.fire({
-            icon: "warning",
-            title: "La razón social debe tener al menos 2 caracteres",
-        });
-    }
-
-    if (rifNum.length < 5) {
-        return notificacion.fire({
-            icon: "warning",
-            title: "Número de RIF / Identificación incompleto",
-        });
-    }
-
-    if (direccion.length < 3) {
-        return notificacion.fire({
-            icon: "warning",
-            title: "La dirección fiscal es obligatoria",
-        });
-    }
-
     enviarFormulario({
         form: this,
         url: urlAccion,
@@ -443,12 +404,14 @@ $("#formularioEmpresa").on("submit", function (e) {
         btnSubmit: "#modalEmpresaBtnGuardar",
         textoGuardarOriginal: $("#modalEmpresaTextoGuardar").text(),
         antesDeEnviar: function (formData) {
-            const rifCompleto = $("#tipo_cedula").val() + rifNum;
-            formData.set("rif", rifCompleto);
+            const rifNum = ($("#cedula_numero").val() || "").trim();
+            if (rifNum) {
+                formData.set("rif", `${$("#tipo_cedula").val()}${rifNum}`);
+            }
 
-            const telNum = $("#telefono_numero").val().trim();
+            const telNum = ($("#telefono_numero").val() || "").trim();
             if (telNum) {
-                formData.set("telefono", $("#codigo_pais").val() + telNum);
+                formData.set("telefono", `${$("#codigo_pais").val()}${telNum}`);
             } else {
                 formData.delete("telefono");
             }
