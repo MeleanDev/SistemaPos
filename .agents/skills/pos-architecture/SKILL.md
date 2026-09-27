@@ -647,4 +647,46 @@ Every module review, refactoring, or creation must strictly adhere to the follow
    - Run targeted tests via `php artisan test --filter={ModuleName}Test`.
    - Ensure all assertions pass with 100% green status.
 
+---
+
+## 13. Spaghetti Code Refactoring Protocol & Module Progress Tracker
+
+When refactoring any module in the system, adhere strictly to the following contract:
+
+### 13.1 Frontend Refactoring Directives
+1. **Focus**: Review and refactor exclusively the Blade view (`Sistema/pages/...`) and its corresponding JavaScript file (`public/estilos/jsPropios/...`).
+2. **Elimination of Frontend Manual Validation Duplication**: Do NOT write manual string length checks in JS before `enviarFormulario`. Let Laravel's `FormRequest` validation rules return 422 JSON errors which `enviarFormulario` automatically displays via SweetAlert2.
+3. **Use of Standard AJAX Helpers**:
+   - `peticionAjax({ url, type, data })` instead of raw `$.ajax`.
+   - `consultarRegistro(urlDetalles, id)` with safe response unwrapping (`res && res.data ? res.data : res`).
+   - `enviarFormulario({ form, url, isEditar, modalSelector, tablaSelector, btnSubmit, textoGuardarOriginal, antesDeEnviar, onSuccess })`.
+   - `cambiarEstadoRegistro({ url, id, nombre, tablaSelector, onSuccess })`.
+4. **Form Reset Centralization**: Implement dedicated `resetearFormulario{Modulo}()` functions to clean forms, reset invalid feedback, remove `.is-invalid`, and restore default select values.
+5. **Strict Zero-Comments Rule in JS**: Every JS file in `public/estilos/jsPropios/` MUST contain 0 comments (`//` or `/* */`).
+6. **Executive UI Standard**: White containers with `border rounded-4 shadow-xs` (NEVER `bg-light` or `alert-light`), `<x-btn-action>`, `<x-search-filter>`, `<x-datatable>` or card grids.
+
+### 13.2 Module Progress & Status Tracker
+
+| # | Módulo | Blade View | JavaScript File | Estado |
+|---|---|---|---|:---:|
+| 1 | **Empresas** | `Sistema/pages/administradores/empresa.blade.php` | `empresa.js` | ⏳ Pendiente |
+| 2 | **Almacenes** | `Sistema/pages/empresa/almacen.blade.php` | `almacen.js` | ✅ **Terminado** |
+| 3 | **Configuración / Tasas** | `Sistema/pages/empresa/configuracion.blade.php` | `configuracion.js` | ⏳ Pendiente |
+| 4 | **Usuarios & Roles** | `Sistema/pages/administradores/usuario.blade.php` | `usuario.js` | ⏳ Pendiente |
+| 5 | **Clientes** | `Sistema/pages/empresa/cliente.blade.php` | `cliente.js` | ✅ **Terminado** |
+| 6 | **Proveedores** | `Sistema/pages/empresa/proveedor.blade.php` | `proveedor.js` | ⏳ Pendiente |
+| 7 | **Métodos de Pago** | `Sistema/pages/empresa/metodo_pago.blade.php` | `metodo_pago.js` | ⏳ Pendiente |
+| 8 | **Categorías** | `Sistema/pages/empresa/categoria.blade.php` | `categoria.js` | ⏳ Pendiente |
+| 9 | **Servicios** | `Sistema/pages/empresa/servicio.blade.php` | `servicio.js` | ⏳ Pendiente |
+| 10 | **Productos & Inventario** | `Sistema/pages/empresa/producto.blade.php` | `producto.js` | ⏳ Pendiente |
+| 11 | **Recepción de Mercancía** | `Sistema/pages/empresa/recepcion.blade.php` | `recepcion.js` | ⏳ Pendiente |
+| 12 | **Kardex** | `Sistema/pages/empresa/kardex.blade.php` | `kardex.js` | ⏳ Pendiente |
+| 13 | **Motos & Seriales** | `Sistema/pages/empresa/moto.blade.php` | `moto.js` | ⏳ Pendiente |
+| 14 | **Recepción de Motos** | `Sistema/pages/empresa/recepcion-moto.blade.php` | `recepcionMoto.js` | ⏳ Pendiente |
+| 15 | **Punto de Venta (POS)** | `Sistema/pages/empresa/pos.blade.php` | `pos.js` | ⏳ Pendiente |
+| 16 | **Facturación / Historial** | `Sistema/pages/empresa/facturas.blade.php` | `facturas.js` | ⏳ Pendiente |
+| 17 | **Cuentas por Cobrar (CXC)** | `Sistema/pages/empresa/cxc.blade.php` | `cxc.js` | ⏳ Pendiente |
+| 18 | **Cuentas por Pagar (CXP)** | `Sistema/pages/empresa/cxp.blade.php` | `cxp.js` | ⏳ Pendiente |
+
+
 
