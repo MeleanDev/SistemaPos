@@ -23,25 +23,10 @@
 
         <!-- BOTONES DE ACCIÓN RÁPIDA -->
         <div class="d-flex flex-wrap align-items-center gap-2">
-            <button type="button" class="btn btn-outline-secondary rounded-pill px-3 py-2 fw-bold shadow-xs d-flex align-items-center gap-2" onclick="recargarTablaKardex()" title="Refrescar lista">
-                <i class="fas fa-sync-alt"></i>
-                <span class="d-none d-sm-inline">Actualizar</span>
-            </button>
-
-            <button type="button" class="btn btn-primary rounded-pill px-3.5 py-2 fw-bold shadow-xs d-flex align-items-center gap-2" onclick="abrirModalTraslado()">
-                <i class="fas fa-arrow-right-arrow-left"></i>
-                <span>Nuevo Traslado</span>
-            </button>
-
-            <button type="button" class="btn btn-success rounded-pill px-3.5 py-2 fw-bold shadow-xs d-flex align-items-center gap-2 text-white" onclick="abrirModalAjuste('entrada')">
-                <i class="fas fa-plus-circle"></i>
-                <span>Ajuste Entrada (+)</span>
-            </button>
-
-            <button type="button" class="btn btn-danger rounded-pill px-3.5 py-2 fw-bold shadow-xs d-flex align-items-center gap-2" onclick="abrirModalAjuste('salida')">
-                <i class="fas fa-minus-circle"></i>
-                <span>Ajuste Salida (-)</span>
-            </button>
+            <x-button variant="outline-secondary" icon="fas fa-sync-alt" text="Actualizar" onclick="recargarTablaKardex()" title="Refrescar lista" />
+            <x-button variant="primary" icon="fas fa-arrow-right-arrow-left" text="Nuevo Traslado" onclick="abrirModalTraslado()" />
+            <x-button variant="success" icon="fas fa-plus-circle" text="Ajuste Entrada (+)" onclick="abrirModalAjuste('entrada')" />
+            <x-button variant="danger" icon="fas fa-minus-circle" text="Ajuste Salida (-)" onclick="abrirModalAjuste('salida')" />
         </div>
     </div>
 
@@ -118,47 +103,28 @@
             <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                 <i class="fas fa-filter text-primary"></i> Filtros de Auditoría de Movimientos
             </h6>
-            <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 text-muted" onclick="limpiarFiltrosKardex()">
-                <i class="fas fa-undo me-1"></i> Limpiar Filtros
-            </button>
+            <x-button variant="link" size="sm" class="text-decoration-none p-0 text-muted" icon="fas fa-undo" text="Limpiar Filtros" onclick="limpiarFiltrosKardex()" />
         </div>
         <div class="card-body p-4">
             <div class="row g-3">
-                <!-- Almacén -->
-                <div class="col-md-3">
-                    <label class="form-label-executive"><i class="fas fa-warehouse text-secondary"></i> Almacén</label>
-                    <select id="filtro_almacen_id" class="form-select form-select-executive" onchange="aplicarFiltrosKardex()">
-                        <option value="">Todos los Almacenes</option>
-                    </select>
-                </div>
+                <x-select id="filtro_almacen_id" name="filtro_almacen_id" label="Almacén" icon="fas fa-warehouse text-secondary" col="col-md-3" onchange="aplicarFiltrosKardex()">
+                    <option value="">Todos los Almacenes</option>
+                </x-select>
 
-                <!-- Tipo de Movimiento -->
-                <div class="col-md-3">
-                    <label class="form-label-executive"><i class="fas fa-tag text-secondary"></i> Tipo de Movimiento</label>
-                    <select id="filtro_tipo_movimiento" class="form-select form-select-executive" onchange="aplicarFiltrosKardex()">
-                        <option value="">Todos los Tipos</option>
-                        <option value="ajuste_positivo">Ajuste Positivo (+)</option>
-                        <option value="ajuste_negativo">Ajuste Negativo (-)</option>
-                        <option value="traslado_salida">Traslado (Salida)</option>
-                        <option value="traslado_entrada">Traslado (Entrada)</option>
-                        <option value="entrada_recepcion">Entrada por Recepción</option>
-                        <option value="salida_venta">Salida por Venta</option>
-                        <option value="anulacion_recepcion">Anulación de Recepción</option>
-                        <option value="anulacion_venta">Anulación de Venta</option>
-                    </select>
-                </div>
+                <x-select id="filtro_tipo_movimiento" name="filtro_tipo_movimiento" label="Tipo de Movimiento" icon="fas fa-tag text-secondary" col="col-md-3" onchange="aplicarFiltrosKardex()">
+                    <option value="">Todos los Tipos</option>
+                    <option value="ajuste_positivo">Ajuste Positivo (+)</option>
+                    <option value="ajuste_negativo">Ajuste Negativo (-)</option>
+                    <option value="traslado_salida">Traslado (Salida)</option>
+                    <option value="traslado_entrada">Traslado (Entrada)</option>
+                    <option value="entrada_recepcion">Entrada por Recepción</option>
+                    <option value="salida_venta">Salida por Venta</option>
+                    <option value="anulacion_recepcion">Anulación de Recepción</option>
+                    <option value="anulacion_venta">Anulación de Venta</option>
+                </x-select>
 
-                <!-- Fecha Desde -->
-                <div class="col-md-3">
-                    <label class="form-label-executive"><i class="fas fa-calendar-alt text-secondary"></i> Fecha Desde</label>
-                    <input type="date" id="filtro_fecha_desde" class="form-control form-control-executive" onchange="aplicarFiltrosKardex()">
-                </div>
-
-                <!-- Fecha Hasta -->
-                <div class="col-md-3">
-                    <label class="form-label-executive"><i class="fas fa-calendar-check text-secondary"></i> Fecha Hasta</label>
-                    <input type="date" id="filtro_fecha_hasta" class="form-control form-control-executive" onchange="aplicarFiltrosKardex()">
-                </div>
+                <x-input type="date" id="filtro_fecha_desde" name="filtro_fecha_desde" label="Fecha Desde" icon="fas fa-calendar-alt text-secondary" col="col-md-3" class="font-monospace" onchange="aplicarFiltrosKardex()" />
+                <x-input type="date" id="filtro_fecha_hasta" name="filtro_fecha_hasta" label="Fecha Hasta" icon="fas fa-calendar-check text-secondary" col="col-md-3" class="font-monospace" onchange="aplicarFiltrosKardex()" />
             </div>
         </div>
     </div>

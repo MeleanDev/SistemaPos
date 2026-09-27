@@ -79,9 +79,7 @@
                 <p class="text-muted small mb-0">Visualiza el saldo total adeudado por proveedor y gestiona pagos puntuales o amortizaciones generales</p>
             </div>
             <div class="d-flex gap-2">
-                <button class="btn btn-outline-secondary rounded-pill px-3 shadow-none btn-sm" onclick="recargarTabla()">
-                    <i class="fas fa-sync-alt me-1"></i> Actualizar
-                </button>
+                <x-button variant="outline-secondary" size="sm" icon="fas fa-sync-alt" text="Actualizar" onclick="recargarTabla()" />
             </div>
         </div>
         <div class="card-body p-4">

@@ -60,7 +60,7 @@
             <i class="{{ $icon }} {{ $iconColor }}"></i>
         @endif
         @if($text || $slot->isNotEmpty())
-            <span>{{ $text ?? $slot }}</span>
+            <span>{!! $text ?? $slot !!}</span>
         @endif
         @if($icon && $iconPosition === 'right')
             <i class="{{ $icon }} {{ $iconColor }}"></i>
@@ -75,7 +75,7 @@
             <i class="{{ $icon }} {{ $iconColor }}"></i>
         @endif
         @if($text || $slot->isNotEmpty())
-            <span>{{ $text ?? $slot }}</span>
+            <span>{!! $text ?? $slot !!}</span>
         @endif
         @if($icon && $iconPosition === 'right')
             <i class="{{ $icon }} {{ $iconColor }}"></i>

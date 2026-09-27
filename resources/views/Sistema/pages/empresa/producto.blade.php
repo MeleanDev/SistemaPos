@@ -47,7 +47,7 @@
             <input type="hidden" name="tipo" id="tipo" value="producto">
             
             <!-- NAVEGACIÓN POR PESTAÑAS DEL FORMULARIO -->
-            <ul class="nav nav-pills nav-fill mb-4 p-1 bg-light rounded-pill border" id="pills-tab" role="tablist">
+            <ul class="nav nav-pills nav-fill mb-4 p-1 bg-white rounded-pill border shadow-xs" id="pills-tab" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active rounded-pill fw-semibold py-2" id="tab-basicos-btn" data-bs-toggle="pill" data-bs-target="#tab-basicos" type="button" role="tab">
                         <i class="fas fa-info-circle me-1"></i> Información General
@@ -107,19 +107,23 @@
                                 placeholder="Ej. Aceite 20W50 Mineral 1L, Filtro de Aire..." required maxlength="150" />
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label-executive"><i class="fas fa-balance-scale text-primary"></i> Unidad de Medida <span class="text-danger">*</span></label>
-                            <select name="unidad_medida" id="unidad_medida" class="form-select form-select-executive" required>
-                                <option value="unidad">Unidades (und)</option>
-                                <option value="kilo">Kilogramos (kg)</option>
-                                <option value="gramo">Gramos (g)</option>
-                                <option value="litro">Litros (L)</option>
-                                <option value="bulto">Bultos (blt)</option>
-                                <option value="caja">Cajas (cja)</option>
-                                <option value="paquete">Paquetes (paq)</option>
-                                <option value="metro">Metros (m)</option>
-                            </select>
-                        </div>
+                        <x-select 
+                            name="unidad_medida" 
+                            id="unidad_medida" 
+                            label="Unidad de Medida" 
+                            icon="fas fa-balance-scale text-primary" 
+                            required 
+                            col="col-md-4"
+                        >
+                            <option value="unidad">Unidades (und)</option>
+                            <option value="kilo">Kilogramos (kg)</option>
+                            <option value="gramo">Gramos (g)</option>
+                            <option value="litro">Litros (L)</option>
+                            <option value="bulto">Bultos (blt)</option>
+                            <option value="caja">Cajas (cja)</option>
+                            <option value="paquete">Paquetes (paq)</option>
+                            <option value="metro">Metros (m)</option>
+                        </x-select>
 
                         <div class="col-12">
                             <x-input name="descripcion" id="descripcion" label="Descripción / Aplicación" icon="fas fa-align-left"
@@ -137,9 +141,9 @@
                             <div class="card border rounded-4 p-3 bg-white shadow-xs">
                                 <div class="d-flex align-items-center justify-content-between mb-2">
                                     <h6 class="fw-bold text-dark mb-0"><i class="fas fa-calculator text-primary me-2"></i> Tasas de Conversión para Fijación de Precios</h6>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 font-monospace" onclick="restablecerTasasModal()" title="Restablecer a tasa oficial de la empresa">
-                                        <i class="fas fa-sync-alt me-1"></i> Tasa Oficial: <span id="badgeTasaOficialEmpresa">1.0000</span> Bs./$
-                                    </button>
+                                    <x-button variant="outline-primary" size="sm" class="font-monospace" onclick="restablecerTasasModal()" title="Restablecer a tasa oficial de la empresa" icon="fas fa-sync-alt">
+                                        Tasa Oficial: <span id="badgeTasaOficialEmpresa">1.0000</span> Bs./$
+                                    </x-button>
                                 </div>
                                 <div class="row g-3">
                                     <div class="col-md-6">
@@ -148,11 +152,9 @@
                                             <small class="text-muted fw-normal">(Tasa del proveedor)</small>
                                         </label>
                                         <div class="input-group">
-                                            <span class="input-group-text bg-light text-dark fw-bold font-monospace">Bs.</span>
+                                            <span class="input-group-text bg-white text-muted fw-bold font-monospace">Bs.</span>
                                             <input type="number" step="any" min="0.0001" name="tasa_compra" id="tasa_compra" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="1.0000" oninput="alCambiarTasasModal()">
-                                            <button type="button" class="btn btn-outline-secondary rounded-end-pill px-3" onclick="restablecerTasaCompraModal()" title="Restablecer a tasa oficial">
-                                                <i class="fas fa-sync-alt small"></i>
-                                            </button>
+                                            <x-button variant="outline-primary" rounded="0" class="rounded-end-pill px-3 shadow-xs" onclick="restablecerTasaCompraModal()" title="Restablecer a tasa oficial" icon="fas fa-sync-alt small" />
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -161,11 +163,9 @@
                                             <small class="text-muted fw-normal">(Tasa para fijación de PVP)</small>
                                         </label>
                                         <div class="input-group">
-                                            <span class="input-group-text bg-light text-success fw-bold font-monospace">Bs.</span>
+                                            <span class="input-group-text bg-white text-success fw-bold font-monospace">Bs.</span>
                                             <input type="number" step="any" min="0.0001" name="tasa_venta" id="tasa_venta" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="1.0000" oninput="alCambiarTasasModal()">
-                                            <button type="button" class="btn btn-outline-secondary rounded-end-pill px-3" onclick="restablecerTasaVentaModal()" title="Restablecer a tasa oficial">
-                                                <i class="fas fa-sync-alt small"></i>
-                                            </button>
+                                            <x-button variant="outline-primary" rounded="0" class="rounded-end-pill px-3 shadow-xs" onclick="restablecerTasaVentaModal()" title="Restablecer a tasa oficial" icon="fas fa-sync-alt small" />
                                         </div>
                                     </div>
                                 </div>
@@ -174,7 +174,7 @@
                         
                         <!-- COSTO DE COMPRA -->
                         <div class="col-12">
-                            <div class="card border rounded-4 p-3 bg-light-subtle">
+                            <div class="card border rounded-4 p-3 bg-white shadow-xs">
                                 <div class="d-flex align-items-center justify-content-between mb-2">
                                     <h6 class="fw-bold text-dark mb-0"><i class="fas fa-tag text-success me-2"></i> Costo Base de Compra</h6>
                                     <small class="text-muted">Ingresa el costo en $ o en Bs. para calcular automáticamente</small>
@@ -314,50 +314,75 @@
                             <div class="card border rounded-4 p-3 bg-white shadow-xs">
                                 <h6 class="fw-bold text-dark mb-2"><i class="fas fa-layer-group text-secondary me-1"></i> Control de Stock</h6>
                                 <div class="row g-2">
-                                    <div class="col-6">
-                                        <label class="form-label-executive">Stock Mínimo</label>
-                                        <input type="number" step="any" min="0" name="stock_minimo" id="stock_minimo" class="form-control form-control-executive font-monospace text-center" value="0">
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label-executive">Stock Máximo</label>
-                                        <input type="number" step="any" min="0" name="stock_maximo" id="stock_maximo" class="form-control form-control-executive font-monospace text-center" placeholder="Opcional">
-                                    </div>
+                                    <x-input 
+                                        type="number" 
+                                        step="any" 
+                                        min="0" 
+                                        name="stock_minimo" 
+                                        id="stock_minimo" 
+                                        label="Stock Mínimo" 
+                                        value="0" 
+                                        col="col-6" 
+                                        class="font-monospace text-center" 
+                                    />
+                                    <x-input 
+                                        type="number" 
+                                        step="any" 
+                                        min="0" 
+                                        name="stock_maximo" 
+                                        id="stock_maximo" 
+                                        label="Stock Máximo" 
+                                        optionalText="Opcional" 
+                                        placeholder="Sin límite" 
+                                        col="col-6" 
+                                        class="font-monospace text-center" 
+                                    />
                                 </div>
                             </div>
                         </div>
 
                         <!-- RÉGIMEN FISCAL (IVA E IGTF) -->
                         <div class="col-md-6">
-                            <div class="card border rounded-4 p-3 bg-white shadow-xs">
+                            <div class="card border rounded-4 p-3 bg-white shadow-xs h-100 d-flex flex-column justify-content-between">
                                 <h6 class="fw-bold text-dark mb-2"><i class="fas fa-file-invoice-dollar text-warning me-1"></i> Régimen Fiscal</h6>
                                 <div class="row g-2">
                                     <!-- IVA -->
-                                    <div class="col-12">
-                                        <div class="d-flex align-items-center justify-content-between border rounded-3 p-2.5 bg-white shadow-xs">
-                                            <div class="form-check form-switch mb-0">
-                                                <input class="form-check-input" type="checkbox" role="switch" id="aplica_iva" name="aplica_iva" value="1" checked onchange="toggleIvaInput()">
-                                                <label class="form-check-label fw-bold text-dark small ms-1" for="aplica_iva">Aplica IVA</label>
-                                            </div>
-                                            <div style="width: 125px;">
-                                                <div class="input-group input-group-executive">
-                                                    <input type="number" step="0.01" min="0" max="100" class="form-control form-control-executive text-end fw-bold font-monospace" id="iva_porcentaje" name="iva_porcentaje" value="16.00">
-                                                    <span class="input-group-text">%</span>
-                                                </div>
+                                    <div class="col-12 d-flex align-items-center justify-content-between gap-2">
+                                        <x-checkbox
+                                            switch="true"
+                                            id="aplica_iva"
+                                            name="aplica_iva"
+                                            value="1"
+                                            checked="true"
+                                            onchange="toggleIvaInput()"
+                                            label="Aplica IVA"
+                                            labelClass="fw-bold text-dark small"
+                                            style="cursor: pointer; width: 2.5em; height: 1.3em;"
+                                        />
+                                        <div style="width: 120px;">
+                                            <div class="input-group input-group-executive">
+                                                <input type="number" step="0.01" min="0" max="100" class="form-control form-control-executive text-end fw-bold font-monospace" id="iva_porcentaje" name="iva_porcentaje" value="16.00">
+                                                <span class="input-group-text bg-white text-muted small">%</span>
                                             </div>
                                         </div>
                                     </div>
                                     <!-- IGTF -->
-                                    <div class="col-12">
-                                        <div class="d-flex align-items-center justify-content-between border rounded-3 p-2.5 bg-white shadow-xs">
-                                            <div class="form-check form-switch mb-0">
-                                                <input class="form-check-input" type="checkbox" role="switch" id="aplica_igtf" name="aplica_igtf" value="1" checked onchange="toggleIgtfInput()">
-                                                <label class="form-check-label fw-bold text-dark small ms-1" for="aplica_igtf">Aplica IGTF</label>
-                                            </div>
-                                            <div style="width: 125px;">
-                                                <div class="input-group input-group-executive">
-                                                    <input type="number" step="0.01" min="0" max="100" class="form-control form-control-executive text-end fw-bold font-monospace" id="igtf_porcentaje" name="igtf_porcentaje" value="3.00">
-                                                    <span class="input-group-text">%</span>
-                                                </div>
+                                    <div class="col-12 d-flex align-items-center justify-content-between gap-2">
+                                        <x-checkbox
+                                            switch="true"
+                                            id="aplica_igtf"
+                                            name="aplica_igtf"
+                                            value="1"
+                                            checked="true"
+                                            onchange="toggleIgtfInput()"
+                                            label="Aplica IGTF"
+                                            labelClass="fw-bold text-dark small"
+                                            style="cursor: pointer; width: 2.5em; height: 1.3em;"
+                                        />
+                                        <div style="width: 120px;">
+                                            <div class="input-group input-group-executive">
+                                                <input type="number" step="0.01" min="0" max="100" class="form-control form-control-executive text-end fw-bold font-monospace" id="igtf_porcentaje" name="igtf_porcentaje" value="3.00">
+                                                <span class="input-group-text bg-white text-muted small">%</span>
                                             </div>
                                         </div>
                                     </div>
@@ -375,9 +400,7 @@
                         description="Un producto puede tener múltiples códigos QR o de barra. Cada código debe ser único en tu empresa."
                         icon="fas fa-qrcode"
                     >
-                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold shadow-xs" onclick="agregarFilaCodigoBarra()">
-                            <i class="fas fa-plus me-1"></i> Agregar Código / QR
-                        </button>
+                        <x-button variant="outline-primary" size="sm" icon="fas fa-plus" text="Agregar Código / QR" onclick="agregarFilaCodigoBarra()" />
                     </x-section-header>
 
                     <x-table-dynamic
@@ -398,12 +421,8 @@
                         description="Vincula los proveedores que surten este producto con sus códigos y últimos costos."
                         icon="fas fa-truck-moving"
                     >
-                        <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 fw-bold shadow-xs" onclick="abrirModalRapidoProveedor()">
-                            <i class="fas fa-plus-circle me-1"></i> Crear Proveedor
-                        </button>
-                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold shadow-xs" onclick="agregarFilaProveedor()">
-                            <i class="fas fa-plus me-1"></i> Vincular Proveedor
-                        </button>
+                        <x-button variant="outline-success" size="sm" icon="fas fa-plus-circle" text="Crear Proveedor" onclick="abrirModalRapidoProveedor()" />
+                        <x-button variant="outline-primary" size="sm" icon="fas fa-plus" text="Vincular Proveedor" onclick="agregarFilaProveedor()" />
                     </x-section-header>
 
                     <x-table-dynamic

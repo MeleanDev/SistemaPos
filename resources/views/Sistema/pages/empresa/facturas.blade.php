@@ -10,10 +10,7 @@
 @endsection
 
 @section('acciones')
-    <a href="{{ route('pos') }}" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm d-inline-flex align-items-center gap-2">
-        <i class="fas fa-cash-register"></i>
-        <span>Ir al Punto de Venta (POS)</span>
-    </a>
+    <x-button href="{{ route('pos') }}" variant="success" icon="fas fa-cash-register" text="Ir al Punto de Venta (POS)" />
 @endsection
 
 @section('contenido')
@@ -89,36 +86,22 @@
     <!-- 2. BARRA DE FILTROS AVANZADOS -->
     <div class="card border rounded-4 shadow-xs bg-white p-3 mb-3">
         <div class="row g-2 align-items-end">
-            <div class="col-12 col-md-3">
-                <label class="form-label-executive mb-1"><i class="fas fa-calendar-alt text-primary me-1"></i> Desde Fecha</label>
-                <input type="date" id="filtroFechaInicio" class="form-control form-control-executive font-monospace" onchange="recargarTablaFacturas()">
-            </div>
-            <div class="col-12 col-md-3">
-                <label class="form-label-executive mb-1"><i class="fas fa-calendar-alt text-primary me-1"></i> Hasta Fecha</label>
-                <input type="date" id="filtroFechaFin" class="form-control form-control-executive font-monospace" onchange="recargarTablaFacturas()">
-            </div>
-            <div class="col-12 col-md-2">
-                <label class="form-label-executive mb-1"><i class="fas fa-money-check text-secondary me-1"></i> Condición</label>
-                <select id="filtroCondicion" class="form-select form-select-executive" onchange="recargarTablaFacturas()">
-                    <option value="">Todas</option>
-                    <option value="contado">Contado</option>
-                    <option value="credito">Crédito (CXC)</option>
-                </select>
-            </div>
-            <div class="col-12 col-md-2">
-                <label class="form-label-executive mb-1"><i class="fas fa-filter text-secondary me-1"></i> Estado</label>
-                <select id="filtroEstado" class="form-select form-select-executive" onchange="recargarTablaFacturas()">
-                    <option value="">Todos los Estados</option>
-                    <option value="completada">Completada</option>
-                    <option value="devuelta_parcial">Devuelta Parcial</option>
-                    <option value="devuelta_total">Devuelta Total</option>
-                    <option value="anulada">Anulada</option>
-                </select>
-            </div>
+            <x-input type="date" id="filtroFechaInicio" name="filtroFechaInicio" label="Desde Fecha" icon="fas fa-calendar-alt text-primary" col="col-12 col-md-3" class="font-monospace" onchange="recargarTablaFacturas()" />
+            <x-input type="date" id="filtroFechaFin" name="filtroFechaFin" label="Hasta Fecha" icon="fas fa-calendar-alt text-primary" col="col-12 col-md-3" class="font-monospace" onchange="recargarTablaFacturas()" />
+            <x-select id="filtroCondicion" name="filtroCondicion" label="Condición" icon="fas fa-money-check text-secondary" col="col-12 col-md-2" onchange="recargarTablaFacturas()">
+                <option value="">Todas</option>
+                <option value="contado">Contado</option>
+                <option value="credito">Crédito (CXC)</option>
+            </x-select>
+            <x-select id="filtroEstado" name="filtroEstado" label="Estado" icon="fas fa-filter text-secondary" col="col-12 col-md-2" onchange="recargarTablaFacturas()">
+                <option value="">Todos los Estados</option>
+                <option value="completada">Completada</option>
+                <option value="devuelta_parcial">Devuelta Parcial</option>
+                <option value="devuelta_total">Devuelta Total</option>
+                <option value="anulada">Anulada</option>
+            </x-select>
             <div class="col-12 col-md-2 text-end">
-                <button type="button" class="btn btn-outline-secondary rounded-pill w-100 fw-bold" onclick="limpiarFiltrosFacturas()">
-                    <i class="fas fa-broom me-1"></i> Limpiar Filtros
-                </button>
+                <x-button variant="outline-secondary" class="w-100" icon="fas fa-broom" text="Limpiar Filtros" onclick="limpiarFiltrosFacturas()" />
             </div>
         </div>
     </div>
@@ -142,42 +125,29 @@
 </div>
 
 <!-- 4. MODAL DETALLE 360° DE LA FACTURA -->
-<div class="modal fade" id="modalDetalleFactura" tabindex="-1" aria-labelledby="modalDetalleFacturaLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <div class="modal-header bg-dark text-white border-0 py-3 px-4">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="avatar-executive-sm rounded-3 bg-white bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; font-size: 1.3rem;">
-                        <i class="fas fa-receipt"></i>
-                    </div>
-                    <div>
-                        <h5 class="modal-title fw-bold mb-0 text-white" id="modalDetalleFacturaLabel">Detalle Completo de Factura</h5>
-                        <small class="text-white-50 font-monospace" id="modalFacturaCodigoHeader">Comprobante #--</small>
-                    </div>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-
-            <div class="modal-body p-4 bg-light-subtle" id="contenidoDetalleFactura">
-                <!-- Cargado dinámicamente por JS -->
-            </div>
-
-            <div class="modal-footer bg-light border-0 py-3 px-4 d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-1"></i> Cerrar
-                </button>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-primary rounded-pill px-3.5 py-2 fw-bold shadow-sm" id="btnImprimirCartaModalDetalle">
-                        <i class="fas fa-file-invoice me-1"></i> Factura Carta (Hoja Blanca)
-                    </button>
-                    <button type="button" class="btn btn-success rounded-pill px-3.5 py-2 fw-bold shadow-sm" id="btnReimprimirModalDetalle">
-                        <i class="fas fa-receipt me-1"></i> Ticket Térmico
-                    </button>
-                </div>
-            </div>
-        </div>
+<x-modal
+    id="modalDetalleFactura"
+    title="Detalle Completo de Factura"
+    subtitle="Comprobante #--"
+    icon="fas fa-receipt text-success fs-5"
+    size="modal-xl"
+    headerColor="bg-dark text-white"
+    :submitButton="false"
+>
+    <div id="contenidoDetalleFactura">
+        <!-- Cargado dinámicamente por JS -->
     </div>
-</div>
+
+    <x-slot:footer>
+        <button type="button" class="btn btn-executive-cancel" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i> Cerrar
+        </button>
+        <div class="d-flex gap-2">
+            <x-button variant="primary" id="btnImprimirCartaModalDetalle" icon="fas fa-file-invoice" text="Factura Carta (Hoja Blanca)" />
+            <x-button variant="success" id="btnReimprimirModalDetalle" icon="fas fa-receipt" text="Ticket Térmico" />
+        </div>
+    </x-slot:footer>
+</x-modal>
 @endsection
 
 @section('scripts')

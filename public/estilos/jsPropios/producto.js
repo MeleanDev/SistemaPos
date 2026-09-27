@@ -1,12 +1,11 @@
-const urlBase =
-    window.location.origin + window.location.pathname.replace(/\/$/, "");
-const urlLista = urlBase + "/lista";
-const urlCatalogos = urlBase + "/catalogos";
-const urlDetalles = urlBase + "/";
-const urlEliminar = urlBase + "/";
+const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
+const urlLista = `${urlBase}/lista`;
+const urlCatalogos = `${urlBase}/catalogos`;
+const urlDetalles = `${urlBase}/`;
+const urlEliminar = `${urlBase}/`;
 const urlGuardar = urlBase;
-const urlEditar = urlBase + "/actualizar/";
-const urlGuardarProveedor = window.location.origin + "/proveedores";
+const urlEditar = `${urlBase}/actualizar/`;
+const urlGuardarProveedor = `${window.location.origin}/proveedores`;
 
 let urlAccion = urlGuardar;
 let isEditar = false;
@@ -98,13 +97,9 @@ const calcularPrecioDetalDesdeMargenForm = function () {
     const tasaVenta = obtenerTasaVentaModal();
 
     if (costoUsd > 0) {
-        // Costo con margen
         const costoConMargenUsd = costoUsd * (1 + margen / 100);
-        // Multiplicado por tasa de compra
         const montoCompraBs = costoConMargenUsd * tasaCompra;
-        // Dividido por tasa de venta para obtener precio en USD
         const precioUsd = montoCompraBs / tasaVenta;
-        // Precio en Bs = precio USD * tasa de venta
         const precioBs = precioUsd * tasaVenta;
 
         $("#precio_detal_usd").val(precioUsd.toFixed(2));
@@ -154,13 +149,9 @@ const calcularPrecioMayorDesdeMargenForm = function () {
     const tasaVenta = obtenerTasaVentaModal();
 
     if (costoUsd > 0) {
-        // Costo con margen mayorista
         const costoConMargenUsd = costoUsd * (1 + margen / 100);
-        // Multiplicado por tasa de compra
         const montoCompraBs = costoConMargenUsd * tasaCompra;
-        // Dividido por tasa de venta para obtener precio en USD
         const precioUsd = montoCompraBs / tasaVenta;
-        // Precio en Bs = precio USD * tasa de venta
         const precioBs = precioUsd * tasaVenta;
 
         $("#precio_mayorista_usd").val(precioUsd.toFixed(2));
@@ -360,16 +351,16 @@ $(document).ready(function () {
 
 const cargarCatalogos = async function () {
     try {
-        const res = await $.ajax({
+        const res = await peticionAjax({
             url: urlCatalogos,
             type: "GET",
-            dataType: "json",
         });
 
-        if (res.success && res.data) {
-            catalogosSistema = res.data;
-            if (res.data.tasa_usd) {
-                tasaUsdActual = parseFloat(res.data.tasa_usd) || 1.0;
+        const datos = res && res.data ? res.data : res;
+        if (datos) {
+            catalogosSistema = datos;
+            if (datos.tasa_usd) {
+                tasaUsdActual = parseFloat(datos.tasa_usd) || 1.0;
                 $("#badgeTasaUsd").text(tasaUsdActual.toFixed(4));
                 $("#badgeTasaOficialEmpresa").text(tasaUsdActual.toFixed(4));
             }
@@ -518,16 +509,14 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
     $form.find(".invalid-feedback").remove();
 
     try {
-        const res = await $.ajax({
+        const res = await peticionAjax({
             url: urlGuardarProveedor,
             type: "POST",
             data: $form.serialize(),
-            dataType: "json",
         });
 
-        if (res.success && res.data) {
-            const nuevoProv = res.data;
-
+        const nuevoProv = res && res.data ? res.data : res;
+        if (nuevoProv) {
             if (!Array.isArray(catalogosSistema.proveedores)) {
                 catalogosSistema.proveedores = [];
             }
@@ -590,11 +579,7 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
     }
 });
 
-const crear = function () {
-    isEditar = false;
-    idProductoActual = null;
-    urlAccion = urlGuardar;
-
+const resetearFormularioProducto = function () {
     $("#formularioProducto")[0].reset();
     $("#formularioProducto").find(".is-invalid").removeClass("is-invalid");
     $("#formularioProducto").find(".invalid-feedback").remove();
@@ -606,16 +591,6 @@ const crear = function () {
     if (tabEl) {
         bootstrap.Tab.getOrCreateInstance(tabEl).show();
     }
-
-    $("#modalProductoTitulo").text("Nuevo Producto");
-    $("#modalProductoSubtitulo").text(
-        "Completa la información del producto físico",
-    );
-    $("#modalProductoIcono").attr(
-        "class",
-        "fas fa-boxes-stacked text-warning fs-5",
-    );
-    $("#modalProductoTextoGuardar").text("Guardar");
 
     $("#codigo_interno")
         .val("")
@@ -642,6 +617,24 @@ const crear = function () {
     $("#iva_porcentaje").val("16.00").prop("disabled", false);
     $("#aplica_igtf").prop("checked", true);
     $("#igtf_porcentaje").val("3.00").prop("disabled", false);
+};
+
+const crear = function () {
+    isEditar = false;
+    idProductoActual = null;
+    urlAccion = urlGuardar;
+
+    resetearFormularioProducto();
+
+    $("#modalProductoTitulo").text("Nuevo Producto");
+    $("#modalProductoSubtitulo").text(
+        "Completa la información del producto físico",
+    );
+    $("#modalProductoIcono").attr(
+        "class",
+        "fas fa-boxes-stacked text-warning fs-5",
+    );
+    $("#modalProductoTextoGuardar").text("Guardar");
 
     const modal = bootstrap.Modal.getOrCreateInstance(
         document.getElementById("modalProducto"),
@@ -656,20 +649,10 @@ const editar = async function (id) {
         urlAccion = urlEditar + id;
 
         const res = await consultarRegistro(urlDetalles, id);
-        if (!res || !res.data) return;
-        const prod = res.data;
+        const prod = res && res.data ? res.data : res;
+        if (!prod) return;
 
-        $("#formularioProducto")[0].reset();
-        $("#formularioProducto").find(".is-invalid").removeClass("is-invalid");
-        $("#formularioProducto").find(".invalid-feedback").remove();
-
-        $("#contenedorFilasCodigos").empty();
-        $("#contenedorFilasProveedores").empty();
-
-        const tabEl = document.getElementById("tab-basicos-btn");
-        if (tabEl) {
-            bootstrap.Tab.getOrCreateInstance(tabEl).show();
-        }
+        resetearFormularioProducto();
 
         $("#modalProductoTitulo").text(`Editar: ${prod.nombre}`);
         $("#modalProductoSubtitulo").text(
@@ -745,11 +728,11 @@ const editar = async function (id) {
         $("#stock_minimo").val(prod.stock_minimo || 0);
         $("#stock_maximo").val(prod.stock_maximo || "");
 
-        $("#aplica_iva").prop("checked", prod.aplica_iva);
+        $("#aplica_iva").prop("checked", !!prod.aplica_iva);
         $("#iva_porcentaje")
             .val(prod.iva_porcentaje || "16.00")
             .prop("disabled", !prod.aplica_iva);
-        $("#aplica_igtf").prop("checked", prod.aplica_igtf);
+        $("#aplica_igtf").prop("checked", !!prod.aplica_igtf);
         $("#igtf_porcentaje")
             .val(prod.igtf_porcentaje || "3.00")
             .prop("disabled", !prod.aplica_igtf);
@@ -784,8 +767,8 @@ const editar = async function (id) {
 const verFicha = async function (id) {
     try {
         const res = await consultarRegistro(urlDetalles, id);
-        if (!res || !res.data) return;
-        const prod = res.data;
+        const prod = res && res.data ? res.data : res;
+        if (!prod) return;
 
         let totalStock = 0;
         let tablaAlmacenesHtml = "";
@@ -836,9 +819,9 @@ const verFicha = async function (id) {
             prod.codigos_barra.forEach((cb) => {
                 codigosHtml += `
                     <div class="col-md-6">
-                        <div class="border rounded-3 p-2 d-flex align-items-center justify-content-between bg-light">
-                            <span class="badge-documento font-monospace"><i class="fas fa-barcode"></i> ${cb.codigo_barra}</span>
-                            <small class="text-secondary">${cb.descripcion || "General"}</small>
+                        <div class="p-2 d-flex align-items-center justify-content-between">
+                            <span class="badge rounded-pill bg-primary-subtle text-primary px-2.5 py-1 font-monospace fw-bold"><i class="fas fa-barcode me-1"></i>${cb.codigo_barra}</span>
+                            <small class="text-secondary fw-semibold">${cb.descripcion || "General"}</small>
                         </div>
                     </div>
                 `;
@@ -863,9 +846,9 @@ const verFicha = async function (id) {
                     : "--";
                 proveedoresHtml += `
                     <div class="col-md-6">
-                        <div class="border rounded-3 p-2.5 d-flex align-items-center justify-content-between bg-white shadow-xs">
+                        <div class="p-2 d-flex align-items-center justify-content-between">
                             <div class="d-flex align-items-center gap-2">
-                                <div class="avatar-executive-sm rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; min-width: 36px;">
+                                <div class="avatar-executive-sm rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; min-width: 36px;">
                                     <i class="fas fa-truck text-primary" style="font-size: 0.9rem;"></i>
                                 </div>
                                 <div>
@@ -874,8 +857,8 @@ const verFicha = async function (id) {
                                 </div>
                             </div>
                             <div class="text-end">
-                                <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2 py-1 font-monospace fw-bold" style="font-size: 0.74rem;">${costoUsd}</span>
-                                <small class="text-muted d-block font-monospace" style="font-size: 0.70rem;">${costoBs}</small>
+                                <span class="badge rounded-pill bg-success-subtle text-success px-2.5 py-1 font-monospace fw-bold" style="font-size: 0.74rem;">${costoUsd}</span>
+                                <small class="text-muted d-block font-monospace mt-0.5" style="font-size: 0.70rem;">${costoBs}</small>
                             </div>
                         </div>
                     </div>
@@ -1090,27 +1073,6 @@ const verFicha = async function (id) {
 
 $("#formularioProducto").on("submit", function (e) {
     e.preventDefault();
-
-    const nombre = $("#nombre").val().trim();
-    const categoriaId = $("#categoria_id").val();
-
-    if (!categoriaId) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "Debe seleccionar una categoría",
-            });
-        }
-    }
-
-    if (nombre.length < 2) {
-        if (window.notificacion) {
-            return window.notificacion.fire({
-                icon: "warning",
-                title: "El nombre debe tener al menos 2 caracteres",
-            });
-        }
-    }
 
     enviarFormulario({
         form: this,
