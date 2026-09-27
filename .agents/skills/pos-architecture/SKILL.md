@@ -687,7 +687,7 @@ For every single module in the 18-module list, strictly execute these 4 phases i
 | 8 | **Categorías** | `Sistema/pages/empresa/categoria.blade.php` | `categoria.js` | ✅ **Terminado** |
 | 9 | **Servicios** | `Sistema/pages/empresa/servicio.blade.php` | `servicio.js` | ✅ **Terminado** |
 | 10 | **Productos & Inventario** | `Sistema/pages/empresa/producto.blade.php` | `producto.js` | ✅ **Terminado** |
-| 11 | **Recepción de Mercancía** | `Sistema/pages/empresa/recepcion.blade.php` | `recepcion.js` | ⏳ Pendiente |
+| 11 | **Recepción de Mercancía** | `Sistema/pages/empresa/recepcion.blade.php` | `recepcion.js` | ✅ **Terminado** |
 | 12 | **Kardex** | `Sistema/pages/empresa/kardex.blade.php` | `kardex.js` | ⏳ Pendiente |
 | 13 | **Motos & Seriales** | `Sistema/pages/empresa/moto.blade.php` | `moto.js` | ✅ **Terminado** |
 | 14 | **Recepción de Motos** | `Sistema/pages/empresa/recepcion-moto.blade.php` | `recepcionMoto.js` | ✅ **Terminado** |
@@ -695,6 +695,40 @@ For every single module in the 18-module list, strictly execute these 4 phases i
 | 16 | **Facturación / Historial** | `Sistema/pages/empresa/facturas.blade.php` | `facturas.js` | ⏳ Pendiente |
 | 17 | **Cuentas por Cobrar (CXC)** | `Sistema/pages/empresa/cxc.blade.php` | `cxc.js` | ✅ **Terminado** |
 | 18 | **Cuentas por Pagar (CXP)** | `Sistema/pages/empresa/cxp.blade.php` | `cxp.js` | ⏳ Pendiente |
+| 19 | **Vendedores & Asesores** | `Sistema/pages/empresa/vendedor.blade.php` | `vendedor.js` | ✅ **Terminado** |
+| 20 | **Cajas & Turnos (X/Z)** | `Sistema/pages/empresa/caja.blade.php` | `caja.js` | ✅ **Terminado** |
+| 21 | **Reporte Ventas por Vendedor** | `Sistema/pages/empresa/reporte-vendedores.blade.php` | `reporteVendedores.js` | ✅ **Terminado** |
+
+### 13.4 Purchasing & Draft Auto-Save Standard (Recepción de Mercancía & Recepción de Motos)
+Both purchasing reception modules implement the standardized **Draft & Auto-Save Lifecycle**:
+1. **Local Debounced Auto-Save (500ms)**: Every header field, currency choice, price change, and invoice row addition is debounced into browser `localStorage` (`draft_recepcion_producto` / `draft_recepcion_moto`).
+2. **Server-Side Drafts (`recepciones_borradores` / `recepcion_motos_borradores`)**:
+   - `GET /recepciones/borradores` ➔ lists active company drafts with user, timestamp, units, and document number.
+   - `POST /recepciones/borradores` ➔ persists full form state snapshot in JSON column `datos_json`.
+   - `GET /recepciones/borradores/{id}` ➔ retrieves specific draft.
+   - `DELETE /recepciones/borradores/{id}` ➔ discards saved draft.
+3. **Executive UI Indicators**:
+   - Dynamic counter badge on header button `Borradores Guardados` (`badgeConteoBorradores`).
+   - `#alertaBorradorDetectado` bar on modal open with *"Restaurar Progreso"* or *"Descartar"*.
+   - Manual *"Guardar Borrador"* button in modal footer.
+   - Management modal `<x-modal id="modalBorradoresX">` with card list, download, and delete actions.
+4. **Auto-Cleanup**: When an invoice is processed and finalized to the database, its active draft is deleted both from `localStorage` and server.
+
+### 13.5 Cash Register & Salesperson Management Architecture (Cajas, Turnos, Arqueo, Corte X, Cierre Z, Vendedores y Comisiones)
+1. **Independent Salesperson Catalog (`vendedores`)**:
+   - Separate catalog scoped by `empresa_id` with `tipo_documento`, `documento`, `nombre`, `telefono`, `correo`, and fixed `comision_porcentaje`.
+   - Frozen commission calculation on invoice emission (`ventas.comision_porcentaje`, `ventas.comision_monto_usd`, `ventas.comision_monto_bs`).
+2. **Cash Register & Shift Exclusivity (`cajas` & `caja_turnos`)**:
+   - **Exclusivity 1**: A cashier user can only have **1 active open shift** at a time per company.
+   - **Exclusivity 2**: A physical cash register can only have **1 active open shift** at a time.
+3. **Audit Reports & Thermal Printouts (80mm)**:
+   - **Corte X (`/cajas/turnos/{id}/reporte-x` / `imprimir-x`)**: Real-time live informational audit without closing the shift. Computes opening fund, invoiced sales broken down by payment methods ($ and Bs.), and sales returns (`devoluciones_venta`).
+   - **Cierre Z (`/cajas/turnos/{id}/cerrar` / `imprimir-z`)**: Final shift closure requiring physical counted cash input (`monto_cierre_usd`, `monto_cierre_bs`), real-time difference calculation (Exact / Sobrante / Faltante), and thermal ticket with signature spaces.
+4. **POS Integration**:
+   - Seamless shift enforcement directly on POS top navbar.
+   - Real-time Corte X and Cierre Z triggers from POS.
+   - Salesperson attribution on checkout drawer.
+
 
 
 

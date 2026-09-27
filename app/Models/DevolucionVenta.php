@@ -16,6 +16,7 @@ class DevolucionVenta extends Model
     protected $fillable = [
         'empresa_id',
         'venta_id',
+        'caja_turno_id',
         'user_id',
         'codigo',
         'motivo',
@@ -37,6 +38,11 @@ class DevolucionVenta extends Model
     public function venta(): BelongsTo
     {
         return $this->belongsTo(Venta::class, 'venta_id');
+    }
+
+    public function cajaTurno(): BelongsTo
+    {
+        return $this->belongsTo(CajaTurno::class, 'caja_turno_id');
     }
 
     public function usuario(): BelongsTo

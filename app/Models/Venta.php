@@ -47,6 +47,12 @@ class Venta extends Model
         'vuelto_bs',
         'saldo_pendiente_usd',
         'saldo_pendiente_bs',
+        'caja_id',
+        'caja_turno_id',
+        'vendedor_id',
+        'comision_porcentaje',
+        'comision_monto_usd',
+        'comision_monto_bs',
         'estado',
         'observaciones',
     ];
@@ -59,6 +65,9 @@ class Venta extends Model
         'descuento_porcentaje' => 'decimal:2',
         'descuento_usd' => 'decimal:2',
         'descuento_bs' => 'decimal:2',
+        'comision_porcentaje' => 'decimal:2',
+        'comision_monto_usd' => 'decimal:2',
+        'comision_monto_bs' => 'decimal:2',
         'subtotal_neto_usd' => 'decimal:2',
         'subtotal_neto_bs' => 'decimal:2',
         'iva_monto_usd' => 'decimal:2',
@@ -94,6 +103,21 @@ class Venta extends Model
     public function usuario(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function caja(): BelongsTo
+    {
+        return $this->belongsTo(Caja::class, 'caja_id');
+    }
+
+    public function cajaTurno(): BelongsTo
+    {
+        return $this->belongsTo(CajaTurno::class, 'caja_turno_id');
+    }
+
+    public function vendedor(): BelongsTo
+    {
+        return $this->belongsTo(Vendedor::class, 'vendedor_id');
     }
 
     public function detalles(): HasMany

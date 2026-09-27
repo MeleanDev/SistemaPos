@@ -3,6 +3,7 @@
 use App\Http\Controllers\Administradores\EmpresaController;
 use App\Http\Controllers\Administradores\UsuarioController;
 use App\Http\Controllers\Empresa\AlmacenController;
+use App\Http\Controllers\Empresa\CajaController;
 use App\Http\Controllers\Empresa\CategoriaController;
 use App\Http\Controllers\Empresa\ClienteController;
 use App\Http\Controllers\Empresa\ConfiguracionController;
@@ -18,7 +19,9 @@ use App\Http\Controllers\Empresa\ProductoController;
 use App\Http\Controllers\Empresa\ProveedorController;
 use App\Http\Controllers\Empresa\RecepcionController;
 use App\Http\Controllers\Empresa\RecepcionMotoController;
+use App\Http\Controllers\Empresa\ReporteVendedorController;
 use App\Http\Controllers\Empresa\ServicioController;
+use App\Http\Controllers\Empresa\VendedorController;
 use App\Http\Controllers\PanelPrincipalController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -223,6 +226,41 @@ Route::middleware('auth')->group(function () {
         Route::post('/metodos-pago', 'guardar');
         Route::put('/metodos-pago/actualizar/{id}', 'actualizar');
         Route::delete('/metodos-pago/{id}', 'eliminar');
+    });
+
+    Route::middleware('permission:vendedores.ver')->controller(VendedorController::class)->group(function () {
+        Route::get('/vendedores', 'index')->name('vendedor');
+        Route::get('/vendedores/lista', 'lista');
+        Route::get('/vendedores/activos', 'activos');
+        Route::get('/vendedores/{id}', 'detalle');
+        Route::post('/vendedores', 'guardar');
+        Route::put('/vendedores/actualizar/{id}', 'actualizar');
+        Route::delete('/vendedores/{id}', 'eliminar');
+    });
+
+    Route::middleware('permission:cajas.ver')->controller(CajaController::class)->group(function () {
+        Route::get('/cajas', 'index')->name('caja');
+        Route::get('/cajas/lista', 'lista');
+        Route::get('/cajas/turnos/lista', 'listaTurnos');
+        Route::get('/cajas/disponibles', 'cajasDisponibles');
+        Route::get('/cajas/cajeros-disponibles', 'cajerosDisponibles');
+        Route::get('/cajas/turno-activo', 'turnoActivo');
+        Route::get('/cajas/turnos/{id}/reporte-x', 'reporteX');
+        Route::get('/cajas/turnos/{id}/imprimir-x', 'imprimirReporteX')->name('cajas.imprimir_x');
+        Route::get('/cajas/turnos/{id}/imprimir-z', 'imprimirReporteZ')->name('cajas.imprimir_z');
+        Route::get('/cajas/{id}', 'detalle');
+        Route::post('/cajas', 'guardar');
+        Route::put('/cajas/actualizar/{id}', 'actualizar');
+        Route::delete('/cajas/{id}', 'eliminar');
+        Route::post('/cajas/turnos/aperturar', 'aperturarTurno');
+        Route::post('/cajas/turnos/{id}/cerrar', 'cerrarTurno');
+    });
+
+    Route::middleware('permission:reportes.vendedores')->controller(ReporteVendedorController::class)->group(function () {
+        Route::get('/reportes/vendedores', 'index')->name('reportes.vendedores');
+        Route::get('/reportes/vendedores/kpis', 'kpis');
+        Route::get('/reportes/vendedores/lista', 'lista');
+        Route::get('/reportes/vendedores/resumen', 'resumenVendedores');
     });
 
     Route::controller(ProfileController::class)->group(function () {

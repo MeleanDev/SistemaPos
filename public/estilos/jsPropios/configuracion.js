@@ -76,6 +76,8 @@ const cargarConfiguracion = async function () {
                 $("#telefono").val(emp.telefono || "");
                 $("#correo").val(emp.correo || "");
                 $("#direccion").val(emp.direccion || "");
+                $("#maneja_motos").prop("checked", Boolean(emp.maneja_motos));
+                $("#maneja_vendedores").prop("checked", Boolean(emp.maneja_vendedores));
 
                 if (emp.logo) {
                     $("#previewLogo").attr("src", `/storage/${emp.logo}?v=${Date.now()}`).removeClass("d-none");

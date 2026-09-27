@@ -79,6 +79,41 @@ test('pos carga datos iniciales correctamente', function () {
         'estado' => true,
     ]);
 
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'CAT-01',
+        'nombre' => 'General',
+        'estado' => true,
+    ]);
+
+    Producto::create([
+        'empresa_id' => $empresa->id,
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'PRD-IVA',
+        'nombre' => 'Producto Con IVA',
+        'unidad_medida' => 'UND',
+        'precio_costo_usd' => 50.00,
+        'precio_detal_usd' => 100.00, // Base 100.00 -> Con IVA 16% = 116.00
+        'precio_mayorista_usd' => 90.00, // Base 90.00 -> Con IVA 16% = 104.40
+        'aplica_iva' => true,
+        'iva_porcentaje' => 16.00,
+        'estado' => true,
+    ]);
+
+    Producto::create([
+        'empresa_id' => $empresa->id,
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'PRD-EXE',
+        'nombre' => 'Producto Exento',
+        'unidad_medida' => 'UND',
+        'precio_costo_usd' => 20.00,
+        'precio_detal_usd' => 40.00, // Exento -> 40.00
+        'precio_mayorista_usd' => 35.00,
+        'aplica_iva' => false,
+        'iva_porcentaje' => 0.00,
+        'estado' => true,
+    ]);
+
     $user = User::factory()->create(['name' => 'V-90000001']);
     $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id);
@@ -99,6 +134,18 @@ test('pos carga datos iniciales correctamente', function () {
                 'productos',
             ],
         ]);
+
+    $productosData = collect($response->json('data.productos'));
+    $prodIva = $productosData->firstWhere('codigo_interno', 'PRD-IVA');
+    $prodExe = $productosData->firstWhere('codigo_interno', 'PRD-EXE');
+
+    expect($prodIva)->not->toBeNull()
+        ->and((float) $prodIva['precio_detal_usd'])->toBe(116.00)
+        ->and((float) $prodIva['precio_mayorista_usd'])->toBe(104.40);
+
+    expect($prodExe)->not->toBeNull()
+        ->and((float) $prodExe['precio_detal_usd'])->toBe(40.00)
+        ->and((float) $prodExe['precio_mayorista_usd'])->toBe(35.00);
 });
 
 test('pos procesa venta al contado descontando inventario y registrando kardex y pagos', function () {
@@ -181,8 +228,9 @@ test('pos procesa venta al contado descontando inventario y registrando kardex y
     $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id);
 
-    // Venta de 5 unidades al detal a $2.00 c/u = $10.00 + IVA 16% ($1.60) = $11.60
-    // Pagos: $10.00 Efectivo USD + Bs. 64.00 Pago Móvil (equiv $1.60 a tasa 40)
+    // Venta de 5 unidades al detal a $2.00 c/u (con IVA incluido) = $10.00 Total
+    // Base imponible = $8.62, IVA (16%) = $1.38
+    // Pagos: $8.00 Efectivo USD + Bs. 80.00 Pago Móvil (equiv $2.00 a tasa 40) = $10.00
     $payload = [
         'cliente_id' => $cliente->id,
         'almacen_id' => $almacen->id,
@@ -204,14 +252,14 @@ test('pos procesa venta al contado descontando inventario y registrando kardex y
                 'metodo_pago_id' => $metodoUsd->id,
                 'moneda' => 'USD',
                 'tasa_cambio' => 40.0000,
-                'monto' => 10.00,
+                'monto' => 8.00,
                 'referencia' => 'Billete 10',
             ],
             [
                 'metodo_pago_id' => $metodoBs->id,
                 'moneda' => 'VES',
                 'tasa_cambio' => 40.0000,
-                'monto' => 64.00,
+                'monto' => 80.00,
                 'referencia' => 'PM-1234',
             ],
         ],
@@ -226,9 +274,11 @@ test('pos procesa venta al contado descontando inventario y registrando kardex y
 
     $venta = Venta::with(['detalles', 'pagos'])->where('empresa_id', $empresa->id)->first();
     expect($venta)->not->toBeNull();
-    expect((float) $venta->total_usd)->toBe(11.60);
-    expect((float) $venta->total_bs)->toBe(464.00);
-    expect((float) $venta->monto_pagado_usd)->toBe(11.60);
+    expect((float) $venta->total_usd)->toBe(10.00);
+    expect((float) $venta->total_bs)->toBe(400.00);
+    expect((float) $venta->subtotal_neto_usd)->toBe(8.62);
+    expect((float) $venta->iva_monto_usd)->toBe(1.38);
+    expect((float) $venta->monto_pagado_usd)->toBe(10.00);
     expect((float) $venta->saldo_pendiente_usd)->toBe(0.00);
     expect($venta->condicion_pago)->toBe('contado');
 
@@ -588,7 +638,7 @@ test('pos procesa venta de moto con seriales cambiando estado a vendida y permit
                 'metodo_pago_id' => $metodo->id,
                 'moneda' => 'USD',
                 'tasa_cambio' => 1.0000,
-                'monto' => 1276.00, // 1100 + 16% IVA = 1276
+                'monto' => 1100.00, // 1100.00 Total con IVA incluido
                 'referencia' => 'TRF-MOTO-001',
             ],
         ],
@@ -710,7 +760,7 @@ test('pos procesa venta de servicios correctamente', function () {
                 'metodo_pago_id' => $metodo->id,
                 'moneda' => 'USD',
                 'tasa_cambio' => 1.0000,
-                'monto' => 58.00, // (25 * 2) + 16% IVA = 58.00
+                'monto' => 50.00, // (25 * 2) = 50.00 Total con IVA incluido
                 'referencia' => 'EF-SRV-001',
             ],
         ],
@@ -729,7 +779,7 @@ test('pos procesa venta de servicios correctamente', function () {
     expect($det->servicio_id)->toBe($servicio->id);
     expect($det->nombre_item)->toBe('Cambio de Aceite y Filtro');
     expect((float) $det->cantidad)->toBe(2.000);
-    expect((float) $venta->iva_monto_usd)->toBe(8.00); // 16% de 50 = 8.00
+    expect((float) $venta->iva_monto_usd)->toBe(6.90); // 50 - (50 / 1.16) = 6.90
 });
 
 test('pos procesa servicio exento de iva con 0 impuestos', function () {

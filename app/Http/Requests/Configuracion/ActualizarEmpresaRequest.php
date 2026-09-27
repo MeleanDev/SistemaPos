@@ -58,6 +58,8 @@ class ActualizarEmpresaRequest extends BaseRequest
                 'mimes:jpeg,png,jpg,webp,svg',
                 'max:2048',
             ],
+            'maneja_motos' => ['nullable', 'boolean'],
+            'maneja_vendedores' => ['nullable', 'boolean'],
         ];
     }
 

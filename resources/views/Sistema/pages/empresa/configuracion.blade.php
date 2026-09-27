@@ -83,6 +83,33 @@
                             placeholder="Ej. Av. Principal, Edificio Central, Piso 1, Local 2" required maxlength="255" />
                     </div>
 
+                    <!-- MÓDULOS ESPECIALES / FEATURE FLAGS -->
+                    <div class="col-12">
+                        <div class="card border rounded-4 p-3 bg-light-subtle shadow-xs">
+                            <h6 class="fw-bold text-dark mb-3"><i class="fas fa-toggle-on text-primary me-1"></i> Módulos y Funcionalidades Opcionales</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch ps-0 d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <label class="form-check-label fw-semibold text-dark d-block" for="maneja_motos">Módulo de Motos / Vehículos</label>
+                                            <small class="text-muted" style="font-size: 0.75rem;">NIV, Chasis, Motor y Certificados</small>
+                                        </div>
+                                        <input class="form-check-input ms-2 fs-5" type="checkbox" role="switch" id="maneja_motos" name="maneja_motos" value="1">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch ps-0 d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <label class="form-check-label fw-semibold text-dark d-block" for="maneja_vendedores">Módulo de Vendedores y Preventas</label>
+                                            <small class="text-muted" style="font-size: 0.75rem;">Comisiones y órdenes de preventa en espera</small>
+                                        </div>
+                                        <input class="form-check-input ms-2 fs-5" type="checkbox" role="switch" id="maneja_vendedores" name="maneja_vendedores" value="1">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- BOTÓN GUARDAR EMPRESA -->
                     <div class="col-12 text-end mt-4">
                         <button type="submit" id="btnGuardarEmpresa" class="btn btn-primary rounded-pill px-4 py-2 fw-semibold shadow-sm">

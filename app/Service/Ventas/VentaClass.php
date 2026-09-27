@@ -3,15 +3,20 @@
 namespace App\Service\Ventas;
 
 use App\Models\Almacen;
+use App\Models\Caja;
+use App\Models\CajaTurno;
 use App\Models\Cliente;
 use App\Models\CuentaPorCobrar;
 use App\Models\DevolucionVenta;
 use App\Models\DevolucionVentaDetalle;
+use App\Models\Empresa;
 use App\Models\EmpresaMoneda;
 use App\Models\MetodoPago;
 use App\Models\Moto;
 use App\Models\Producto;
 use App\Models\Servicio;
+use App\Models\User;
+use App\Models\Vendedor;
 use App\Models\Venta;
 use App\Models\VentaDetalle;
 use App\Models\VentaEnEspera;
@@ -76,8 +81,14 @@ class VentaClass
             ->get()
             ->map(function ($p) use ($tasaUsd) {
                 $costoUsd = (float) $p->precio_costo_usd;
-                $detalUsd = (float) $p->precio_detal_usd;
-                $mayorUsd = (float) $p->precio_mayorista_usd;
+                $detalBaseUsd = (float) $p->precio_detal_usd;
+                $mayorBaseUsd = (float) $p->precio_mayorista_usd;
+                $aplicaIva = (bool) $p->aplica_iva;
+                $ivaPorcentaje = (float) ($p->iva_porcentaje ?? 16.00);
+                $factorIva = ($aplicaIva && $ivaPorcentaje > 0) ? (1 + ($ivaPorcentaje / 100)) : 1.00;
+
+                $detalFinalUsd = round($detalBaseUsd * $factorIva, 2);
+                $mayorFinalUsd = round($mayorBaseUsd * $factorIva, 2);
 
                 return [
                     'id' => $p->id,
@@ -88,12 +99,12 @@ class VentaClass
                     'categoria_nombre' => $p->categoria?->nombre ?? 'General',
                     'precio_costo_usd' => $costoUsd,
                     'precio_costo_bs' => round($costoUsd * $tasaUsd, 2),
-                    'precio_detal_usd' => $detalUsd,
-                    'precio_detal_bs' => round($detalUsd * $tasaUsd, 2),
-                    'precio_mayorista_usd' => $mayorUsd,
-                    'precio_mayorista_bs' => round($mayorUsd * $tasaUsd, 2),
-                    'aplica_iva' => (bool) $p->aplica_iva,
-                    'iva_porcentaje' => (float) ($p->iva_porcentaje ?? 16.00),
+                    'precio_detal_usd' => $detalFinalUsd,
+                    'precio_detal_bs' => round($detalFinalUsd * $tasaUsd, 2),
+                    'precio_mayorista_usd' => $mayorFinalUsd,
+                    'precio_mayorista_bs' => round($mayorFinalUsd * $tasaUsd, 2),
+                    'aplica_iva' => $aplicaIva,
+                    'iva_porcentaje' => $ivaPorcentaje,
                     'aplica_igtf' => (bool) $p->aplica_igtf,
                     'igtf_porcentaje' => (float) ($p->igtf_porcentaje ?? 3.00),
                     'codigos_barra' => $p->codigosBarra->pluck('codigo_barra')->toArray(),
@@ -112,7 +123,12 @@ class VentaClass
             ->where('estado', true)
             ->get()
             ->map(function ($s) use ($tasaUsd) {
-                $precioUsd = (float) $s->precio_venta_usd;
+                $precioBaseUsd = (float) $s->precio_venta_usd;
+                $aplicaIva = (bool) $s->aplica_iva;
+                $ivaPorcentaje = (float) ($s->iva_porcentaje ?? 16.00);
+                $factorIva = ($aplicaIva && $ivaPorcentaje > 0) ? (1 + ($ivaPorcentaje / 100)) : 1.00;
+
+                $precioFinalUsd = round($precioBaseUsd * $factorIva, 2);
 
                 return [
                     'id' => $s->id,
@@ -123,12 +139,12 @@ class VentaClass
                     'categoria_nombre' => $s->categoria?->nombre ?? 'Servicio',
                     'precio_costo_usd' => (float) $s->precio_costo_usd,
                     'precio_costo_bs' => (float) $s->precio_costo_bs,
-                    'precio_detal_usd' => $precioUsd,
-                    'precio_detal_bs' => round($precioUsd * $tasaUsd, 2),
-                    'precio_mayorista_usd' => $precioUsd,
-                    'precio_mayorista_bs' => round($precioUsd * $tasaUsd, 2),
-                    'aplica_iva' => (bool) $s->aplica_iva,
-                    'iva_porcentaje' => (float) ($s->iva_porcentaje ?? 16.00),
+                    'precio_detal_usd' => $precioFinalUsd,
+                    'precio_detal_bs' => round($precioFinalUsd * $tasaUsd, 2),
+                    'precio_mayorista_usd' => $precioFinalUsd,
+                    'precio_mayorista_bs' => round($precioFinalUsd * $tasaUsd, 2),
+                    'aplica_iva' => $aplicaIva,
+                    'iva_porcentaje' => $ivaPorcentaje,
                     'aplica_igtf' => (bool) $s->aplica_igtf,
                     'igtf_porcentaje' => (float) ($s->igtf_porcentaje ?? 3.00),
                     'codigos_barra' => array_values(array_filter([(string) $s->codigo, (string) $s->id])),
@@ -143,8 +159,13 @@ class VentaClass
             ->get()
             ->map(function ($m) use ($tasaUsd) {
                 $costoUsd = (float) $m->precio_costo_usd;
-                $detalUsd = (float) $m->precio_detal_usd;
-                $mayorUsd = (float) $m->precio_mayorista_usd;
+                $detalBaseUsd = (float) $m->precio_detal_usd;
+                $mayorBaseUsd = (float) $m->precio_mayorista_usd;
+                $factorIva = 1.16;
+
+                $detalConIvaUsd = (float) ($m->precio_detal_con_iva_usd > 0 ? $m->precio_detal_con_iva_usd : round($detalBaseUsd * $factorIva, 2));
+                $mayorConIvaUsd = (float) ($m->precio_mayorista_con_iva_usd > 0 ? $m->precio_mayorista_con_iva_usd : round($mayorBaseUsd * $factorIva, 2));
+
                 $referencia = trim($m->referencia ?? '');
                 $codigos = array_values(array_filter([
                     $referencia,
@@ -175,10 +196,10 @@ class VentaClass
                     'categoria_nombre' => 'Motos & Vehículos',
                     'precio_costo_usd' => $costoUsd,
                     'precio_costo_bs' => round($costoUsd * $tasaUsd, 2),
-                    'precio_detal_usd' => $detalUsd,
-                    'precio_detal_bs' => round($detalUsd * $tasaUsd, 2),
-                    'precio_mayorista_usd' => $mayorUsd,
-                    'precio_mayorista_bs' => round($mayorUsd * $tasaUsd, 2),
+                    'precio_detal_usd' => $detalConIvaUsd,
+                    'precio_detal_bs' => round($detalConIvaUsd * $tasaUsd, 2),
+                    'precio_mayorista_usd' => $mayorConIvaUsd,
+                    'precio_mayorista_bs' => round($mayorConIvaUsd * $tasaUsd, 2),
                     'aplica_iva' => true,
                     'iva_porcentaje' => 16.00,
                     'aplica_igtf' => true,
@@ -195,10 +216,61 @@ class VentaClass
                 ];
             });
 
+        // 6. Vendedores activos
+        $vendedores = Vendedor::where('empresa_id', $empresaId)
+            ->where('estado', true)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'tipo_documento', 'documento', 'comision_porcentaje', 'user_id']);
+
+        // 7. Roles y Control de Acceso de Usuario
+        $user = Auth::user();
+        $empresa = Empresa::findOrFail($empresaId);
+        $manejaVendedores = (bool) ($empresa->maneja_vendedores ?? false);
+
+        $esAdmin = $user ? ($user->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) || $user->can('cajas.administrar_todas')) : false;
+        $vendedorAsociado = $user ? $user->vendedor()->where('empresa_id', $empresaId)->where('estado', true)->first() : null;
+        $esVendedor = (! $esAdmin) && ($user ? ($user->hasRole('Vendedor') || $user->can('pos.preventa') || ($vendedorAsociado !== null && ! $user->can('ventas.crear'))) : false);
+        $esCajero = (! $esAdmin) && (! $esVendedor);
+
+        // Turnos Activos de la Empresa y Cajas Disponibles
+        $turnosActivos = CajaTurno::with(['caja', 'usuario', 'aperturadoPor'])
+            ->where('empresa_id', $empresaId)
+            ->where('estado', 'abierta')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $cajaTurnoAsignada = $user ? $user->cajaTurnoActivo($empresaId)?->load(['caja', 'aperturadoPor']) : null;
+        $turnoActivo = $cajaTurnoAsignada ?? ($esAdmin ? $turnosActivos->first() : null);
+
+        $puedeOperar = false;
+        if ($esAdmin) {
+            $puedeOperar = true;
+        } elseif ($esVendedor) {
+            $puedeOperar = true;
+        } elseif ($esCajero) {
+            $puedeOperar = ($cajaTurnoAsignada !== null);
+        }
+
+        $cajasDisponibles = Caja::where('empresa_id', $empresaId)
+            ->where('estado', true)
+            ->whereDoesntHave('turnos', fn ($q) => $q->where('estado', 'abierta'))
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'codigo']);
+
         return [
             'cliente_defecto' => $clienteDefecto,
             'almacenes' => $almacenes,
             'metodos_pago' => $metodosPago,
+            'vendedores' => $vendedores,
+            'maneja_vendedores' => $manejaVendedores,
+            'es_admin' => $esAdmin,
+            'es_vendedor' => $esVendedor,
+            'es_cajero' => $esCajero,
+            'vendedor_asociado' => $vendedorAsociado,
+            'puede_operar' => $puedeOperar,
+            'turno_activo' => $turnoActivo,
+            'turnos_activos' => $turnosActivos,
+            'cajas_disponibles' => $cajasDisponibles,
             'tasa_usd' => $tasaUsd,
             'proximo_codigo' => $this->generarCodigo($empresaId),
             'productos' => $productos->concat($servicios)->concat($motos)->values(),
@@ -434,14 +506,19 @@ class VentaClass
                     $totalDescuentosUsd += $descuentoItemUsd;
                 }
 
-                $renglonNetoUsd = round($renglonBrutoUsd - $descuentoItemUsd, 2);
-                $subtotalNetoUsd += $renglonNetoUsd;
+                $renglonTotalNetoUsd = round($renglonBrutoUsd - $descuentoItemUsd, 2);
 
-                $ivaItemUsd = 0;
                 if ($aplicaIva && $ivaPorcentaje > 0) {
-                    $ivaItemUsd = round($renglonNetoUsd * ($ivaPorcentaje / 100), 2);
-                    $ivaTotalUsd += $ivaItemUsd;
+                    $factorIva = 1 + ($ivaPorcentaje / 100);
+                    $baseImponibleRenglonUsd = round($renglonTotalNetoUsd / $factorIva, 2);
+                    $ivaItemUsd = round($renglonTotalNetoUsd - $baseImponibleRenglonUsd, 2);
+                } else {
+                    $baseImponibleRenglonUsd = $renglonTotalNetoUsd;
+                    $ivaItemUsd = 0;
                 }
+
+                $subtotalNetoUsd += $baseImponibleRenglonUsd;
+                $ivaTotalUsd += $ivaItemUsd;
 
                 $detallesParaInsertar[] = [
                     'producto_id' => $producto?->id,
@@ -465,8 +542,8 @@ class VentaClass
                     'iva_porcentaje' => $ivaPorcentaje,
                     'iva_monto_usd' => $ivaItemUsd,
                     'iva_monto_bs' => round($ivaItemUsd * $tasaCambio, 2),
-                    'subtotal_usd' => $renglonNetoUsd,
-                    'subtotal_bs' => round($renglonNetoUsd * $tasaCambio, 2),
+                    'subtotal_usd' => $baseImponibleRenglonUsd,
+                    'subtotal_bs' => round($baseImponibleRenglonUsd * $tasaCambio, 2),
                 ];
             }
 
@@ -535,11 +612,48 @@ class VentaClass
                 throw new Exception('No se puede procesar una venta a crédito para el cliente "Consumidor Final". Por favor registra o selecciona un cliente identificado.');
             }
 
+            // Vendedor y Comisión
+            $vendedorId = ! empty($datos['vendedor_id']) ? (int) $datos['vendedor_id'] : null;
+            $vendedor = $vendedorId ? Vendedor::where('empresa_id', $empresaId)->find($vendedorId) : null;
+            $comisionPorcentaje = $vendedor ? (float) $vendedor->comision_porcentaje : 0;
+            $comisionMontoUsd = round($subtotalNetoUsd * ($comisionPorcentaje / 100), 2);
+            $comisionMontoBs = round($comisionMontoUsd * $tasaCambio, 2);
+
+            // Turno de Caja
+            $cajaTurno = null;
+            $userCobro = User::find($userId);
+            $esAdmin = $userCobro ? ($userCobro->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) || $userCobro->can('cajas.administrar_todas')) : false;
+
+            if ($esAdmin && ! empty($datos['caja_turno_id'])) {
+                $cajaTurno = CajaTurno::where('empresa_id', $empresaId)
+                    ->where('id', $datos['caja_turno_id'])
+                    ->where('estado', 'abierta')
+                    ->first();
+            }
+
+            if (! $cajaTurno) {
+                $cajaTurno = $userCobro?->cajaTurnoActivo($empresaId);
+            }
+
+            if (! $cajaTurno && $esAdmin) {
+                $cajaTurno = CajaTurno::where('empresa_id', $empresaId)->where('estado', 'abierta')->first();
+            }
+
+            if (! $cajaTurno && ! $esAdmin) {
+                throw new Exception('No tienes una caja registradora aperturada asignada para procesar cobros.');
+            }
+
             // 1. Guardar Cabecera Venta
             $venta = Venta::create([
                 'empresa_id' => $empresaId,
                 'cliente_id' => $clienteId,
                 'almacen_id' => $almacenIdGlobal,
+                'caja_id' => $cajaTurno?->caja_id,
+                'caja_turno_id' => $cajaTurno?->id,
+                'vendedor_id' => $vendedor?->id,
+                'comision_porcentaje' => $comisionPorcentaje,
+                'comision_monto_usd' => $comisionMontoUsd,
+                'comision_monto_bs' => $comisionMontoBs,
                 'user_id' => $userId,
                 'codigo' => $codigo,
                 'numero_control' => $datos['numero_control'] ?? $this->generarNumeroControl($empresaId),
@@ -661,19 +775,39 @@ class VentaClass
     }
 
     /**
-     * Guardar venta en espera (pausar carrito)
+     * Guardar venta en espera (pausar carrito / preventa)
      */
     public function guardarEnEspera(array $datos, ?int $empresaId = null, ?int $userId = null): VentaEnEspera
     {
         $empresaId = $this->empresaId($empresaId);
         $userId = $userId ?? Auth::id() ?? 1;
+        $user = User::find($userId);
+        $vendedorAsociado = $user ? $user->vendedor()->where('empresa_id', $empresaId)->where('estado', true)->first() : null;
+
+        if ($vendedorAsociado && empty($datos['vendedor_id'])) {
+            $datos['vendedor_id'] = $vendedorAsociado->id;
+            $datos['vendedor_nombre'] = $vendedorAsociado->nombre;
+            $datos['comision_porcentaje'] = (float) $vendedorAsociado->comision_porcentaje;
+        } elseif (! empty($datos['vendedor_id'])) {
+            $vendedor = Vendedor::where('empresa_id', $empresaId)->find($datos['vendedor_id']);
+            if ($vendedor) {
+                $datos['vendedor_nombre'] = $vendedor->nombre;
+                $datos['comision_porcentaje'] = (float) $vendedor->comision_porcentaje;
+            }
+        }
+
+        $nota = trim($datos['nota_referencia'] ?? '');
+        if (empty($nota)) {
+            $vendedorLabel = ! empty($datos['vendedor_nombre']) ? " - Asesor: {$datos['vendedor_nombre']}" : '';
+            $nota = 'Preventa '.Carbon::now()->format('h:i A').$vendedorLabel;
+        }
 
         return VentaEnEspera::create([
             'empresa_id' => $empresaId,
             'user_id' => $userId,
             'cliente_id' => ! empty($datos['cliente_id']) ? (int) $datos['cliente_id'] : null,
             'tipo_venta' => $datos['tipo_venta'] ?? 'detal',
-            'nota_referencia' => trim($datos['nota_referencia'] ?? 'Cuenta en espera '.Carbon::now()->format('h:i A')),
+            'nota_referencia' => $nota,
             'datos_json' => $datos,
             'total_usd' => (float) ($datos['total_usd'] ?? 0),
             'total_bs' => (float) ($datos['total_bs'] ?? 0),
@@ -687,7 +821,7 @@ class VentaClass
     {
         $empresaId = $this->empresaId($empresaId);
 
-        return VentaEnEspera::with(['cliente'])
+        return VentaEnEspera::with(['cliente', 'usuario'])
             ->where('empresa_id', $empresaId)
             ->orderBy('id', 'desc')
             ->get()
@@ -818,9 +952,12 @@ class VentaClass
             }
 
             // 1. Guardar Cabecera de Devolución
+            $cajaTurno = Auth::user()?->cajaTurnoActivo($empresaId);
+
             $devolucion = DevolucionVenta::create([
                 'empresa_id' => $empresaId,
                 'venta_id' => $venta->id,
+                'caja_turno_id' => $cajaTurno?->id,
                 'user_id' => $userId,
                 'codigo' => $codigoDevolucion,
                 'motivo' => $motivo,

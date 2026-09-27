@@ -14,6 +14,7 @@ let posTasaDia = 1.0000;
 let posCarrito = [];
 let posPagos = [];
 let posIndiceRenglonSeleccionado = null;
+let posVendedorFijoEspera = null;
 
 $(document).ready(function () {
     cargarDatosInicialesPos();
@@ -60,7 +61,45 @@ async function cargarDatosInicialesPos() {
 
             poblarSelectMetodosPago();
 
-            if (!posClienteActual) {
+            const $selVendedor = $("#cobroSelectVendedor");
+            if ($selVendedor.length) {
+                $selVendedor.empty().append('<option value="">-- Sin vendedor asignado --</option>');
+                if (Array.isArray(res.data.vendedores)) {
+                    res.data.vendedores.forEach((v) => {
+                        $selVendedor.append(`<option value="${v.id}">${v.nombre} (${parseFloat(v.comision_porcentaje).toFixed(2)}%)</option>`);
+                    });
+                }
+            }
+
+            if (res.data.es_vendedor) {
+                $("#btnCobrarPos").addClass("d-none");
+                $("#btnPreventaPos").removeClass("d-none").addClass("d-flex");
+            } else {
+                $("#btnPreventaPos").addClass("d-none").removeClass("d-flex");
+                $("#btnCobrarPos").removeClass("d-none");
+            }
+
+            if (res.data.maneja_vendedores === false) {
+                $("#contenedorVendedorCobro").hide();
+            } else {
+                $("#contenedorVendedorCobro").show();
+            }
+
+            renderizarCajaNavbar();
+
+            if (res.data.es_cajero && !res.data.puede_operar) {
+                const modalApertura = document.getElementById("modalAperturaTurnoPos");
+                if (modalApertura) {
+                    const inst = bootstrap.Modal.getInstance(modalApertura);
+                    if (inst) inst.hide();
+                }
+                const modalBloqueo = document.getElementById("modalBloqueoCajaPos");
+                if (modalBloqueo) {
+                    bootstrap.Modal.getOrCreateInstance(modalBloqueo).show();
+                }
+            } else if (res.data.es_admin && !res.data.turno_activo) {
+                abrirModalAperturaPos();
+            } else if (!posClienteActual) {
                 activarModoConsulta();
                 abrirModalInicioCliente();
             }
@@ -993,6 +1032,9 @@ function eliminarItemCarrito(idx) {
 };
 
 function limpiarPantallaPos() {
+    posVendedorFijoEspera = null;
+    $("#cobroSelectVendedor").prop("disabled", false).val("");
+
     if (posCarrito.length === 0) {
         resetearClienteDefecto();
         abrirModalInicioCliente();
@@ -1153,21 +1195,28 @@ function seleccionarFilaPos(idx) {
 function recalcularTotalesPos() {
     let subtotalNetoUsd = 0;
     let totalIvaUsd = 0;
+    let totalGeneralUsd = 0;
 
     posCarrito.forEach((item) => {
         const subUsd = parseFloat(item.subtotal_usd) || 0;
         const ivaPct = parseFloat(item.iva_porcentaje) || 0;
         const aplicaIva = item.aplica_iva === true || item.aplica_iva === 'true' || item.aplica_iva === 1 || item.aplica_iva === '1';
 
-        subtotalNetoUsd += subUsd;
+        totalGeneralUsd += subUsd;
         if (aplicaIva && ivaPct > 0) {
-            totalIvaUsd += subUsd * (ivaPct / 100);
+            const factor = 1 + (ivaPct / 100);
+            const baseRenglon = roundDecimals(subUsd / factor, 2);
+            const ivaRenglon = roundDecimals(subUsd - baseRenglon, 2);
+            subtotalNetoUsd += baseRenglon;
+            totalIvaUsd += ivaRenglon;
+        } else {
+            subtotalNetoUsd += subUsd;
         }
     });
 
     subtotalNetoUsd = roundDecimals(subtotalNetoUsd, 2);
     totalIvaUsd = roundDecimals(totalIvaUsd, 2);
-    const totalGeneralUsd = roundDecimals(subtotalNetoUsd + totalIvaUsd, 2);
+    totalGeneralUsd = roundDecimals(totalGeneralUsd, 2);
 
     const subtotalNetoBs = roundDecimals(subtotalNetoUsd * posTasaDia, 2);
     const totalIvaBs = roundDecimals(totalIvaUsd * posTasaDia, 2);
@@ -1184,6 +1233,23 @@ function recalcularTotalesPos() {
 };
 
 function abrirModalCobro() {
+    if (posCatalogos.es_vendedor) {
+        guardarPreventaDirecta();
+        return;
+    }
+
+    if (!posCatalogos.turno_activo) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "warning",
+                title: "Estación sin Aperturar",
+                text: "Debes aperturar tu caja de trabajo antes de iniciar el cobro.",
+            });
+        }
+        abrirModalAperturaPos();
+        return;
+    }
+
     if (posCarrito.length === 0) {
         if (window.notificacion) {
             window.notificacion.fire({
@@ -1195,17 +1261,13 @@ function abrirModalCobro() {
         return;
     }
 
-    let subtotalNetoUsd = 0;
-    let totalIvaUsd = 0;
+    if (posVendedorFijoEspera) {
+        $("#cobroSelectVendedor").val(posVendedorFijoEspera).prop("disabled", true);
+    } else {
+        $("#cobroSelectVendedor").prop("disabled", false);
+    }
 
-    posCarrito.forEach((item) => {
-        subtotalNetoUsd += item.subtotal_usd;
-        if (item.aplica_iva && item.iva_porcentaje > 0) {
-            totalIvaUsd += item.subtotal_usd * (item.iva_porcentaje / 100);
-        }
-    });
-
-    const totalGeneralUsd = roundDecimals(subtotalNetoUsd + totalIvaUsd, 2);
+    const totalGeneralUsd = obtenerTotalVentaUsd();
     const totalGeneralBs = roundDecimals(totalGeneralUsd * posTasaDia, 2);
 
     $("#cobroModalTotalUsd").text(`$ ${totalGeneralUsd.toFixed(2)}`);
@@ -1330,15 +1392,11 @@ function renderizarListaPagosCobro() {
 };
 
 function obtenerTotalVentaUsd() {
-    let subtotalNetoUsd = 0;
-    let totalIvaUsd = 0;
+    let totalGeneralUsd = 0;
     posCarrito.forEach((item) => {
-        subtotalNetoUsd += item.subtotal_usd;
-        if (item.aplica_iva && item.iva_porcentaje > 0) {
-            totalIvaUsd += item.subtotal_usd * (item.iva_porcentaje / 100);
-        }
+        totalGeneralUsd += parseFloat(item.subtotal_usd) || 0;
     });
-    return roundDecimals(subtotalNetoUsd + totalIvaUsd, 2);
+    return roundDecimals(totalGeneralUsd, 2);
 };
 
 function obtenerMontoFaltanteUsd() {
@@ -1415,6 +1473,18 @@ async function procesarVentaFinal() {
         return;
     }
 
+    if (!posCatalogos.turno_activo) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "warning",
+                title: "Turno de caja no aperturado",
+                text: "Debes aperturar un turno de caja antes de procesar ventas.",
+            });
+        }
+        abrirModalAperturaPos();
+        return;
+    }
+
     const $btn = $("#btnConfirmarVentaFinal");
     const textoOriginal = $btn.html();
     $btn.prop("disabled", true).html('<i class="fas fa-spinner fa-spin me-1"></i> Facturando...');
@@ -1422,6 +1492,8 @@ async function procesarVentaFinal() {
     const payload = {
         cliente_id: posClienteActual.id,
         almacen_id: posAlmacenActualId,
+        caja_turno_id: posCatalogos.turno_activo ? posCatalogos.turno_activo.id : null,
+        vendedor_id: $("#cobroSelectVendedor").val() || null,
         tipo_venta: posTipoVentaActual,
         tasa_cambio: posTasaDia,
         condicion_pago: cond,
@@ -1490,6 +1562,8 @@ async function procesarVentaFinal() {
                 window.open(`${urlPosImprimirCarta}/${ventaId}`, "_blank");
             }
 
+            posVendedorFijoEspera = null;
+            $("#cobroSelectVendedor").prop("disabled", false).val("");
             posCarrito = [];
             posPagos = [];
             posIndiceRenglonSeleccionado = null;
@@ -1628,6 +1702,7 @@ async function recuperarCuentaEspera(id) {
 
         if (res.success && res.data) {
             const data = res.data;
+            posVendedorFijoEspera = data.vendedor_id || null;
 
             if (data.cliente && typeof data.cliente === "object") {
                 establecerClienteActual(data.cliente);
@@ -2126,7 +2201,9 @@ function configurarAtajosTecladoPos() {
                 break;
 
             case "F4":
-                if (modalCobroAbierto) {
+                if (posCatalogos.es_vendedor) {
+                    guardarPreventaDirecta();
+                } else if (modalCobroAbierto) {
                     procesarVentaFinal();
                 } else {
                     abrirModalCobro();
@@ -2187,3 +2264,533 @@ function roundDecimals(num, decimals = 2) {
     const factor = Math.pow(10, decimals);
     return Math.round((Number(num) + Number.EPSILON) * factor) / factor;
 };
+
+let posEsperadoCierreUsd = 0;
+let posEsperadoCierreBs = 0;
+
+function renderizarCajaNavbar() {
+    const $container = $("#posContainerCajaNavbar");
+    if (!$container.length) return;
+
+    $container.empty();
+
+    if (posCatalogos.es_vendedor) {
+        const asesorNombre = posCatalogos.vendedor_asociado ? posCatalogos.vendedor_asociado.nombre : 'Vendedor';
+        $container.html(`
+            <div class="d-flex align-items-center gap-1.5">
+                <span class="badge rounded-pill bg-purple-subtle text-purple-emphasis border border-purple-subtle px-3 py-1 font-monospace fw-bold" style="font-size: 0.78rem;">
+                    <i class="fas fa-clipboard-list me-1 text-purple"></i> PREVENTA - Asesor: <strong class="text-white">${asesorNombre}</strong>
+                </span>
+            </div>
+        `);
+        return;
+    }
+
+    if (posCatalogos.es_cajero) {
+        if (posCatalogos.turno_activo && posCatalogos.turno_activo.caja) {
+            const cajaNombre = posCatalogos.turno_activo.caja.nombre;
+            const turnoId = String(posCatalogos.turno_activo.id).padStart(5, '0');
+            $container.html(`
+                <div class="d-flex align-items-center gap-1.5">
+                    <span class="badge rounded-pill bg-dark text-white border border-secondary px-3 py-1 font-monospace fw-bold" style="font-size: 0.78rem;">
+                        <i class="fas fa-cash-register text-success me-1"></i> Caja: <strong class="text-warning">${cajaNombre}</strong> <span class="opacity-75">(#${turnoId})</span>
+                    </span>
+                </div>
+            `);
+        } else {
+            $container.html(`
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 py-1 font-monospace">
+                    <i class="fas fa-lock me-1"></i> Sin Caja Asignada
+                </span>
+            `);
+        }
+        return;
+    }
+
+    const turnos = Array.isArray(posCatalogos.turnos_activos) ? posCatalogos.turnos_activos : [];
+
+    if (posCatalogos.turno_activo && posCatalogos.turno_activo.caja) {
+        const cajaNombre = posCatalogos.turno_activo.caja.nombre;
+        const turnoId = String(posCatalogos.turno_activo.id).padStart(5, '0');
+
+        let opcionesDropdown = '';
+        if (turnos.length > 0) {
+            turnos.forEach(t => {
+                const cNom = t.caja ? t.caja.nombre : 'Caja';
+                const tId = String(t.id).padStart(5, '0');
+                const esActivo = t.id === posCatalogos.turno_activo.id;
+                const iconoCheck = esActivo ? '<i class="fas fa-check text-success me-2"></i>' : '<i class="fas fa-circle text-muted me-2" style="font-size: 0.5rem;"></i>';
+                opcionesDropdown += `
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center ${esActivo ? 'fw-bold active bg-light text-dark' : ''}" href="#" onclick="seleccionarTurnoPos(${t.id}); return false;">
+                            ${iconoCheck}
+                            <span>${cNom} (#${tId})</span>
+                        </a>
+                    </li>
+                `;
+            });
+        }
+
+        $container.html(`
+            <div class="dropdown">
+                <button class="btn btn-sm btn-dark rounded-pill border border-secondary px-3 py-1 font-monospace fw-bold dropdown-toggle d-flex align-items-center gap-1.5 shadow-sm text-white" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.78rem;">
+                    <i class="fas fa-cash-register text-success"></i>
+                    <span>Caja: <strong class="text-warning">${cajaNombre}</strong> <span class="opacity-75">(#${turnoId})</span></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-dark shadow rounded-4 py-2 font-monospace" style="font-size: 0.80rem; min-width: 220px;">
+                    <li class="dropdown-header text-uppercase small text-white-50">Cajas con Turno Abierto</li>
+                    ${opcionesDropdown}
+                    <li><hr class="dropdown-divider border-secondary opacity-25"></li>
+                    <li>
+                        <a class="dropdown-item text-warning" href="#" onclick="verCorteXPos(); return false;">
+                            <i class="fas fa-file-invoice-dollar me-2"></i> Ver Corte X en Vivo
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item text-danger" href="#" onclick="abrirModalCierrePos(); return false;">
+                            <i class="fas fa-lock me-2"></i> Cerrar Turno (Z)
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider border-secondary opacity-25"></li>
+                    <li>
+                        <a class="dropdown-item text-success" href="#" onclick="abrirModalAperturaPos(); return false;">
+                            <i class="fas fa-plus-circle me-2"></i> Aperturar otra caja
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        `);
+    } else {
+        $container.html(`
+            <button type="button" class="btn btn-sm btn-warning rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" onclick="abrirModalAperturaPos()" style="font-size: 0.76rem;">
+                <i class="fas fa-key me-1"></i> Aperturar Caja
+            </button>
+        `);
+    }
+};
+
+async function guardarPreventaDirecta() {
+    if (posCarrito.length === 0) {
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: "warning", title: "Carrito Vacío", text: "Agrega productos antes de guardar la preventa." });
+        }
+        return;
+    }
+
+    if (!posClienteActual && posCatalogos.cliente_defecto) {
+        posClienteActual = posCatalogos.cliente_defecto;
+    }
+
+    const asesorNombre = posCatalogos.vendedor_asociado ? posCatalogos.vendedor_asociado.nombre : "Vendedor";
+    const clienteNombre = posClienteActual ? `${posClienteActual.nombre || ''} ${posClienteActual.apellido || ''}`.trim() : "Consumidor Final";
+    const nota = `Preventa: ${asesorNombre} - ${clienteNombre}`;
+    const totalUsd = obtenerTotalVentaUsd();
+    const totalBs = roundDecimals(totalUsd * posTasaDia, 2);
+
+    const payload = {
+        cliente_id: posClienteActual ? posClienteActual.id : null,
+        cliente: posClienteActual,
+        tipo_venta: posTipoVentaActual,
+        nota_referencia: nota,
+        vendedor_id: posCatalogos.vendedor_asociado ? posCatalogos.vendedor_asociado.id : null,
+        carrito: posCarrito,
+        items: posCarrito,
+        total_usd: totalUsd,
+        total_bs: totalBs,
+    };
+
+    const $btn = $("#btnPreventaPos");
+    const orig = $btn.html();
+    $btn.prop("disabled", true).html('<i class="fas fa-spinner fa-spin me-1"></i> Guardando...');
+
+    try {
+        const res = await $.ajax({
+            url: urlPosEnEsperaGuardar,
+            type: "POST",
+            data: JSON.stringify(payload),
+            contentType: "application/json",
+            dataType: "json",
+            headers: {
+                "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+            },
+        });
+
+        if (res.success) {
+            posCarrito = [];
+            posPagos = [];
+            posIndiceRenglonSeleccionado = null;
+            resetearClienteDefecto();
+            renderizarCarritoPos();
+            recalcularTotalesPos();
+            if (window.notificacion) {
+                window.notificacion.fire({ icon: "success", title: "Preventa Registrada", text: "La preventa fue guardada en espera para que Caja procese el cobro." });
+            }
+            abrirModalInicioCliente();
+        }
+    } catch (xhr) {
+        const msg = xhr.responseJSON?.message || "No se pudo guardar la preventa.";
+        if (window.notificacion) window.notificacion.fire({ icon: "error", title: "Error", text: msg });
+    } finally {
+        $btn.prop("disabled", false).html(orig);
+    }
+};
+
+function seleccionarTurnoPos(turnoId) {
+    const turnos = Array.isArray(posCatalogos.turnos_activos) ? posCatalogos.turnos_activos : [];
+    const seleccionado = turnos.find(t => t.id === turnoId);
+    if (seleccionado) {
+        posCatalogos.turno_activo = seleccionado;
+        renderizarCajaNavbar();
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "info",
+                title: "Caja Activa Cambiada",
+                text: `Ahora estás operando en '${seleccionado.caja ? seleccionado.caja.nombre : 'Caja'}' (Turno #${String(seleccionado.id).padStart(5, '0')}).`,
+            });
+        }
+    }
+};
+
+async function abrirModalAperturaPos() {
+    const modalEl = document.getElementById("modalAperturaTurnoPos");
+    if (!modalEl) return;
+
+    const $select = $("#posAperturaSelectCaja");
+    $select.empty();
+
+    try {
+        const res = await $.get(urlCajasDisponibles);
+        const cajas = res && res.data ? res.data : [];
+
+        if (cajas.length === 0) {
+            $select.append('<option value="">-- No hay cajas disponibles para aperturar --</option>');
+            $("#btnConfirmarAperturaPos").prop("disabled", true);
+        } else {
+            $select.append('<option value="">-- Selecciona una caja disponible --</option>');
+            cajas.forEach(c => {
+                $select.append(`<option value="${c.id}">${c.nombre} ${c.codigo ? `(${c.codigo})` : ''}</option>`);
+            });
+            $("#btnConfirmarAperturaPos").prop("disabled", false);
+        }
+    } catch (e) {
+        $select.append('<option value="">-- Error al cargar cajas --</option>');
+    }
+
+    $("#posAperturaMontoUsd").val("0.00");
+    $("#posAperturaMontoBs").val("0.00");
+
+    const modalInst = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modalInst.show();
+};
+
+$("#formAperturaPos").on("submit", async function (e) {
+    e.preventDefault();
+
+    const cajaId = $("#posAperturaSelectCaja").val();
+    if (!cajaId) {
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: "warning", title: "Caja requerida", text: "Debes seleccionar una caja registradora." });
+        }
+        return;
+    }
+
+    const payload = {
+        caja_id: cajaId,
+        monto_apertura_usd: parseFloat($("#posAperturaMontoUsd").val()) || 0,
+        monto_apertura_bs: parseFloat($("#posAperturaMontoBs").val()) || 0,
+    };
+
+    const $btn = $("#btnConfirmarAperturaPos");
+    $btn.prop("disabled", true).html('<i class="fas fa-spinner fa-spin me-1"></i> Aperturando...');
+
+    try {
+        const res = await $.ajax({
+            url: urlCajasAperturar,
+            type: "POST",
+            data: payload,
+            dataType: "json",
+            headers: {
+                "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+            },
+        });
+
+        if (res.success && res.data) {
+            posCatalogos.turno_activo = res.data;
+            if (!Array.isArray(posCatalogos.turnos_activos)) {
+                posCatalogos.turnos_activos = [];
+            }
+            posCatalogos.turnos_activos.push(res.data);
+            renderizarCajaNavbar();
+
+            const modalEl = document.getElementById("modalAperturaTurnoPos");
+            if (modalEl) {
+                const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+                if (modalInst) modalInst.hide();
+            }
+
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "success",
+                    title: "¡Turno Aperturado!",
+                    text: `La sesión de caja '${res.data.caja ? res.data.caja.nombre : ''}' ha iniciado correctamente.`,
+                });
+            }
+
+            if (!posClienteActual) {
+                abrirModalInicioCliente();
+            }
+        }
+    } catch (err) {
+        const msg = err.responseJSON && err.responseJSON.message ? err.responseJSON.message : "No se pudo aperturar el turno.";
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: "error", title: "Error", text: msg });
+        }
+    } finally {
+        $btn.prop("disabled", false).html('<i class="fas fa-door-open me-1"></i> Iniciar Turno');
+    }
+});
+
+async function verCorteXPos() {
+    if (!posCatalogos.turno_activo) {
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: "warning", title: "Sin Turno Activo", text: "No tienes ninguna sesión de caja abierta actualmente." });
+        }
+        abrirModalAperturaPos();
+        return;
+    }
+
+    const turnoId = posCatalogos.turno_activo.id;
+    $("#posBtnImprimirCorteX").attr("href", `${urlCajasBase}/turnos/${turnoId}/imprimir-x`);
+
+    const modalEl = document.getElementById("modalCorteXPos");
+    const modalInst = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modalInst.show();
+
+    $("#posContenidoCorteX").html(`
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted mt-2">Consultando corte de turno...</p>
+        </div>
+    `);
+
+    try {
+        const res = await $.get(`${urlCajasBase}/turnos/${turnoId}/reporte-x`);
+        const rep = res && res.data ? res.data : null;
+        if (!rep) {
+            $("#posContenidoCorteX").html('<div class="alert alert-danger">No se pudo cargar el reporte del turno.</div>');
+            return;
+        }
+
+        let filasMetodos = '';
+        if (rep.pagos_por_metodo && rep.pagos_por_metodo.length > 0) {
+            rep.pagos_por_metodo.forEach(pm => {
+                const simbolo = pm.moneda === 'USD' ? '$' : 'Bs.';
+                filasMetodos += `
+                    <tr>
+                        <td><strong>${pm.metodo}</strong></td>
+                        <td class="text-center"><span class="badge bg-light text-dark border">${pm.moneda}</span></td>
+                        <td class="text-center">${pm.conteo}</td>
+                        <td class="text-end fw-bold">${simbolo} ${parseFloat(pm.total_origen).toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            filasMetodos = '<tr><td colspan="4" class="text-center text-muted py-3">Sin pagos registrados en este turno</td></tr>';
+        }
+
+        const html = `
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                <div>
+                    <h5 class="fw-bold mb-0 text-dark">Caja: ${rep.caja.nombre}</h5>
+                    <span class="text-muted small">Cajero: <strong>${rep.usuario.name || rep.usuario.nombre_completo}</strong> | Turno #${String(rep.turno.id).padStart(5, '0')}</span>
+                </div>
+                <span class="badge bg-success rounded-pill px-3 py-2 text-uppercase">EN CURSO</span>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-md-3">
+                    <div class="card bg-light border-0 rounded-4 p-3 text-center">
+                        <span class="text-muted small">Fondo Apertura</span>
+                        <h6 class="fw-bold text-dark mb-0 mt-1">$${parseFloat(rep.monto_apertura_usd).toFixed(2)}</h6>
+                        <small class="text-muted">Bs. ${parseFloat(rep.monto_apertura_bs).toFixed(2)}</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card bg-light border-0 rounded-4 p-3 text-center">
+                        <span class="text-muted small">Ventas (${rep.cantidad_ventas})</span>
+                        <h6 class="fw-bold text-success mb-0 mt-1">$${parseFloat(rep.total_ventas_usd).toFixed(2)}</h6>
+                        <small class="text-muted">Bs. ${parseFloat(rep.total_ventas_bs).toFixed(2)}</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card bg-light border-0 rounded-4 p-3 text-center">
+                        <span class="text-muted small">Devoluciones (${rep.cantidad_devoluciones})</span>
+                        <h6 class="fw-bold text-danger mb-0 mt-1">-$${parseFloat(rep.total_devoluciones_usd).toFixed(2)}</h6>
+                        <small class="text-muted">-Bs. ${parseFloat(rep.total_devoluciones_bs).toFixed(2)}</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card bg-primary-subtle border border-primary-subtle rounded-4 p-3 text-center">
+                        <span class="text-primary small fw-semibold">Efectivo Teórico</span>
+                        <h6 class="fw-bold text-primary mb-0 mt-1">$${parseFloat(rep.efectivo_esperado_usd).toFixed(2)}</h6>
+                        <small class="text-primary">Bs. ${parseFloat(rep.efectivo_esperado_bs).toFixed(2)}</small>
+                    </div>
+                </div>
+            </div>
+
+            <h6 class="fw-bold text-dark mb-2"><i class="fas fa-wallet text-muted me-1"></i> Desglose por Método de Pago</h6>
+            <div class="table-responsive rounded-3 border mb-3">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Método</th>
+                            <th class="text-center">Moneda</th>
+                            <th class="text-center">Transacciones</th>
+                            <th class="text-end">Total Recaudado</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filasMetodos}</tbody>
+                </table>
+            </div>
+        `;
+
+        $("#posContenidoCorteX").html(html);
+    } catch (e) {
+        $("#posContenidoCorteX").html('<div class="alert alert-danger">Error al consultar datos del turno.</div>');
+    }
+};
+
+async function abrirModalCierrePos() {
+    if (!posCatalogos.turno_activo) {
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: "warning", title: "Sin Turno Activo", text: "No tienes ninguna sesión de caja abierta actualmente." });
+        }
+        abrirModalAperturaPos();
+        return;
+    }
+
+    const turnoId = posCatalogos.turno_activo.id;
+
+    try {
+        const res = await $.get(`${urlCajasBase}/turnos/${turnoId}/reporte-x`);
+        const rep = res && res.data ? res.data : null;
+        if (!rep) return;
+
+        posEsperadoCierreUsd = parseFloat(rep.efectivo_esperado_usd || 0);
+        posEsperadoCierreBs = parseFloat(rep.efectivo_esperado_bs || 0);
+
+        $("#posCierreResumenApertura").text(`$${parseFloat(rep.monto_apertura_usd).toFixed(2)}`);
+        $("#posCierreResumenVentas").text(`$${parseFloat(rep.total_ventas_usd).toFixed(2)}`);
+        $("#posCierreResumenEsperadoUsd").text(`$${posEsperadoCierreUsd.toFixed(2)}`);
+        $("#posCierreResumenEsperadoBs").text(`Bs. ${posEsperadoCierreBs.toFixed(2)}`);
+
+        $("#posCierreMontoUsd").val(posEsperadoCierreUsd.toFixed(2));
+        $("#posCierreMontoBs").val(posEsperadoCierreBs.toFixed(2));
+        $("#posCierreObservaciones").val("");
+
+        calcularDiferenciasCierrePos();
+
+        const modalEl = document.getElementById("modalCierreZPos");
+        const modalInst = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modalInst.show();
+    } catch (e) {
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: "error", title: "Error", text: "No se pudieron calcular los totales para el cierre." });
+        }
+    }
+};
+
+function calcularDiferenciasCierrePos() {
+    const contadoUsd = parseFloat($("#posCierreMontoUsd").val() || 0);
+    const contadoBs = parseFloat($("#posCierreMontoBs").val() || 0);
+
+    const difUsd = contadoUsd - posEsperadoCierreUsd;
+    const difBs = contadoBs - posEsperadoCierreBs;
+
+    const $alertaUsd = $("#posCierreAlertaUsd");
+    const $alertaBs = $("#posCierreAlertaBs");
+
+    if (Math.abs(difUsd) < 0.001) {
+        $alertaUsd.html('<span class="text-success"><i class="fas fa-check-circle me-1"></i>Cuadre Exacto en USD ($0.00)</span>');
+    } else if (difUsd > 0) {
+        $alertaUsd.html(`<span class="text-success fw-bold"><i class="fas fa-plus-circle me-1"></i>Sobrante: +$${difUsd.toFixed(2)}</span>`);
+    } else {
+        $alertaUsd.html(`<span class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>Faltante: -$${Math.abs(difUsd).toFixed(2)}</span>`);
+    }
+
+    if (Math.abs(difBs) < 0.001) {
+        $alertaBs.html('<span class="text-success"><i class="fas fa-check-circle me-1"></i>Cuadre Exacto en Bs. (Bs. 0.00)</span>');
+    } else if (difBs > 0) {
+        $alertaBs.html(`<span class="text-success fw-bold"><i class="fas fa-plus-circle me-1"></i>Sobrante: +Bs. ${difBs.toFixed(2)}</span>`);
+    } else {
+        $alertaBs.html(`<span class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>Faltante: -Bs. ${Math.abs(difBs).toFixed(2)}</span>`);
+    }
+};
+
+$("#posCierreMontoUsd, #posCierreMontoBs").on("input", function () {
+    calcularDiferenciasCierrePos();
+});
+
+$("#formCierreZPos").on("submit", async function (e) {
+    e.preventDefault();
+    if (!posCatalogos.turno_activo) return;
+
+    const turnoId = posCatalogos.turno_activo.id;
+    const payload = {
+        monto_cierre_usd: parseFloat($("#posCierreMontoUsd").val()) || 0,
+        monto_cierre_bs: parseFloat($("#posCierreMontoBs").val()) || 0,
+        observaciones: $("#posCierreObservaciones").val() || null,
+    };
+
+    const $btn = $("#btnConfirmarCierrePos");
+    $btn.prop("disabled", true).html('<i class="fas fa-spinner fa-spin me-1"></i> Cerrando Turno...');
+
+    try {
+        const res = await $.ajax({
+            url: `${urlCajasBase}/turnos/${turnoId}/cerrar`,
+            type: "POST",
+            data: payload,
+            dataType: "json",
+            headers: {
+                "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+            },
+        });
+
+        if (res.success) {
+            const modalEl = document.getElementById("modalCierreZPos");
+            if (modalEl) {
+                const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+                if (modalInst) modalInst.hide();
+            }
+
+            posCatalogos.turno_activo = null;
+            renderizarCajaNavbar();
+
+            if (window.Swal) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Cierre Z Completado!',
+                    text: 'El arqueo físico y cierre de turno se registraron exitosamente.',
+                    showCancelButton: true,
+                    confirmButtonText: '🖨️ Imprimir Ticket Z',
+                    cancelButtonText: 'Finalizar',
+                    confirmButtonColor: '#0f172a',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.open(`${urlCajasBase}/turnos/${turnoId}/imprimir-z`, '_blank');
+                    }
+                    window.location.reload();
+                });
+            } else {
+                window.location.reload();
+            }
+        }
+    } catch (err) {
+        const msg = err.responseJSON && err.responseJSON.message ? err.responseJSON.message : "No se pudo cerrar el turno.";
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: "error", title: "Error", text: msg });
+        }
+    } finally {
+        $btn.prop("disabled", false).html('<i class="fas fa-lock me-1"></i> Confirmar y Cerrar Turno');
+    }
+});

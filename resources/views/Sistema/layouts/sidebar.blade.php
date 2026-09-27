@@ -12,7 +12,7 @@
                 </li>
 
                 <!-- VENTAS Y CAJA -->
-                @if (auth()->user()?->canAny(['pos.acceso', 'ventas.ver', 'cajas.ver', 'metodos_pago.ver']))
+                @if (auth()->user()?->canAny(['pos.acceso', 'ventas.ver', 'cajas.ver', 'vendedores.ver', 'metodos_pago.ver']))
                     <li class="list-divider"></li>
                     <li class="nav-small-cap"><span class="hide-menu">Ventas & Facturación</span></li>
 
@@ -35,13 +35,24 @@
                     @endcan
 
                     @can('cajas.ver')
-                        <li class="sidebar-item">
-                            <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
-                                <i class="fas fa-wallet"></i>
-                                <span class="hide-menu">Caja y Arqueos</span>
+                        <li class="sidebar-item @if (request()->routeIs('caja*')) selected @endif">
+                            <a class="sidebar-link" href="{{ route('caja') }}" aria-expanded="false">
+                                <i class="fas fa-cash-register"></i>
+                                <span class="hide-menu">Cajas y Turnos</span>
                             </a>
                         </li>
                     @endcan
+
+                    @if (Auth::user()?->empresaActiva()?->maneja_vendedores ?? false)
+                        @can('vendedores.ver')
+                            <li class="sidebar-item @if (request()->routeIs('vendedor*')) selected @endif">
+                                <a class="sidebar-link" href="{{ route('vendedor') }}" aria-expanded="false">
+                                    <i class="fas fa-user-tie"></i>
+                                    <span class="hide-menu">Vendedores</span>
+                                </a>
+                            </li>
+                        @endcan
+                    @endif
 
                     @can('metodos_pago.ver')
                         <li class="sidebar-item @if (request()->routeIs('metodo_pago*')) selected @endif">
@@ -196,17 +207,21 @@
                 @endcan
 
                 <!-- REPORTES -->
-                @can('reportes.ver')
+                @if (auth()->user()?->canAny(['reportes.ver', 'reportes.vendedores']))
                     <li class="list-divider"></li>
-                    <li class="nav-small-cap"><span class="hide-menu">Informes</span></li>
+                    <li class="nav-small-cap"><span class="hide-menu">Informes & Auditoría</span></li>
 
-                    <li class="sidebar-item">
-                        <a class="sidebar-link" href="javascript:void(0)" aria-expanded="false">
-                            <i class="fas fa-chart-line"></i>
-                            <span class="hide-menu">Reportes</span>
-                        </a>
-                    </li>
-                @endcan
+                    @if (Auth::user()?->empresaActiva()?->maneja_vendedores ?? false)
+                        @can('reportes.vendedores')
+                            <li class="sidebar-item @if (request()->routeIs('reportes.vendedores*')) selected @endif">
+                                <a class="sidebar-link" href="{{ route('reportes.vendedores') }}" aria-expanded="false">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span class="hide-menu">Ventas por Vendedor</span>
+                                </a>
+                            </li>
+                        @endcan
+                    @endif
+                @endif
 
                 <!-- ADMINISTRACIÓN Y CONFIGURACIÓN -->
                 @if (auth()->user()?->hasRole('SuperAdmin') || auth()->user()?->canAny(['usuarios.ver', 'configuracion.ver']))

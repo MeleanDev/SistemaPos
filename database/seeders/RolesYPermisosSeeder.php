@@ -86,8 +86,17 @@ class RolesYPermisosSeeder extends Seeder
             'motos.eliminar',
             'motos.recepcion',
 
+            // Vendedores & Asesores
+            'vendedores.ver',
+            'vendedores.crear',
+            'vendedores.editar',
+            'vendedores.eliminar',
+
             // Cajas y Turnos
             'cajas.ver',
+            'cajas.crear',
+            'cajas.editar',
+            'cajas.eliminar',
             'cajas.aperturar',
             'cajas.cerrar',
             'cajas.movimientos',
@@ -95,6 +104,7 @@ class RolesYPermisosSeeder extends Seeder
 
             // Punto de Venta (POS) y Facturación
             'pos.acceso',
+            'pos.preventa',
             'ventas.ver',
             'ventas.crear',
             'ventas.anular',
@@ -110,6 +120,7 @@ class RolesYPermisosSeeder extends Seeder
             'configuracion.ver',
             'configuracion.editar',
             'reportes.ver',
+            'reportes.vendedores',
             'logs.ver',
         ];
 
@@ -132,11 +143,21 @@ class RolesYPermisosSeeder extends Seeder
             'empresas.eliminar',
         ])->get());
 
-        // C. Operador: Rol base cuyas facultades modulares se asignan granularmente
+        // C. Operador / Cajero: Rol para cobro en POS con caja previamente asignada
         $operadorRole = Role::firstOrCreate(['name' => 'Operador', 'guard_name' => 'web']);
         $operadorPermissions = [
             'pos.acceso',
+            'ventas.ver',
+            'ventas.crear',
         ];
         $operadorRole->syncPermissions($operadorPermissions);
+
+        // D. Vendedor: Rol para cargar órdenes de preventa en espera
+        $vendedorRole = Role::firstOrCreate(['name' => 'Vendedor', 'guard_name' => 'web']);
+        $vendedorPermissions = [
+            'pos.acceso',
+            'pos.preventa',
+        ];
+        $vendedorRole->syncPermissions($vendedorPermissions);
     }
 }

@@ -36,6 +36,16 @@ class GuardarVentaRequest extends BaseRequest
                 'integer',
                 Rule::exists('almacenes', 'id')->where(fn ($q) => $q->where('empresa_id', $empresaId)->where('estado', true)),
             ],
+            'vendedor_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('vendedores', 'id')->where(fn ($q) => $q->where('empresa_id', $empresaId)->where('estado', true)),
+            ],
+            'caja_turno_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('caja_turnos', 'id')->where(fn ($q) => $q->where('empresa_id', $empresaId)->where('estado', 'abierta')),
+            ],
             'tipo_venta' => ['required', 'string', 'in:detal,mayor,mayorista'],
             'condicion_pago' => ['nullable', 'string', 'in:contado,credito'],
             'dias_credito' => ['nullable', 'integer', 'min:0'],

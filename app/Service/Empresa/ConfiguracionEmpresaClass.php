@@ -82,6 +82,13 @@ class ConfiguracionEmpresaClass
                 $datos['logo'] = $logo->store('empresas', 'public');
             }
 
+            if (array_key_exists('maneja_motos', $datos)) {
+                $datos['maneja_motos'] = filter_var($datos['maneja_motos'], FILTER_VALIDATE_BOOLEAN);
+            }
+            if (array_key_exists('maneja_vendedores', $datos)) {
+                $datos['maneja_vendedores'] = filter_var($datos['maneja_vendedores'], FILTER_VALIDATE_BOOLEAN);
+            }
+
             $empresa->update($datos);
 
             return $empresa->fresh();

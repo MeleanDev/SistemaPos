@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -94,5 +96,38 @@ class User extends Authenticatable
         session(['empresa_activa_id' => $primera->id]);
 
         return $primera;
+    }
+
+    /**
+     * Turnos de caja asociados al usuario
+     */
+    public function cajaTurnos(): HasMany
+    {
+        return $this->hasMany(CajaTurno::class, 'user_id');
+    }
+
+    /**
+     * Perfil de vendedor asociado (opcional)
+     */
+    public function vendedor(): HasOne
+    {
+        return $this->hasOne(Vendedor::class, 'user_id');
+    }
+
+    /**
+     * Turno de caja abierto actualmente para este usuario en la empresa activa
+     */
+    public function cajaTurnoActivo(?int $empresaId = null): ?CajaTurno
+    {
+        $empId = $empresaId ?? $this->empresaActiva()?->id;
+        if (! $empId) {
+            return null;
+        }
+
+        return $this->cajaTurnos()
+            ->where('empresa_id', $empId)
+            ->where('estado', 'abierta')
+            ->latest('id')
+            ->first();
     }
 }

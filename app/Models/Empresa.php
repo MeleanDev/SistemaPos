@@ -19,6 +19,7 @@ class Empresa extends Model
         'correo',
         'logo',
         'maneja_motos',
+        'maneja_vendedores',
         'estado',
     ];
 
@@ -26,6 +27,7 @@ class Empresa extends Model
     {
         return [
             'maneja_motos' => 'boolean',
+            'maneja_vendedores' => 'boolean',
             'estado' => 'boolean',
         ];
     }
@@ -94,5 +96,29 @@ class Empresa extends Model
     public function recepcionMotos(): HasMany
     {
         return $this->hasMany(RecepcionMoto::class, 'empresa_id');
+    }
+
+    /**
+     * Vendedores de esta empresa
+     */
+    public function vendedores(): HasMany
+    {
+        return $this->hasMany(Vendedor::class, 'empresa_id');
+    }
+
+    /**
+     * Cajas registradas de esta empresa
+     */
+    public function cajas(): HasMany
+    {
+        return $this->hasMany(Caja::class, 'empresa_id');
+    }
+
+    /**
+     * Turnos y aperturas de caja de esta empresa
+     */
+    public function cajaTurnos(): HasMany
+    {
+        return $this->hasMany(CajaTurno::class, 'empresa_id');
     }
 }
