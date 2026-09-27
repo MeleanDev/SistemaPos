@@ -671,7 +671,7 @@ When refactoring any module in the system, adhere strictly to the following cont
 |---|---|---|---|:---:|
 | 1 | **Empresas** | `Sistema/pages/administradores/empresa.blade.php` | `empresa.js` | ✅ **Terminado** |
 | 2 | **Almacenes** | `Sistema/pages/empresa/almacen.blade.php` | `almacen.js` | ✅ **Terminado** |
-| 3 | **Configuración / Tasas** | `Sistema/pages/empresa/configuracion.blade.php` | `configuracion.js` | ⏳ Pendiente |
+| 3 | **Configuración / Tasas** | `Sistema/pages/empresa/configuracion.blade.php` | `configuracion.js` | ✅ **Terminado** |
 | 4 | **Usuarios & Roles** | `Sistema/pages/administradores/usuario.blade.php` | `usuario.js` | ⏳ Pendiente |
 | 5 | **Clientes** | `Sistema/pages/empresa/cliente.blade.php` | `cliente.js` | ✅ **Terminado** |
 | 6 | **Proveedores** | `Sistema/pages/empresa/proveedor.blade.php` | `proveedor.js` | ✅ **Terminado** |

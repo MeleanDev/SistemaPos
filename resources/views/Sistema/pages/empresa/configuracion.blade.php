@@ -35,7 +35,7 @@
                     <div class="col-12">
                         <label class="form-label-executive"><i class="fas fa-image text-primary me-1"></i> Logo Corporativo</label>
                         <div class="d-flex align-items-center gap-3 p-3 border rounded-4 bg-white shadow-xs">
-                            <div id="contenedorPreviewLogo" class="border rounded-4 bg-white p-2 d-flex align-items-center justify-content-center shadow-xs" style="width: 80px; height: 80px; min-width: 80px; overflow: hidden; background-color: #f8fafc;">
+                            <div id="contenedorPreviewLogo" class="border rounded-4 bg-white p-2 d-flex align-items-center justify-content-center shadow-xs" style="width: 80px; height: 80px; min-width: 80px; overflow: hidden;">
                                 <i class="fas fa-building text-muted fs-2" id="placeholderLogo"></i>
                                 <img id="previewLogo" src="" alt="Logo" class="img-fluid rounded-3 d-none" style="max-height: 100%; object-fit: contain;">
                             </div>

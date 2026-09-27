@@ -1,7 +1,7 @@
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
-const urlDatos = urlBase + "/datos";
-const urlGuardarEmpresa = urlBase + "/empresa";
-const urlGuardarMonedas = urlBase + "/monedas";
+const urlDatos = `${urlBase}/datos`;
+const urlGuardarEmpresa = `${urlBase}/empresa`;
+const urlGuardarMonedas = `${urlBase}/monedas`;
 
 $(document).ready(function () {
     cargarConfiguracion();
@@ -25,8 +25,9 @@ $(document).ready(function () {
             form: this,
             url: urlGuardarEmpresa,
             btnSubmit: "#btnGuardarEmpresa",
+            textoGuardarOriginal: $("#btnGuardarEmpresa").html(),
             onSuccess: function (res) {
-                if (res.data && res.data.logo) {
+                if (res && res.data && res.data.logo) {
                     $("#previewLogo").attr("src", `/storage/${res.data.logo}?v=${Date.now()}`).removeClass("d-none");
                     $("#placeholderLogo").addClass("d-none");
                 }
@@ -41,6 +42,7 @@ $(document).ready(function () {
             form: this,
             url: urlGuardarMonedas,
             btnSubmit: "#btnGuardarTasas",
+            textoGuardarOriginal: $("#btnGuardarTasas").html(),
             antesDeEnviar: function (formData) {
                 $(".fila-moneda").each(function (index) {
                     const codigo = $(this).data("codigo");
@@ -63,7 +65,7 @@ const cargarConfiguracion = async function () {
     try {
         const res = await peticionAjax({ url: urlDatos });
 
-        if (res.success && res.data) {
+        if (res && res.success && res.data) {
             const emp = res.data.empresa;
             const monedas = res.data.monedas || [];
 
