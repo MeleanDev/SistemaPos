@@ -21,8 +21,9 @@ class ProductoClass
     public function lista(int $empresaId)
     {
         return Producto::with(['categoria', 'codigosBarra', 'stockAlmacenes.almacen'])
-            ->where('empresa_id', $empresaId)
-            ->where('estado', true);
+            ->select('productos.*')
+            ->where('productos.empresa_id', $empresaId)
+            ->where('productos.estado', true);
     }
 
     /**

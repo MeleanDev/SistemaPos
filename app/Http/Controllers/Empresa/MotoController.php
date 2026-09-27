@@ -29,17 +29,17 @@ class MotoController extends Controller
             ->filter(function ($query) {
                 if ($search = request('search.value')) {
                     $query->where(function ($q) use ($search) {
-                        $q->where('marca', 'LIKE', "%{$search}%")
-                            ->orWhere('modelo', 'LIKE', "%{$search}%")
-                            ->orWhere('referencia', 'LIKE', "%{$search}%")
-                            ->orWhere('numero_niv', 'LIKE', "%{$search}%")
-                            ->orWhere('numero_chasis', 'LIKE', "%{$search}%")
-                            ->orWhere('numero_motor', 'LIKE', "%{$search}%")
-                            ->orWhere('certificado_origen', 'LIKE', "%{$search}%")
-                            ->orWhere('color', 'LIKE', "%{$search}%")
-                            ->orWhere('placa', 'LIKE', "%{$search}%")
+                        $q->where('motos.marca', 'LIKE', "%{$search}%")
+                            ->orWhere('motos.modelo', 'LIKE', "%{$search}%")
+                            ->orWhere('motos.referencia', 'LIKE', "%{$search}%")
+                            ->orWhere('motos.numero_niv', 'LIKE', "%{$search}%")
+                            ->orWhere('motos.numero_chasis', 'LIKE', "%{$search}%")
+                            ->orWhere('motos.numero_motor', 'LIKE', "%{$search}%")
+                            ->orWhere('motos.certificado_origen', 'LIKE', "%{$search}%")
+                            ->orWhere('motos.color', 'LIKE', "%{$search}%")
+                            ->orWhere('motos.placa', 'LIKE', "%{$search}%")
                             ->orWhereHas('almacen', function ($aq) use ($search) {
-                                $aq->where('nombre', 'LIKE', "%{$search}%");
+                                $aq->where('almacenes.nombre', 'LIKE', "%{$search}%");
                             });
                     });
                 }

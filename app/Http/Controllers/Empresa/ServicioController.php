@@ -43,11 +43,11 @@ class ServicioController extends Controller
             ->filter(function ($query) {
                 if ($search = request('search.value')) {
                     $query->where(function ($q) use ($search) {
-                        $q->where('nombre', 'LIKE', "%{$search}%")
-                            ->orWhere('codigo', 'LIKE', "%{$search}%")
-                            ->orWhere('descripcion', 'LIKE', "%{$search}%")
+                        $q->where('servicios.nombre', 'LIKE', "%{$search}%")
+                            ->orWhere('servicios.codigo', 'LIKE', "%{$search}%")
+                            ->orWhere('servicios.descripcion', 'LIKE', "%{$search}%")
                             ->orWhereHas('categoria', function ($cq) use ($search) {
-                                $cq->where('nombre', 'LIKE', "%{$search}%");
+                                $cq->where('categorias.nombre', 'LIKE', "%{$search}%");
                             });
                     });
                 }

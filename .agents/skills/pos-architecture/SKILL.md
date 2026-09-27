@@ -653,19 +653,27 @@ Every module review, refactoring, or creation must strictly adhere to the follow
 
 When refactoring any module in the system, adhere strictly to the following contract:
 
-### 13.1 Frontend Refactoring Directives
-1. **Focus**: Review and refactor exclusively the Blade view (`Sistema/pages/...`) and its corresponding JavaScript file (`public/estilos/jsPropios/...`).
-2. **Elimination of Frontend Manual Validation Duplication**: Do NOT write manual string length checks in JS before `enviarFormulario`. Let Laravel's `FormRequest` validation rules return 422 JSON errors which `enviarFormulario` automatically displays via SweetAlert2.
-3. **Use of Standard AJAX Helpers**:
-   - `peticionAjax({ url, type, data })` instead of raw `$.ajax`.
-   - `consultarRegistro(urlDetalles, id)` with safe response unwrapping (`res && res.data ? res.data : res`).
+### 13.1 Frontend Refactoring Directives & Quality Standards
+1. **Focus Boundary**: Review and refactor exclusively the Blade view (`Sistema/pages/...`) and its corresponding JavaScript file (`public/estilos/jsPropios/...`).
+2. **Elimination of Frontend Manual Validation Duplication**: Do NOT write manual string length or required checks in JS before `enviarFormulario`. Let Laravel's `FormRequest` validation rules return 422 JSON errors which `enviarFormulario` automatically displays via SweetAlert2.
+3. **Route Verification & Consistency**: Verify and harmonize all JS route constants against `routes/admin.php` using template literals (e.g. `${urlBase}/lista`, `${urlBase}/actualizar/`).
+4. **Use of Standard AJAX Helpers**:
+   - `peticionAjax({ url, type, data, contentType, processData })` instead of raw `$.ajax`.
+   - `consultarRegistro(urlDetalles, id)` with safe response unwrapping (`const datos = res && res.data ? res.data : res`).
    - `enviarFormulario({ form, url, isEditar, modalSelector, tablaSelector, btnSubmit, textoGuardarOriginal, antesDeEnviar, onSuccess })`.
    - `cambiarEstadoRegistro({ url, id, nombre, tablaSelector, onSuccess })`.
-4. **Form Reset Centralization**: Implement dedicated `resetearFormulario{Modulo}()` functions to clean forms, reset invalid feedback, remove `.is-invalid`, and restore default select values.
-5. **Strict Zero-Comments Rule in JS**: Every JS file in `public/estilos/jsPropios/` MUST contain 0 comments (`//` or `/* */`).
-6. **Executive UI Standard**: White containers with `border rounded-4 shadow-xs` (NEVER `bg-light` or `alert-light`), `<x-btn-action>`, `<x-search-filter>`, `<x-datatable>` or card grids.
+5. **Form Reset Centralization**: Implement dedicated `resetearFormulario{Modulo}()` functions to clean forms, reset invalid feedback, remove `.is-invalid`, restore default select values and clean dynamic tables.
+6. **Strict Zero-Comments Rule in JS**: Every JS file in `public/estilos/jsPropios/` MUST contain 0 comments (`//` or `/* */`).
+7. **Executive UI Standard**: Clean white containers with `border rounded-4 shadow-xs` (NEVER `bg-light`, `bg-light-subtle`, or `alert-light`), smooth pills for tabs, `<x-btn-action>`, `<x-search-filter>`, `<x-button>`, `<x-checkbox switch="true">`, `<x-datatable>` or responsive card grids.
 
-### 13.2 Module Progress & Status Tracker
+### 13.2 Sequential Execution Lifecycle (Mandatory Protocol)
+For every single module in the 18-module list, strictly execute these 4 phases in order:
+1. **Phase 1: Pre-Audit & Diagnostic Report**: Inspect Blade & JS, provide a diagnostic report with identified deficiencies and refactoring plan, and wait for user authorization ("hazlo").
+2. **Phase 2: Refactoring Execution**: Apply Blade UI updates and JS refactor according to directives.
+3. **Phase 3: Automated Verification**: Run targeted Pest tests (`php artisan test --filter={Module}`) and format code (`vendor/bin/pint --format agent`).
+4. **Phase 4: Progress Tracker Update**: Update the status table in Section 13.3 marking the module as ✅ **Terminado** and announce the next module in line.
+
+### 13.3 Module Progress & Status Tracker
 
 | # | Módulo | Blade View | JavaScript File | Estado |
 |---|---|---|---|:---:|

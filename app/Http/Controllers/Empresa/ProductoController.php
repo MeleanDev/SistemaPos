@@ -43,14 +43,14 @@ class ProductoController extends Controller
             ->filter(function ($query) {
                 if ($search = request('search.value')) {
                     $query->where(function ($q) use ($search) {
-                        $q->where('nombre', 'LIKE', "%{$search}%")
-                            ->orWhere('codigo_interno', 'LIKE', "%{$search}%")
-                            ->orWhere('descripcion', 'LIKE', "%{$search}%")
+                        $q->where('productos.nombre', 'LIKE', "%{$search}%")
+                            ->orWhere('productos.codigo_interno', 'LIKE', "%{$search}%")
+                            ->orWhere('productos.descripcion', 'LIKE', "%{$search}%")
                             ->orWhereHas('categoria', function ($cq) use ($search) {
-                                $cq->where('nombre', 'LIKE', "%{$search}%");
+                                $cq->where('categorias.nombre', 'LIKE', "%{$search}%");
                             })
                             ->orWhereHas('codigosBarra', function ($bq) use ($search) {
-                                $bq->where('codigo_barra', 'LIKE', "%{$search}%");
+                                $bq->where('producto_codigos_barra.codigo_barra', 'LIKE', "%{$search}%");
                             });
                     });
                 }

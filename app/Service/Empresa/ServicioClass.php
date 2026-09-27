@@ -15,8 +15,9 @@ class ServicioClass
     public function lista(int $empresaId)
     {
         return Servicio::with(['categoria'])
-            ->where('empresa_id', $empresaId)
-            ->where('estado', true);
+            ->select('servicios.*')
+            ->where('servicios.empresa_id', $empresaId)
+            ->where('servicios.estado', true);
     }
 
     /**

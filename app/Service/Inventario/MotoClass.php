@@ -12,9 +12,10 @@ class MotoClass
     public function lista(int $empresaId)
     {
         return Moto::with(['almacen', 'proveedor', 'recepcion'])
-            ->where('empresa_id', $empresaId)
-            ->where('estado', '!=', 'anulada')
-            ->orderBy('id', 'desc');
+            ->select('motos.*')
+            ->where('motos.empresa_id', $empresaId)
+            ->where('motos.estado', '!=', 'anulada')
+            ->orderBy('motos.id', 'desc');
     }
 
     /**
