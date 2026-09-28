@@ -926,6 +926,8 @@
                     </div>
                 </div>
 
+                <!-- CONDICIÓN DE PAGO & ASESOR -->
+                <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs">
                     <div class="row g-2 align-items-center">
                         <div class="col-md-4">
                             <label class="form-label-executive mb-1"><i class="fas fa-file-contract text-primary me-1"></i> Condición de Pago</label>

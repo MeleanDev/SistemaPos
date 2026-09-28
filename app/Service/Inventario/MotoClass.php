@@ -38,9 +38,13 @@ class MotoClass
             ->where('es_principal', true)
             ->first();
 
+        $tasaOficial = $monedaUsd && $monedaUsd->tasa_cambio > 0 ? (float) $monedaUsd->tasa_cambio : 1.0;
+
         return [
             'almacenes' => $almacenes,
-            'tasa_bcv' => $monedaUsd && $monedaUsd->tasa_cambio > 0 ? (float) $monedaUsd->tasa_cambio : 1.0,
+            'tasa_bcv' => $tasaOficial,
+            'tasa_compra' => $tasaOficial,
+            'tasa_venta' => $tasaOficial,
             'moneda_simbolo' => $monedaPrincipal ? $monedaPrincipal->simbolo : 'Bs.',
         ];
     }
@@ -66,13 +70,44 @@ class MotoClass
             ->first();
         $tasaBcv = $monedaUsd && $monedaUsd->tasa_cambio > 0 ? (float) $monedaUsd->tasa_cambio : 1.0;
 
-        $costoUsd = isset($datos['precio_costo_usd']) ? (float) $datos['precio_costo_usd'] : (float) $moto->precio_costo_usd;
-        $detalUsd = isset($datos['precio_detal_usd']) ? (float) $datos['precio_detal_usd'] : (float) $moto->precio_detal_usd;
-        $mayorUsd = isset($datos['precio_mayorista_usd']) ? (float) $datos['precio_mayorista_usd'] : (float) $moto->precio_mayorista_usd;
+        $costoBaseUsd = isset($datos['costo_base_usd']) ? (float) $datos['costo_base_usd'] : (float) ($moto->costo_base_usd ?: $moto->precio_costo_usd);
+        $fleteUsd = isset($datos['flete_usd']) ? (float) $datos['flete_usd'] : (float) $moto->flete_usd;
+        $ivaPorcentaje = isset($datos['iva_porcentaje']) ? (float) $datos['iva_porcentaje'] : (float) ($moto->iva_porcentaje ?? 16.00);
 
-        $costoBs = isset($datos['precio_costo_bs']) ? (float) $datos['precio_costo_bs'] : round($costoUsd * $tasaBcv, 2);
-        $detalBs = isset($datos['precio_detal_bs']) ? (float) $datos['precio_detal_bs'] : round($detalUsd * $tasaBcv, 2);
-        $mayorBs = isset($datos['precio_mayorista_bs']) ? (float) $datos['precio_mayorista_bs'] : round($mayorUsd * $tasaBcv, 2);
+        $ivaUnitarioUsd = ($ivaPorcentaje > 0) ? ($costoBaseUsd * ($ivaPorcentaje / 100)) : 0;
+        $costoTotalUsd = isset($datos['precio_costo_usd']) && (float) $datos['precio_costo_usd'] > 0
+            ? (float) $datos['precio_costo_usd']
+            : ($costoBaseUsd + $ivaUnitarioUsd + $fleteUsd);
+
+        $costoSinIvaUsd = $costoBaseUsd + $fleteUsd;
+
+        $margenDetal = isset($datos['margen_detal']) ? (float) $datos['margen_detal'] : (float) ($moto->margen_detal ?: 25.00);
+        $detalConIvaUsd = isset($datos['precio_detal_con_iva_usd']) && (float) $datos['precio_detal_con_iva_usd'] > 0
+            ? (float) $datos['precio_detal_con_iva_usd']
+            : ($costoTotalUsd * (1 + $margenDetal / 100));
+
+        $detalSinIvaUsd = isset($datos['precio_detal_usd']) && (float) $datos['precio_detal_usd'] > 0
+            ? (float) $datos['precio_detal_usd']
+            : ($costoSinIvaUsd * (1 + $margenDetal / 100));
+
+        $margenMayorista = isset($datos['margen_mayorista']) ? (float) $datos['margen_mayorista'] : (float) ($moto->margen_mayorista ?: 15.00);
+        $mayorConIvaUsd = isset($datos['precio_mayorista_con_iva_usd']) && (float) $datos['precio_mayorista_con_iva_usd'] > 0
+            ? (float) $datos['precio_mayorista_con_iva_usd']
+            : ($costoTotalUsd * (1 + $margenMayorista / 100));
+
+        $mayorSinIvaUsd = isset($datos['precio_mayorista_usd']) && (float) $datos['precio_mayorista_usd'] > 0
+            ? (float) $datos['precio_mayorista_usd']
+            : ($costoSinIvaUsd * (1 + $margenMayorista / 100));
+
+        $costoBaseBs = isset($datos['costo_base_bs']) ? (float) $datos['costo_base_bs'] : round($costoBaseUsd * $tasaBcv, 4);
+        $fleteBs = isset($datos['flete_bs']) ? (float) $datos['flete_bs'] : round($fleteUsd * $tasaBcv, 4);
+        $costoTotalBs = isset($datos['precio_costo_bs']) ? (float) $datos['precio_costo_bs'] : round($costoTotalUsd * $tasaBcv, 4);
+
+        $detalConIvaBs = isset($datos['precio_detal_con_iva_bs']) ? (float) $datos['precio_detal_con_iva_bs'] : round($detalConIvaUsd * $tasaBcv, 4);
+        $detalSinIvaBs = isset($datos['precio_detal_bs']) ? (float) $datos['precio_detal_bs'] : round($detalSinIvaUsd * $tasaBcv, 4);
+
+        $mayorConIvaBs = isset($datos['precio_mayorista_con_iva_bs']) ? (float) $datos['precio_mayorista_con_iva_bs'] : round($mayorConIvaUsd * $tasaBcv, 4);
+        $mayorSinIvaBs = isset($datos['precio_mayorista_bs']) ? (float) $datos['precio_mayorista_bs'] : round($mayorSinIvaUsd * $tasaBcv, 4);
 
         $moto->update([
             'marca' => $datos['marca'] ?? $moto->marca,
@@ -87,14 +122,23 @@ class MotoClass
             'certificado_origen' => $datos['certificado_origen'] ?? $moto->certificado_origen,
             'almacen_id' => $datos['almacen_id'] ?? $moto->almacen_id,
             'placa' => ! empty($datos['placa']) ? strtoupper(trim($datos['placa'])) : $moto->placa,
-            'precio_costo_usd' => $costoUsd,
-            'precio_costo_bs' => $costoBs,
-            'margen_detal' => $datos['margen_detal'] ?? $moto->margen_detal,
-            'precio_detal_usd' => $detalUsd,
-            'precio_detal_bs' => $detalBs,
-            'margen_mayorista' => $datos['margen_mayorista'] ?? $moto->margen_mayorista,
-            'precio_mayorista_usd' => $mayorUsd,
-            'precio_mayorista_bs' => $mayorBs,
+            'costo_base_usd' => $costoBaseUsd,
+            'costo_base_bs' => $costoBaseBs,
+            'flete_usd' => $fleteUsd,
+            'flete_bs' => $fleteBs,
+            'iva_porcentaje' => $ivaPorcentaje,
+            'precio_costo_usd' => $costoTotalUsd,
+            'precio_costo_bs' => $costoTotalBs,
+            'margen_detal' => $margenDetal,
+            'precio_detal_usd' => $detalSinIvaUsd,
+            'precio_detal_bs' => $detalSinIvaBs,
+            'precio_detal_con_iva_usd' => $detalConIvaUsd,
+            'precio_detal_con_iva_bs' => $detalConIvaBs,
+            'margen_mayorista' => $margenMayorista,
+            'precio_mayorista_usd' => $mayorSinIvaUsd,
+            'precio_mayorista_bs' => $mayorSinIvaBs,
+            'precio_mayorista_con_iva_usd' => $mayorConIvaUsd,
+            'precio_mayorista_con_iva_bs' => $mayorConIvaBs,
             'estado' => $datos['estado'] ?? $moto->estado,
             'observaciones' => $datos['observaciones'] ?? $moto->observaciones,
         ]);
