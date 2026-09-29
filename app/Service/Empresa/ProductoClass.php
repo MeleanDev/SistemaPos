@@ -324,6 +324,26 @@ class ProductoClass
         $datos['aplica_igtf'] = filter_var($datos['aplica_igtf'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $datos['igtf_porcentaje'] = $datos['aplica_igtf'] ? ($datos['igtf_porcentaje'] ?? 3.00) : 0;
 
+        $datos['maneja_variantes'] = filter_var($datos['maneja_variantes'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $atributos = null;
+        if ($datos['maneja_variantes'] && ! empty($datos['atributos_variantes'])) {
+            $nombreAtributo = trim($datos['atributos_variantes']['nombre'] ?? 'Color') ?: 'Color';
+            $opciones = array_values(array_filter(array_map('trim', (array) ($datos['atributos_variantes']['opciones'] ?? [])), fn ($val) => $val !== ''));
+            if (! empty($opciones)) {
+                $atributos = [
+                    'nombre' => $nombreAtributo,
+                    'opciones' => $opciones,
+                ];
+            } else {
+                $datos['maneja_variantes'] = false;
+            }
+        } else {
+            $datos['maneja_variantes'] = false;
+        }
+        $datos['atributos_variantes'] = $atributos;
+
+        $datos['maneja_seriales'] = filter_var($datos['maneja_seriales'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
         $datos['stock_minimo'] = isset($datos['stock_minimo']) && $datos['stock_minimo'] !== '' ? $datos['stock_minimo'] : 0;
         $datos['stock_maximo'] = isset($datos['stock_maximo']) && $datos['stock_maximo'] !== '' ? $datos['stock_maximo'] : null;
 

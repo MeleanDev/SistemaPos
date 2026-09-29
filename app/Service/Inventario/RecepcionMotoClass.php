@@ -542,7 +542,7 @@ class RecepcionMotoClass
             $totalBs = round($totalGlobalUsd * $tasaCompra, 2);
 
             $diferencia = abs(round($montoBrutoUsd, 2) - round($totalGlobalUsd, 2));
-            if ($diferencia > 0.0001) {
+            if (round($diferencia, 2) > 0.00) {
                 throw ValidationException::withMessages([
                     'monto_bruto_usd' => 'El Monto de la Factura ($'.number_format($montoBrutoUsd, 2).') debe ser exactamente igual al Total Calculado de los renglones ($'.number_format($totalGlobalUsd, 2).'). La factura está descuadrada por $'.number_format($diferencia, 2).'. Debe ajustar los renglones o el monto antes de procesar.',
                 ]);

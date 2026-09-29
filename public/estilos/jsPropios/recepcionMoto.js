@@ -3269,3 +3269,120 @@ const actualizarBadgeContador = function (conteo) {
             .addClass("btn-outline-primary");
     }
 };
+
+const toggleVariantesRapidoProducto = function () {
+    const check = $("#rapido_prod_maneja_variantes").is(":checked");
+    if (check) {
+        $("#rapido_seccion_variantes").slideDown(150);
+        setTimeout(() => $("#rapido_prod_opcion_input").focus(), 150);
+    } else {
+        $("#rapido_seccion_variantes").slideUp(150);
+    }
+};
+
+const agregarOpcionVarianteRapido = function (opcionDirecta = null) {
+    const $input = $("#rapido_prod_opcion_input");
+    let opcion = opcionDirecta !== null ? String(opcionDirecta).trim() : $input.val().trim();
+    if (!opcion) return;
+
+    let existe = false;
+    $('#rapido_contenedor_chips_variantes input[name="atributos_variantes[opciones][]"]').each(function () {
+        if ($(this).val().toLowerCase() === opcion.toLowerCase()) {
+            existe = true;
+            return false;
+        }
+    });
+
+    if (existe) {
+        if (opcionDirecta === null && window.notificacion) {
+            window.notificacion.fire({
+                icon: "warning",
+                title: "Opción duplicada",
+                text: `La opción "${opcion}" ya ha sido agregada.`,
+            });
+        }
+        $input.val("").focus();
+        return;
+    }
+
+    $("#rapido_placeholder_sin_variantes").hide();
+
+    const chipHtml = `
+        <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1.5 d-inline-flex align-items-center gap-1.5 font-monospace shadow-xs chip-rapido-variante-item" style="font-size: 0.8rem;">
+            <i class="fas fa-check-circle text-primary"></i>
+            <span>${opcion}</span>
+            <input type="hidden" name="atributos_variantes[opciones][]" value="${opcion}">
+            <button type="button" class="btn btn-sm btn-link text-danger p-0 border-0 ms-1 d-inline-flex align-items-center" onclick="eliminarOpcionVarianteRapido(this)" title="Eliminar opción" style="line-height: 1; text-decoration: none;">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        </span>
+    `;
+
+    $("#rapido_contenedor_chips_variantes").append(chipHtml);
+    if (opcionDirecta === null) {
+        $input.val("").focus();
+    }
+};
+
+const eliminarOpcionVarianteRapido = function (btn) {
+    $(btn).closest(".chip-rapido-variante-item").remove();
+    if ($("#rapido_contenedor_chips_variantes .chip-rapido-variante-item").length === 0) {
+        $("#rapido_placeholder_sin_variantes").show();
+    }
+};
+
+const limpiarOpcionesVariantesRapido = function () {
+    $("#rapido_contenedor_chips_variantes .chip-rapido-variante-item").remove();
+    $("#rapido_placeholder_sin_variantes").show();
+    $("#rapido_prod_opcion_input").val("");
+};
+
+window.crear = crear;
+window.abrirModalBorradores = abrirModalBorradores;
+window.seleccionarMonedaDocumento = seleccionarMonedaDocumento;
+window.actualizarTasasDesdeInput = actualizarTasasDesdeInput;
+window.restablecerTasaOficial = restablecerTasaOficial;
+window.toggleCondicionPago = toggleCondicionPago;
+window.calcularFechaVencimiento = calcularFechaVencimiento;
+window.avanzarAFase2 = avanzarAFase2;
+window.volverAFase1 = volverAFase1;
+window.guardarBorradorEnServidor = guardarBorradorEnServidor;
+window.procesarRecepcionMoto = procesarRecepcionMoto;
+window.cambiarModoItem = cambiarModoItem;
+window.abrirModalRapidoModelo = abrirModalRapidoModelo;
+window.guardarRapidoModelo = guardarRapidoModelo;
+window.abrirModalRapidoProveedor = abrirModalRapidoProveedor;
+window.guardarRapidoProveedor = guardarRapidoProveedor;
+window.abrirModalRapidoProducto = abrirModalRapidoProducto;
+window.guardarRapidoProducto = guardarRapidoProducto;
+window.toggleIvaRapidoProducto = toggleIvaRapidoProducto;
+window.toggleVariantesRapidoProducto = toggleVariantesRapidoProducto;
+window.agregarOpcionVarianteRapido = agregarOpcionVarianteRapido;
+window.eliminarOpcionVarianteRapido = eliminarOpcionVarianteRapido;
+window.limpiarOpcionesVariantesRapido = limpiarOpcionesVariantesRapido;
+window.recalcularPreciosLote = recalcularPreciosLote;
+window.calcularPrecioDetalLote = calcularPrecioDetalLote;
+window.calcularMargenDetalLote = calcularMargenDetalLote;
+window.calcularPrecioMayoristaLote = calcularPrecioMayoristaLote;
+window.calcularMargenMayoristaLote = calcularMargenMayoristaLote;
+window.generarMatrizSeriales = generarMatrizSeriales;
+window.agregarLoteAFactura = agregarLoteAFactura;
+window.cancelarEdicionLote = cancelarEdicionLote;
+window.recalcularPreciosProducto = recalcularPreciosProducto;
+window.calcularPrecioDetalProducto = calcularPrecioDetalProducto;
+window.calcularMargenDetalProducto = calcularMargenDetalProducto;
+window.calcularPrecioMayoristaProducto = calcularPrecioMayoristaProducto;
+window.calcularMargenMayoristaProducto = calcularMargenMayoristaProducto;
+window.agregarProductoAFactura = agregarProductoAFactura;
+window.cancelarEdicionProducto = cancelarEdicionProducto;
+window.recalcularTotalesGenerales = recalcularTotalesGenerales;
+window.verDetalle = verDetalle;
+window.anularRecepcion = anularRecepcion;
+window.verSerialesLote = verSerialesLote;
+window.editarLote = editarLote;
+window.eliminarLote = eliminarLote;
+window.restaurarBorradorDetectado = restaurarBorradorDetectado;
+window.descartarBorradorDetectado = descartarBorradorDetectado;
+window.cargarBorradorServidor = cargarBorradorServidor;
+window.eliminarBorradorServidor = eliminarBorradorServidor;
+

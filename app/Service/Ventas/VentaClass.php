@@ -14,6 +14,7 @@ use App\Models\EmpresaMoneda;
 use App\Models\MetodoPago;
 use App\Models\Moto;
 use App\Models\Producto;
+use App\Models\ProductoSerial;
 use App\Models\Servicio;
 use App\Models\User;
 use App\Models\Vendedor;
@@ -75,7 +76,12 @@ class VentaClass
         $tasaUsd = $monedaUsd ? (float) $monedaUsd->tasa_cambio : 1.0000;
 
         // 5. Productos con existencias por almacén y códigos de barra
-        $productos = Producto::with(['stockAlmacenes.almacen', 'codigosBarra', 'categoria'])
+        $productos = Producto::with([
+            'stockAlmacenes.almacen',
+            'codigosBarra',
+            'categoria',
+            'seriales' => fn ($q) => $q->where('estado', 'disponible'),
+        ])
             ->where('empresa_id', $empresaId)
             ->where('estado', true)
             ->get()
@@ -89,6 +95,22 @@ class VentaClass
 
                 $detalFinalUsd = round($detalBaseUsd * $factorIva, 2);
                 $mayorFinalUsd = round($mayorBaseUsd * $factorIva, 2);
+
+                $serialesDisponibles = $p->seriales->map(function ($s) {
+                    return [
+                        'id' => $s->id,
+                        'numero_serial' => $s->numero_serial,
+                        'variante_color' => $s->variante_color,
+                        'almacen_id' => $s->almacen_id,
+                    ];
+                })->values()->toArray();
+
+                $codigos = $p->codigosBarra->pluck('codigo_barra')->toArray();
+                foreach ($serialesDisponibles as $sd) {
+                    if (! empty($sd['numero_serial']) && ! in_array($sd['numero_serial'], $codigos, true)) {
+                        $codigos[] = $sd['numero_serial'];
+                    }
+                }
 
                 return [
                     'id' => $p->id,
@@ -107,7 +129,11 @@ class VentaClass
                     'iva_porcentaje' => $ivaPorcentaje,
                     'aplica_igtf' => (bool) $p->aplica_igtf,
                     'igtf_porcentaje' => (float) ($p->igtf_porcentaje ?? 3.00),
-                    'codigos_barra' => $p->codigosBarra->pluck('codigo_barra')->toArray(),
+                    'maneja_variantes' => (bool) $p->maneja_variantes,
+                    'atributos_variantes' => $p->atributos_variantes ?? [],
+                    'maneja_seriales' => (bool) $p->maneja_seriales,
+                    'seriales_disponibles' => $serialesDisponibles,
+                    'codigos_barra' => array_values(array_filter($codigos)),
                     'stock_almacenes' => $p->stockAlmacenes->map(function ($stk) {
                         return [
                             'almacen_id' => $stk->almacen_id,
@@ -529,7 +555,9 @@ class VentaClass
                     'almacen_id' => $almacenItem,
                     'tipo_item' => $tipoItem,
                     'nombre_item' => $nombreItem,
+                    'variante_texto' => ! empty($it['variante_texto']) ? trim($it['variante_texto']) : null,
                     'serial_identificador' => $serialIdentificador,
+                    'producto_serial_id' => ! empty($it['producto_serial_id']) ? (int) $it['producto_serial_id'] : null,
                     'cantidad' => $cantidad,
                     'costo_unitario_usd' => $costoUnitarioUsd,
                     'costo_unitario_bs' => round($costoUnitarioUsd * $tasaCambio, 4),
@@ -694,7 +722,9 @@ class VentaClass
                     'almacen_id' => $det['almacen_id'],
                     'tipo_item' => $det['tipo_item'],
                     'nombre_item' => $det['nombre_item'],
+                    'variante_texto' => $det['variante_texto'],
                     'serial_identificador' => $det['serial_identificador'],
+                    'producto_serial_id' => $det['producto_serial_id'],
                     'cantidad' => $det['cantidad'],
                     'costo_unitario_usd' => $det['costo_unitario_usd'],
                     'costo_unitario_bs' => $det['costo_unitario_bs'],
@@ -710,6 +740,17 @@ class VentaClass
                     'subtotal_usd' => $det['subtotal_usd'],
                     'subtotal_bs' => $det['subtotal_bs'],
                 ]);
+
+                // Actualizar serial único físico a vendido si aplica
+                if (! empty($det['producto_serial_id'])) {
+                    ProductoSerial::where('id', $det['producto_serial_id'])
+                        ->where('empresa_id', $empresaId)
+                        ->update([
+                            'estado' => 'vendido',
+                            'venta_id' => $venta->id,
+                            'venta_detalle_id' => $detModel->id,
+                        ]);
+                }
 
                 // Descontar inventario solo si es producto físico
                 if ($det['tipo_item'] === 'producto' && $det['producto_model'] && $det['producto_id']) {
@@ -1001,6 +1042,17 @@ class VentaClass
                         'costo_unitario_bs' => $vd->costo_unitario_bs,
                         'motivo' => "Reintegro por Devolución #{$devolucion->codigo} de Venta #{$venta->codigo}",
                     ]);
+                }
+
+                // Reintegrar serial único físico a 'disponible' si aplica
+                if (! empty($vd->producto_serial_id)) {
+                    ProductoSerial::where('id', $vd->producto_serial_id)
+                        ->where('empresa_id', $empresaId)
+                        ->update([
+                            'estado' => 'disponible',
+                            'venta_id' => null,
+                            'venta_detalle_id' => null,
+                        ]);
                 }
 
                 // Reintegrar moto a estado 'disponible' si es moto

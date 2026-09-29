@@ -7,6 +7,7 @@ use App\Http\Controllers\Empresa\CajaController;
 use App\Http\Controllers\Empresa\CategoriaController;
 use App\Http\Controllers\Empresa\ClienteController;
 use App\Http\Controllers\Empresa\ConfiguracionController;
+use App\Http\Controllers\Empresa\ConsultorPrecioController;
 use App\Http\Controllers\Empresa\CuentaPorCobrarController;
 use App\Http\Controllers\Empresa\CuentaPorPagarController;
 use App\Http\Controllers\Empresa\FacturaController;
@@ -33,6 +34,12 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::post('/cambiar-empresa', [UsuarioController::class, 'cambiarEmpresa'])->name('cambiar_empresa');
+
+    Route::controller(ConsultorPrecioController::class)->group(function () {
+        Route::get('/consultor-precios', 'index')->name('consultor_precios');
+        Route::get('/consultor-precios/datos', 'datos');
+        Route::get('/consultor-precios/buscar', 'buscar');
+    });
 
     Route::middleware('permission:pos.acceso')->controller(PosController::class)->group(function () {
         Route::get('/pos', 'index')->name('pos');

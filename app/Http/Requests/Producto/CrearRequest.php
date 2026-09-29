@@ -14,10 +14,19 @@ class CrearRequest extends BaseRequest
      */
     protected function prepareForValidation(): void
     {
-        // Normalizar valores booleanos
+        $codigosBarra = $this->codigos_barra;
+        if (empty($codigosBarra) && $this->filled('codigo_barra_principal')) {
+            $codigosBarra = [
+                ['codigo' => trim((string) $this->codigo_barra_principal), 'descripcion' => 'Principal'],
+            ];
+        }
+
         $this->merge([
             'aplica_iva' => filter_var($this->aplica_iva, FILTER_VALIDATE_BOOLEAN),
             'aplica_igtf' => filter_var($this->aplica_igtf, FILTER_VALIDATE_BOOLEAN),
+            'maneja_variantes' => filter_var($this->maneja_variantes, FILTER_VALIDATE_BOOLEAN),
+            'maneja_seriales' => filter_var($this->maneja_seriales, FILTER_VALIDATE_BOOLEAN),
+            'codigos_barra' => $codigosBarra,
         ]);
     }
 
@@ -52,6 +61,12 @@ class CrearRequest extends BaseRequest
             ],
             'descripcion' => ['nullable', 'string', 'max:1000'],
             'unidad_medida' => ['required', 'string', 'max:30'],
+            'maneja_variantes' => ['nullable', 'boolean'],
+            'atributos_variantes' => ['nullable', 'array'],
+            'atributos_variantes.nombre' => ['nullable', 'string', 'max:50'],
+            'atributos_variantes.opciones' => ['nullable', 'array'],
+            'atributos_variantes.opciones.*' => ['nullable', 'string', 'max:50'],
+            'maneja_seriales' => ['nullable', 'boolean'],
             'stock_minimo' => ['nullable', 'numeric', 'min:0'],
             'stock_maximo' => ['nullable', 'numeric', 'min:0'],
 

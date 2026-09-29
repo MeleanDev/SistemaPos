@@ -278,6 +278,12 @@
                                     @if($det->moto->numero_motor)<br>Mot: {{ $det->moto->numero_motor }}@endif
                                     @if($det->moto->color)<br>Col: {{ $det->moto->color }}@endif
                                 @else
+                                    @if($det->variante_texto)
+                                        Var: {{ $det->variante_texto }}<br>
+                                    @endif
+                                    @if($det->producto_serial_id || $det->productoSerial)
+                                        SN: {{ $det->productoSerial?->numero_serial ?? $det->serial_identificador }}<br>
+                                    @endif
                                     {{ $det->aplica_iva ? '(IVA ' . (float)$det->iva_porcentaje . '%)' : '(EXENTO)' }}
                                 @endif
                             </div>

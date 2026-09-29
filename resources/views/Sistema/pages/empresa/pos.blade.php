@@ -1259,6 +1259,124 @@
     </div>
 </div>
 
+<!-- MODAL DE SELECCIÓN DE VARIANTE (COLOR / MEDIDA) -->
+<div class="modal fade" id="modalSeleccionarVariantePos" tabindex="-1" aria-labelledby="modalSeleccionarVariantePosLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header modal-pos-header py-3 px-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="modal-header-icon-wrap" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: #ffffff;">
+                        <i class="fas fa-swatchbook" style="font-size: 1.1rem; color: #ffffff;"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-white" id="modalSeleccionarVariantePosLabel">Seleccionar Opción / Variante</h5>
+                        <small class="text-white-50">Elige la variante (color, medida o acabado) a vender</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4 bg-white">
+                <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <div class="avatar-executive-sm rounded-3 bg-purple-subtle text-purple-emphasis d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; font-size: 1.2rem;">
+                            <i class="fas fa-couch"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold text-dark mb-0 font-monospace" id="posVarianteModalProdNombre">Nombre del Producto</h6>
+                            <span class="badge bg-light text-secondary border font-monospace mt-0.5" id="posVarianteModalProdCodigo">#0000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label-executive mb-2 d-flex align-items-center justify-content-between">
+                        <span><i class="fas fa-palette text-primary me-1.5"></i> <strong id="posVarianteModalAttrNombre">Opciones Disponibles:</strong></span>
+                        <small class="text-muted font-monospace">Haz clic para seleccionar</small>
+                    </label>
+                    <div id="posVarianteOpcionesContainer" class="d-flex flex-wrap gap-2 p-3 bg-light rounded-4 border border-light-subtle" style="min-height: 80px;">
+                        <!-- Chips cargados dinámicamente -->
+                    </div>
+                    <input type="hidden" id="posVarianteModalOpcionSeleccionada">
+                </div>
+            </div>
+
+            <div class="modal-footer bg-white border-top py-3 px-4 d-flex justify-content-between">
+                <button type="button" class="btn btn-pos-cancel" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-primary rounded-pill px-4 py-2 font-monospace fw-bold shadow-sm" id="btnConfirmarVariantePos" onclick="confirmarSeleccionVariantePos()" style="background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%); border: none;">
+                    <i class="fas fa-check me-1"></i> Confirmar y Agregar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE SELECCIÓN DE SERIAL FÍSICO ÚNICO -->
+<div class="modal fade" id="modalSeleccionarSerialPos" tabindex="-1" aria-labelledby="modalSeleccionarSerialPosLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header modal-pos-header py-3 px-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="modal-header-icon-wrap" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: #ffffff;">
+                        <i class="fas fa-barcode" style="font-size: 1.1rem; color: #ffffff;"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-white" id="modalSeleccionarSerialPosLabel">Seleccionar Unidad / Serial Físico</h5>
+                        <small class="text-white-50">Elige la unidad exacta en stock que entregarás al cliente</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4 bg-white">
+                <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <div class="d-flex align-items-center gap-2.5">
+                            <div class="avatar-executive-sm rounded-3 bg-info-subtle text-info-emphasis d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; font-size: 1.2rem;">
+                                <i class="fas fa-tv"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold text-dark mb-0 font-monospace" id="posSerialModalProdNombre">Nombre del Producto</h6>
+                                <span class="badge bg-light text-secondary border font-monospace mt-0.5" id="posSerialModalProdCodigo">#0000</span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill font-monospace px-3 py-1" id="posSerialModalAlmacenBadge">Almacén Principal</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="pos-scanner-box mb-2">
+                        <div class="scanner-icon-wrap">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <input type="text" id="posFiltroSerialesModal" placeholder="Filtrar por número de serial o variante..." autocomplete="off" oninput="filtrarSerialesModalPos()">
+                    </div>
+
+                    <div class="p-2.5 bg-light rounded-4 border border-light-subtle">
+                        <div class="d-flex align-items-center justify-content-between mb-2 px-1">
+                            <strong class="text-dark small font-monospace"><i class="fas fa-list-ol text-primary me-1"></i> Unidades Disponibles en este Almacén:</strong>
+                            <span class="badge bg-white text-dark border rounded-pill font-monospace" id="posSerialesModalContador">0 Disponibles</span>
+                        </div>
+                        <div id="posSerialesOpcionesContainer" class="d-flex flex-column gap-1.5" style="max-height: 250px; overflow-y: auto;">
+                            <!-- Seriales cargados dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-white border-top py-3 px-4 d-flex justify-content-between">
+                <button type="button" class="btn btn-pos-cancel" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL DE SELECCIÓN DE CANTIDAD Y ALMACÉN -->
 <div class="modal fade" id="modalDetalleVentaProducto" tabindex="-1" aria-labelledby="modalDetalleVentaProductoLabel" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -1311,6 +1429,22 @@
                                 <div class="col-md-4"><strong>Motor:</strong> <span id="modalDetalleMotor">--</span></div>
                                 <div class="col-md-4"><strong>Chasis:</strong> <span id="modalDetalleChasis">--</span></div>
                             </div>
+                        </div>
+
+                        <!-- Sección de Variante en Modal Detalle -->
+                        <div id="modalDetalleContenedorVariante" class="p-2.5 rounded-3 bg-purple-subtle text-purple-emphasis font-monospace small mb-2 border border-purple-subtle" style="display: none;">
+                            <label class="form-label-executive mb-1 text-dark fw-bold"><i class="fas fa-swatchbook text-purple me-1"></i> Opción / Variante (Color, Medida):</label>
+                            <select id="modalDetalleSelectVariante" class="form-select form-select-sm font-monospace rounded-3">
+                                <option value="">-- Sin variante seleccionada --</option>
+                            </select>
+                        </div>
+
+                        <!-- Sección de Serial en Modal Detalle -->
+                        <div id="modalDetalleContenedorSerial" class="p-2.5 rounded-3 bg-info-subtle text-info-emphasis font-monospace small mb-2 border border-info-subtle" style="display: none;">
+                            <label class="form-label-executive mb-1 text-dark fw-bold"><i class="fas fa-barcode text-info me-1"></i> Serial Físico Único:</label>
+                            <select id="modalDetalleSelectSerial" class="form-select form-select-sm font-monospace rounded-3">
+                                <option value="">-- Seleccionar serial disponible --</option>
+                            </select>
                         </div>
                     </div>
 

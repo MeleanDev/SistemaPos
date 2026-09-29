@@ -194,11 +194,89 @@ const calcularMargenMayorDesdePrecioBsForm = function () {
     }
 };
 
+const toggleVariantesProducto = function () {
+    const check = $("#maneja_variantes").is(":checked");
+    if (check) {
+        $("#seccionConfigVariantes").slideDown(200);
+    } else {
+        $("#seccionConfigVariantes").slideUp(200);
+    }
+};
+
+const agregarOpcionVariante = function (opcionDirecta = null) {
+    const $input = $("#input_nueva_opcion_variante");
+    let opcion = opcionDirecta !== null ? String(opcionDirecta).trim() : $input.val().trim();
+    if (!opcion) return;
+
+    let existe = false;
+    $('#contenedorChipsVariantes input[name="atributos_variantes[opciones][]"]').each(function () {
+        if ($(this).val().toLowerCase() === opcion.toLowerCase()) {
+            existe = true;
+            return false;
+        }
+    });
+
+    if (existe) {
+        if (opcionDirecta === null && window.notificacion) {
+            window.notificacion.fire({
+                icon: "warning",
+                title: "Opción duplicada",
+                text: `La opción "${opcion}" ya ha sido agregada.`,
+            });
+        }
+        $input.val("").focus();
+        return;
+    }
+
+    $("#placeholderSinVariantes").hide();
+
+    const chipHtml = `
+        <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 d-inline-flex align-items-center gap-2 font-monospace shadow-xs chip-variante-item" style="font-size: 0.85rem;">
+            <i class="fas fa-check-circle text-primary"></i>
+            <span>${opcion}</span>
+            <input type="hidden" name="atributos_variantes[opciones][]" value="${opcion}">
+            <button type="button" class="btn btn-sm btn-link text-danger p-0 border-0 ms-1 d-inline-flex align-items-center" onclick="eliminarOpcionVariante(this)" title="Eliminar opción" style="line-height: 1; text-decoration: none;">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        </span>
+    `;
+
+    $("#contenedorChipsVariantes").append(chipHtml);
+    if (opcionDirecta === null) {
+        $input.val("").focus();
+    }
+};
+
+const eliminarOpcionVariante = function (btn) {
+    $(btn).closest(".chip-variante-item").remove();
+    if ($("#contenedorChipsVariantes .chip-variante-item").length === 0) {
+        $("#placeholderSinVariantes").show();
+    }
+};
+
+const limpiarOpcionesVariantes = function () {
+    $("#contenedorChipsVariantes .chip-variante-item").remove();
+    $("#placeholderSinVariantes").show();
+    $("#input_nueva_opcion_variante").val("");
+};
+
+window.toggleVariantesProducto = toggleVariantesProducto;
+window.agregarOpcionVariante = agregarOpcionVariante;
+window.eliminarOpcionVariante = eliminarOpcionVariante;
+window.limpiarOpcionesVariantes = limpiarOpcionesVariantes;
+
 $(document).ready(function () {
     crearSelect2({
         selector: "#categoria_id",
         modalSelector: "#modalProducto",
         placeholder: "Seleccione una categoría...",
+    });
+
+    $("#input_nueva_opcion_variante").on("keypress", function (e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            agregarOpcionVariante();
+        }
     });
 
     cargarCatalogos();
@@ -219,6 +297,14 @@ $(document).ready(function () {
                 render: function (data, type, row) {
                     const nombre = (row.nombre || "").trim();
                     const sku = (row.codigo_interno || "").trim();
+                    let badgesEspeciales = "";
+                    if (row.maneja_variantes) {
+                        badgesEspeciales += '<span class="badge rounded-pill font-monospace px-2 py-0.5 ms-1" style="font-size: 0.70rem; background-color: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;"><i class="fas fa-layer-group me-1"></i>Variantes</span>';
+                    }
+                    if (row.maneja_seriales) {
+                        badgesEspeciales += '<span class="badge rounded-pill font-monospace px-2 py-0.5 ms-1" style="font-size: 0.70rem; background-color: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0;"><i class="fas fa-barcode me-1"></i>Seriales</span>';
+                    }
+
                     return `
                         <div class="d-flex align-items-center gap-2 py-1">
                             <div class="avatar-executive-sm shadow-xs rounded-3" style="width: 40px; height: 40px; min-width: 40px; display: flex; align-items: center; justify-content: center; background-color: #eef2ff; color: #4f46e5; font-size: 1.1rem;">
@@ -228,10 +314,11 @@ $(document).ready(function () {
                                 <div class="d-flex align-items-center gap-1 mb-1">
                                     <span class="fw-bold text-dark text-capitalize" style="font-size: 0.90rem; letter-spacing: -0.01em;">${nombre}</span>
                                 </div>
-                                <div>
+                                <div class="d-flex align-items-center flex-wrap gap-1">
                                     <span class="badge rounded-pill font-monospace px-2 py-1" style="font-size: 0.74rem; font-weight: 600; background-color: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1;">
                                         <i class="fas fa-hashtag text-primary me-1" style="font-size: 0.68rem;"></i>${sku}
                                     </span>
+                                    ${badgesEspeciales}
                                 </div>
                             </div>
                         </div>
@@ -613,6 +700,12 @@ const resetearFormularioProducto = function () {
     $("#stock_minimo").val("0");
     $("#stock_maximo").val("");
 
+    $("#maneja_variantes").prop("checked", false);
+    toggleVariantesProducto();
+    $("#nombre_atributo_variante").val("Color");
+    limpiarOpcionesVariantes();
+    $("#maneja_seriales").prop("checked", false);
+
     $("#aplica_iva").prop("checked", true);
     $("#iva_porcentaje").val("16.00").prop("disabled", false);
     $("#aplica_igtf").prop("checked", true);
@@ -667,6 +760,33 @@ const editar = async function (id) {
         $("#nombre").val(prod.nombre || "");
         $("#descripcion").val(prod.descripcion || "");
         $("#unidad_medida").val(prod.unidad_medida || "unidad");
+
+        const manejaVariantes = prod.maneja_variantes == 1 || prod.maneja_variantes === true;
+        $("#maneja_variantes").prop("checked", manejaVariantes);
+        toggleVariantesProducto();
+
+        limpiarOpcionesVariantes();
+        let atributos = prod.atributos_variantes;
+        if (typeof atributos === "string" && atributos.trim() !== "") {
+            try {
+                atributos = JSON.parse(atributos);
+            } catch (e) {
+                atributos = null;
+            }
+        }
+        if (atributos && typeof atributos === "object") {
+            $("#nombre_atributo_variante").val(atributos.nombre || "Color");
+            if (Array.isArray(atributos.opciones)) {
+                atributos.opciones.forEach((opc) => {
+                    agregarOpcionVariante(opc);
+                });
+            }
+        } else {
+            $("#nombre_atributo_variante").val("Color");
+        }
+
+        const manejaSeriales = prod.maneja_seriales == 1 || prod.maneja_seriales === true;
+        $("#maneja_seriales").prop("checked", manejaSeriales);
 
         const tasaCompraProd =
             prod.tasa_compra && parseFloat(prod.tasa_compra) > 0
@@ -925,6 +1045,83 @@ const verFicha = async function (id) {
                 ? parseFloat(prod.ultimo_margen_mayorista)
                 : 15.0;
 
+        let variantesHtml = "";
+        if (prod.maneja_variantes) {
+            let atributos = prod.atributos_variantes;
+            if (typeof atributos === "string" && atributos.trim() !== "") {
+                try {
+                    atributos = JSON.parse(atributos);
+                } catch (e) {
+                    atributos = null;
+                }
+            }
+            let chipsHtml = "";
+            if (atributos && Array.isArray(atributos.opciones) && atributos.opciones.length > 0) {
+                chipsHtml = atributos.opciones
+                    .map(
+                        (o) =>
+                            `<span class="badge rounded-pill font-monospace px-3 py-1.5 fw-bold" style="background-color: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; font-size: 0.82rem;"><i class="fas fa-check-circle me-1 text-purple"></i>${o}</span>`,
+                    )
+                    .join(" ");
+            } else {
+                chipsHtml = '<span class="text-muted fst-italic">Sin opciones especificadas.</span>';
+            }
+
+            variantesHtml = `
+                <div class="col-12">
+                    <div class="card border rounded-4 p-3 shadow-sm bg-white" style="border-left: 4px solid #7e22ce !important;">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <h6 class="fw-bold text-dark mb-0"><i class="fas fa-layer-group text-primary me-2"></i> Variantes & Colores Habilitados (${atributos?.nombre || "Color"})</h6>
+                            <span class="badge rounded-pill bg-purple-subtle text-purple-emphasis px-3 py-1 fw-bold" style="background-color: #f3e8ff; color: #7e22ce;">Checklist Activo</span>
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center gap-2 pt-1">
+                            ${chipsHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        let serialesHtml = "";
+        if (prod.maneja_seriales) {
+            let listaSerialesHtml = "";
+            if (Array.isArray(prod.seriales) && prod.seriales.length > 0) {
+                listaSerialesHtml = prod.seriales
+                    .map((s) => {
+                        const esDisp = s.estado === "disponible";
+                        const badgeEst = esDisp
+                            ? '<span class="badge rounded-pill px-2 py-0.5 fw-bold" style="background-color: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0;">Disponible</span>'
+                            : `<span class="badge rounded-pill bg-secondary text-white px-2 py-0.5 text-uppercase">${s.estado}</span>`;
+                        return `
+                            <div class="col-md-4 col-sm-6">
+                                <div class="p-2 border rounded-3 bg-light d-flex align-items-center justify-content-between">
+                                    <span class="font-monospace fw-bold text-dark small"><i class="fas fa-barcode text-success me-1"></i>${s.numero_serial}</span>
+                                    ${badgeEst}
+                                </div>
+                            </div>
+                        `;
+                    })
+                    .join("");
+            } else {
+                listaSerialesHtml =
+                    '<div class="col-12 text-muted fst-italic small"><i class="fas fa-info-circle me-1"></i> Este producto rastrea seriales únicos. Las unidades físicas se registran al procesar recepciones.</div>';
+            }
+
+            serialesHtml = `
+                <div class="col-12">
+                    <div class="card border rounded-4 p-3 shadow-sm bg-white" style="border-left: 4px solid #10b981 !important;">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <h6 class="fw-bold text-dark mb-0"><i class="fas fa-barcode text-success me-2"></i> Unidades Serializadas Físicas (Neveras, Aires, Freezers)</h6>
+                            <span class="badge rounded-pill bg-success-subtle text-success px-3 py-1 fw-bold" style="background-color: #dcfce7; color: #16a34a;">Rastreo por Serial</span>
+                        </div>
+                        <div class="row g-2 pt-1">
+                            ${listaSerialesHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         const fichaHtml = `
             <div class="row g-4">
                 <div class="col-12">
@@ -954,6 +1151,9 @@ const verFicha = async function (id) {
                         </div>
                     </div>
                 </div>
+
+                ${variantesHtml}
+                ${serialesHtml}
 
                 <div class="col-md-5">
                     <div class="card border rounded-4 p-3 h-100 shadow-sm">

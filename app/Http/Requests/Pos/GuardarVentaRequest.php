@@ -58,6 +58,8 @@ class GuardarVentaRequest extends BaseRequest
             'items.*.precio_unitario_usd' => ['required', 'numeric', 'min:0.0001'],
             'items.*.descuento_porcentaje' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'items.*.almacen_id' => ['nullable', 'integer'],
+            'items.*.variante_texto' => ['nullable', 'string', 'max:255'],
+            'items.*.producto_serial_id' => ['nullable', 'integer'],
             'pagos' => ['nullable', 'array'],
             'pagos.*.metodo_pago_id' => ['required_with:pagos', 'integer'],
             'pagos.*.monto' => ['required_with:pagos', 'numeric', 'min:0.0001'],

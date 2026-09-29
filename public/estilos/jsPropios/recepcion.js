@@ -29,6 +29,7 @@ let contadorFilas = 0;
 let listaProductosCargados = [];
 let productoSeleccionadoActual = null;
 let indiceEdicionActual = null;
+let serialesRenglonActual = [];
 
 function formatearMonto(monto, decimales = 2) {
     const num = parseFloat(monto) || 0;
@@ -258,6 +259,13 @@ $(document).ready(function () {
     aplicarRestriccionesInput();
     actualizarContadorBorradores();
 
+    $("#input_serial_individual").on("keypress", function (e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            agregarSerialIndividual();
+        }
+    });
+
     $(document).on("input change", "#formularioRecepcion input, #formularioRecepcion select, #panelFormularioRenglon input, #panelFormularioRenglon select", function () {
         dispararAutoGuardado();
     });
@@ -266,6 +274,131 @@ $(document).ready(function () {
         e.preventDefault();
     });
 });
+
+function agregarSerialIndividual(serialDirecto = null) {
+    const $input = $("#input_serial_individual");
+    let serial = serialDirecto !== null ? String(serialDirecto).trim() : $input.val().trim();
+    if (!serial) return;
+
+    if (serialesRenglonActual.map((s) => s.toLowerCase()).includes(serial.toLowerCase())) {
+        if (serialDirecto === null && window.notificacion) {
+            window.notificacion.fire({
+                icon: "warning",
+                title: "Serial duplicado",
+                text: `El número de serial "${serial}" ya fue agregado a este renglón.`,
+            });
+        }
+        $input.val("").focus();
+        return;
+    }
+
+    const cantidadRequerida = normalizarNumero($("#form_renglon_cantidad").val()) || 1;
+    if (serialesRenglonActual.length >= cantidadRequerida) {
+        if (serialDirecto === null && window.notificacion) {
+            window.notificacion.fire({
+                icon: "info",
+                title: "Cantidad completada",
+                text: `Ya se han registrado los ${cantidadRequerida} seriales requeridos para esta cantidad.`,
+            });
+        }
+        $input.val("").focus();
+        return;
+    }
+
+    serialesRenglonActual.push(serial);
+    actualizarVistaSerialesRenglon();
+    if (serialDirecto === null) {
+        $input.val("").focus();
+    }
+}
+
+function eliminarSerialIndividual(idx) {
+    if (idx >= 0 && idx < serialesRenglonActual.length) {
+        serialesRenglonActual.splice(idx, 1);
+        actualizarVistaSerialesRenglon();
+    }
+}
+
+function limpiarSerialesRenglon() {
+    serialesRenglonActual = [];
+    actualizarVistaSerialesRenglon();
+    $("#input_serial_individual").val("");
+}
+
+function autoGenerarSerialesRenglon() {
+    const cantidadRequerida = normalizarNumero($("#form_renglon_cantidad").val()) || 1;
+    const faltantes = cantidadRequerida - serialesRenglonActual.length;
+    if (faltantes <= 0) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "info",
+                title: "Seriales Completados",
+                text: "Ya tienes la cantidad completa de seriales asignada.",
+            });
+        }
+        return;
+    }
+
+    const fechaHoy = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const prefijo = productoSeleccionadoActual?.codigo_interno ? `SN-${productoSeleccionadoActual.codigo_interno}-` : `SN-${fechaHoy}-`;
+
+    for (let i = 0; i < faltantes; i++) {
+        const aleatorio = Math.floor(1000 + Math.random() * 9000);
+        const nuevoSerial = `${prefijo}${Date.now().toString().slice(-4)}${aleatorio}`;
+        serialesRenglonActual.push(nuevoSerial);
+    }
+
+    actualizarVistaSerialesRenglon();
+}
+
+function actualizarVistaSerialesRenglon() {
+    const $contenedor = $("#contenedorChipsSeriales");
+    const $placeholder = $("#placeholderSinSeriales");
+    const $contador = $("#contadorSerialesIngresados");
+    const $meta = $("#metaSerialesCantidad");
+    const $badgeProgreso = $("#badgeEstadoProgresoSeriales");
+
+    const cantidadRequerida = normalizarNumero($("#form_renglon_cantidad").val()) || 0;
+    const totalActual = serialesRenglonActual.length;
+
+    $contador.text(totalActual);
+    $meta.text(cantidadRequerida);
+
+    $contenedor.find(".chip-serial-renglon").remove();
+
+    if (totalActual === 0) {
+        $placeholder.show();
+    } else {
+        $placeholder.hide();
+        serialesRenglonActual.forEach((s, idx) => {
+            const chip = `
+                <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 d-inline-flex align-items-center gap-1.5 font-monospace shadow-xs chip-serial-renglon" style="font-size: 0.80rem;">
+                    <i class="fas fa-barcode"></i>
+                    <span>${s}</span>
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0 border-0 ms-1 d-inline-flex align-items-center" onclick="eliminarSerialIndividual(${idx})" title="Eliminar serial" style="line-height: 1; text-decoration: none;">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                </span>
+            `;
+            $contenedor.append(chip);
+        });
+    }
+
+    const faltantes = Math.max(0, cantidadRequerida - totalActual);
+    if (cantidadRequerida > 0 && totalActual === cantidadRequerida) {
+        $badgeProgreso.removeClass("bg-light text-dark bg-warning-subtle text-warning-emphasis").addClass("bg-success-subtle text-success border-success-subtle").text("✓ Completo");
+    } else if (faltantes > 0) {
+        $badgeProgreso.removeClass("bg-light text-dark bg-success-subtle text-success").addClass("bg-warning-subtle text-warning-emphasis border-warning-subtle").text(`Faltan: ${faltantes}`);
+    } else {
+        $badgeProgreso.removeClass("bg-success-subtle text-success bg-warning-subtle text-warning-emphasis").addClass("bg-light text-dark").text(`Pendientes: 0`);
+    }
+}
+
+window.agregarSerialIndividual = agregarSerialIndividual;
+window.eliminarSerialIndividual = eliminarSerialIndividual;
+window.limpiarSerialesRenglon = limpiarSerialesRenglon;
+window.autoGenerarSerialesRenglon = autoGenerarSerialesRenglon;
+window.actualizarVistaSerialesRenglon = actualizarVistaSerialesRenglon;
 
 async function cargarCatalogos() {
     try {
@@ -759,6 +892,41 @@ function seleccionarProductoParaCarga(prod, datosPrecargados = null) {
 
     $("#panelInfoProductoSeleccionado").slideDown(150);
 
+    if (prod.maneja_variantes) {
+        $("#seccionVarianteRenglon").slideDown(150);
+        let atributos = prod.atributos_variantes;
+        if (typeof atributos === "string" && atributos.trim() !== "") {
+            try {
+                atributos = JSON.parse(atributos);
+            } catch (e) {
+                atributos = null;
+            }
+        }
+        const nombreAtributo = atributos?.nombre || "Variante / Opción";
+        $("#labelNombreAtributoRenglon").text(`${nombreAtributo}:`);
+        const $selVar = $("#form_renglon_variante_texto");
+        $selVar.empty().append(`<option value="">-- Seleccionar ${nombreAtributo} --</option>`);
+        if (atributos && Array.isArray(atributos.opciones)) {
+            atributos.opciones.forEach((opc) => {
+                const sel = String(opc) === String(datosPrecargados?.variante_texto || "") ? "selected" : "";
+                $selVar.append(`<option value="${opc}" ${sel}>${opc}</option>`);
+            });
+        }
+    } else {
+        $("#seccionVarianteRenglon").hide();
+        $("#form_renglon_variante_texto").empty();
+    }
+
+    if (prod.maneja_seriales) {
+        $("#seccionSerialesRenglon").slideDown(150);
+        serialesRenglonActual = Array.isArray(datosPrecargados?.seriales) ? [...datosPrecargados.seriales] : [];
+        actualizarVistaSerialesRenglon();
+    } else {
+        $("#seccionSerialesRenglon").hide();
+        serialesRenglonActual = [];
+        actualizarVistaSerialesRenglon();
+    }
+
     const $selectAlm = $("#form_renglon_almacen_id");
     $selectAlm.empty();
     const almDefectoId = $("#almacen_id").val();
@@ -862,6 +1030,7 @@ function calcularCantidadDesdeBultos() {
         $("#form_renglon_costo_unitario").val(costoTotal.toFixed(4));
     }
 
+    actualizarVistaSerialesRenglon();
     calcularPrecioDetalDesdeMargen();
     calcularPrecioMayoristaDesdeMargen();
     recalcularFormularioRenglon();
@@ -882,6 +1051,7 @@ function calcularCostoDesdeBulto() {
         $("#form_renglon_costo_unitario").val("0.0000");
     }
 
+    actualizarVistaSerialesRenglon();
     calcularPrecioDetalDesdeMargen();
     calcularPrecioMayoristaDesdeMargen();
     recalcularFormularioRenglon();
@@ -1080,6 +1250,37 @@ function agregarOActualizarRenglon() {
     const cantidad = bultos * unidPorBulto;
     $("#form_renglon_cantidad").val(cantidad);
 
+    let varianteTexto = null;
+    if (productoSeleccionadoActual.maneja_variantes) {
+        varianteTexto = $("#form_renglon_variante_texto").val();
+        if (!varianteTexto) {
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "warning",
+                    title: "Variante / Color Requerido",
+                    text: "Por favor selecciona el color u opción de variante correspondiente para este producto.",
+                });
+            }
+            $("#form_renglon_variante_texto").focus();
+            return;
+        }
+    }
+
+    let serialesIngresados = [];
+    if (productoSeleccionadoActual.maneja_seriales) {
+        if (serialesRenglonActual.length !== cantidad) {
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "warning",
+                    title: "Seriales Incompletos",
+                    text: `Este producto maneja seriales únicos. Has ingresado ${serialesRenglonActual.length} de ${cantidad} seriales requeridos. Puedes generarlos automáticamente o completarlos.`,
+                });
+            }
+            return;
+        }
+        serialesIngresados = [...serialesRenglonActual];
+    }
+
     const costoInput = cantidad > 0 ? (costoBultoInput / cantidad) : costoBultoInput;
     $("#form_renglon_costo_unitario").val(costoInput.toFixed(4));
 
@@ -1183,6 +1384,8 @@ function agregarOActualizarRenglon() {
         producto: productoSeleccionadoActual,
         almacen_id: almId,
         almacen_nombre: almNombre,
+        variante_texto: varianteTexto,
+        seriales: serialesIngresados,
         bultos: bultos,
         unidades_por_bulto: unidPorBulto,
         cantidad: cantidad,
@@ -1221,10 +1424,10 @@ function agregarOActualizarRenglon() {
         listaProductosCargados[indiceEdicionActual] = itemRenglon;
     } else {
         const indiceExistente = listaProductosCargados.findIndex(
-            (it) => it.producto_id === itemRenglon.producto_id && it.almacen_id === itemRenglon.almacen_id
+            (it) => it.producto_id === itemRenglon.producto_id && it.almacen_id === itemRenglon.almacen_id && (it.variante_texto || "") === (itemRenglon.variante_texto || "")
         );
 
-        if (indiceExistente !== -1) {
+        if (indiceExistente !== -1 && !itemRenglon.producto.maneja_seriales) {
             listaProductosCargados[indiceExistente].cantidad += itemRenglon.cantidad;
             listaProductosCargados[indiceExistente].costo_unitario_usd = itemRenglon.costo_unitario_usd;
             listaProductosCargados[indiceExistente].costo_unitario_bs = itemRenglon.costo_unitario_bs;
@@ -1286,6 +1489,9 @@ function eliminarRenglon(indice) {
 function cancelarEdicionRenglon() {
     productoSeleccionadoActual = null;
     indiceEdicionActual = null;
+    serialesRenglonActual = [];
+    $("#seccionVarianteRenglon").slideUp(100);
+    $("#seccionSerialesRenglon").slideUp(100);
     $("#panelInfoProductoSeleccionado").slideUp(100);
     $("#panelFormularioRenglon").slideUp(100);
     $("#badgeModoEdicion").hide();
@@ -1332,6 +1538,16 @@ function renderizarTablaDetalles() {
         const prod = item.producto;
         const bultosTexto = item.bultos > 0 ? `<small class="text-muted d-block font-monospace">(${item.bultos} blt x ${item.unidades_por_bulto})</small>` : "";
 
+        let varianteBadge = "";
+        if (item.variante_texto) {
+            varianteBadge = `<span class="badge rounded-pill font-monospace px-2 py-0.5 mt-0.5" style="font-size: 0.70rem; background-color: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;"><i class="fas fa-layer-group me-1"></i>${item.variante_texto}</span>`;
+        }
+
+        let serialesBadge = "";
+        if (Array.isArray(item.seriales) && item.seriales.length > 0) {
+            serialesBadge = `<span class="badge rounded-pill font-monospace px-2 py-0.5 mt-0.5 ms-1" style="font-size: 0.70rem; background-color: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0;"><i class="fas fa-barcode me-1"></i>${item.seriales.length} SN</span>`;
+        }
+
         const costPrincipal = !esVes ? `$ ${formatearMonto(item.costo_unitario_usd, 4)}` : `Bs. ${formatearMonto(item.costo_unitario_bs, 4)}`;
         const costSecundario = !esVes ? `Bs. ${formatearMonto(item.costo_unitario_bs, 4)}` : `$ ${formatearMonto(item.costo_unitario_usd, 4)}`;
 
@@ -1355,6 +1571,10 @@ function renderizarTablaDetalles() {
                         <span class="badge rounded-pill bg-light text-secondary border px-1 py-0">#${prod.codigo_interno || ''}</span>
                         <span>•</span>
                         <span>${prod.unidad_medida || 'UND'}</span>
+                    </div>
+                    <div class="d-flex align-items-center flex-wrap gap-1">
+                        ${varianteBadge}
+                        ${serialesBadge}
                     </div>
                 </td>
                 <td>
@@ -1408,9 +1628,15 @@ function renderizarTablaDetalles() {
         `;
         $tbody.append(filaHtml);
 
+        let serialesInputsHtml = "";
+        if (Array.isArray(item.seriales)) {
+            serialesInputsHtml = item.seriales.map((s) => `<input type="hidden" name="detalles[${idx}][seriales][]" value="${s}">`).join("");
+        }
+
         const hiddenHtml = `
             <input type="hidden" name="detalles[${idx}][producto_id]" value="${item.producto_id}">
             <input type="hidden" name="detalles[${idx}][almacen_id]" value="${item.almacen_id}">
+            <input type="hidden" name="detalles[${idx}][variante_texto]" value="${item.variante_texto || ''}">
             <input type="hidden" name="detalles[${idx}][bultos]" value="${item.bultos}">
             <input type="hidden" name="detalles[${idx}][unidades_por_bulto]" value="${item.unidades_por_bulto}">
             <input type="hidden" name="detalles[${idx}][cantidad]" value="${item.cantidad}">
@@ -1426,6 +1652,7 @@ function renderizarTablaDetalles() {
             <input type="hidden" name="detalles[${idx}][margen_mayorista_porcentaje]" value="${item.margen_mayorista_porcentaje}">
             <input type="hidden" name="detalles[${idx}][precio_mayorista_usd]" value="${item.precio_mayorista_usd}">
             <input type="hidden" name="detalles[${idx}][precio_mayorista_con_iva_usd]" value="${item.precio_mayorista_con_iva_usd}">
+            ${serialesInputsHtml}
         `;
         $hiddenContainer.append(hiddenHtml);
     });
@@ -2394,6 +2621,78 @@ function toggleIvaRapidoProducto() {
     }
 }
 
+function toggleVariantesRapidoProducto() {
+    const check = $("#rapido_prod_maneja_variantes").is(":checked");
+    if (check) {
+        $("#rapido_seccion_variantes").slideDown(150);
+        setTimeout(() => $("#rapido_prod_opcion_input").focus(), 150);
+    } else {
+        $("#rapido_seccion_variantes").slideUp(150);
+    }
+}
+
+function agregarOpcionVarianteRapido(opcionDirecta = null) {
+    const $input = $("#rapido_prod_opcion_input");
+    let opcion = opcionDirecta !== null ? String(opcionDirecta).trim() : $input.val().trim();
+    if (!opcion) return;
+
+    let existe = false;
+    $('#rapido_contenedor_chips_variantes input[name="atributos_variantes[opciones][]"]').each(function () {
+        if ($(this).val().toLowerCase() === opcion.toLowerCase()) {
+            existe = true;
+            return false;
+        }
+    });
+
+    if (existe) {
+        if (opcionDirecta === null && window.notificacion) {
+            window.notificacion.fire({
+                icon: "warning",
+                title: "Opción duplicada",
+                text: `La opción "${opcion}" ya ha sido agregada.`,
+            });
+        }
+        $input.val("").focus();
+        return;
+    }
+
+    $("#rapido_placeholder_sin_variantes").hide();
+
+    const chipHtml = `
+        <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1.5 d-inline-flex align-items-center gap-1.5 font-monospace shadow-xs chip-rapido-variante-item" style="font-size: 0.8rem;">
+            <i class="fas fa-check-circle text-primary"></i>
+            <span>${opcion}</span>
+            <input type="hidden" name="atributos_variantes[opciones][]" value="${opcion}">
+            <button type="button" class="btn btn-sm btn-link text-danger p-0 border-0 ms-1 d-inline-flex align-items-center" onclick="eliminarOpcionVarianteRapido(this)" title="Eliminar opción" style="line-height: 1; text-decoration: none;">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        </span>
+    `;
+
+    $("#rapido_contenedor_chips_variantes").append(chipHtml);
+    if (opcionDirecta === null) {
+        $input.val("").focus();
+    }
+}
+
+function eliminarOpcionVarianteRapido(btn) {
+    $(btn).closest(".chip-rapido-variante-item").remove();
+    if ($("#rapido_contenedor_chips_variantes .chip-rapido-variante-item").length === 0) {
+        $("#rapido_placeholder_sin_variantes").show();
+    }
+}
+
+function limpiarOpcionesVariantesRapido() {
+    $("#rapido_contenedor_chips_variantes .chip-rapido-variante-item").remove();
+    $("#rapido_placeholder_sin_variantes").show();
+    $("#rapido_prod_opcion_input").val("");
+}
+
+window.toggleVariantesRapidoProducto = toggleVariantesRapidoProducto;
+window.agregarOpcionVarianteRapido = agregarOpcionVarianteRapido;
+window.eliminarOpcionVarianteRapido = eliminarOpcionVarianteRapido;
+window.limpiarOpcionesVariantesRapido = limpiarOpcionesVariantesRapido;
+
 function abrirModalRapidoProducto(query = "") {
     $("#formularioRapidoProducto")[0].reset();
     $("#formularioRapidoProducto .is-invalid").removeClass("is-invalid");
@@ -2404,6 +2703,12 @@ function abrirModalRapidoProducto(query = "") {
     $("#rapido_prod_aplica_iva").prop("checked", true);
     $("#rapido_prod_iva_porcentaje").val("16.00");
     $("#contenedorIvaPorcentajeRapido").show();
+
+    $("#rapido_prod_maneja_variantes").prop("checked", false);
+    $("#rapido_seccion_variantes").hide();
+    $("#rapido_prod_attr_nombre").val("Color");
+    limpiarOpcionesVariantesRapido();
+    $("#rapido_prod_maneja_seriales").prop("checked", false);
 
     query = (query || "").trim();
     if (query) {
@@ -2441,6 +2746,8 @@ $("#formularioRapidoProducto").on("submit", async function (e) {
     const aplicaIva = $("#rapido_prod_aplica_iva").is(":checked");
     const ivaPorcentaje = aplicaIva ? parseFloat($("#rapido_prod_iva_porcentaje").val()) || 16.00 : 0;
     const barcodeVal = ($("#rapido_prod_barcode").val() || "").trim();
+    const manejaVariantes = $("#rapido_prod_maneja_variantes").is(":checked");
+    const manejaSeriales = $("#rapido_prod_maneja_seriales").is(":checked");
 
     const payload = {
         _token: $('meta[name="csrf-token"]').attr("content"),
@@ -2451,11 +2758,24 @@ $("#formularioRapidoProducto").on("submit", async function (e) {
         unidad_medida: $("#rapido_prod_unidad").val(),
         aplica_iva: aplicaIva ? 1 : 0,
         iva_porcentaje: ivaPorcentaje,
+        maneja_variantes: manejaVariantes ? 1 : 0,
+        maneja_seriales: manejaSeriales ? 1 : 0,
         aplica_igtf: 0,
         igtf_porcentaje: 0,
         stock_minimo: 0,
         stock_maximo: null,
     };
+
+    if (manejaVariantes) {
+        const opciones = [];
+        $('#rapido_contenedor_chips_variantes input[name="atributos_variantes[opciones][]"]').each(function () {
+            opciones.push($(this).val().trim());
+        });
+        payload.atributos_variantes = {
+            nombre: ($("#rapido_prod_attr_nombre").val() || "Color").trim(),
+            opciones: opciones,
+        };
+    }
 
     if (barcodeVal) {
         payload.codigos_barra = [
@@ -2501,6 +2821,9 @@ $("#formularioRapidoProducto").on("submit", async function (e) {
                 precio_mayorista_bs: parseFloat(prodData.precio_mayorista_bs) || 0,
                 aplica_iva: prodData.aplica_iva,
                 iva_porcentaje: parseFloat(prodData.iva_porcentaje || 16),
+                maneja_variantes: Boolean(prodData.maneja_variantes),
+                atributos_variantes: prodData.atributos_variantes,
+                maneja_seriales: Boolean(prodData.maneja_seriales),
                 codigos_barra: Array.isArray(prodData.codigos_barra)
                     ? prodData.codigos_barra.map((cb) => cb.codigo_barra || cb.codigo || cb)
                     : (barcodeVal ? [barcodeVal] : []),
@@ -2827,6 +3150,13 @@ function configurarNavegacionTeclado() {
         if (e.which === 13) {
             e.preventDefault();
             $("#formularioRapidoProducto").submit();
+        }
+    });
+
+    $("#rapido_prod_opcion_input").on("keydown", function (e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            agregarOpcionVarianteRapido();
         }
     });
 }

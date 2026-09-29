@@ -84,6 +84,15 @@
             </ul>
 
             <ul class="navbar-nav float-end align-items-center">
+                <li class="nav-item me-2">
+                    <a href="{{ route('consultor_precios') }}"
+                        class="btn btn-white bg-white border rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5 px-3 py-1.5 text-dark font-monospace"
+                        style="font-size: 0.85rem;"
+                        title="Consultor de Precios">
+                        <i class="fas fa-barcode text-primary"></i>
+                        <span class="d-none d-md-inline">Consultor</span>
+                    </a>
+                </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle d-flex align-items-center" href="javascript:void(0)"
                         data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

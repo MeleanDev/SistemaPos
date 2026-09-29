@@ -43,6 +43,9 @@ class CrearRequest extends BaseRequest
             'detalles.*.precio_detal_usd' => ['nullable', 'numeric', 'min:0'],
             'detalles.*.margen_mayorista_porcentaje' => ['nullable', 'numeric', 'min:0'],
             'detalles.*.precio_mayorista_usd' => ['nullable', 'numeric', 'min:0'],
+            'detalles.*.variante_texto' => ['nullable', 'string', 'max:150'],
+            'detalles.*.seriales' => ['nullable', 'array'],
+            'detalles.*.seriales.*' => ['required_with:detalles.*.seriales', 'string', 'max:100'],
         ];
     }
 

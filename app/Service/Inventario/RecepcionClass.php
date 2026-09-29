@@ -8,6 +8,7 @@ use App\Models\CuentaPorPagar;
 use App\Models\EmpresaMoneda;
 use App\Models\Producto;
 use App\Models\ProductoProveedor;
+use App\Models\ProductoSerial;
 use App\Models\Proveedor;
 use App\Models\Recepcion;
 use App\Models\RecepcionBorrador;
@@ -96,6 +97,9 @@ class RecepcionClass
                     'precio_mayorista_bs' => (float) $p->precio_mayorista_bs,
                     'ultimo_margen_detal' => (float) ($p->ultimo_margen_detal ?: 30.00),
                     'ultimo_margen_mayorista' => (float) ($p->ultimo_margen_mayorista ?: 15.00),
+                    'maneja_variantes' => (bool) $p->maneja_variantes,
+                    'atributos_variantes' => $p->atributos_variantes,
+                    'maneja_seriales' => (bool) $p->maneja_seriales,
                     'aplica_iva' => (bool) $p->aplica_iva,
                     'iva_porcentaje' => (float) $p->iva_porcentaje,
                     'aplica_igtf' => (bool) $p->aplica_igtf,
@@ -307,9 +311,14 @@ class RecepcionClass
                     : round($precioMayoristaUsd * $factorIva, 4);
                 $precioMayoristaConIvaBs = round($precioMayoristaConIvaUsd * $tasaVenta, 4);
 
+                $varianteTexto = ! empty($item['variante_texto']) ? trim($item['variante_texto']) : null;
+                $seriales = ! empty($item['seriales']) && is_array($item['seriales']) ? array_values(array_filter(array_map('trim', $item['seriales']))) : [];
+
                 $detallesAProcesar[] = [
                     'producto' => $producto,
                     'almacen_id' => $almacenItem,
+                    'variante_texto' => $varianteTexto,
+                    'seriales' => $seriales,
                     'cantidad' => $cantidad,
                     'bultos' => $bultos,
                     'unidades_por_bulto' => $unidadesPorBulto,
@@ -414,10 +423,12 @@ class RecepcionClass
                 $producto = $d['producto'];
                 $itemAlmacenId = $d['almacen_id'];
 
-                RecepcionDetalle::create([
+                $recepcionDetalle = RecepcionDetalle::create([
                     'recepcion_id' => $recepcion->id,
                     'producto_id' => $producto->id,
                     'almacen_id' => $itemAlmacenId,
+                    'variante_texto' => $d['variante_texto'] ?? null,
+                    'seriales_ingresados' => ! empty($d['seriales']) ? $d['seriales'] : null,
                     'cantidad' => $d['cantidad'],
                     'bultos' => $d['bultos'],
                     'unidades_por_bulto' => $d['unidades_por_bulto'],
@@ -451,6 +462,25 @@ class RecepcionClass
                     'subtotal_usd' => $d['subtotal_usd'],
                     'subtotal_bs' => $d['subtotal_bs'],
                 ]);
+
+                // Generar seriales físicos si el producto maneja seriales
+                if ($producto->maneja_seriales && ! empty($d['seriales'])) {
+                    foreach ($d['seriales'] as $serialNum) {
+                        ProductoSerial::create([
+                            'empresa_id' => $empresaId,
+                            'producto_id' => $producto->id,
+                            'almacen_id' => $itemAlmacenId,
+                            'recepcion_id' => $recepcion->id,
+                            'recepcion_detalle_id' => $recepcionDetalle->id,
+                            'numero_serial' => $serialNum,
+                            'variante_color' => $d['variante_texto'] ?? null,
+                            'estado' => 'disponible',
+                            'costo_unitario_usd' => $d['costo_unitario_usd'],
+                            'costo_unitario_bs' => $d['costo_unitario_bs'],
+                            'fecha_ingreso' => $fechaRecepcion,
+                        ]);
+                    }
+                }
 
                 // Actualizar Catálogo de Producto (Precios y Memoria de Margen)
                 $producto->precio_costo_usd = $d['costo_unitario_usd'];
@@ -575,6 +605,9 @@ class RecepcionClass
             // Anular Cuenta por Pagar si existía
             CuentaPorPagar::where('recepcion_id', $recepcion->id)
                 ->update(['estado' => 'anulada']);
+
+            // Eliminar seriales físicos ingresados por esta recepción
+            ProductoSerial::where('recepcion_id', $recepcion->id)->delete();
 
             return $recepcion;
         });

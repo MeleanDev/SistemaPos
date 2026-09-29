@@ -19,6 +19,9 @@ class Producto extends Model
         'nombre',
         'descripcion',
         'unidad_medida',
+        'maneja_variantes',
+        'atributos_variantes',
+        'maneja_seriales',
         'stock_minimo',
         'stock_maximo',
         'precio_costo_usd',
@@ -40,6 +43,9 @@ class Producto extends Model
     protected function casts(): array
     {
         return [
+            'maneja_variantes' => 'boolean',
+            'atributos_variantes' => 'array',
+            'maneja_seriales' => 'boolean',
             'stock_minimo' => 'decimal:2',
             'stock_maximo' => 'decimal:2',
             'precio_costo_usd' => 'decimal:4',
@@ -107,6 +113,14 @@ class Producto extends Model
     public function stockAlmacenes(): HasMany
     {
         return $this->hasMany(ProductoStockAlmacen::class, 'producto_id');
+    }
+
+    /**
+     * Seriales únicos registrados del producto
+     */
+    public function seriales(): HasMany
+    {
+        return $this->hasMany(ProductoSerial::class, 'producto_id');
     }
 
     /**

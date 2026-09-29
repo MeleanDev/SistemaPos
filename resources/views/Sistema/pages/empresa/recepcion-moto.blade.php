@@ -1113,6 +1113,78 @@
                     </div>
                 </div>
 
+                <!-- VARIANTES & CHECKLIST DE OPCIONES (MUEBLERÍA, CAMAS, COLORES) -->
+                <div class="col-12">
+                    <div class="card border rounded-4 p-3 bg-white shadow-xs" style="border-left: 5px solid #6366f1 !important;">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-executive-xs rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                    <i class="fas fa-palette"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold text-dark mb-0">Checklist de Variantes / Opciones (Mueblería, Camas, Colores)</h6>
+                                    <small class="text-muted">Define opciones o colores para seleccionarlos en la recepción sin registrar múltiples productos.</small>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" name="maneja_variantes" id="rapido_prod_maneja_variantes" value="1" onchange="toggleVariantesRapidoProducto()" style="cursor: pointer; width: 2.5em; height: 1.3em;">
+                            </div>
+                        </div>
+
+                        <div id="rapido_seccion_variantes" class="mt-3 pt-3 border-top" style="display: none;">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label-executive small"><i class="fas fa-tag text-primary me-1"></i> Tipo de Atributo</label>
+                                    <input type="text" id="rapido_prod_attr_nombre" name="atributos_variantes[nombre]" class="form-control form-control-executive form-control-sm font-monospace" placeholder="Ej. Color, Medida" value="Color">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label-executive small"><i class="fas fa-plus-circle text-success me-1"></i> Opción / Color</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" id="rapido_prod_opcion_input" class="form-control form-control-executive font-monospace" placeholder="Ej. Gris, Negro, Beige...">
+                                        <button type="button" class="btn btn-outline-primary px-3 fw-bold" id="btnRapidoAgregarOpcionVariante" onclick="agregarOpcionVarianteRapido()">
+                                            <i class="fas fa-plus me-1"></i> Agregar
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-2.5" onclick="limpiarOpcionesVariantesRapido()" title="Limpiar opciones">
+                                        <i class="fas fa-trash-alt me-1"></i> Limpiar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mt-2 p-2.5 rounded-3 bg-light border">
+                                <small class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 0.68rem; letter-spacing: 0.05em;">
+                                    <i class="fas fa-check-double text-primary me-1"></i> Opciones / Colores Disponibles:
+                                </small>
+                                <div id="rapido_contenedor_chips_variantes" class="d-flex flex-wrap align-items-center gap-1.5">
+                                    <span class="text-muted fst-italic small" id="rapido_placeholder_sin_variantes" style="font-size: 0.78rem;">No hay opciones añadidas. Escriba arriba y presione Agregar.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTROL DE SERIALES ÚNICOS (ELECTRODOMÉSTICOS, AIRES, NEVERAS, FREEZERS) -->
+                <div class="col-12">
+                    <div class="card border rounded-4 p-3 bg-white shadow-xs" style="border-left: 5px solid #10b981 !important;">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-executive-xs rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                    <i class="fas fa-barcode"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold text-dark mb-0">Control Estricto por Serial Único Físico (Neveras, Aires, Equipos)</h6>
+                                    <small class="text-muted">Cada unidad ingresada requerirá su número de serial físico para seguimiento de garantías y ventas.</small>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" name="maneja_seriales" id="rapido_prod_maneja_seriales" value="1" style="cursor: pointer; width: 2.5em; height: 1.3em;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </form>
     </x-modal>

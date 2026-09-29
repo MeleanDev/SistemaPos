@@ -462,10 +462,23 @@
                                     @if($det->moto->cilindrada) Cilindrada: <strong>{{ $det->moto->cilindrada }} cc</strong> • @endif
                                     @if($det->moto->certificado_origen) Cert. Origen: <strong>{{ $det->moto->certificado_origen }}</strong> @endif
                                 </div>
-                            @elseif($det->aplica_iva)
-                                <span style="font-size: 8.5px; color: #475569; font-weight: bold;">(IVA {{ (float)$det->iva_porcentaje }}%)</span>
-                            @else
-                                <span style="font-size: 8.5px; color: #475569; font-weight: bold;">(EXENTO)</span>
+                            @elseif($det->variante_texto || $det->producto_serial_id || $det->productoSerial)
+                                <div class="item-spec-box font-mono" style="border-left-color: #6366f1;">
+                                    @if($det->variante_texto)
+                                        Variante / Color: <strong>{{ $det->variante_texto }}</strong>
+                                    @endif
+                                    @if($det->producto_serial_id || $det->productoSerial)
+                                        @if($det->variante_texto) • @endif
+                                        Serial Único: <strong>{{ $det->productoSerial?->numero_serial ?? $det->serial_identificador }}</strong>
+                                    @endif
+                                </div>
+                            @endif
+                            @if($det->tipo_item !== 'moto')
+                                @if($det->aplica_iva)
+                                    <span style="font-size: 8.5px; color: #475569; font-weight: bold;">(IVA {{ (float)$det->iva_porcentaje }}%)</span>
+                                @else
+                                    <span style="font-size: 8.5px; color: #475569; font-weight: bold;">(EXENTO)</span>
+                                @endif
                             @endif
                         </td>
                         <td class="text-center font-mono fw-bold">{{ number_format($cant, 2, ',', '.') }}</td>

@@ -91,7 +91,7 @@ class KardexClass
         return Kardex::with([
             'producto:id,nombre,codigo_interno,unidad_medida,aplica_iva',
             'almacen:id,nombre,codigo',
-            'usuario:id,name,username',
+            'usuario:id,name,email',
         ])
             ->where('empresa_id', $empresaId)
             ->orderByDesc('id');
@@ -105,7 +105,7 @@ class KardexClass
         $query = Kardex::with([
             'producto:id,nombre,codigo_interno,unidad_medida,aplica_iva',
             'almacen:id,nombre,codigo',
-            'usuario:id,name,username',
+            'usuario:id,name,email',
         ])
             ->where('empresa_id', $empresaId);
 

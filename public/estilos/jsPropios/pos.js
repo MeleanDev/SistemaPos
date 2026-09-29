@@ -15,6 +15,9 @@ let posCarrito = [];
 let posPagos = [];
 let posIndiceRenglonSeleccionado = null;
 let posVendedorFijoEspera = null;
+let productoPendienteVariante = null;
+let productoPendienteSerial = null;
+let serialesDisponiblesModal = [];
 
 $(document).ready(function () {
     cargarDatosInicialesPos();
@@ -625,6 +628,34 @@ function configurarBuscadorProductosPos() {
             const query = (requiereModal ? rawVal.substring(1).trim() : rawVal).toLowerCase();
             if (!query) return;
 
+            let serialExactoEncontrado = null;
+            let prodConSerialExacto = null;
+            for (const p of posCatalogos.productos) {
+                if (Array.isArray(p.seriales_disponibles)) {
+                    const matchSerial = p.seriales_disponibles.find((s) => (s.numero_serial || "").toLowerCase() === query);
+                    if (matchSerial) {
+                        serialExactoEncontrado = matchSerial;
+                        prodConSerialExacto = p;
+                        break;
+                    }
+                }
+            }
+
+            if (prodConSerialExacto && serialExactoEncontrado) {
+                agregarProductoAlCarrito(
+                    prodConSerialExacto,
+                    1,
+                    serialExactoEncontrado.almacen_id || posAlmacenActualId,
+                    0,
+                    serialExactoEncontrado.variante_color || null,
+                    serialExactoEncontrado.id,
+                    serialExactoEncontrado.numero_serial
+                );
+                $(this).val("").focus();
+                $dropdown.hide();
+                return;
+            }
+
             const prodExacto = posCatalogos.productos.find((p) => {
                 const skuMatch = (p.codigo_interno || "").toLowerCase() === query;
                 const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => cb.toLowerCase() === query);
@@ -635,7 +666,7 @@ function configurarBuscadorProductosPos() {
                 if (requiereModal) {
                     abrirModalSeleccionCantidadAlmacen(prodExacto);
                 } else {
-                    agregarProductoAlCarrito(prodExacto);
+                    solicitarAgregarProductoPos(prodExacto);
                 }
                 $(this).val("").focus();
                 $dropdown.hide();
@@ -650,7 +681,7 @@ function configurarBuscadorProductosPos() {
                 if (requiereModal) {
                     abrirModalSeleccionCantidadAlmacen(coincidencias[0]);
                 } else {
-                    agregarProductoAlCarrito(coincidencias[0]);
+                    solicitarAgregarProductoPos(coincidencias[0]);
                 }
                 $(this).val("").focus();
                 $dropdown.hide();
@@ -736,6 +767,14 @@ function renderizarDropdownProductos(productos, requiereModal = false) {
             itemIcon = '<i class="fas fa-wrench"></i>';
             itemBg = 'bg-info bg-opacity-15 text-info-emphasis';
             tipoBadge = '<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle font-monospace" style="font-size: 0.70rem;">Servicio</span>';
+        } else if (p.maneja_seriales) {
+            itemIcon = '<i class="fas fa-tv"></i>';
+            itemBg = 'bg-info bg-opacity-15 text-info-emphasis';
+            tipoBadge = '<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle font-monospace" style="font-size: 0.70rem;">Serial Físico</span>';
+        } else if (p.maneja_variantes) {
+            itemIcon = '<i class="fas fa-couch"></i>';
+            itemBg = 'bg-purple-subtle text-purple-emphasis';
+            tipoBadge = '<span class="badge bg-purple-subtle text-purple-emphasis border border-purple-subtle font-monospace" style="font-size: 0.70rem;">Variantes</span>';
         }
 
         const stockText = p.tipo_item === 'moto'
@@ -781,7 +820,7 @@ function renderizarDropdownProductos(productos, requiereModal = false) {
             if (requiereModal) {
                 abrirModalSeleccionCantidadAlmacen(prod);
             } else {
-                agregarProductoAlCarrito(prod);
+                solicitarAgregarProductoPos(prod);
             }
             $("#posInputBuscadorProducto").val("").focus();
             $dropdown.hide();
@@ -790,6 +829,201 @@ function renderizarDropdownProductos(productos, requiereModal = false) {
 
     $dropdown.show();
 };
+
+function solicitarAgregarProductoPos(prod, cantidad = 1, almacenId = null, descuento = 0) {
+    if (!prod) return;
+    const targetAlmId = almacenId || posAlmacenActualId;
+
+    if (prod.tipo_item === 'producto') {
+        if (prod.maneja_seriales) {
+            abrirModalSeleccionarSerialPos(prod, targetAlmId, descuento);
+            return;
+        }
+        if (prod.maneja_variantes) {
+            const opciones = (prod.atributos_variantes && Array.isArray(prod.atributos_variantes.opciones)) ? prod.atributos_variantes.opciones : [];
+            if (opciones.length > 0) {
+                abrirModalSeleccionarVariantePos(prod, cantidad, targetAlmId, descuento);
+                return;
+            }
+        }
+    }
+
+    agregarProductoAlCarrito(prod, cantidad, targetAlmId, descuento);
+}
+
+function abrirModalSeleccionarVariantePos(prod, cantidad = 1, almacenId = null, descuento = 0) {
+    productoPendienteVariante = {
+        prod: prod,
+        cantidad: cantidad,
+        almacenId: almacenId || posAlmacenActualId,
+        descuento: descuento
+    };
+
+    $("#posVarianteModalProdNombre").text(prod.nombre);
+    $("#posVarianteModalProdCodigo").text(`#${prod.codigo_interno || '0000'}`);
+    const attrNombre = prod.atributos_variantes?.nombre || "Opciones";
+    $("#posVarianteModalAttrNombre").text(`${attrNombre} Disponibles:`);
+
+    const $container = $("#posVarianteOpcionesContainer");
+    $container.empty();
+    $("#posVarianteModalOpcionSeleccionada").val("");
+
+    const opciones = (prod.atributos_variantes && Array.isArray(prod.atributos_variantes.opciones)) ? prod.atributos_variantes.opciones : [];
+
+    if (opciones.length === 0) {
+        agregarProductoAlCarrito(prod, cantidad, almacenId, descuento);
+        return;
+    }
+
+    opciones.forEach((opc, idx) => {
+        const chipHtml = `
+            <button type="button" class="btn btn-outline-primary rounded-pill px-3 py-1.5 font-monospace fw-bold btn-variante-pos-chip ${idx === 0 ? 'active btn-primary text-white' : ''}" data-opcion="${opc}" onclick="seleccionarChipVariantePos(this, '${opc}')">
+                <i class="fas fa-check-circle me-1 ${idx === 0 ? '' : 'd-none'}"></i> ${opc}
+            </button>
+        `;
+        $container.append(chipHtml);
+    });
+
+    $("#posVarianteModalOpcionSeleccionada").val(opciones[0]);
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("modalSeleccionarVariantePos")).show();
+}
+
+function seleccionarChipVariantePos(btn, opcion) {
+    $(".btn-variante-pos-chip").removeClass("active btn-primary text-white").addClass("btn-outline-primary");
+    $(".btn-variante-pos-chip i").addClass("d-none");
+    $(btn).removeClass("btn-outline-primary").addClass("active btn-primary text-white");
+    $(btn).find("i").removeClass("d-none");
+    $("#posVarianteModalOpcionSeleccionada").val(opcion);
+}
+
+function confirmarSeleccionVariantePos() {
+    if (!productoPendienteVariante) return;
+    const opcion = $("#posVarianteModalOpcionSeleccionada").val() || "";
+    const p = productoPendienteVariante;
+
+    const modalEl = document.getElementById("modalSeleccionarVariantePos");
+    if (modalEl) {
+        const inst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+        if (inst) inst.hide();
+    }
+
+    agregarProductoAlCarrito(p.prod, p.cantidad, p.almacenId, p.descuento, opcion);
+    productoPendienteVariante = null;
+    $("#posInputBuscadorProducto").val("").focus();
+}
+
+function abrirModalSeleccionarSerialPos(prod, almacenId = null, descuento = 0) {
+    const targetAlmId = almacenId || posAlmacenActualId;
+    productoPendienteSerial = {
+        prod: prod,
+        almacenId: targetAlmId,
+        descuento: descuento
+    };
+
+    $("#posSerialModalProdNombre").text(prod.nombre);
+    $("#posSerialModalProdCodigo").text(`#${prod.codigo_interno || '0000'}`);
+
+    const almObj = posCatalogos.almacenes.find((a) => a.id === targetAlmId);
+    $("#posSerialModalAlmacenBadge").text(almObj ? almObj.nombre : "Almacén");
+
+    const todosSeriales = Array.isArray(prod.seriales_disponibles) ? prod.seriales_disponibles : [];
+    serialesDisponiblesModal = todosSeriales.filter((s) => !s.almacen_id || s.almacen_id === targetAlmId);
+
+    if (serialesDisponiblesModal.length === 0 && todosSeriales.length > 0) {
+        serialesDisponiblesModal = todosSeriales;
+    }
+
+    $("#posFiltroSerialesModal").val("");
+    renderizarListaSerialesModalPos();
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("modalSeleccionarSerialPos")).show();
+    setTimeout(() => {
+        $("#posFiltroSerialesModal").focus();
+    }, 250);
+}
+
+function filtrarSerialesModalPos() {
+    renderizarListaSerialesModalPos();
+}
+
+function renderizarListaSerialesModalPos() {
+    const query = ($("#posFiltroSerialesModal").val() || "").trim().toLowerCase();
+    const $container = $("#posSerialesOpcionesContainer");
+    $container.empty();
+
+    const filtrados = serialesDisponiblesModal.filter((s) => {
+        if (!query) return true;
+        const numMatch = (s.numero_serial || "").toLowerCase().includes(query);
+        const colMatch = (s.variante_color || "").toLowerCase().includes(query);
+        return numMatch || colMatch;
+    });
+
+    $("#posSerialesModalContador").text(`${filtrados.length} Disponible${filtrados.length === 1 ? '' : 's'}`);
+
+    if (filtrados.length === 0) {
+        $container.append(`
+            <div class="text-center py-4 text-muted small font-monospace">
+                <i class="fas fa-barcode fs-4 d-block mb-1 opacity-50"></i>
+                No hay unidades físicas disponibles con seriales en este almacén.
+            </div>
+        `);
+        return;
+    }
+
+    filtrados.forEach((s) => {
+        const yaEnCarrito = posCarrito.some((it) => it.producto_serial_id === s.id);
+        const badgeColor = s.variante_color
+            ? `<span class="badge bg-purple-subtle text-purple-emphasis border border-purple-subtle font-monospace ms-2"><i class="fas fa-palette me-1"></i>${s.variante_color}</span>`
+            : '';
+
+        const itemHtml = `
+            <div class="p-2.5 bg-white border rounded-3 d-flex align-items-center justify-content-between shadow-xs ${yaEnCarrito ? 'opacity-50' : ''}">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle ${yaEnCarrito ? 'bg-secondary' : 'bg-success'} text-white d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 0.75rem;">
+                        <i class="fas ${yaEnCarrito ? 'fa-ban' : 'fa-check'}"></i>
+                    </div>
+                    <div>
+                        <strong class="text-dark font-monospace" style="font-size: 0.88rem;">${s.numero_serial}</strong>
+                        ${badgeColor}
+                        <small class="text-muted font-monospace d-block" style="font-size: 0.70rem;">Estado: Disponible para venta</small>
+                    </div>
+                </div>
+                <div>
+                    ${yaEnCarrito
+                        ? '<span class="badge bg-secondary rounded-pill font-monospace">Cargado</span>'
+                        : `<button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" onclick="seleccionarSerialUnicoPos(${s.id}, '${s.numero_serial}', '${s.variante_color || ''}', ${s.almacen_id || posAlmacenActualId})"><i class="fas fa-cart-plus me-1"></i> Seleccionar</button>`
+                    }
+                </div>
+            </div>
+        `;
+        $container.append(itemHtml);
+    });
+}
+
+function seleccionarSerialUnicoPos(serialId, serialNumero, varianteColor, almacenId) {
+    if (!productoPendienteSerial) return;
+    const p = productoPendienteSerial;
+
+    const modalEl = document.getElementById("modalSeleccionarSerialPos");
+    if (modalEl) {
+        const inst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+        if (inst) inst.hide();
+    }
+
+    agregarProductoAlCarrito(
+        p.prod,
+        1,
+        almacenId || p.almacenId,
+        p.descuento,
+        varianteColor || null,
+        serialId,
+        serialNumero
+    );
+
+    productoPendienteSerial = null;
+    $("#posInputBuscadorProducto").val("").focus();
+}
 
 let productoSeleccionadoModalDetalle = null;
 
@@ -827,12 +1061,47 @@ function abrirModalSeleccionCantidadAlmacen(prod) {
         if (prod.tipo_item === 'servicio') {
             iconHtml = '<i class="fas fa-wrench"></i>';
             iconBg = 'bg-info bg-opacity-15 text-info-emphasis';
+        } else if (prod.maneja_seriales) {
+            iconHtml = '<i class="fas fa-tv"></i>';
+            iconBg = 'bg-info bg-opacity-15 text-info-emphasis';
+        } else if (prod.maneja_variantes) {
+            iconHtml = '<i class="fas fa-couch"></i>';
+            iconBg = 'bg-purple-subtle text-purple-emphasis';
         }
         $("#modalDetalleContenedorMoto").hide();
         $("#modalDetalleInputCantidad").val(1).prop("readonly", false);
         $("#modalDetallePresets").show();
     }
     $("#modalDetalleIcono").html(iconHtml).attr("class", `avatar-executive-sm rounded-3 ${iconBg} d-flex align-items-center justify-content-center`);
+
+    if (prod.maneja_variantes) {
+        $("#modalDetalleContenedorVariante").show();
+        const $selVar = $("#modalDetalleSelectVariante");
+        $selVar.empty().append('<option value="">-- Sin variante seleccionada --</option>');
+        const opciones = (prod.atributos_variantes && Array.isArray(prod.atributos_variantes.opciones)) ? prod.atributos_variantes.opciones : [];
+        opciones.forEach((opc) => {
+            $selVar.append(`<option value="${opc}">${opc}</option>`);
+        });
+    } else {
+        $("#modalDetalleContenedorVariante").hide();
+    }
+
+    if (prod.maneja_seriales) {
+        $("#modalDetalleContenedorSerial").show();
+        const $selSer = $("#modalDetalleSelectSerial");
+        $selSer.empty().append('<option value="">-- Seleccionar serial disponible --</option>');
+        const seriales = Array.isArray(prod.seriales_disponibles) ? prod.seriales_disponibles : [];
+        seriales.forEach((s) => {
+            const extraColor = s.variante_color ? ` [${s.variante_color}]` : '';
+            $selSer.append(`<option value="${s.id}" data-serial="${s.numero_serial}" data-color="${s.variante_color || ''}">${s.numero_serial}${extraColor}</option>`);
+        });
+        $("#modalDetalleInputCantidad").val(1).prop("readonly", true);
+        $("#modalDetallePresets").hide();
+    } else if (prod.tipo_item !== 'moto') {
+        $("#modalDetalleContenedorSerial").hide();
+        $("#modalDetalleInputCantidad").prop("readonly", false);
+        $("#modalDetallePresets").show();
+    }
 
     const $selAlm = $("#modalDetalleSelectAlmacen");
     $selAlm.empty();
@@ -886,7 +1155,7 @@ function actualizarSubtotalModalDetalle() {
 };
 
 function alterarCantidadModalDetalle(delta) {
-    if (productoSeleccionadoModalDetalle?.tipo_item === 'moto') return;
+    if (productoSeleccionadoModalDetalle?.tipo_item === 'moto' || productoSeleccionadoModalDetalle?.maneja_seriales) return;
     const actual = parseFloat($("#modalDetalleInputCantidad").val()) || 1;
     const nueva = Math.max(0.001, actual + delta);
     $("#modalDetalleInputCantidad").val(nueva);
@@ -894,7 +1163,7 @@ function alterarCantidadModalDetalle(delta) {
 };
 
 function sumarPresetModalDetalle(cant) {
-    if (productoSeleccionadoModalDetalle?.tipo_item === 'moto') return;
+    if (productoSeleccionadoModalDetalle?.tipo_item === 'moto' || productoSeleccionadoModalDetalle?.maneja_seriales) return;
     const actual = parseFloat($("#modalDetalleInputCantidad").val()) || 0;
     $("#modalDetalleInputCantidad").val(actual + cant);
     actualizarSubtotalModalDetalle();
@@ -916,7 +1185,30 @@ function confirmarAgregarConDetalle(e) {
         return;
     }
 
-    agregarProductoAlCarrito(prod, cant, almId, desc);
+    let varianteTexto = null;
+    let productoSerialId = null;
+    let serialNumero = null;
+
+    if (prod.maneja_variantes) {
+        varianteTexto = $("#modalDetalleSelectVariante").val() || null;
+    }
+
+    if (prod.maneja_seriales) {
+        const $optSer = $("#modalDetalleSelectSerial option:selected");
+        productoSerialId = parseInt($("#modalDetalleSelectSerial").val()) || null;
+        serialNumero = $optSer.data("serial") || null;
+        if (!varianteTexto && $optSer.data("color")) {
+            varianteTexto = $optSer.data("color");
+        }
+        if (!productoSerialId) {
+            if (window.notificacion) {
+                window.notificacion.fire({ icon: "warning", title: "Serial Requerido", text: "Debes seleccionar el serial físico de la unidad a despachar." });
+            }
+            return;
+        }
+    }
+
+    agregarProductoAlCarrito(prod, cant, almId, desc, varianteTexto, productoSerialId, serialNumero);
 
     const modalEl = document.getElementById("modalDetalleVentaProducto");
     const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -925,24 +1217,29 @@ function confirmarAgregarConDetalle(e) {
     $("#posInputBuscadorProducto").val("").focus();
 };
 
-function agregarProductoAlCarrito(prod, cantidad = 1, almacenId = null, descuentoPorcentaje = 0) {
+function agregarProductoAlCarrito(prod, cantidad = 1, almacenId = null, descuentoPorcentaje = 0, varianteTexto = null, productoSerialId = null, serialNumero = null) {
     const precioUnitUsd = posTipoVentaActual === "mayor" ? parseFloat(prod.precio_mayorista_usd || 0) : parseFloat(prod.precio_detal_usd || 0);
     const targetAlmId = almacenId || posAlmacenActualId;
 
-    const idxExistente = posCarrito.findIndex((item) => item.producto_id === prod.id && item.tipo_item === prod.tipo_item);
-
-    if (idxExistente !== -1) {
-        if (prod.tipo_item === 'moto') {
+    if (productoSerialId) {
+        const yaExisteSerial = posCarrito.some((it) => it.producto_serial_id === productoSerialId);
+        if (yaExisteSerial) {
             if (window.notificacion) {
                 window.notificacion.fire({
                     icon: "warning",
-                    title: "Moto ya en Carrito",
-                    text: `La unidad con serial NIV "${prod.numero_niv || prod.codigo_interno}" ya está cargada en el carrito.`,
+                    title: "Serial ya en Carrito",
+                    text: `La unidad con serial "${serialNumero}" ya está cargada en el carrito.`,
                 });
             }
             return;
         }
+    }
 
+    const idxExistente = (!productoSerialId && prod.tipo_item !== 'moto')
+        ? posCarrito.findIndex((item) => item.producto_id === prod.id && item.tipo_item === prod.tipo_item && (item.variante_texto || null) === (varianteTexto || null) && item.almacen_id === targetAlmId && !item.producto_serial_id)
+        : -1;
+
+    if (idxExistente !== -1) {
         posCarrito[idxExistente].cantidad += cantidad;
         if (descuentoPorcentaje > 0) {
             posCarrito[idxExistente].descuento_porcentaje = descuentoPorcentaje;
@@ -957,6 +1254,20 @@ function agregarProductoAlCarrito(prod, cantidad = 1, almacenId = null, descuent
         posCarrito[idxExistente].subtotal_bs = roundDecimals(posCarrito[idxExistente].subtotal_usd * posTasaDia, 2);
         posIndiceRenglonSeleccionado = idxExistente;
     } else {
+        if (prod.tipo_item === 'moto') {
+            const yaExisteMoto = posCarrito.some((it) => it.producto_id === prod.id && it.tipo_item === 'moto');
+            if (yaExisteMoto) {
+                if (window.notificacion) {
+                    window.notificacion.fire({
+                        icon: "warning",
+                        title: "Moto ya en Carrito",
+                        text: `La unidad con serial NIV "${prod.numero_niv || prod.codigo_interno}" ya está cargada en el carrito.`,
+                    });
+                }
+                return;
+            }
+        }
+
         const subtotalUsd = roundDecimals(cantidad * precioUnitUsd * (1 - descuentoPorcentaje / 100), 2);
         const subtotalBs = roundDecimals(subtotalUsd * posTasaDia, 2);
 
@@ -973,6 +1284,9 @@ function agregarProductoAlCarrito(prod, cantidad = 1, almacenId = null, descuent
             codigo: prod.codigo_interno || "--",
             nombre: prod.nombre,
             unidad: prod.unidad_medida || "UND",
+            variante_texto: varianteTexto || null,
+            producto_serial_id: productoSerialId || null,
+            serial_numero: serialNumero || null,
             numero_niv: prod.numero_niv || null,
             numero_motor: prod.numero_motor || null,
             numero_chasis: prod.numero_chasis || null,
@@ -986,6 +1300,8 @@ function agregarProductoAlCarrito(prod, cantidad = 1, almacenId = null, descuent
             subtotal_usd: subtotalUsd,
             subtotal_bs: subtotalBs,
             stock_disponible: stockAlm,
+            maneja_seriales: !!prod.maneja_seriales,
+            maneja_variantes: !!prod.maneja_variantes,
         });
 
         posIndiceRenglonSeleccionado = posCarrito.length - 1;
@@ -1118,8 +1434,16 @@ function renderizarCarritoPos() {
             badgeTipo = '<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle font-monospace ms-1" style="font-size: 0.68rem;">Servicio</span>';
         }
 
-        const cantidadHtml = item.tipo_item === 'moto'
-            ? `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle font-monospace px-2.5 py-1.5 fw-bold" style="font-size: 0.80rem;"><i class="fas fa-tag me-1"></i> 1 UND</span>`
+        const badgeVariante = item.variante_texto
+            ? `<span class="badge bg-purple-subtle text-purple-emphasis border border-purple-subtle font-monospace ms-1" style="font-size: 0.68rem;"><i class="fas fa-palette me-1"></i>${item.variante_texto}</span>`
+            : '';
+
+        const badgeSerial = item.serial_numero
+            ? `<span class="badge bg-dark text-white font-monospace ms-1" style="font-size: 0.68rem;"><i class="fas fa-barcode me-1 text-warning"></i>SN: ${item.serial_numero}</span>`
+            : '';
+
+        const cantidadHtml = (item.tipo_item === 'moto' || item.producto_serial_id)
+            ? `<span class="badge ${item.tipo_item === 'moto' ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle' : 'bg-info-subtle text-info-emphasis border-info-subtle'} border font-monospace px-2.5 py-1.5 fw-bold" style="font-size: 0.80rem;"><i class="fas fa-tag me-1"></i> 1 UND</span>`
             : `
                 <div class="pos-qty-control">
                     <button class="pos-qty-btn" type="button" onclick="event.stopPropagation(); alterarCantidadItem(${idx}, -1);" title="Disminuir"><i class="fas fa-minus" style="font-size: 0.65rem;"></i></button>
@@ -1137,7 +1461,7 @@ function renderizarCarritoPos() {
 
                 <!-- Producto / Descripción -->
                 <td>
-                    <strong class="text-dark d-block font-monospace" style="font-size: 0.90rem;">${itemIcon} ${item.nombre} ${badgeTipo}</strong>
+                    <strong class="text-dark d-block font-monospace" style="font-size: 0.90rem;">${itemIcon} ${item.nombre} ${badgeTipo} ${badgeVariante} ${badgeSerial}</strong>
                     <div class="small text-muted font-monospace" style="font-size: 0.72rem;">
                         <span>${item.unidad}</span>
                         ${item.stock_disponible !== undefined && item.tipo_item === 'producto' ? ` • <span class="${item.stock_disponible <= 0 ? 'text-danger' : 'text-success'}">Disp: ${item.stock_disponible}</span>` : ''}
@@ -1505,6 +1829,8 @@ async function procesarVentaFinal() {
             precio_unitario_usd: it.precio_unitario_usd,
             descuento_porcentaje: it.descuento_porcentaje,
             almacen_id: it.almacen_id || posAlmacenActualId,
+            variante_texto: it.variante_texto || null,
+            producto_serial_id: it.producto_serial_id || null,
         })),
         pagos: posPagos.map((p) => ({
             metodo_pago_id: p.metodo_pago_id,
@@ -2073,12 +2399,12 @@ function filtrarConsultaProductos() {
 function cargarProductoDesdeConsulta(id, tipoItem = 'producto') {
     const prod = posCatalogos.productos.find((p) => parseInt(p.id) === parseInt(id) && p.tipo_item === tipoItem);
     if (prod) {
-        agregarProductoAlCarrito(prod);
         const modalEl = document.getElementById("modalConsultaProducto");
         const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
         if (modalInst) {
             modalInst.hide();
         }
+        solicitarAgregarProductoPos(prod);
         $("#posInputBuscadorProducto").val("").focus();
     }
 };

@@ -21,7 +21,9 @@ class VentaDetalle extends Model
         'almacen_id',
         'tipo_item',
         'nombre_item',
+        'variante_texto',
         'serial_identificador',
+        'producto_serial_id',
         'cantidad',
         'costo_unitario_usd',
         'costo_unitario_bs',
@@ -63,6 +65,11 @@ class VentaDetalle extends Model
     public function producto(): BelongsTo
     {
         return $this->belongsTo(Producto::class, 'producto_id');
+    }
+
+    public function productoSerial(): BelongsTo
+    {
+        return $this->belongsTo(ProductoSerial::class, 'producto_serial_id');
     }
 
     public function moto(): BelongsTo

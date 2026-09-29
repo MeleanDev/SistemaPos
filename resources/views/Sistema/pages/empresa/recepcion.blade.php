@@ -412,6 +412,24 @@
 
                                     <div class="row g-3 p-3.5 rounded-4 bg-white border shadow-xs mb-3">
                                         
+                                        <!-- Variante / Color Selector si aplica -->
+                                        <div class="col-md-12" id="seccionVarianteRenglon" style="display: none;">
+                                            <div class="p-2.5 rounded-3 bg-light border border-primary-subtle d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="badge rounded-pill bg-purple-subtle text-purple-emphasis p-2" style="background-color: #f3e8ff; color: #7e22ce;"><i class="fas fa-layer-group"></i></span>
+                                                    <div>
+                                                        <strong class="text-dark d-block" id="labelNombreAtributoRenglon">Variante / Opción:</strong>
+                                                        <small class="text-muted">Seleccione la opción o color correspondiente a esta entrada.</small>
+                                                    </div>
+                                                </div>
+                                                <div style="min-width: 260px;">
+                                                    <select id="form_renglon_variante_texto" class="form-select form-select-executive font-monospace">
+                                                        <option value="">-- Seleccione una opción --</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <!-- Almacén Destino -->
                                         <div class="col-md-3">
                                             <label class="form-label-executive"><i class="fas fa-warehouse text-primary"></i> Almacén Destino <span class="text-danger">*</span></label>
@@ -529,6 +547,45 @@
                                                     <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="form_renglon_mayorista_sin_iva" style="background-color: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; font-size: 0.84rem;">
                                                         $ 0,00 | Bs. 0,00
                                                     </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Seriales Físicos si el producto maneja seriales -->
+                                        <div class="col-12" id="seccionSerialesRenglon" style="display: none;">
+                                            <div class="card border rounded-4 p-3 shadow-xs bg-white" style="border-left: 5px solid #10b981 !important;">
+                                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                                                    <div>
+                                                        <h6 class="fw-bold text-dark mb-0"><i class="fas fa-barcode text-success me-1"></i> Captura de Seriales Físicos (<span id="contadorSerialesIngresados" class="text-success font-monospace fw-bold">0</span> / <span id="metaSerialesCantidad" class="font-monospace fw-bold">0</span> unidades)</h6>
+                                                        <small class="text-muted">Escanee el código de barra del serial de cada unidad recibida (Neveras, Aires, Freezers) o escríbalo y presione Enter.</small>
+                                                    </div>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 fw-bold" onclick="autoGenerarSerialesRenglon()">
+                                                            <i class="fas fa-magic me-1"></i> Generar Automáticos
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2.5" onclick="limpiarSerialesRenglon()" title="Limpiar lista de seriales">
+                                                            <i class="fas fa-trash-alt"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="row g-2 align-items-center mb-2">
+                                                    <div class="col-md-9">
+                                                        <div class="input-group">
+                                                            <span class="input-group-text bg-white text-success"><i class="fas fa-barcode"></i></span>
+                                                            <input type="text" id="input_serial_individual" class="form-control form-control-executive font-monospace" placeholder="Escanear número de serial y presionar Enter...">
+                                                            <button type="button" class="btn btn-success rounded-end-pill px-3.5 fw-bold" onclick="agregarSerialIndividual()">
+                                                                <i class="fas fa-plus me-1"></i> Añadir Serial
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <span class="badge rounded-pill bg-light text-dark border font-monospace px-3 py-2 w-100 text-center" id="badgeEstadoProgresoSeriales">
+                                                            Pendientes: 0
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div id="contenedorChipsSeriales" class="d-flex flex-wrap gap-1.5 p-2.5 rounded-3 bg-light border" style="min-height: 48px; max-height: 140px; overflow-y: auto;">
+                                                    <span class="text-muted fst-italic small" id="placeholderSinSeriales">No hay seriales agregados aún. Ingrese los seriales para las unidades.</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -854,6 +911,78 @@
                                     <input type="number" step="any" min="0" max="100" name="iva_porcentaje" id="rapido_prod_iva_porcentaje" class="form-control form-control-executive font-monospace" value="16.00">
                                     <span class="input-group-text bg-white text-muted">%</span>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VARIANTES & CHECKLIST DE OPCIONES (MUEBLERÍA, CAMAS, COLORES) -->
+                <div class="col-12">
+                    <div class="card border rounded-4 p-3 bg-white shadow-xs" style="border-left: 5px solid #6366f1 !important;">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-executive-xs rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                    <i class="fas fa-palette"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold text-dark mb-0">Checklist de Variantes / Opciones (Mueblería, Camas, Colores)</h6>
+                                    <small class="text-muted">Define opciones o colores para seleccionarlos en la recepción sin registrar múltiples productos.</small>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" name="maneja_variantes" id="rapido_prod_maneja_variantes" value="1" onchange="toggleVariantesRapidoProducto()" style="cursor: pointer; width: 2.5em; height: 1.3em;">
+                            </div>
+                        </div>
+
+                        <div id="rapido_seccion_variantes" class="mt-3 pt-3 border-top" style="display: none;">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label-executive small"><i class="fas fa-tag text-primary me-1"></i> Tipo de Atributo</label>
+                                    <input type="text" id="rapido_prod_attr_nombre" name="atributos_variantes[nombre]" class="form-control form-control-executive form-control-sm font-monospace" placeholder="Ej. Color, Medida" value="Color">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label-executive small"><i class="fas fa-plus-circle text-success me-1"></i> Opción / Color</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" id="rapido_prod_opcion_input" class="form-control form-control-executive font-monospace" placeholder="Ej. Gris, Negro, Beige...">
+                                        <button type="button" class="btn btn-outline-primary px-3 fw-bold" id="btnRapidoAgregarOpcionVariante" onclick="agregarOpcionVarianteRapido()">
+                                            <i class="fas fa-plus me-1"></i> Agregar
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-2.5" onclick="limpiarOpcionesVariantesRapido()" title="Limpiar opciones">
+                                        <i class="fas fa-trash-alt me-1"></i> Limpiar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mt-2 p-2.5 rounded-3 bg-light border">
+                                <small class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 0.68rem; letter-spacing: 0.05em;">
+                                    <i class="fas fa-check-double text-primary me-1"></i> Opciones / Colores Disponibles:
+                                </small>
+                                <div id="rapido_contenedor_chips_variantes" class="d-flex flex-wrap align-items-center gap-1.5">
+                                    <span class="text-muted fst-italic small" id="rapido_placeholder_sin_variantes" style="font-size: 0.78rem;">No hay opciones añadidas. Escriba arriba y presione Agregar.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTROL DE SERIALES ÚNICOS (ELECTRODOMÉSTICOS, AIRES, NEVERAS, FREEZERS) -->
+                <div class="col-12">
+                    <div class="card border rounded-4 p-3 bg-white shadow-xs" style="border-left: 5px solid #10b981 !important;">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-executive-xs rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                    <i class="fas fa-barcode"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold text-dark mb-0">Control Estricto por Serial Único Físico (Neveras, Aires, Equipos)</h6>
+                                    <small class="text-muted">Cada unidad ingresada requerirá su número de serial físico para seguimiento de garantías y ventas.</small>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" name="maneja_seriales" id="rapido_prod_maneja_seriales" value="1" style="cursor: pointer; width: 2.5em; height: 1.3em;">
                             </div>
                         </div>
                     </div>

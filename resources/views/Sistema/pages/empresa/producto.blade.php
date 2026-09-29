@@ -54,6 +54,11 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
+                    <button class="nav-link rounded-pill fw-semibold py-2" id="tab-variantes-btn" data-bs-toggle="pill" data-bs-target="#tab-variantes" type="button" role="tab">
+                        <i class="fas fa-layer-group me-1"></i> Variantes & Seriales
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
                     <button class="nav-link rounded-pill fw-semibold py-2" id="tab-precios-btn" data-bs-toggle="pill" data-bs-target="#tab-precios" type="button" role="tab">
                         <i class="fas fa-coins me-1"></i> Precios & Costos
                     </button>
@@ -128,6 +133,97 @@
                         <div class="col-12">
                             <x-input name="descripcion" id="descripcion" label="Descripción / Aplicación" icon="fas fa-align-left"
                                 placeholder="Detalles técnicos, compatibilidad, modelos..." maxlength="1000" optionalText="Opcional" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PESTAÑA: VARIANTES & SERIALES (MUEBLES, CAMAS, ELECTRODOMÉSTICOS, AIRES, NEVERAS) -->
+                <div class="tab-pane fade" id="tab-variantes" role="tabpanel">
+                    <div class="row g-3">
+                        <!-- CONTROL DE VARIANTES / CHECKLIST DE OPCIONES -->
+                        <div class="col-12">
+                            <div class="card border rounded-4 p-3.5 bg-white shadow-xs" style="border-left: 5px solid #6366f1 !important;">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-executive-xs rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                                            <i class="fas fa-palette"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Checklist de Variantes / Opciones (Mueblería, Camas, Colores)</h6>
+                                            <small class="text-muted">Define los colores u opciones disponibles sin registrar múltiples productos duplicados en el catálogo.</small>
+                                        </div>
+                                    </div>
+                                    <x-checkbox
+                                        switch="true"
+                                        id="maneja_variantes"
+                                        name="maneja_variantes"
+                                        value="1"
+                                        onchange="toggleVariantesProducto()"
+                                        label="Habilitar Variantes"
+                                        labelClass="fw-bold text-dark small"
+                                        style="cursor: pointer; width: 2.5em; height: 1.3em;"
+                                    />
+                                </div>
+
+                                <div id="seccionConfigVariantes" class="mt-3 pt-3 border-top" style="display: none;">
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-md-4">
+                                            <label class="form-label-executive"><i class="fas fa-tag text-primary me-1"></i> Tipo de Atributo / Nombre</label>
+                                            <input type="text" id="nombre_atributo_variante" name="atributos_variantes[nombre]" class="form-control form-control-executive font-monospace" placeholder="Ej. Color, Medida, Material" value="Color">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label-executive"><i class="fas fa-plus-circle text-success me-1"></i> Escriba una Opción / Color y presione Enter o Agregar</label>
+                                            <div class="input-group">
+                                                <input type="text" id="input_nueva_opcion_variante" class="form-control form-control-executive font-monospace" placeholder="Ej. Gris, Negro, Beige, Azul...">
+                                                <button type="button" class="btn btn-outline-primary rounded-end-pill px-3 fw-bold" onclick="agregarOpcionVariante()">
+                                                    <i class="fas fa-plus me-1"></i> Agregar
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2 text-end">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-2.5" onclick="limpiarOpcionesVariantes()" title="Limpiar todas las opciones">
+                                                <i class="fas fa-trash-alt me-1"></i> Limpiar
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- CONTENEDOR DE CHIPS / BADGES DE OPCIONES REGISTRADAS -->
+                                    <div class="mt-3 p-3 rounded-3 bg-white border shadow-xs">
+                                        <small class="text-muted text-uppercase fw-bold d-block mb-2" style="font-size: 0.70rem; letter-spacing: 0.05em;">
+                                            <i class="fas fa-check-double text-primary me-1"></i> Opciones / Colores Disponibles en este Producto:
+                                        </small>
+                                        <div id="contenedorChipsVariantes" class="d-flex flex-wrap align-items-center gap-2">
+                                            <span class="text-muted fst-italic small" id="placeholderSinVariantes">No hay opciones añadidas. Escriba un color arriba para agregarlo.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CONTROL DE SERIALES ÚNICOS (ELECTRODOMÉSTICOS, AIRES, NEVERAS, FREEZERS) -->
+                        <div class="col-12">
+                            <div class="card border rounded-4 p-3.5 bg-white shadow-xs" style="border-left: 5px solid #10b981 !important;">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-executive-xs rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                                            <i class="fas fa-barcode"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-0">Control Estricto por Serial Único (Neveras, Aires, Freezers, Equipos)</h6>
+                                            <small class="text-muted">Al activar, cada unidad física que ingrese por compras tendrá su propio número de serial único para seguimiento de garantías y ventas.</small>
+                                        </div>
+                                    </div>
+                                    <x-checkbox
+                                        switch="true"
+                                        id="maneja_seriales"
+                                        name="maneja_seriales"
+                                        value="1"
+                                        label="Habilitar Seriales"
+                                        labelClass="fw-bold text-dark small"
+                                        style="cursor: pointer; width: 2.5em; height: 1.3em;"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

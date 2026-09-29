@@ -13,6 +13,8 @@ class RecepcionDetalle extends Model
         'recepcion_id',
         'producto_id',
         'almacen_id',
+        'variante_texto',
+        'seriales_ingresados',
         'cantidad',
         'bultos',
         'unidades_por_bulto',
@@ -46,6 +48,7 @@ class RecepcionDetalle extends Model
     protected function casts(): array
     {
         return [
+            'seriales_ingresados' => 'array',
             'cantidad' => 'decimal:3',
             'bultos' => 'decimal:3',
             'unidades_por_bulto' => 'decimal:3',
@@ -90,5 +93,10 @@ class RecepcionDetalle extends Model
     public function almacen(): BelongsTo
     {
         return $this->belongsTo(Almacen::class, 'almacen_id');
+    }
+
+    public function seriales()
+    {
+        return $this->hasMany(ProductoSerial::class, 'recepcion_detalle_id');
     }
 }
