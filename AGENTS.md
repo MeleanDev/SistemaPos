@@ -13,39 +13,9 @@ Before relying on a package's API, confirm its installed version:
 - PHP packages: run `composer show --direct` to list direct dependencies with versions, or `composer show <vendor/package>` for a single package.
 - JS packages: check `package.json` for the installed versions.
 
-## Skills Activation & Mandatory Pre-Flight Review
+## Skills Activation
 
-This project contains specialized domain skills in `.agents/skills/` (notably `.agents/skills/pos-architecture/SKILL.md` and `.agents/skills/laravel-best-practices/SKILL.md`).
-**BEFORE STARTING ANY TASK, CREATING A PLAN, EDITING CODE, OR RUNNING COMMANDS:**
-1. You **MUST** read and consult the relevant skills (specifically `pos-architecture/SKILL.md` for UI/UX, components, database conventions, and module structure).
-2. Align all architecture, components, form requests, services, and JavaScript helpers to the project conventions defined in the skills.
-
-## Strict Database Preservation (MANDATORY RULE)
-
-- **NEVER RUN `php artisan migrate:fresh` or wipe the database for routine/small changes, styling fixes, or tests.**
-- Always preserve registered records, active sessions, and configured companies in the database.
-- You may ONLY run `migrate:fresh` if it is strictly unavoidable AND you have asked the user for explicit permission and received their confirmation ("pídeme permiso antes").
-- Standard migration runs should only use `php artisan migrate` when new migrations are created.
-
-## Multi-Tenancy & Empresa Scoping (MANDATORY RULE)
-
-- **Strict Company Isolation**: All transactional and catalog entities (`Proveedores`, `Clientes`, `Productos`, `Ventas`, `Cajas`, `Kardex`, `Motos`, etc.) MUST belong to a specific company (`empresa_id`).
-- **Session Scoping**: Queries, inserts, updates, and validations (`Rule::unique`) MUST ALWAYS be scoped to the active session company (`Auth::user()->empresaActiva()->id` / `session('empresa_activa_id')`) and `estado = true`.
-- **Modular Feature Flags by Empresa (`maneja_motos`)**: Specialized business modules (such as Motos / Vehicle Serial Tracking: NIV, Chasis, Motor, Certificado de Origen) MUST be toggled per-company via `Empresa.maneja_motos`. For traditional retail/service tenants (`maneja_motos = false`), all moto-related menu items and routes MUST remain completely hidden and clean.
-
-## Mandatory Form Requests & Controller Conventions (MANDATORY RULE)
-
-- **NO INLINE VALIDATION IN CONTROLLERS**: NEVER use `$request->validate([...])` inside controller methods. All incoming request validation MUST live in dedicated `FormRequest` classes under `app/Http/Requests/` extending `App\Http\Requests\BaseRequest`.
-- **Use Validated Data**: Always retrieve sanitized input in controllers via `$request->validated()` or `$request->validated('field')`. Never pass raw `$request->all()` on validated endpoints.
-- **Rule Syntax**: Always define validation rules using array format `['required', 'string', ...]` with custom Spanish messages in `messages()`.
-- **Centralized Empresa Scoping (`HasEmpresaActiva` & `BaseRequest`)**: Base controller `Controller` and `BaseRequest` use `App\Traits\HasEmpresaActiva`. Use `$this->obtenerEmpresaId()` / `$this->empresaId()` directly without redefining local helpers.
-- **Constructor Property Promotion**: Always use constructor property promotion `private {Module}Class ${module}Class`.
-
-## Executive UI/UX Standard
-
-- Every designed, written, reviewed, or refactored view MUST be **magnificent, highly aesthetic, clean, modern, executive, and production-ready**.
-- **Rounded Borders**: Every card, button, modal, badge, input, and container MUST feature smooth rounded borders (`rounded-4`, `rounded-pill`, `rounded-3`).
-- **Clean Flex Layouts**: Never overlap text or switches in flex containers. Ensure ample breathing room, responsive modal sizing (`modal-xl` for multi-column grids), and high-contrast typography.
+This project has domain-specific skills available in `**/skills/**`. You MUST activate the relevant skill whenever you work in that domain—don't wait until you're stuck.
 
 ## Conventions
 

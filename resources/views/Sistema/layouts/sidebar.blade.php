@@ -218,11 +218,20 @@
                     <li class="list-divider"></li>
                     <li class="nav-small-cap"><span class="hide-menu">Informes & Auditoría</span></li>
 
+                    @can('reportes.ver')
+                        <li class="sidebar-item @if (request()->routeIs('reportes') && !request()->routeIs('reportes.vendedores*')) selected @endif">
+                            <a class="sidebar-link" href="{{ route('reportes') }}" aria-expanded="false">
+                                <i class="fas fa-chart-pie"></i>
+                                <span class="hide-menu">Centro de Reportes</span>
+                            </a>
+                        </li>
+                    @endcan
+
                     @if (Auth::user()?->empresaActiva()?->maneja_vendedores ?? false)
                         @can('reportes.vendedores')
                             <li class="sidebar-item @if (request()->routeIs('reportes.vendedores*')) selected @endif">
                                 <a class="sidebar-link" href="{{ route('reportes.vendedores') }}" aria-expanded="false">
-                                    <i class="fas fa-chart-line"></i>
+                                    <i class="fas fa-user-tie"></i>
                                     <span class="hide-menu">Ventas por Vendedor</span>
                                 </a>
                             </li>

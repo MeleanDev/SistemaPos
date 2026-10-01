@@ -20,6 +20,7 @@ use App\Http\Controllers\Empresa\ProductoController;
 use App\Http\Controllers\Empresa\ProveedorController;
 use App\Http\Controllers\Empresa\RecepcionController;
 use App\Http\Controllers\Empresa\RecepcionMotoController;
+use App\Http\Controllers\Empresa\ReporteController;
 use App\Http\Controllers\Empresa\ReporteVendedorController;
 use App\Http\Controllers\Empresa\ServicioController;
 use App\Http\Controllers\Empresa\VendedorController;
@@ -261,6 +262,29 @@ Route::middleware('auth')->group(function () {
         Route::delete('/cajas/{id}', 'eliminar');
         Route::post('/cajas/turnos/aperturar', 'aperturarTurno');
         Route::post('/cajas/turnos/{id}/cerrar', 'cerrarTurno');
+    });
+
+    Route::middleware('permission:reportes.ver')->controller(ReporteController::class)->group(function () {
+        Route::get('/reportes', 'index')->name('reportes');
+        Route::get('/reportes/ingresos', 'ingresos');
+        Route::get('/reportes/ingresos/pdf', 'pdfIngresos')->name('reportes.ingresos.pdf');
+        Route::get('/reportes/ingresos/excel', 'excelIngresos')->name('reportes.ingresos.excel');
+
+        Route::get('/reportes/creditos', 'creditos');
+        Route::get('/reportes/creditos/pdf', 'pdfCreditos')->name('reportes.creditos.pdf');
+        Route::get('/reportes/creditos/excel', 'excelCreditos')->name('reportes.creditos.excel');
+
+        Route::get('/reportes/inventario', 'inventario');
+        Route::get('/reportes/inventario/pdf', 'pdfInventario')->name('reportes.inventario.pdf');
+        Route::get('/reportes/inventario/excel', 'excelInventario')->name('reportes.inventario.excel');
+
+        Route::get('/reportes/rentabilidad', 'rentabilidad');
+        Route::get('/reportes/rentabilidad/pdf', 'pdfRentabilidad')->name('reportes.rentabilidad.pdf');
+        Route::get('/reportes/rentabilidad/excel', 'excelRentabilidad')->name('reportes.rentabilidad.excel');
+
+        Route::get('/reportes/vendedores/json', 'vendedores')->name('reportes.vendedores.json');
+        Route::get('/reportes/vendedores/pdf', 'pdfVendedores')->name('reportes.vendedores.pdf');
+        Route::get('/reportes/vendedores/excel', 'excelVendedores')->name('reportes.vendedores.excel');
     });
 
     Route::middleware('permission:reportes.vendedores')->controller(ReporteVendedorController::class)->group(function () {

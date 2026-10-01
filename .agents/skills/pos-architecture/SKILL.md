@@ -698,6 +698,7 @@ For every single module in the 18-module list, strictly execute these 4 phases i
 | 19 | **Vendedores & Asesores** | `Sistema/pages/empresa/vendedor.blade.php` | `vendedor.js` | ✅ **Terminado** |
 | 20 | **Cajas & Turnos (X/Z)** | `Sistema/pages/empresa/caja.blade.php` | `caja.js` | ✅ **Terminado** |
 | 21 | **Reporte Ventas por Vendedor** | `Sistema/pages/empresa/reporte-vendedores.blade.php` | `reporteVendedores.js` | ✅ **Terminado** |
+| 22 | **Centro de Reportes & Auditoría** | `Sistema/pages/empresa/reportes.blade.php` | `reportes.js` | ✅ **Terminado** |
 
 ### 13.4 Purchasing & Draft Auto-Save Standard (Recepción de Mercancía & Recepción de Motos)
 Both purchasing reception modules implement the standardized **Draft & Auto-Save Lifecycle**:
@@ -728,6 +729,25 @@ Both purchasing reception modules implement the standardized **Draft & Auto-Save
    - Seamless shift enforcement directly on POS top navbar.
    - Real-time Corte X and Cierre Z triggers from POS.
    - Salesperson attribution on checkout drawer.
+
+### 13.6 Executive Central Reports Hub Architecture (`/reportes`)
+The Reports Hub provides multi-domain auditing with date ranges, cash registers, warehouses, and payment method filters:
+1. **Income & Payment Method Breakdown**:
+   - Invoiced and collected totals in USD and Bs.
+   - Detailed breakdown per active payment method (Efectivo USD, Efectivo VES, Pago Móvil, Transferencia, Zelle, Punto de Venta/Tarjeta, Crédito).
+   - Filterable by Cash Register (`caja_id`) and Date Range (`fecha_inicio`, `fecha_fin`).
+2. **Credit & Debt Aging (CXC / CXP)**:
+   - Receivables from customers grouped by aging status (Al Día, Por Vencer, En Mora >30d, >60d) and collected installments.
+   - Payables to suppliers with upcoming due dates and disbursements.
+3. **Inventory Valuation & Product Rotation**:
+   - Global stock valuation at cost vs. sale price in USD and Bs.
+   - Per-product warehouse breakdown with shelf locations and stock levels.
+   - Critical / Minimum stock alerts and Top Selling products ranking.
+4. **Gross Profit & Profitability**:
+   - Real-time gross margin ($ and %) computed as Total Sales minus Base Cost of Sold Goods.
+5. **Salesperson Performance & Commissions**:
+   - Dynamic commission percentage per seller with total sales and earned commissions.
+
 
 
 
