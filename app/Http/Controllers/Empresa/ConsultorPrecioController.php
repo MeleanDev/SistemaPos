@@ -21,9 +21,10 @@ class ConsultorPrecioController extends Controller
     public function index(): View
     {
         $empresaId = $this->obtenerEmpresaId();
+        $empresa = $this->obtenerEmpresaActiva();
         $tasaUsd = $this->consultorPrecioClass->obtenerTasaActiva($empresaId);
 
-        return view('Sistema.pages.empresa.consultor-precios', compact('tasaUsd'));
+        return view('Sistema.pages.empresa.consultor-precios', compact('tasaUsd', 'empresa'));
     }
 
     /**
