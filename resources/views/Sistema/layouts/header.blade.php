@@ -86,10 +86,13 @@
             <ul class="navbar-nav float-end align-items-center">
                 <li class="nav-item me-2">
                     <a href="{{ route('consultor_precios') }}"
-                        class="btn btn-white bg-white border rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5 px-3 py-1.5 text-dark font-monospace"
-                        style="font-size: 0.85rem;"
+                        class="btn btn-white bg-white border rounded-pill shadow-xs d-inline-flex align-items-center gap-2 px-3 py-1.5 text-dark fw-semibold"
+                        style="font-size: 0.86rem; transition: all 0.2s ease;"
                         title="Consultor de Precios">
-                        <i class="fas fa-barcode text-primary"></i>
+                        <span class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                            style="width: 24px; height: 24px; font-size: 0.78rem;">
+                            <i class="fas fa-barcode"></i>
+                        </span>
                         <span class="d-none d-md-inline">Consultor</span>
                     </a>
                 </li>

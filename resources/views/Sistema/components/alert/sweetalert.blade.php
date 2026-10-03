@@ -67,21 +67,37 @@
     };
 
     /**
-     * Helper para formatear y mostrar errores 422 de Laravel
+     * Helper para formatear y mostrar errores AJAX de Laravel
      */
     window.mostrarErroresValidacion = function(xhr, titulo = 'Error de Validación') {
-        let mensaje = 'Ocurrió un error en los datos enviados.';
-        if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+        let tituloModal = titulo;
+        let mensaje = 'Ocurrió un error al procesar la solicitud.';
+
+        if (xhr.status === 403) {
+            tituloModal = 'Acceso Denegado';
+            mensaje = 'No tienes los permisos necesarios para realizar esta acción.';
+            if (xhr.responseJSON && xhr.responseJSON.message && !xhr.responseJSON.message.includes('User does not have') && !xhr.responseJSON.message.includes('unauthorized')) {
+                mensaje = xhr.responseJSON.message;
+            }
+        } else if (xhr.status === 404) {
+            tituloModal = 'Registro No Encontrado';
+            mensaje = 'El registro solicitado no existe o fue dado de baja.';
+        } else if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+            tituloModal = 'Error de Validación';
             mensaje = Object.values(xhr.responseJSON.errors)
                 .map(err => Array.isArray(err) ? err.join('<br>') : err)
                 .join('<br>');
         } else if (xhr.responseJSON && xhr.responseJSON.message) {
             mensaje = xhr.responseJSON.message;
+            if (mensaje.includes('User does not have') || mensaje.includes('unauthorized')) {
+                tituloModal = 'Acceso Denegado';
+                mensaje = 'No tienes los permisos necesarios para realizar esta acción.';
+            }
         }
 
         Swal.fire({
             icon: 'error',
-            title: titulo,
+            title: tituloModal,
             html: `<div class="text-start small mb-0">${mensaje}</div>`,
             confirmButtonText: 'Entendido',
             confirmButtonColor: '#4f46e5',

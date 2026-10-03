@@ -11,7 +11,9 @@
 @endsection
 
 @section('acciones')
-    <x-btn-action icon="fas fa-user-plus" text="Nuevo Usuario" onclick="crear()" />
+    @can('usuarios.crear')
+        <x-btn-action icon="fas fa-user-plus" text="Nuevo Usuario" onclick="crear()" />
+    @endcan
 @endsection
 
 @section('contenido')

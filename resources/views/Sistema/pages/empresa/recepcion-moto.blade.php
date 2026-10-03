@@ -16,7 +16,9 @@
         <x-button variant="outline-primary" icon="fas fa-folder-open" text="Borradores Guardados" badge="0"
             badgeId="badgeConteoBorradores" onclick="abrirModalBorradores()" id="btnAbrirBorradores"
             class="font-monospace" />
-        <x-btn-action icon="fas fa-plus" text="Nueva Recepción de Motos" onclick="crear()" />
+        @can('motos.recepcion')
+            <x-btn-action icon="fas fa-plus" text="Nueva Recepción de Motos" onclick="crear()" />
+        @endcan
     </div>
 @endsection
 

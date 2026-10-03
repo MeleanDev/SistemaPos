@@ -19,7 +19,7 @@ class ActualizarRequest extends BaseRequest
         $vendedorId = $this->route('id') ?? $this->route('vendedor') ?? $this->input('id');
 
         return [
-            'tipo_documento' => ['required', 'string', 'in:V,E,J,G,P'],
+            'tipo_documento' => ['required', 'string', 'in:V,E,J,G,P,V-,E-,J-,G-,P-'],
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
             'documento' => [
                 'required',

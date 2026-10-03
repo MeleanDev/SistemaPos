@@ -1,5 +1,6 @@
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
 const urlLista = `${urlBase}/lista`;
+const urlCatalogos = `${urlBase}/catalogos`;
 const urlDetalles = `${urlBase}/`;
 const urlEliminar = `${urlBase}/`;
 const urlGuardar = urlBase;
@@ -10,6 +11,13 @@ let isEditar = false;
 let idVendedorActual = null;
 
 $(document).ready(function () {
+    crearSelect2({
+        selector: "#user_id",
+        modalSelector: "#modalVendedor",
+        placeholder: "-- Sin usuario asignado / Vendedor externo --",
+        allowClear: true,
+    });
+    cargarCatalogos();
     crearDataTable({
         selector: "#datatable_vendedores",
         url: urlLista,
@@ -105,6 +113,22 @@ $(document).ready(function () {
     });
 });
 
+const cargarCatalogos = async function () {
+    try {
+        const res = await peticionAjax({ url: urlCatalogos });
+        if (res && res.success && Array.isArray(res.usuarios)) {
+            const $select = $("#user_id");
+            $select.empty().append('<option value="">-- Sin usuario asignado / Vendedor externo --</option>');
+            res.usuarios.forEach((usr) => {
+                const nombreCompleto = (usr.nombre || '') + (usr.apellido ? ' ' + usr.apellido : '');
+                const label = nombreCompleto.trim() || usr.email || usr.name;
+                $select.append(`<option value="${usr.id}">${usr.name} (${label})</option>`);
+            });
+            $select.trigger("change.select2");
+        }
+    } catch (error) {}
+};
+
 const resetearFormularioVendedor = function () {
     const $form = $("#formularioVendedor");
     $form[0].reset();
@@ -112,7 +136,7 @@ const resetearFormularioVendedor = function () {
     $form.find(".invalid-feedback").remove();
     $form.find("input, select, textarea").prop("disabled", false);
     $("#tipo_documento").val("V");
-    $("#user_id").val("");
+    limpiarSelect2("#user_id");
     $("#comision_porcentaje").val("0.00");
 };
 
@@ -136,9 +160,10 @@ const crear = function () {
 
 const llenarFormularioVendedor = function (data) {
     $("#nombre").val(data.nombre || "");
-    $("#tipo_documento").val(data.tipo_documento || "V");
+    const tipoDoc = String(data.tipo_documento || "V").replace("-", "").toUpperCase();
+    $("#tipo_documento").val(tipoDoc || "V");
     $("#documento").val(data.documento || "");
-    $("#user_id").val(data.user_id || "");
+    establecerValorSelect2("#user_id", data.user_id || "");
     $("#telefono").val(data.telefono || "");
     $("#correo").val(data.correo || "");
     $("#comision_porcentaje").val(parseFloat(data.comision_porcentaje || 0).toFixed(2));

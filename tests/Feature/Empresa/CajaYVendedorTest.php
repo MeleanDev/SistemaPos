@@ -84,6 +84,21 @@ test('modulo de vendedores permite registrar, listar y actualizar asesores con c
 
     $respActivos->assertOk()
         ->assertJsonFragment(['nombre' => 'Carlos Mendoza']);
+
+    // 4. Index View y Catálogos JSON
+    $respIndex = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get('/vendedores');
+
+    $respIndex->assertOk()
+        ->assertViewIs('Sistema.pages.empresa.vendedor');
+
+    $respCatalogos = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/vendedores/catalogos');
+
+    $respCatalogos->assertOk()
+        ->assertJsonStructure(['success', 'usuarios']);
 });
 
 test('modulo de cajas y apertura de turnos valida exclusividad de cajero y caja', function () {
@@ -479,6 +494,7 @@ test('flujo de control de apertura por administrador, bloqueo de cajero no asign
 
     $cajero = User::factory()->create(['name' => 'V-77000002']);
     $cajero->assignRole('Operador');
+    $cajero->givePermissionTo(['pos.acceso', 'ventas.crear']);
     $cajero->empresas()->attach($empresa->id);
 
     $vendedorUser = User::factory()->create(['name' => 'V-77000003']);

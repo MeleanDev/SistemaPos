@@ -10,11 +10,13 @@
 @endsection
 
 @section('acciones')
-    <x-btn-action
-        icon="fas fa-plus"
-        text="Nuevo Método"
-        onclick="crear()"
-    />
+    @can('metodos_pago.crear')
+        <x-btn-action
+            icon="fas fa-plus"
+            text="Nuevo Método"
+            onclick="crear()"
+        />
+    @endcan
 @endsection
 
 @section('contenido')

@@ -230,8 +230,73 @@ class UsuarioClass
                         ['name' => 'cxp.abonar', 'label' => 'Registrar abonos a proveedores'],
                     ],
                 ],
+                [
+                    'modulo' => 'Vendedores & Asesores',
+                    'icono' => 'fas fa-user-tie text-info',
+                    'descripcion' => 'Directorio de asesores y comisiones de venta',
+                    'permisos' => [
+                        ['name' => 'vendedores.ver', 'label' => 'Ver directorio de vendedores'],
+                        ['name' => 'vendedores.crear', 'label' => 'Registrar nuevos vendedores'],
+                        ['name' => 'vendedores.editar', 'label' => 'Editar información y comisiones'],
+                        ['name' => 'vendedores.eliminar', 'label' => 'Eliminar / Desactivar'],
+                    ],
+                ],
+                [
+                    'modulo' => 'Reportes & Estadísticas',
+                    'icono' => 'fas fa-chart-line text-success',
+                    'descripcion' => 'Métricas gerenciales, balances y ventas por asesor',
+                    'permisos' => [
+                        ['name' => 'reportes.ver', 'label' => 'Ver reportes e ingresos generales'],
+                        ['name' => 'reportes.vendedores', 'label' => 'Ver estadísticas y comisiones de vendedores'],
+                    ],
+                ],
+                [
+                    'modulo' => 'Configuración de Empresa',
+                    'icono' => 'fas fa-sliders-h text-secondary',
+                    'descripcion' => 'Datos fiscales, logo, tasa de cambio y monedas',
+                    'permisos' => [
+                        ['name' => 'configuracion.ver', 'label' => 'Consultar configuración de la empresa'],
+                        ['name' => 'configuracion.editar', 'label' => 'Editar datos de la empresa y tasas'],
+                    ],
+                ],
             ],
         ];
+    }
+
+    /**
+     * Normalizar permisos garantizando dependencias de visualización
+     */
+    public function normalizarPermisos(array $permisos): array
+    {
+        $normalizados = $permisos;
+        $mapeo = [
+            'clientes.' => 'clientes.ver',
+            'proveedores.' => 'proveedores.ver',
+            'metodos_pago.' => 'metodos_pago.ver',
+            'categorias.' => 'categorias.ver',
+            'servicios.' => 'servicios.ver',
+            'productos.' => 'productos.ver',
+            'almacenes.' => 'almacenes.ver',
+            'motos.' => 'motos.ver',
+            'vendedores.' => 'vendedores.ver',
+            'usuarios.' => 'usuarios.ver',
+            'cajas.' => 'cajas.ver',
+            'cxc.' => 'cxc.ver',
+            'cxp.' => 'cxp.ver',
+            'ventas.' => 'ventas.ver',
+            'inventario.' => 'inventario.kardex',
+            'configuracion.' => 'configuracion.ver',
+        ];
+
+        foreach ($permisos as $perm) {
+            foreach ($mapeo as $prefijo => $permisoPadre) {
+                if (str_starts_with($perm, $prefijo) && ! in_array($permisoPadre, $normalizados, true)) {
+                    $normalizados[] = $permisoPadre;
+                }
+            }
+        }
+
+        return array_values(array_unique($normalizados));
     }
 
     /**
@@ -241,7 +306,7 @@ class UsuarioClass
     {
         $rol = $datos['rol'] ?? 'Operador';
         $empresas = $datos['empresas'] ?? [];
-        $permisos = $datos['permisos'] ?? [];
+        $permisos = $this->normalizarPermisos($datos['permisos'] ?? []);
 
         // Comprobar si existía inactivo para reactivación
         $existenteInactivo = User::where('name', $datos['name'])
@@ -303,7 +368,7 @@ class UsuarioClass
         $usuario = User::findOrFail($id);
         $rol = $datos['rol'] ?? 'Operador';
         $empresas = $datos['empresas'] ?? [];
-        $permisos = $datos['permisos'] ?? [];
+        $permisos = $this->normalizarPermisos($datos['permisos'] ?? []);
 
         if (! empty($datos['password'])) {
             $datos['password'] = Hash::make($datos['password']);
@@ -334,7 +399,7 @@ class UsuarioClass
     public function actualizarPermisos(int $id, array $permisos): User
     {
         $usuario = User::findOrFail($id);
-        $usuario->syncPermissions($permisos);
+        $usuario->syncPermissions($this->normalizarPermisos($permisos));
 
         return $usuario;
     }

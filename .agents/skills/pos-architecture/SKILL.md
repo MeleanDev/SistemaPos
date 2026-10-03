@@ -699,6 +699,7 @@ For every single module in the 18-module list, strictly execute these 4 phases i
 | 20 | **Cajas & Turnos (X/Z)** | `Sistema/pages/empresa/caja.blade.php` | `caja.js` | ✅ **Terminado** |
 | 21 | **Reporte Ventas por Vendedor** | `Sistema/pages/empresa/reporte-vendedores.blade.php` | `reporteVendedores.js` | ✅ **Terminado** |
 | 22 | **Centro de Reportes & Auditoría** | `Sistema/pages/empresa/reportes.blade.php` | `reportes.js` | ✅ **Terminado** |
+| 23 | **Consultor de Precios (Kiosco Digital)** | `Sistema/pages/empresa/consultor-precios.blade.php` | `consultorPrecio.js` | ✅ **Terminado** |
 
 ### 13.4 Purchasing & Draft Auto-Save Standard (Recepción de Mercancía & Recepción de Motos)
 Both purchasing reception modules implement the standardized **Draft & Auto-Save Lifecycle**:
@@ -718,6 +719,7 @@ Both purchasing reception modules implement the standardized **Draft & Auto-Save
 ### 13.5 Cash Register & Salesperson Management Architecture (Cajas, Turnos, Arqueo, Corte X, Cierre Z, Vendedores y Comisiones)
 1. **Independent Salesperson Catalog (`vendedores`)**:
    - Separate catalog scoped by `empresa_id` with `tipo_documento`, `documento`, `nombre`, `telefono`, `correo`, and fixed `comision_porcentaje`.
+   - Optional link to `users.id` (`vendedores.user_id`) for mobile presale operators.
    - Frozen commission calculation on invoice emission (`ventas.comision_porcentaje`, `ventas.comision_monto_usd`, `ventas.comision_monto_bs`).
 2. **Cash Register & Shift Exclusivity (`cajas` & `caja_turnos`)**:
    - **Exclusivity 1**: A cashier user can only have **1 active open shift** at a time per company.
@@ -747,6 +749,46 @@ The Reports Hub provides multi-domain auditing with date ranges, cash registers,
    - Real-time gross margin ($ and %) computed as Total Sales minus Base Cost of Sold Goods.
 5. **Salesperson Performance & Commissions**:
    - Dynamic commission percentage per seller with total sales and earned commissions.
+
+### 13.7 Digital Price Checker Kiosk Architecture (`/consultor-precios`)
+1. **Dedicated Standalone Kiosk Mode**:
+   - Completely independent full-screen landing layout (`consultor-layout.blade.php`) with zero ERP sidebars, navigation headers, or administrative menus.
+   - Designed to run permanently on Smart TVs, tablets (iPad/Android), and smartphones with 100% fluid responsive scaling (`clamp()`).
+2. **Dual Theme Engine (Dark / Light Mode)**:
+   - Instant toggle between Midnight/Slate Dark Theme (`--kiosk-bg: #0b1120`) and Executive Clean Light Theme (`--kiosk-bg: #f1f5f9`).
+   - Persisted in browser `localStorage` (`kiosk_theme_consultor`).
+3. **Perpetual Auto-Focus & Audio Feedback**:
+   - Web Audio API synthesizer for acoustic beeps (High-pitch 1450Hz beep on match, low-pitch 220Hz buzz on not found).
+   - Non-blocking continuous scanning: auto-clears input upon display so subsequent barcode scans immediately cancel previous timers and render the next item instantaneously.
+4. **Multi-Currency & VAT Breakdown**:
+   - Displays real-time prices in USD ($) and VES (Bs.) based on active BCV rate.
+   - Displays active VAT condition and handles long Bolívares amounts with adaptive font sizing to prevent truncation.
+
+### 13.8 Granular Permissions, Role-Based Access Control (RBAC) & Zero Index Data Policy
+
+1. **Granular Route Protection Standard**:
+   - Every single route endpoint (`GET`, `POST`, `PUT`, `DELETE`) in `routes/admin.php` MUST have explicit `->middleware('permission:{module}.{action}')` applied directly to individual route definitions.
+   - Broad controller group middlewares without individual action protections are strictly forbidden because they allow read-only operators to execute `DELETE` or `PUT` actions.
+
+2. **Parent Permission Auto-Dependency & Normalization (`normalizarPermisos`)**:
+   - **Business Constraint**: Action permissions (`.crear`, `.editar`, `.eliminar`, `.abonar`, `.traslados`, `.ajustar_stock`, `.anular`, `.descuentos`, `.movimientos`, `.arqueo`, `.aperturar`, `.cerrar`, `.permisos`, `.recepcion`) strictly depend on and require the parent `.ver` / `.kardex` / `.acceso` permission.
+   - **Backend Normalization**: `UsuarioClass::normalizarPermisos(array $permisos)` automatically resolves and injects parent `.ver` permissions before persisting to the database.
+   - **Frontend Dynamic Sync (`usuario.js`)**: In the operator permissions modal:
+     - Toggling ON any action permission switch automatically turns ON the parent "Ver listado y detalles" switch.
+     - Toggling OFF the parent "Ver listado y detalles" switch automatically cascades and turns OFF all child action switches for that module.
+
+3. **View Action Buttons Protection with Blade `@can`**:
+   - All creation and mutating buttons (`<x-btn-action>`, `<x-button>`) across all Blade views MUST be wrapped in `@can('{modulo}.crear')`, `@can('{modulo}.aperturar')`, `@can('{modulo}.recepcion')`, etc.
+   - If an operator lacks the specific permission, the creation/action button is cleanly omitted from the DOM.
+
+4. **Zero Controller Index Data Passing Policy (Pure AJAX / Remote Catalogs)**:
+   - Controller `index()` methods MUST ONLY return the Blade view template (`return view('Sistema.pages...');`).
+   - **NEVER pass Eloquent models or data collections via `compact(...)` or `with(...)` in `index()`**.
+   - All catalogs, user lists, dropdowns, and records MUST be fetched asynchronously via dedicated JSON endpoints (`/catalogos`, `/datos`, `/activos`, `/lista`) and populated via JavaScript or Select2 AJAX.
+
+5. **Select2 Dynamic Catalog Helpers & Modal Default Preselection**:
+   - Always use `<x-select2>` or `crearSelect2({ selectId, url, placeholder })` for high-volume catalogs (such as Users, Products, Customers, Warehouses).
+   - Ensure modals always have a default option or cleanly reset upon opening to prevent blank unselected states.
 
 
 

@@ -10,11 +10,13 @@
 @endsection
 
 @section('acciones')
-    <x-btn-action
-        icon="fas fa-user-plus"
-        text="Nuevo Vendedor"
-        onclick="crear()"
-    />
+    @can('vendedores.crear')
+        <x-btn-action
+            icon="fas fa-user-plus"
+            text="Nuevo Vendedor"
+            onclick="crear()"
+        />
+    @endcan
 @endsection
 
 @section('contenido')
@@ -38,14 +40,16 @@
             @csrf
             <div class="row g-3">
                 <x-input name="nombre" id="nombre" label="Nombre Completo" icon="fas fa-user" placeholder="Ej. Carlos Mendoza" required
-                    maxlength="150" col="col-md-7" />
+                    maxlength="150" col="col-md-6" />
 
                 <x-input-documento
                     label="Documento de Identidad"
                     selectName="tipo_documento"
                     inputName="documento"
+                    :types="['V' => 'V-', 'E' => 'E-', 'J' => 'J-', 'G' => 'G-', 'P' => 'P-']"
+                    defaultType="V"
                     required
-                    col="col-md-5"
+                    col="col-md-6"
                 />
 
                 <x-input name="telefono" id="telefono" label="Teléfono de Contacto" icon="fas fa-phone"
@@ -56,16 +60,21 @@
 
                 <x-input name="comision_porcentaje" id="comision_porcentaje" type="number" step="0.01" min="0" max="100"
                     label="% Comisión por Venta" icon="fas fa-percentage" addonText="%" addonPosition="right" placeholder="Ej. 3.50"
-                    value="0.00" required col="col-md-6" helpText="Porcentaje aplicado sobre las ventas netas asignadas a este asesor." />
+                    value="0.00" required col="col-md-6" />
 
-                <x-select name="user_id" id="user_id" label="Usuario de Sistema (Para Preventas en POS)" icon="fas fa-user-lock" col="col-md-6" optionalText="Opcional" helpText="Si el vendedor inicia sesión para crear órdenes en espera, asígnale su usuario.">
+                <x-select2
+                    name="user_id"
+                    id="user_id"
+                    label="Usuario del Sistema"
+                    icon="fas fa-user-lock"
+                    col="col-md-6"
+                    optionalText="Opcional"
+                    placeholder="-- Sin usuario asignado / Vendedor externo --"
+                    modalParent="#modalVendedor"
+                    allowClear="true"
+                >
                     <option value="">-- Sin usuario asignado / Vendedor externo --</option>
-                    @if(isset($usuarios))
-                        @foreach($usuarios as $usr)
-                            <option value="{{ $usr->id }}">{{ $usr->name }} ({{ $usr->nombre_completo ?: $usr->email }})</option>
-                        @endforeach
-                    @endif
-                </x-select>
+                </x-select2>
             </div>
         </form>
 

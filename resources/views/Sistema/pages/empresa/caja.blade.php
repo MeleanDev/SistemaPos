@@ -11,20 +11,26 @@
 
 @section('acciones')
     <div class="d-flex gap-2">
-        <x-btn-action
-            icon="fas fa-cash-register"
-            text="Nueva Caja"
-            onclick="crearCaja()"
-            class="btn-outline-dark"
-        />
-        <x-btn-action
-            icon="fas fa-key"
-            text="Aperturar Turno"
-            onclick="abrirModalApertura()"
-        />
-        <a href="{{ route('pos') }}" class="btn btn-primary rounded-pill px-3 py-2 fw-semibold shadow-sm">
-            <i class="fas fa-shopping-cart me-1"></i> Ir al POS
-        </a>
+        @can('cajas.crear')
+            <x-btn-action
+                icon="fas fa-cash-register"
+                text="Nueva Caja"
+                onclick="crearCaja()"
+                class="btn-outline-dark"
+            />
+        @endcan
+        @can('cajas.aperturar')
+            <x-btn-action
+                icon="fas fa-key"
+                text="Aperturar Turno"
+                onclick="abrirModalApertura()"
+            />
+        @endcan
+        @can('pos.acceso')
+            <a href="{{ route('pos') }}" class="btn btn-primary rounded-pill px-3 py-2 fw-semibold shadow-sm">
+                <i class="fas fa-shopping-cart me-1"></i> Ir al POS
+            </a>
+        @endcan
     </div>
 @endsection
 

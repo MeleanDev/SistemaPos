@@ -10,7 +10,9 @@
 @endsection
 
 @section('acciones')
-    <x-btn-action icon="fas fa-warehouse" text="Nuevo Almacén" onclick="crear()" />
+    @can('almacenes.crear')
+        <x-btn-action icon="fas fa-warehouse" text="Nuevo Almacén" onclick="crear()" />
+    @endcan
 @endsection
 
 @section('contenido')

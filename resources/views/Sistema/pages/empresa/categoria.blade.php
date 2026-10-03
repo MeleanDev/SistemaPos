@@ -10,11 +10,13 @@
 @endsection
 
 @section('acciones')
-    <x-btn-action
-        icon="fas fa-plus"
-        text="Nueva Categoría"
-        onclick="crear()"
-    />
+    @can('categorias.crear')
+        <x-btn-action
+            icon="fas fa-plus"
+            text="Nueva Categoría"
+            onclick="crear()"
+        />
+    @endcan
 @endsection
 
 @section('contenido')

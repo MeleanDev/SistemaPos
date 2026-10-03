@@ -43,6 +43,7 @@ class CrearRequest extends BaseRequest
             'correo' => ['nullable', 'email', 'max:150'],
             'logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,svg', 'max:2048'],
             'maneja_motos' => ['nullable', 'boolean'],
+            'maneja_vendedores' => ['nullable', 'boolean'],
         ];
     }
 

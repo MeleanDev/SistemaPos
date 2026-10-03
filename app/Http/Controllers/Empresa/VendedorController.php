@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Empresa;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Vendedor\ActualizarRequest;
 use App\Http\Requests\Vendedor\CrearRequest;
-use App\Models\User;
 use App\Service\Empresa\VendedorClass;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -16,16 +15,18 @@ class VendedorController extends Controller
 
     public function index(): View
     {
-        $empresaId = $this->obtenerEmpresaId();
-        $usuarios = User::where('estado', true)
-            ->where(function ($query) use ($empresaId) {
-                $query->whereHas('empresas', fn ($q) => $q->where('empresas.id', $empresaId))
-                    ->orWhereHas('roles', fn ($q) => $q->whereIn('name', ['SuperAdmin', 'Admin', 'Operador', 'Vendedor']));
-            })
-            ->orderBy('name')
-            ->get(['id', 'name', 'nombre', 'apellido', 'email']);
+        return view('Sistema.pages.empresa.vendedor');
+    }
 
-        return view('Sistema.pages.empresa.vendedor', compact('usuarios'));
+    public function catalogos(): JsonResponse
+    {
+        $empresaId = $this->obtenerEmpresaId();
+        $usuarios = $this->vendedorClass->usuariosDisponibles($empresaId);
+
+        return response()->json([
+            'success' => true,
+            'usuarios' => $usuarios,
+        ]);
     }
 
     public function lista(): JsonResponse

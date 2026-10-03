@@ -2,12 +2,27 @@
 
 namespace App\Service\Empresa;
 
+use App\Models\User;
 use App\Models\Vendedor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class VendedorClass
 {
+    /**
+     * Obtener usuarios del sistema elegibles para vincular a vendedores
+     */
+    public function usuariosDisponibles(int $empresaId): Collection
+    {
+        return User::where('estado', true)
+            ->where(function ($query) use ($empresaId) {
+                $query->whereHas('empresas', fn ($q) => $q->where('empresas.id', $empresaId))
+                    ->orWhereHas('roles', fn ($q) => $q->whereIn('name', ['SuperAdmin', 'Admin', 'Operador', 'Vendedor']));
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'nombre', 'apellido', 'email']);
+    }
+
     /**
      * Listado de vendedores para DataTables
      */
@@ -54,6 +69,9 @@ class VendedorClass
     {
         $datos['empresa_id'] = $empresaId;
         $datos['estado'] = true;
+        if (isset($datos['tipo_documento'])) {
+            $datos['tipo_documento'] = strtoupper(str_replace('-', '', (string) $datos['tipo_documento']));
+        }
 
         return Vendedor::create($datos);
     }
@@ -64,6 +82,9 @@ class VendedorClass
     public function actualizar(array $datos, int $id, int $empresaId): Vendedor
     {
         $vendedor = $this->detalle($id, $empresaId);
+        if (isset($datos['tipo_documento'])) {
+            $datos['tipo_documento'] = strtoupper(str_replace('-', '', (string) $datos['tipo_documento']));
+        }
         $vendedor->update($datos);
 
         return $vendedor;

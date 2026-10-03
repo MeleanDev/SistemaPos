@@ -143,14 +143,9 @@ class RolesYPermisosSeeder extends Seeder
             'empresas.eliminar',
         ])->get());
 
-        // C. Operador / Cajero: Rol para cobro en POS con caja previamente asignada
+        // C. Operador: Rol base con permisos asignados granularmente por usuario
         $operadorRole = Role::firstOrCreate(['name' => 'Operador', 'guard_name' => 'web']);
-        $operadorPermissions = [
-            'pos.acceso',
-            'ventas.ver',
-            'ventas.crear',
-        ];
-        $operadorRole->syncPermissions($operadorPermissions);
+        $operadorRole->syncPermissions([]);
 
         // D. Vendedor: Rol para cargar órdenes de preventa en espera
         $vendedorRole = Role::firstOrCreate(['name' => 'Vendedor', 'guard_name' => 'web']);

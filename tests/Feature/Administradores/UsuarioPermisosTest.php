@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Cliente;
 use App\Models\Empresa;
 use App\Models\User;
 use Database\Seeders\RolesYPermisosSeeder;
@@ -109,14 +110,14 @@ test('users collection list returns data for cards view', function () {
     ]);
 });
 
-test('user catalog returns all 13 modular permission groups', function () {
+test('user catalog returns all 16 modular permission groups', function () {
     $response = $this->actingAs($this->superAdmin)->getJson('/usuarios/catalogos');
 
     $response->assertStatus(200);
     $data = $response->json();
 
     expect($data)->toHaveKey('permisos_modulos');
-    expect(count($data['permisos_modulos']))->toBe(13);
+    expect(count($data['permisos_modulos']))->toBe(16);
 });
 
 test('admin cannot create users with role SuperAdmin', function () {
@@ -186,4 +187,97 @@ test('admin can create users with role Admin and Operador', function () {
     $responseOperador = $this->actingAs($admin)->postJson('/usuarios', $payloadOperador);
     $responseOperador->assertStatus(200);
     $responseOperador->assertJson(['success' => true]);
+});
+
+test('operator without ventas.ver permission cannot access facturas module', function () {
+    $operador = User::create([
+        'name' => 'V-66666666',
+        'nombre' => 'Operador',
+        'apellido' => 'SinFacturas',
+        'email' => 'sinfacturas@empresa.com',
+        'password' => bcrypt('password123'),
+        'estado' => true,
+    ]);
+    $operador->assignRole('Operador');
+    $operador->empresas()->attach($this->empresa->id, ['estado' => true]);
+    $operador->syncPermissions(['clientes.ver']);
+
+    $response = $this->actingAs($operador)
+        ->withSession(['empresa_activa_id' => $this->empresa->id])
+        ->get('/facturas');
+
+    $response->assertForbidden();
+
+    // Otorgar ventas.ver y verificar acceso
+    $operador->givePermissionTo('ventas.ver');
+
+    $responsePermitido = $this->actingAs($operador)
+        ->withSession(['empresa_activa_id' => $this->empresa->id])
+        ->get('/facturas');
+
+    $responsePermitido->assertOk();
+});
+
+test('operator with only clientes.ver and clientes.crear cannot delete clients', function () {
+    $cliente = Cliente::create([
+        'cedula' => 'V-99112233',
+        'nombre' => 'Cliente',
+        'apellido' => 'Prueba',
+        'telefono' => '0414-0000000',
+        'estado' => true,
+    ]);
+
+    $operador = User::create([
+        'name' => 'V-55555555',
+        'nombre' => 'Operador',
+        'apellido' => 'NoElimina',
+        'email' => 'noelimina@empresa.com',
+        'password' => bcrypt('password123'),
+        'estado' => true,
+    ]);
+    $operador->assignRole('Operador');
+    $operador->empresas()->attach($this->empresa->id, ['estado' => true]);
+    $operador->syncPermissions(['clientes.ver', 'clientes.crear']);
+
+    // 1. Intentar eliminar -> Forbidden 403 en Español
+    $responseDelete = $this->actingAs($operador)
+        ->withSession(['empresa_activa_id' => $this->empresa->id])
+        ->deleteJson("/clientes/{$cliente->id}");
+
+    $responseDelete->assertForbidden();
+    $responseDelete->assertJson([
+        'success' => false,
+        'message' => 'No tienes los permisos necesarios para realizar esta acción.',
+    ]);
+
+    // 2. Conceder clientes.eliminar -> 200 OK
+    $operador->givePermissionTo('clientes.eliminar');
+
+    $responsePermitido = $this->actingAs($operador)
+        ->withSession(['empresa_activa_id' => $this->empresa->id])
+        ->deleteJson("/clientes/{$cliente->id}");
+
+    $responsePermitido->assertOk();
+});
+
+test('action permission automatically grants parent view permission upon saving', function () {
+    $payload = [
+        'name' => 'V-44444444',
+        'nombre' => 'Operador',
+        'apellido' => 'AutoVer',
+        'email' => 'autover@empresa.com',
+        'password' => 'operador123',
+        'rol' => 'Operador',
+        'empresas' => [$this->empresa->id],
+        'permisos' => ['clientes.crear', 'productos.editar'],
+    ];
+
+    $response = $this->actingAs($this->superAdmin)->postJson('/usuarios', $payload);
+    $response->assertOk();
+
+    $usuario = User::where('name', 'V-44444444')->first();
+    expect($usuario->hasPermissionTo('clientes.crear'))->toBeTrue()
+        ->and($usuario->hasPermissionTo('clientes.ver'))->toBeTrue()
+        ->and($usuario->hasPermissionTo('productos.editar'))->toBeTrue()
+        ->and($usuario->hasPermissionTo('productos.ver'))->toBeTrue();
 });

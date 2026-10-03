@@ -11,8 +11,12 @@
 
 @section('acciones')
     <div class="d-flex align-items-center gap-2">
-        <x-button variant="primary" icon="fas fa-plus" text="Nuevo Modelo de Moto" onclick="abrirModalCrearModelo()" />
-        <x-button href="{{ route('recepcion_moto') }}" variant="outline-primary" icon="fas fa-truck-ramp-box" text="Nueva Recepción" />
+        @can('motos.crear')
+            <x-button variant="primary" icon="fas fa-plus" text="Nuevo Modelo de Moto" onclick="abrirModalCrearModelo()" />
+        @endcan
+        @can('motos.recepcion')
+            <x-button href="{{ route('recepcion_moto') }}" variant="outline-primary" icon="fas fa-truck-ramp-box" text="Nueva Recepción" />
+        @endcan
     </div>
 @endsection
 

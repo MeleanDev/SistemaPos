@@ -24,6 +24,7 @@ class EmpresaClass
             'correo',
             'logo',
             'maneja_motos',
+            'maneja_vendedores',
             'estado',
             'created_at'
         )->where('estado', true);
@@ -47,6 +48,7 @@ class EmpresaClass
         }
 
         $datos['maneja_motos'] = ! empty($datos['maneja_motos']);
+        $datos['maneja_vendedores'] = ! empty($datos['maneja_vendedores']);
 
         $existenteInactivo = Empresa::where('rif', $datos['rif'])
             ->orWhere('nombre', $datos['nombre'])
@@ -82,6 +84,7 @@ class EmpresaClass
         }
 
         $datos['maneja_motos'] = ! empty($datos['maneja_motos']);
+        $datos['maneja_vendedores'] = ! empty($datos['maneja_vendedores']);
 
         $empresa->update($datos);
 

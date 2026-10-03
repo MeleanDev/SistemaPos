@@ -47,13 +47,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/pos/datos', 'datos');
         Route::get('/pos/buscar-clientes', 'buscarClientes');
         Route::post('/pos/guardar-cliente-rapido', 'guardarClienteRapido');
-        Route::post('/pos/guardar', 'guardar');
+        Route::post('/pos/guardar', 'guardar')->middleware('permission:ventas.crear');
         Route::post('/pos/en-espera/guardar', 'guardarEnEspera');
         Route::get('/pos/en-espera/lista', 'listarEnEspera');
         Route::get('/pos/en-espera/{id}/recuperar', 'recuperarEnEspera');
         Route::delete('/pos/en-espera/{id}', 'eliminarEnEspera');
-        Route::get('/pos/devolucion/buscar', 'buscarFacturaDevolucion');
-        Route::post('/pos/devolucion/procesar', 'procesarDevolucion');
+        Route::get('/pos/devolucion/buscar', 'buscarFacturaDevolucion')->middleware('permission:ventas.anular');
+        Route::post('/pos/devolucion/procesar', 'procesarDevolucion')->middleware('permission:ventas.anular');
         Route::get('/pos/imprimir/{id}', 'imprimir')->name('pos.imprimir');
         Route::get('/pos/imprimir-carta/{id}', 'imprimirCarta')->name('pos.imprimir_carta');
         Route::get('/pos/imprimir-ticket/{id}', 'imprimirTicket')->name('pos.imprimir_ticket');
@@ -66,40 +66,40 @@ Route::middleware('auth')->group(function () {
         Route::get('/facturas/{id}', 'detalle');
     });
 
-    Route::middleware('permission:configuracion.ver')->controller(ConfiguracionController::class)->group(function () {
-        Route::get('/configuracion', 'index')->name('configuracion');
-        Route::get('/configuracion/datos', 'datos');
-        Route::post('/configuracion/empresa', 'actualizarEmpresa');
-        Route::post('/configuracion/monedas', 'actualizarMonedas');
+    Route::controller(ConfiguracionController::class)->group(function () {
+        Route::get('/configuracion', 'index')->name('configuracion')->middleware('permission:configuracion.ver');
+        Route::get('/configuracion/datos', 'datos')->middleware('permission:configuracion.ver');
+        Route::post('/configuracion/empresa', 'actualizarEmpresa')->middleware('permission:configuracion.editar');
+        Route::post('/configuracion/monedas', 'actualizarMonedas')->middleware('permission:configuracion.editar');
     });
 
-    Route::middleware('permission:productos.ver')->controller(ProductoController::class)->group(function () {
-        Route::get('/productos', 'index')->name('producto');
-        Route::get('/productos/lista', 'lista');
-        Route::get('/productos/catalogos', 'catalogos');
-        Route::get('/productos/{id}', 'detalle');
-        Route::post('/productos', 'guardar');
-        Route::put('/productos/actualizar/{id}', 'actualizar');
-        Route::delete('/productos/{id}', 'eliminar');
+    Route::controller(ProductoController::class)->group(function () {
+        Route::get('/productos', 'index')->name('producto')->middleware('permission:productos.ver');
+        Route::get('/productos/lista', 'lista')->middleware('permission:productos.ver');
+        Route::get('/productos/catalogos', 'catalogos')->middleware('permission:productos.ver');
+        Route::get('/productos/{id}', 'detalle')->middleware('permission:productos.ver');
+        Route::post('/productos', 'guardar')->middleware('permission:productos.crear');
+        Route::put('/productos/actualizar/{id}', 'actualizar')->middleware('permission:productos.editar');
+        Route::delete('/productos/{id}', 'eliminar')->middleware('permission:productos.eliminar');
     });
 
-    Route::middleware('permission:motos.ver')->controller(MotoController::class)->group(function () {
-        Route::get('/motos', 'index')->name('moto');
-        Route::get('/motos/lista', 'lista');
-        Route::get('/motos/catalogos', 'catalogos');
-        Route::get('/motos/{id}', 'detalle');
-        Route::put('/motos/actualizar/{id}', 'actualizar');
-        Route::post('/motos/{id}/cambiar-estado', 'cambiarEstado');
+    Route::controller(MotoController::class)->group(function () {
+        Route::get('/motos', 'index')->name('moto')->middleware('permission:motos.ver');
+        Route::get('/motos/lista', 'lista')->middleware('permission:motos.ver');
+        Route::get('/motos/catalogos', 'catalogos')->middleware('permission:motos.ver');
+        Route::get('/motos/{id}', 'detalle')->middleware('permission:motos.ver');
+        Route::put('/motos/actualizar/{id}', 'actualizar')->middleware('permission:motos.editar');
+        Route::post('/motos/{id}/cambiar-estado', 'cambiarEstado')->middleware('permission:motos.eliminar');
     });
 
-    Route::middleware('permission:motos.ver')->controller(ModeloMotoController::class)->group(function () {
-        Route::get('/modelos-motos/lista', 'lista');
-        Route::get('/modelos-motos/catalogos', 'catalogos');
-        Route::get('/modelos-motos/proxima-referencia', 'proximaReferencia');
-        Route::get('/modelos-motos/{id}', 'detalle');
-        Route::post('/modelos-motos', 'guardar');
-        Route::put('/modelos-motos/actualizar/{id}', 'actualizar');
-        Route::delete('/modelos-motos/{id}', 'eliminar');
+    Route::controller(ModeloMotoController::class)->group(function () {
+        Route::get('/modelos-motos/lista', 'lista')->middleware('permission:motos.ver');
+        Route::get('/modelos-motos/catalogos', 'catalogos')->middleware('permission:motos.ver');
+        Route::get('/modelos-motos/proxima-referencia', 'proximaReferencia')->middleware('permission:motos.ver');
+        Route::get('/modelos-motos/{id}', 'detalle')->middleware('permission:motos.ver');
+        Route::post('/modelos-motos', 'guardar')->middleware('permission:motos.crear');
+        Route::put('/modelos-motos/actualizar/{id}', 'actualizar')->middleware('permission:motos.editar');
+        Route::delete('/modelos-motos/{id}', 'eliminar')->middleware('permission:motos.eliminar');
     });
 
     Route::middleware('permission:compras.recepcion')->controller(RecepcionController::class)->group(function () {
@@ -130,54 +130,54 @@ Route::middleware('auth')->group(function () {
         Route::post('/recepciones-motos/{id}/anular', 'anular');
     });
 
-    Route::middleware('permission:servicios.ver')->controller(ServicioController::class)->group(function () {
-        Route::get('/servicios', 'index')->name('servicio');
-        Route::get('/servicios/lista', 'lista');
-        Route::get('/servicios/catalogos', 'catalogos');
-        Route::get('/servicios/{id}', 'detalle');
-        Route::post('/servicios', 'guardar');
-        Route::put('/servicios/actualizar/{id}', 'actualizar');
-        Route::delete('/servicios/{id}', 'eliminar');
+    Route::controller(ServicioController::class)->group(function () {
+        Route::get('/servicios', 'index')->name('servicio')->middleware('permission:servicios.ver');
+        Route::get('/servicios/lista', 'lista')->middleware('permission:servicios.ver');
+        Route::get('/servicios/catalogos', 'catalogos')->middleware('permission:servicios.ver');
+        Route::get('/servicios/{id}', 'detalle')->middleware('permission:servicios.ver');
+        Route::post('/servicios', 'guardar')->middleware('permission:servicios.crear');
+        Route::put('/servicios/actualizar/{id}', 'actualizar')->middleware('permission:servicios.editar');
+        Route::delete('/servicios/{id}', 'eliminar')->middleware('permission:servicios.eliminar');
     });
 
-    Route::middleware('permission:categorias.ver')->controller(CategoriaController::class)->group(function () {
-        Route::get('/categorias', 'index')->name('categoria');
-        Route::get('/categorias/lista', 'lista');
-        Route::get('/categorias/{id}', 'detalle');
-        Route::post('/categorias', 'guardar');
-        Route::put('/categorias/actualizar/{id}', 'actualizar');
-        Route::delete('/categorias/{id}', 'eliminar');
+    Route::controller(CategoriaController::class)->group(function () {
+        Route::get('/categorias', 'index')->name('categoria')->middleware('permission:categorias.ver');
+        Route::get('/categorias/lista', 'lista')->middleware('permission:categorias.ver');
+        Route::get('/categorias/{id}', 'detalle')->middleware('permission:categorias.ver');
+        Route::post('/categorias', 'guardar')->middleware('permission:categorias.crear');
+        Route::put('/categorias/actualizar/{id}', 'actualizar')->middleware('permission:categorias.editar');
+        Route::delete('/categorias/{id}', 'eliminar')->middleware('permission:categorias.eliminar');
     });
 
-    Route::middleware('permission:almacenes.ver')->controller(AlmacenController::class)->group(function () {
-        Route::get('/almacenes', 'index')->name('almacen');
-        Route::get('/almacenes/lista', 'lista');
-        Route::get('/almacenes/{id}', 'detalle');
-        Route::post('/almacenes', 'guardar');
-        Route::put('/almacenes/actualizar/{id}', 'actualizar');
-        Route::delete('/almacenes/{id}', 'eliminar');
+    Route::controller(AlmacenController::class)->group(function () {
+        Route::get('/almacenes', 'index')->name('almacen')->middleware('permission:almacenes.ver');
+        Route::get('/almacenes/lista', 'lista')->middleware('permission:almacenes.ver');
+        Route::get('/almacenes/{id}', 'detalle')->middleware('permission:almacenes.ver');
+        Route::post('/almacenes', 'guardar')->middleware('permission:almacenes.crear');
+        Route::put('/almacenes/actualizar/{id}', 'actualizar')->middleware('permission:almacenes.editar');
+        Route::delete('/almacenes/{id}', 'eliminar')->middleware('permission:almacenes.eliminar');
     });
 
-    Route::middleware('permission:inventario.kardex')->controller(KardexController::class)->group(function () {
-        Route::get('/kardex', 'index')->name('kardex');
-        Route::get('/kardex/lista', 'lista');
-        Route::get('/kardex/kpis', 'kpis');
-        Route::get('/kardex/catalogos', 'catalogos');
-        Route::get('/kardex/stock-producto/{productoId}', 'stockProducto');
-        Route::post('/kardex/ajuste', 'ajustar');
-        Route::post('/kardex/traslado', 'trasladar');
-        Route::get('/kardex/comprobante/{id}', 'comprobante')->name('kardex.comprobante');
+    Route::controller(KardexController::class)->group(function () {
+        Route::get('/kardex', 'index')->name('kardex')->middleware('permission:inventario.kardex');
+        Route::get('/kardex/lista', 'lista')->middleware('permission:inventario.kardex');
+        Route::get('/kardex/kpis', 'kpis')->middleware('permission:inventario.kardex');
+        Route::get('/kardex/catalogos', 'catalogos')->middleware('permission:inventario.kardex');
+        Route::get('/kardex/stock-producto/{productoId}', 'stockProducto')->middleware('permission:inventario.kardex');
+        Route::post('/kardex/ajuste', 'ajustar')->middleware('permission:inventario.ajustar_stock');
+        Route::post('/kardex/traslado', 'trasladar')->middleware('permission:inventario.traslados');
+        Route::get('/kardex/comprobante/{id}', 'comprobante')->name('kardex.comprobante')->middleware('permission:inventario.kardex');
     });
 
-    Route::middleware('permission:usuarios.ver')->controller(UsuarioController::class)->group(function () {
-        Route::get('/usuarios', 'index')->name('usuario');
-        Route::get('/usuarios/lista', 'lista');
-        Route::get('/usuarios/catalogos', 'catalogos');
-        Route::get('/usuarios/{id}', 'detalle');
-        Route::post('/usuarios', 'guardar');
-        Route::put('/usuarios/actualizar/{id}', 'actualizar');
-        Route::post('/usuarios/{id}/permisos', 'actualizarPermisos');
-        Route::delete('/usuarios/{id}', 'eliminar');
+    Route::controller(UsuarioController::class)->group(function () {
+        Route::get('/usuarios', 'index')->name('usuario')->middleware('permission:usuarios.ver');
+        Route::get('/usuarios/lista', 'lista')->middleware('permission:usuarios.ver');
+        Route::get('/usuarios/catalogos', 'catalogos')->middleware('permission:usuarios.ver');
+        Route::get('/usuarios/{id}', 'detalle')->middleware('permission:usuarios.ver');
+        Route::post('/usuarios', 'guardar')->middleware('permission:usuarios.crear');
+        Route::put('/usuarios/actualizar/{id}', 'actualizar')->middleware('permission:usuarios.editar');
+        Route::post('/usuarios/{id}/permisos', 'actualizarPermisos')->middleware('permission:usuarios.permisos');
+        Route::delete('/usuarios/{id}', 'eliminar')->middleware('permission:usuarios.eliminar');
     });
 
     Route::middleware('role:SuperAdmin')->controller(EmpresaController::class)->group(function () {
@@ -189,79 +189,80 @@ Route::middleware('auth')->group(function () {
         Route::delete('/empresas/{id}', 'eliminar');
     });
 
-    Route::middleware('permission:clientes.ver')->controller(ClienteController::class)->group(function () {
-        Route::get('/clientes', 'index')->name('cliente');
-        Route::get('/clientes/lista', 'lista');
-        Route::get('/clientes/{id}', 'detalle');
-        Route::post('/clientes', 'guardar');
-        Route::put('/clientes/actualizar/{id}', 'actualizar');
-        Route::delete('/clientes/{id}', 'eliminar');
+    Route::controller(ClienteController::class)->group(function () {
+        Route::get('/clientes', 'index')->name('cliente')->middleware('permission:clientes.ver');
+        Route::get('/clientes/lista', 'lista')->middleware('permission:clientes.ver');
+        Route::get('/clientes/{id}', 'detalle')->middleware('permission:clientes.ver');
+        Route::post('/clientes', 'guardar')->middleware('permission:clientes.crear');
+        Route::put('/clientes/actualizar/{id}', 'actualizar')->middleware('permission:clientes.editar');
+        Route::delete('/clientes/{id}', 'eliminar')->middleware('permission:clientes.eliminar');
     });
 
-    Route::middleware('permission:proveedores.ver')->controller(ProveedorController::class)->group(function () {
-        Route::get('/proveedores', 'index')->name('proveedor');
-        Route::get('/proveedores/lista', 'lista');
-        Route::get('/proveedores/{id}', 'detalle');
-        Route::post('/proveedores', 'guardar');
-        Route::put('/proveedores/actualizar/{id}', 'actualizar');
-        Route::delete('/proveedores/{id}', 'eliminar');
+    Route::controller(ProveedorController::class)->group(function () {
+        Route::get('/proveedores', 'index')->name('proveedor')->middleware('permission:proveedores.ver');
+        Route::get('/proveedores/lista', 'lista')->middleware('permission:proveedores.ver');
+        Route::get('/proveedores/{id}', 'detalle')->middleware('permission:proveedores.ver');
+        Route::post('/proveedores', 'guardar')->middleware('permission:proveedores.crear');
+        Route::put('/proveedores/actualizar/{id}', 'actualizar')->middleware('permission:proveedores.editar');
+        Route::delete('/proveedores/{id}', 'eliminar')->middleware('permission:proveedores.eliminar');
     });
 
-    Route::middleware('permission:cxc.ver')->controller(CuentaPorCobrarController::class)->group(function () {
-        Route::get('/cuentas-por-cobrar', 'index')->name('cxc');
-        Route::get('/cuentas-por-cobrar/lista', 'lista');
-        Route::get('/cuentas-por-cobrar/catalogos', 'catalogos');
-        Route::get('/cuentas-por-cobrar/cliente/{id}', 'clienteDetalle');
-        Route::post('/cuentas-por-cobrar/abonar-factura', 'abonarFactura');
-        Route::post('/cuentas-por-cobrar/abonar-general', 'abonarGeneral');
-        Route::get('/cuentas-por-cobrar/ticket/{id}', 'imprimirTicket')->name('cxc.ticket');
+    Route::controller(CuentaPorCobrarController::class)->group(function () {
+        Route::get('/cuentas-por-cobrar', 'index')->name('cxc')->middleware('permission:cxc.ver');
+        Route::get('/cuentas-por-cobrar/lista', 'lista')->middleware('permission:cxc.ver');
+        Route::get('/cuentas-por-cobrar/catalogos', 'catalogos')->middleware('permission:cxc.ver');
+        Route::get('/cuentas-por-cobrar/cliente/{id}', 'clienteDetalle')->middleware('permission:cxc.ver');
+        Route::post('/cuentas-por-cobrar/abonar-factura', 'abonarFactura')->middleware('permission:cxc.abonar');
+        Route::post('/cuentas-por-cobrar/abonar-general', 'abonarGeneral')->middleware('permission:cxc.abonar');
+        Route::get('/cuentas-por-cobrar/ticket/{id}', 'imprimirTicket')->name('cxc.ticket')->middleware('permission:cxc.ver');
     });
 
-    Route::middleware('permission:cxp.ver')->controller(CuentaPorPagarController::class)->group(function () {
-        Route::get('/cuentas-por-pagar', 'index')->name('cxp');
-        Route::get('/cuentas-por-pagar/lista', 'lista');
-        Route::get('/cuentas-por-pagar/catalogos', 'catalogos');
-        Route::get('/cuentas-por-pagar/proveedor/{id}', 'proveedorDetalle');
-        Route::post('/cuentas-por-pagar/abonar-factura', 'abonarFactura');
-        Route::post('/cuentas-por-pagar/abonar-general', 'abonarGeneral');
-        Route::get('/cuentas-por-pagar/ticket/{id}', 'imprimirTicket')->name('cxp.ticket');
+    Route::controller(CuentaPorPagarController::class)->group(function () {
+        Route::get('/cuentas-por-pagar', 'index')->name('cxp')->middleware('permission:cxp.ver');
+        Route::get('/cuentas-por-pagar/lista', 'lista')->middleware('permission:cxp.ver');
+        Route::get('/cuentas-por-pagar/catalogos', 'catalogos')->middleware('permission:cxp.ver');
+        Route::get('/cuentas-por-pagar/proveedor/{id}', 'proveedorDetalle')->middleware('permission:cxp.ver');
+        Route::post('/cuentas-por-pagar/abonar-factura', 'abonarFactura')->middleware('permission:cxp.abonar');
+        Route::post('/cuentas-por-pagar/abonar-general', 'abonarGeneral')->middleware('permission:cxp.abonar');
+        Route::get('/cuentas-por-pagar/ticket/{id}', 'imprimirTicket')->name('cxp.ticket')->middleware('permission:cxp.ver');
     });
 
-    Route::middleware('permission:metodos_pago.ver')->controller(MetodoPagoController::class)->group(function () {
-        Route::get('/metodos-pago', 'index')->name('metodo_pago');
-        Route::get('/metodos-pago/lista', 'lista');
-        Route::get('/metodos-pago/{id}', 'detalle');
-        Route::post('/metodos-pago', 'guardar');
-        Route::put('/metodos-pago/actualizar/{id}', 'actualizar');
-        Route::delete('/metodos-pago/{id}', 'eliminar');
+    Route::controller(MetodoPagoController::class)->group(function () {
+        Route::get('/metodos-pago', 'index')->name('metodo_pago')->middleware('permission:metodos_pago.ver');
+        Route::get('/metodos-pago/lista', 'lista')->middleware('permission:metodos_pago.ver');
+        Route::get('/metodos-pago/{id}', 'detalle')->middleware('permission:metodos_pago.ver');
+        Route::post('/metodos-pago', 'guardar')->middleware('permission:metodos_pago.crear');
+        Route::put('/metodos-pago/actualizar/{id}', 'actualizar')->middleware('permission:metodos_pago.editar');
+        Route::delete('/metodos-pago/{id}', 'eliminar')->middleware('permission:metodos_pago.eliminar');
     });
 
-    Route::middleware('permission:vendedores.ver')->controller(VendedorController::class)->group(function () {
-        Route::get('/vendedores', 'index')->name('vendedor');
-        Route::get('/vendedores/lista', 'lista');
-        Route::get('/vendedores/activos', 'activos');
-        Route::get('/vendedores/{id}', 'detalle');
-        Route::post('/vendedores', 'guardar');
-        Route::put('/vendedores/actualizar/{id}', 'actualizar');
-        Route::delete('/vendedores/{id}', 'eliminar');
+    Route::controller(VendedorController::class)->group(function () {
+        Route::get('/vendedores', 'index')->name('vendedor')->middleware('permission:vendedores.ver');
+        Route::get('/vendedores/lista', 'lista')->middleware('permission:vendedores.ver');
+        Route::get('/vendedores/catalogos', 'catalogos')->middleware('permission:vendedores.ver');
+        Route::get('/vendedores/activos', 'activos')->middleware('permission:vendedores.ver');
+        Route::get('/vendedores/{id}', 'detalle')->middleware('permission:vendedores.ver');
+        Route::post('/vendedores', 'guardar')->middleware('permission:vendedores.crear');
+        Route::put('/vendedores/actualizar/{id}', 'actualizar')->middleware('permission:vendedores.editar');
+        Route::delete('/vendedores/{id}', 'eliminar')->middleware('permission:vendedores.eliminar');
     });
 
-    Route::middleware('permission:cajas.ver')->controller(CajaController::class)->group(function () {
-        Route::get('/cajas', 'index')->name('caja');
-        Route::get('/cajas/lista', 'lista');
-        Route::get('/cajas/turnos/lista', 'listaTurnos');
-        Route::get('/cajas/disponibles', 'cajasDisponibles');
-        Route::get('/cajas/cajeros-disponibles', 'cajerosDisponibles');
-        Route::get('/cajas/turno-activo', 'turnoActivo');
-        Route::get('/cajas/turnos/{id}/reporte-x', 'reporteX');
-        Route::get('/cajas/turnos/{id}/imprimir-x', 'imprimirReporteX')->name('cajas.imprimir_x');
-        Route::get('/cajas/turnos/{id}/imprimir-z', 'imprimirReporteZ')->name('cajas.imprimir_z');
-        Route::get('/cajas/{id}', 'detalle');
-        Route::post('/cajas', 'guardar');
-        Route::put('/cajas/actualizar/{id}', 'actualizar');
-        Route::delete('/cajas/{id}', 'eliminar');
-        Route::post('/cajas/turnos/aperturar', 'aperturarTurno');
-        Route::post('/cajas/turnos/{id}/cerrar', 'cerrarTurno');
+    Route::controller(CajaController::class)->group(function () {
+        Route::get('/cajas', 'index')->name('caja')->middleware('permission:cajas.ver');
+        Route::get('/cajas/lista', 'lista')->middleware('permission:cajas.ver');
+        Route::get('/cajas/turnos/lista', 'listaTurnos')->middleware('permission:cajas.ver');
+        Route::get('/cajas/disponibles', 'cajasDisponibles')->middleware('permission:cajas.ver');
+        Route::get('/cajas/cajeros-disponibles', 'cajerosDisponibles')->middleware('permission:cajas.ver');
+        Route::get('/cajas/turno-activo', 'turnoActivo')->middleware('permission:cajas.ver');
+        Route::get('/cajas/turnos/{id}/reporte-x', 'reporteX')->middleware('permission:cajas.arqueo');
+        Route::get('/cajas/turnos/{id}/imprimir-x', 'imprimirReporteX')->name('cajas.imprimir_x')->middleware('permission:cajas.arqueo');
+        Route::get('/cajas/turnos/{id}/imprimir-z', 'imprimirReporteZ')->name('cajas.imprimir_z')->middleware('permission:cajas.arqueo');
+        Route::get('/cajas/{id}', 'detalle')->middleware('permission:cajas.ver');
+        Route::post('/cajas', 'guardar')->middleware('permission:cajas.crear');
+        Route::put('/cajas/actualizar/{id}', 'actualizar')->middleware('permission:cajas.editar');
+        Route::delete('/cajas/{id}', 'eliminar')->middleware('permission:cajas.eliminar');
+        Route::post('/cajas/turnos/aperturar', 'aperturarTurno')->middleware('permission:cajas.aperturar');
+        Route::post('/cajas/turnos/{id}/cerrar', 'cerrarTurno')->middleware('permission:cajas.cerrar');
     });
 
     Route::middleware('permission:reportes.ver')->controller(ReporteController::class)->group(function () {

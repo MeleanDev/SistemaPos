@@ -536,6 +536,23 @@ $(document).ready(function () {
         ajustarVisibilidadPorRol($(this).val());
     });
 
+    $(document).on("change", ".modal-permiso-chk", function () {
+        const $chk = $(this);
+        const isChecked = $chk.is(":checked");
+        const $card = $chk.closest(".card-modulo-permiso");
+        const $verChk = $card.find('.modal-permiso-chk[value$=".ver"], .modal-permiso-chk[value$=".kardex"], .modal-permiso-chk[value$=".acceso"]');
+
+        if (isChecked) {
+            if ($verChk.length && !$verChk.is(":checked")) {
+                $verChk.prop("checked", true);
+            }
+        } else {
+            if ($chk.is($verChk)) {
+                $card.find(".modal-permiso-chk").prop("checked", false);
+            }
+        }
+    });
+
     $("#formularioPermisosUsuario").on("submit", function (e) {
         e.preventDefault();
 

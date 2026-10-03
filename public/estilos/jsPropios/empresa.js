@@ -206,6 +206,10 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
             ? `<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 fw-bold" style="font-size: 0.72rem;"><i class="fas fa-motorcycle me-1"></i>Motos & Seriales</span>`
             : `<span class="badge rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1 font-monospace" style="font-size: 0.72rem;"><i class="fas fa-boxes-stacked me-1"></i>Retail Estándar</span>`;
 
+        const vendedorBadgeHtml = empresa.maneja_vendedores
+            ? `<span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle px-2.5 py-1 fw-bold" style="font-size: 0.72rem;"><i class="fas fa-user-tie me-1"></i>Vendedores</span>`
+            : ``;
+
         const cardHtml = `
             <div class="col-md-6 col-xl-4">
                 <div class="card card-executive h-100 border-0 shadow-sm hover-lift transition-all bg-white" style="border-radius: 16px; overflow: hidden; border-top: 4px solid #4f46e5 !important;">
@@ -221,7 +225,10 @@ const renderizarEmpresas = function (empresas, esFiltrado = false) {
                                 </div>
                                 <div class="d-flex flex-column align-items-end gap-1">
                                     <span class="badge-activo" style="font-size: 0.75rem;"><i class="fas fa-check-circle me-1"></i>Activa</span>
-                                    ${motoBadgeHtml}
+                                    <div class="d-flex flex-column align-items-end gap-1">
+                                        ${motoBadgeHtml}
+                                        ${vendedorBadgeHtml}
+                                    </div>
                                 </div>
                             </div>
 
@@ -271,6 +278,7 @@ const resetearFormularioEmpresa = function () {
     $("#modalEmpresa .invalid-feedback").remove();
     resetPreviewLogo();
     $("#maneja_motos").prop("checked", false);
+    $("#maneja_vendedores").prop("checked", false);
     $form.find("input, select, textarea").prop("disabled", false);
     $("#tipo_cedula").val("J-");
     $("#codigo_pais").val("+58");
@@ -301,6 +309,7 @@ const llenarFormularioEmpresa = function (data) {
     $("#direccion").val(data.direccion || "");
     $("#logo").val("");
     $("#maneja_motos").prop("checked", Boolean(data.maneja_motos));
+    $("#maneja_vendedores").prop("checked", Boolean(data.maneja_vendedores));
 
     if (data.logo) {
         $("#previewLogo").attr("src", `/storage/${data.logo}`).removeClass("d-none");
@@ -417,6 +426,7 @@ $("#formularioEmpresa").on("submit", function (e) {
             }
 
             formData.set("maneja_motos", $("#maneja_motos").is(":checked") ? "1" : "0");
+            formData.set("maneja_vendedores", $("#maneja_vendedores").is(":checked") ? "1" : "0");
         },
         onSuccess: function () {
             cargarEmpresas();
