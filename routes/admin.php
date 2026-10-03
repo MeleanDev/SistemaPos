@@ -227,13 +227,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/cuentas-por-pagar/ticket/{id}', 'imprimirTicket')->name('cxp.ticket')->middleware('permission:cxp.ver');
     });
 
-    Route::controller(MetodoPagoController::class)->group(function () {
-        Route::get('/metodos-pago', 'index')->name('metodo_pago')->middleware('permission:metodos_pago.ver');
-        Route::get('/metodos-pago/lista', 'lista')->middleware('permission:metodos_pago.ver');
-        Route::get('/metodos-pago/{id}', 'detalle')->middleware('permission:metodos_pago.ver');
-        Route::post('/metodos-pago', 'guardar')->middleware('permission:metodos_pago.crear');
-        Route::put('/metodos-pago/actualizar/{id}', 'actualizar')->middleware('permission:metodos_pago.editar');
-        Route::delete('/metodos-pago/{id}', 'eliminar')->middleware('permission:metodos_pago.eliminar');
+    Route::middleware('role:SuperAdmin')->controller(MetodoPagoController::class)->group(function () {
+        Route::get('/metodos-pago', 'index')->name('metodo_pago');
+        Route::get('/metodos-pago/lista', 'lista');
+        Route::get('/metodos-pago/{id}', 'detalle');
+        Route::post('/metodos-pago', 'guardar');
+        Route::put('/metodos-pago/actualizar/{id}', 'actualizar');
+        Route::delete('/metodos-pago/{id}', 'eliminar');
     });
 
     Route::controller(VendedorController::class)->group(function () {

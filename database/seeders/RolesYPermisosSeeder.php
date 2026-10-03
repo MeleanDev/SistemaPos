@@ -134,13 +134,17 @@ class RolesYPermisosSeeder extends Seeder
         $superAdminRole = Role::firstOrCreate(['name' => 'SuperAdmin', 'guard_name' => 'web']);
         $superAdminRole->syncPermissions(Permission::all());
 
-        // B. Admin: Acceso integral a su empresa asignada
+        // B. Admin: Acceso integral a su empresa asignada (excepto gestión global de empresas y métodos de pago)
         $adminRole = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
         $adminRole->syncPermissions(Permission::whereNotIn('name', [
             'empresas.ver',
             'empresas.crear',
             'empresas.editar',
             'empresas.eliminar',
+            'metodos_pago.ver',
+            'metodos_pago.crear',
+            'metodos_pago.editar',
+            'metodos_pago.eliminar',
         ])->get());
 
         // C. Operador: Rol base con permisos asignados granularmente por usuario

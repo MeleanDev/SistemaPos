@@ -21,17 +21,17 @@ beforeEach(function () {
 
     $this->user = User::create([
         'name' => 'V-99887766',
-        'nombre' => 'Admin',
-        'apellido' => 'MetodoPago',
-        'email' => 'admin@metodopago.com',
+        'nombre' => 'Super',
+        'apellido' => 'AdminUser',
+        'email' => 'superadmin@metodopago.com',
         'password' => bcrypt('password123'),
         'estado' => true,
     ]);
-    $this->user->assignRole('Admin');
+    $this->user->assignRole('SuperAdmin');
     $this->user->empresas()->attach($this->empresa->id, ['es_predeterminada' => true, 'estado' => true]);
 });
 
-test('payment methods index view loads correctly', function () {
+test('superadmin can access payment methods index view', function () {
     $response = $this->actingAs($this->user)
         ->withSession(['empresa_activa_id' => $this->empresa->id])
         ->get('/metodos-pago');
@@ -40,7 +40,32 @@ test('payment methods index view loads correctly', function () {
         ->assertViewIs('Sistema.pages.empresa.metodo_pago');
 });
 
-test('payment method is created successfully', function () {
+test('non superadmin users cannot access payment methods module and get 403 forbidden', function () {
+    $adminUser = User::create([
+        'name' => 'V-11223344',
+        'nombre' => 'Admin',
+        'apellido' => 'Normal',
+        'email' => 'admin.normal@test.com',
+        'password' => bcrypt('password123'),
+        'estado' => true,
+    ]);
+    $adminUser->assignRole('Admin');
+    $adminUser->empresas()->attach($this->empresa->id, ['es_predeterminada' => true, 'estado' => true]);
+
+    $response = $this->actingAs($adminUser)
+        ->withSession(['empresa_activa_id' => $this->empresa->id])
+        ->get('/metodos-pago');
+
+    $response->assertForbidden();
+
+    $responseJson = $this->actingAs($adminUser)
+        ->withSession(['empresa_activa_id' => $this->empresa->id])
+        ->getJson('/metodos-pago/lista');
+
+    $responseJson->assertForbidden();
+});
+
+test('payment method is created successfully by superadmin', function () {
     $payload = [
         'nombre' => 'Criptomoneda USDT',
         'descripcion' => 'Transferencia TRC20 / ERC20',

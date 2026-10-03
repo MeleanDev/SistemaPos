@@ -112,12 +112,17 @@ $(function () {
 
     var setsidebartype = function () {
         var width = (window.innerWidth > 0) ? window.innerWidth : this.screen.width;
-        if (width < 1170) {
+        var savedState = localStorage.getItem("sidebar_state") || "full";
+        if (width < 768) {
             $("#main-wrapper").attr("data-sidebartype", "mini-sidebar");
             $("#main-wrapper").addClass("mini-sidebar");
         } else {
-            $("#main-wrapper").attr("data-sidebartype", "full");
-            $("#main-wrapper").removeClass("mini-sidebar");
+            $("#main-wrapper").attr("data-sidebartype", savedState);
+            if (savedState === "mini-sidebar") {
+                $("#main-wrapper").addClass("mini-sidebar");
+            } else {
+                $("#main-wrapper").removeClass("mini-sidebar");
+            }
         }
     };
     $(window).ready(setsidebartype);

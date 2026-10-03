@@ -111,17 +111,6 @@ class UsuarioClass
                     ],
                 ],
                 [
-                    'modulo' => 'Métodos de Pago',
-                    'icono' => 'fas fa-credit-card text-success',
-                    'descripcion' => 'Formas y pasarelas de cobro',
-                    'permisos' => [
-                        ['name' => 'metodos_pago.ver', 'label' => 'Ver formas de pago'],
-                        ['name' => 'metodos_pago.crear', 'label' => 'Crear nuevas formas'],
-                        ['name' => 'metodos_pago.editar', 'label' => 'Editar formas'],
-                        ['name' => 'metodos_pago.eliminar', 'label' => 'Eliminar formas'],
-                    ],
-                ],
-                [
                     'modulo' => 'Categorías',
                     'icono' => 'fas fa-tags text-primary',
                     'descripcion' => 'Clasificación y rubros de inventario',

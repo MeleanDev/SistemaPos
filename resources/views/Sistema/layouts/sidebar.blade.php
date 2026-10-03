@@ -12,7 +12,7 @@
                 </li>
 
                 <!-- VENTAS Y CAJA -->
-                @if (auth()->user()?->canAny(['pos.acceso', 'ventas.ver', 'cajas.ver', 'vendedores.ver', 'metodos_pago.ver']))
+                @if (auth()->user()?->hasRole('SuperAdmin') || auth()->user()?->canAny(['pos.acceso', 'ventas.ver', 'cajas.ver', 'vendedores.ver']))
                     <li class="list-divider"></li>
                     <li class="nav-small-cap"><span class="hide-menu">Ventas & Facturación</span></li>
 
@@ -61,14 +61,14 @@
                         @endcan
                     @endif
 
-                    @can('metodos_pago.ver')
+                    @hasrole('SuperAdmin')
                         <li class="sidebar-item @if (request()->routeIs('metodo_pago*')) selected @endif">
                             <a class="sidebar-link" href="{{ route('metodo_pago') }}" aria-expanded="false">
                                 <i class="fas fa-credit-card"></i>
                                 <span class="hide-menu">Métodos de Pago</span>
                             </a>
                         </li>
-                    @endcan
+                    @endhasrole
                 @endif
 
                 <!-- CRÉDITOS Y FINANZAS -->
@@ -271,6 +271,18 @@
                         </li>
                     @endcan
                 @endif
+
+                <!-- CERRAR SESIÓN -->
+                <li class="list-divider"></li>
+                <li class="sidebar-item">
+                    <form method="POST" action="{{ route('logout') }}" id="formSidebarNavLogout" class="m-0">
+                        @csrf
+                        <a class="sidebar-link text-danger" href="javascript:void(0)" onclick="document.getElementById('formSidebarNavLogout').submit();" aria-expanded="false" style="color: #e11d48 !important;">
+                            <i class="fas fa-power-off" style="color: #e11d48 !important;"></i>
+                            <span class="hide-menu fw-semibold" style="color: #e11d48 !important;">Cerrar Sesión</span>
+                        </a>
+                    </form>
+                </li>
 
             </ul>
         </nav>

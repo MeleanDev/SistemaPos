@@ -110,14 +110,14 @@ test('users collection list returns data for cards view', function () {
     ]);
 });
 
-test('user catalog returns all 16 modular permission groups', function () {
+test('user catalog returns all 15 modular permission groups', function () {
     $response = $this->actingAs($this->superAdmin)->getJson('/usuarios/catalogos');
 
     $response->assertStatus(200);
     $data = $response->json();
 
     expect($data)->toHaveKey('permisos_modulos');
-    expect(count($data['permisos_modulos']))->toBe(16);
+    expect(count($data['permisos_modulos']))->toBe(15);
 });
 
 test('admin cannot create users with role SuperAdmin', function () {
