@@ -652,3 +652,215 @@ test('flujo de control de apertura por administrador, bloqueo de cajero no asign
         ->and($ventaRealizada->vendedor_id)->toBe($vendedor->id)
         ->and((float) $ventaRealizada->comision_monto_usd)->toBe(2.50); // 5% de $50 = $2.50
 });
+
+test('cajeros disponibles y apertura de turno respetan aislamiento multi-empresa', function () {
+    // Empresa A
+    $empresaA = Empresa::create([
+        'rif' => 'J-11111111-1',
+        'nombre' => 'Empresa A',
+        'razon_social' => 'Empresa A C.A.',
+        'direccion' => 'Calle A',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    // Empresa B
+    $empresaB = Empresa::create([
+        'rif' => 'J-22222222-2',
+        'nombre' => 'Empresa B',
+        'razon_social' => 'Empresa B C.A.',
+        'direccion' => 'Calle B',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $adminEmpresaA = User::factory()->create(['name' => 'Admin Empresa A', 'email' => 'adminA@test.com']);
+    $adminEmpresaA->assignRole('Admin');
+    $adminEmpresaA->empresas()->attach($empresaA->id, ['estado' => true]);
+
+    $superUser = User::factory()->create(['name' => 'Super User Global', 'email' => 'superglobal@test.com']);
+    $superUser->assignRole('SuperAdmin');
+    $superUser->empresas()->attach($empresaA->id, ['estado' => true]);
+
+    $cajeroEmpresaA = User::factory()->create(['name' => 'Cajero Empresa A', 'email' => 'cajeroA@test.com']);
+    $cajeroEmpresaA->assignRole('Operador');
+    $cajeroEmpresaA->empresas()->attach($empresaA->id, ['estado' => true]);
+
+    $cajeroEmpresaB = User::factory()->create(['name' => 'Cajero Empresa B', 'email' => 'cajeroB@test.com']);
+    $cajeroEmpresaB->assignRole('Operador');
+    $cajeroEmpresaB->empresas()->attach($empresaB->id, ['estado' => true]);
+
+    $cajaA = Caja::create([
+        'empresa_id' => $empresaA->id,
+        'nombre' => 'Caja Empresa A',
+        'estado' => true,
+    ]);
+
+    // 1. Verificar que en la lista de cajeros de Empresa A NO aparece el cajero de Empresa B ni el SuperAdmin
+    $respCajerosA = $this->actingAs($adminEmpresaA)
+        ->withSession(['empresa_activa_id' => $empresaA->id])
+        ->getJson('/cajas/cajeros-disponibles');
+
+    $respCajerosA->assertOk();
+    $cajerosData = collect($respCajerosA->json('data'));
+
+    expect($cajerosData->pluck('id')->all())->toContain($adminEmpresaA->id)
+        ->and($cajerosData->pluck('id')->all())->toContain($cajeroEmpresaA->id)
+        ->and($cajerosData->pluck('id')->all())->not->toContain($cajeroEmpresaB->id)
+        ->and($cajerosData->pluck('id')->all())->not->toContain($superUser->id);
+
+    // Verificar en Vendedores / Catalogos que tampoco aparece el SuperAdmin ni usuarios de Empresa B
+    $respVendedoresCatalogos = $this->actingAs($adminEmpresaA)
+        ->withSession(['empresa_activa_id' => $empresaA->id])
+        ->getJson('/vendedores/catalogos');
+
+    $respVendedoresCatalogos->assertOk();
+    $usuariosVendedorData = collect($respVendedoresCatalogos->json('usuarios'));
+    expect($usuariosVendedorData->pluck('id')->all())->toContain($adminEmpresaA->id)
+        ->and($usuariosVendedorData->pluck('id')->all())->toContain($cajeroEmpresaA->id)
+        ->and($usuariosVendedorData->pluck('id')->all())->not->toContain($cajeroEmpresaB->id)
+        ->and($usuariosVendedorData->pluck('id')->all())->not->toContain($superUser->id);
+
+    // 2. Intentar aperturar caja en Empresa A asignando al cajero de Empresa B -> Debe ser rechazado
+    $respAperturaInvalida = $this->actingAs($adminEmpresaA)
+        ->withSession(['empresa_activa_id' => $empresaA->id])
+        ->postJson('/cajas/turnos/aperturar', [
+            'caja_id' => $cajaA->id,
+            'user_id' => $cajeroEmpresaB->id,
+            'monto_apertura_usd' => 0.00,
+            'monto_apertura_bs' => 0.00,
+        ]);
+
+    $respAperturaInvalida->assertStatus(422);
+
+    // 3. Aperturar con cajero legítimo de Empresa A -> Debe tener éxito
+    $respAperturaValida = $this->actingAs($adminEmpresaA)
+        ->withSession(['empresa_activa_id' => $empresaA->id])
+        ->postJson('/cajas/turnos/aperturar', [
+            'caja_id' => $cajaA->id,
+            'user_id' => $cajeroEmpresaA->id,
+            'monto_apertura_usd' => 10.00,
+            'monto_apertura_bs' => 0.00,
+        ]);
+
+    $respAperturaValida->assertOk()
+        ->assertJson(['success' => true]);
+});
+
+test('validaciones de cajas y vendedores impiden duplicados, comisiones invalidas y enlaces erroneos', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-33333333-3',
+        'nombre' => 'Empresa Validaciones',
+        'razon_social' => 'Empresa Validaciones C.A.',
+        'direccion' => 'Calle Validaciones',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $empresaExterna = Empresa::create([
+        'rif' => 'J-44444444-4',
+        'nombre' => 'Empresa Externa',
+        'razon_social' => 'Empresa Externa C.A.',
+        'direccion' => 'Calle Externa',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $admin = User::factory()->create(['name' => 'Admin Val']);
+    $admin->assignRole('Admin');
+    $admin->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $usuarioVendedor = User::factory()->create(['name' => 'User Vendedor']);
+    $usuarioVendedor->assignRole('Operador');
+    $usuarioVendedor->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $usuarioExterno = User::factory()->create(['name' => 'User Externo']);
+    $usuarioExterno->assignRole('Operador');
+    $usuarioExterno->empresas()->attach($empresaExterna->id, ['estado' => true]);
+
+    // 1. Validaciones Caja: nombre obligatorio, duplicado, código duplicado
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/cajas', [
+            'nombre' => '',
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['nombre']);
+
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/cajas', [
+            'nombre' => 'Caja Test',
+            'codigo' => 'CAJ-VAL-1',
+        ])
+        ->assertOk();
+
+    // Intentar crear otra caja con el mismo nombre o código en la misma empresa -> 422
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/cajas', [
+            'nombre' => 'Caja Test',
+            'codigo' => 'CAJ-VAL-2',
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['nombre']);
+
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/cajas', [
+            'nombre' => 'Caja Test 2',
+            'codigo' => 'CAJ-VAL-1',
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['codigo']);
+
+    // 2. Validaciones Vendedor: comision > 100, user ajeno, user ya vinculado
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/vendedores', [
+            'tipo_documento' => 'V',
+            'documento' => '99887766',
+            'nombre' => 'Vendedor Error Comision',
+            'comision_porcentaje' => 150, // Inválido (>100)
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['comision_porcentaje']);
+
+    // Intentar vincular usuario de otra empresa -> 422
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/vendedores', [
+            'tipo_documento' => 'V',
+            'documento' => '99887766',
+            'nombre' => 'Vendedor Error Usuario',
+            'user_id' => $usuarioExterno->id,
+            'comision_porcentaje' => 5,
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['user_id']);
+
+    // Crear vendedor legítimo vinculando usuario
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/vendedores', [
+            'tipo_documento' => 'V',
+            'documento' => '99887766',
+            'nombre' => 'Vendedor Legitimo',
+            'user_id' => $usuarioVendedor->id,
+            'comision_porcentaje' => 5,
+        ])
+        ->assertOk();
+
+    // Intentar vincular el mismo usuario a un segundo vendedor -> 422
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/vendedores', [
+            'tipo_documento' => 'V',
+            'documento' => '99887767',
+            'nombre' => 'Segundo Vendedor',
+            'user_id' => $usuarioVendedor->id,
+            'comision_porcentaje' => 3,
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['user_id']);
+});

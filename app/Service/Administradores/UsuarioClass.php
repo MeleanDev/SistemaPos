@@ -4,6 +4,7 @@ namespace App\Service\Administradores;
 
 use App\Models\Empresa;
 use App\Models\User;
+use Exception;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -14,12 +15,26 @@ class UsuarioClass
     /**
      * Listado de usuarios activos con roles y empresas
      */
-    public function lista(): Collection
+    public function lista(?User $usuarioAutenticado = null): Collection
     {
-        return User::with(['roles', 'empresas', 'permissions'])
+        $usuarioAuth = $usuarioAutenticado ?? Auth::user();
+        $esSuperAdmin = $usuarioAuth ? $usuarioAuth->hasRole('SuperAdmin') : true;
+
+        $query = User::with(['roles', 'empresas', 'permissions'])
             ->select('id', 'name', 'nombre', 'apellido', 'email', 'estado', 'created_at')
-            ->where('estado', true)
-            ->orderBy('id', 'desc')
+            ->where('estado', true);
+
+        if (! $esSuperAdmin && $usuarioAuth) {
+            $empresasPermitidasIds = $usuarioAuth->obtenerEmpresasPermitidas()->pluck('id')->all();
+
+            $query->whereDoesntHave('roles', fn ($q) => $q->where('name', 'SuperAdmin'))
+                ->whereHas('empresas', function ($q) use ($empresasPermitidasIds) {
+                    $q->whereIn('empresas.id', $empresasPermitidasIds)
+                        ->where('empresa_user.estado', true);
+                });
+        }
+
+        return $query->orderBy('id', 'desc')
             ->get()
             ->map(function ($usuario) {
                 return [
@@ -43,9 +58,24 @@ class UsuarioClass
     /**
      * Detalle completo de un usuario
      */
-    public function detalle(int $id): array
+    public function detalle(int $id, ?User $usuarioAutenticado = null): array
     {
+        $usuarioAuth = $usuarioAutenticado ?? Auth::user();
         $usuario = User::with(['roles', 'empresas', 'permissions'])->findOrFail($id);
+
+        if ($usuarioAuth && ! $usuarioAuth->hasRole('SuperAdmin')) {
+            if ($usuario->hasRole('SuperAdmin')) {
+                throw new Exception('No tienes autorización para consultar la información de este usuario.');
+            }
+
+            $empresasPermitidasIds = $usuarioAuth->obtenerEmpresasPermitidas()->pluck('id')->all();
+            $targetEmpresasIds = $usuario->empresas()->wherePivot('estado', true)->pluck('empresas.id')->all();
+            $compartenEmpresa = ! empty(array_intersect($empresasPermitidasIds, $targetEmpresasIds));
+
+            if (! $compartenEmpresa) {
+                throw new Exception('No tienes autorización para consultar la información de este usuario.');
+            }
+        }
 
         return [
             'id' => $usuario->id,
@@ -291,11 +321,28 @@ class UsuarioClass
     /**
      * Guardar nuevo usuario o reactivar existente
      */
-    public function guardar(array $datos): User
+    public function guardar(array $datos, ?User $usuarioAutenticado = null): User
     {
+        $usuarioAuth = $usuarioAutenticado ?? Auth::user();
         $rol = $datos['rol'] ?? 'Operador';
         $empresas = $datos['empresas'] ?? [];
         $permisos = $this->normalizarPermisos($datos['permisos'] ?? []);
+
+        if ($usuarioAuth && ! $usuarioAuth->hasRole('SuperAdmin')) {
+            if ($rol === 'SuperAdmin') {
+                throw new Exception('No tienes autorización para asignar el rol de SuperAdministrador.');
+            }
+
+            $empresasPermitidas = $usuarioAuth->obtenerEmpresasPermitidas()->pluck('id')->all();
+            $empresas = array_values(array_intersect($empresas, $empresasPermitidas));
+
+            if (empty($empresas)) {
+                $empresaActiva = $usuarioAuth->empresaActiva();
+                if ($empresaActiva) {
+                    $empresas = [$empresaActiva->id];
+                }
+            }
+        }
 
         // Comprobar si existía inactivo para reactivación
         $existenteInactivo = User::where('name', $datos['name'])
@@ -352,12 +399,39 @@ class UsuarioClass
     /**
      * Actualizar datos y asignaciones de un usuario
      */
-    public function actualizar(array $datos, int $id): User
+    public function actualizar(array $datos, int $id, ?User $usuarioAutenticado = null): User
     {
+        $usuarioAuth = $usuarioAutenticado ?? Auth::user();
         $usuario = User::findOrFail($id);
         $rol = $datos['rol'] ?? 'Operador';
         $empresas = $datos['empresas'] ?? [];
         $permisos = $this->normalizarPermisos($datos['permisos'] ?? []);
+
+        if ($usuarioAuth && ! $usuarioAuth->hasRole('SuperAdmin')) {
+            if ($usuario->hasRole('SuperAdmin')) {
+                throw new Exception('No tienes autorización para modificar a un SuperAdministrador.');
+            }
+
+            if ($rol === 'SuperAdmin') {
+                throw new Exception('No tienes autorización para asignar el rol de SuperAdministrador.');
+            }
+
+            $empresasPermitidasIds = $usuarioAuth->obtenerEmpresasPermitidas()->pluck('id')->all();
+            $targetEmpresasIds = $usuario->empresas()->wherePivot('estado', true)->pluck('empresas.id')->all();
+            $compartenEmpresa = ! empty(array_intersect($empresasPermitidasIds, $targetEmpresasIds));
+
+            if (! $compartenEmpresa) {
+                throw new Exception('No tienes autorización para modificar usuarios de otras empresas.');
+            }
+
+            $empresas = array_values(array_intersect($empresas, $empresasPermitidasIds));
+            if (empty($empresas)) {
+                $empresaActiva = $usuarioAuth->empresaActiva();
+                if ($empresaActiva) {
+                    $empresas = [$empresaActiva->id];
+                }
+            }
+        }
 
         if (! empty($datos['password'])) {
             $datos['password'] = Hash::make($datos['password']);
@@ -385,9 +459,25 @@ class UsuarioClass
     /**
      * Actualizar permisos granulares de un operador
      */
-    public function actualizarPermisos(int $id, array $permisos): User
+    public function actualizarPermisos(int $id, array $permisos, ?User $usuarioAutenticado = null): User
     {
+        $usuarioAuth = $usuarioAutenticado ?? Auth::user();
         $usuario = User::findOrFail($id);
+
+        if ($usuarioAuth && ! $usuarioAuth->hasRole('SuperAdmin')) {
+            if ($usuario->hasRole('SuperAdmin')) {
+                throw new Exception('No tienes autorización para modificar los permisos de un SuperAdministrador.');
+            }
+
+            $empresasPermitidasIds = $usuarioAuth->obtenerEmpresasPermitidas()->pluck('id')->all();
+            $targetEmpresasIds = $usuario->empresas()->wherePivot('estado', true)->pluck('empresas.id')->all();
+            $compartenEmpresa = ! empty(array_intersect($empresasPermitidasIds, $targetEmpresasIds));
+
+            if (! $compartenEmpresa) {
+                throw new Exception('No tienes autorización para modificar permisos de usuarios de otras empresas.');
+            }
+        }
+
         $usuario->syncPermissions($this->normalizarPermisos($permisos));
 
         return $usuario;
@@ -396,9 +486,25 @@ class UsuarioClass
     /**
      * Borrado lógico de un usuario
      */
-    public function eliminar(int $id): User
+    public function eliminar(int $id, ?User $usuarioAutenticado = null): User
     {
+        $usuarioAuth = $usuarioAutenticado ?? Auth::user();
         $usuario = User::findOrFail($id);
+
+        if ($usuarioAuth && ! $usuarioAuth->hasRole('SuperAdmin')) {
+            if ($usuario->hasRole('SuperAdmin')) {
+                throw new Exception('No tienes autorización para eliminar a un SuperAdministrador.');
+            }
+
+            $empresasPermitidasIds = $usuarioAuth->obtenerEmpresasPermitidas()->pluck('id')->all();
+            $targetEmpresasIds = $usuario->empresas()->wherePivot('estado', true)->pluck('empresas.id')->all();
+            $compartenEmpresa = ! empty(array_intersect($empresasPermitidasIds, $targetEmpresasIds));
+
+            if (! $compartenEmpresa) {
+                throw new Exception('No tienes autorización para eliminar usuarios de otras empresas.');
+            }
+        }
+
         $usuario->estado = false;
         $usuario->save();
 

@@ -19,14 +19,14 @@ class UsuarioController extends Controller
 
     public function index(): View
     {
-        $catalogos = $this->usuarioClass->obtenerRolesYEmpresas();
+        $catalogos = $this->usuarioClass->obtenerRolesYEmpresas(Auth::user());
 
         return view('Sistema.pages.administradores.usuario', compact('catalogos'));
     }
 
     public function lista(): JsonResponse
     {
-        $usuarios = $this->usuarioClass->lista();
+        $usuarios = $this->usuarioClass->lista(Auth::user());
 
         return response()->json([
             'success' => true,
@@ -36,27 +36,29 @@ class UsuarioController extends Controller
 
     public function catalogos(): JsonResponse
     {
-        return response()->json($this->usuarioClass->obtenerRolesYEmpresas());
+        return response()->json($this->usuarioClass->obtenerRolesYEmpresas(Auth::user()));
     }
 
     public function detalle(int $id): JsonResponse
     {
         try {
-            $usuario = $this->usuarioClass->detalle($id);
+            $usuario = $this->usuarioClass->detalle($id, Auth::user());
 
             return response()->json($usuario);
         } catch (Exception $e) {
+            $code = str_contains($e->getMessage(), 'autorización') ? 403 : 404;
+
             return response()->json([
                 'success' => false,
-                'message' => 'Usuario no encontrado',
-            ], 404);
+                'message' => $e->getMessage() ?: 'Usuario no encontrado',
+            ], $code);
         }
     }
 
     public function guardar(CrearRequest $request): JsonResponse
     {
         try {
-            $usuario = $this->usuarioClass->guardar($request->validated());
+            $usuario = $this->usuarioClass->guardar($request->validated(), Auth::user());
 
             return response()->json([
                 'success' => true,
@@ -64,17 +66,19 @@ class UsuarioController extends Controller
                 'data' => $usuario,
             ]);
         } catch (Exception $e) {
+            $code = str_contains($e->getMessage(), 'autorización') ? 403 : 500;
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
-            ], 500);
+            ], $code);
         }
     }
 
     public function actualizar(ActualizarRequest $request, int $id): JsonResponse
     {
         try {
-            $usuario = $this->usuarioClass->actualizar($request->validated(), $id);
+            $usuario = $this->usuarioClass->actualizar($request->validated(), $id, Auth::user());
 
             return response()->json([
                 'success' => true,
@@ -82,10 +86,12 @@ class UsuarioController extends Controller
                 'data' => $usuario,
             ]);
         } catch (Exception $e) {
+            $code = str_contains($e->getMessage(), 'autorización') ? 403 : 500;
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
-            ], 500);
+            ], $code);
         }
     }
 
@@ -93,7 +99,7 @@ class UsuarioController extends Controller
     {
         try {
             $permisos = $request->validated('permisos', []);
-            $usuario = $this->usuarioClass->actualizarPermisos($id, $permisos ?? []);
+            $usuario = $this->usuarioClass->actualizarPermisos($id, $permisos ?? [], Auth::user());
 
             return response()->json([
                 'success' => true,
@@ -105,10 +111,12 @@ class UsuarioController extends Controller
                 ],
             ]);
         } catch (Exception $e) {
+            $code = str_contains($e->getMessage(), 'autorización') || str_contains($e->getMessage(), 'modificar permisos') ? 403 : 500;
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar permisos: '.$e->getMessage(),
-            ], 500);
+            ], $code);
         }
     }
 
@@ -122,7 +130,7 @@ class UsuarioController extends Controller
                 ], 400);
             }
 
-            $usuario = $this->usuarioClass->eliminar($id);
+            $usuario = $this->usuarioClass->eliminar($id, Auth::user());
 
             return response()->json([
                 'success' => true,
@@ -130,10 +138,12 @@ class UsuarioController extends Controller
                 'data' => $usuario,
             ]);
         } catch (Exception $e) {
+            $code = str_contains($e->getMessage(), 'autorización') ? 403 : 500;
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
-            ], 500);
+            ], $code);
         }
     }
 

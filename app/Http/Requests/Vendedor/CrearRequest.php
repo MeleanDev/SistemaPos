@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Vendedor;
 
 use App\Http\Requests\BaseRequest;
+use App\Models\User;
+use App\Models\Vendedor;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
@@ -19,7 +21,38 @@ class CrearRequest extends BaseRequest
 
         return [
             'tipo_documento' => ['required', 'string', 'in:V,E,J,G,P,V-,E-,J-,G-,P-'],
-            'user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'user_id' => [
+                'nullable',
+                'integer',
+                function ($attribute, $value, $fail) use ($empresaId) {
+                    if ($value) {
+                        $user = User::find($value);
+                        if (! $user || ! $user->estado) {
+                            $fail('El usuario de acceso seleccionado no es válido o está inactivo.');
+
+                            return;
+                        }
+                        if (! $user->hasRole('SuperAdmin')) {
+                            $pertenece = $user->empresas()
+                                ->where('empresas.id', $empresaId)
+                                ->wherePivot('estado', true)
+                                ->exists();
+                            if (! $pertenece) {
+                                $fail('El usuario seleccionado no pertenece a la empresa actual.');
+
+                                return;
+                            }
+                        }
+
+                        $vendedorExistente = Vendedor::where('empresa_id', $empresaId)
+                            ->where('user_id', $value)
+                            ->first();
+                        if ($vendedorExistente) {
+                            $fail("Este usuario ya está vinculado al asesor/vendedor: {$vendedorExistente->nombre}");
+                        }
+                    }
+                },
+            ],
             'documento' => [
                 'required',
                 'string',

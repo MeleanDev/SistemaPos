@@ -68,6 +68,15 @@ class CrearRequest extends FormRequest
             'empresas.*' => [
                 'integer',
                 'exists:empresas,id',
+                function ($attribute, $value, $fail) {
+                    $user = $this->user();
+                    if ($user && ! $user->hasRole('SuperAdmin')) {
+                        $empresasPermitidas = $user->obtenerEmpresasPermitidas()->pluck('id')->all();
+                        if (! in_array((int) $value, $empresasPermitidas, true)) {
+                            $fail('No tienes autorización para asignar esta empresa.');
+                        }
+                    }
+                },
             ],
             'permisos' => [
                 'nullable',

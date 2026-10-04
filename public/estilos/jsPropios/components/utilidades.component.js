@@ -55,11 +55,8 @@ window.desglosarTelefono = function (telefonoCompleto) {
     return { codigo: "+58", prefijo: "+58", numero: telefonoCompleto };
 };
 
-/**
- * Aplica restricciones en tiempo real para inputs de solo letras o solo números.
- */
 window.aplicarRestriccionesInput = function () {
-    $(document).on("keypress", ".solo-letras, #nombre, #apellido", function (e) {
+    $(document).on("keypress", ".solo-letras", function (e) {
         const key = e.keyCode || e.which;
         const teclado = String.fromCharCode(key).toLowerCase();
         const letras = " áéíóúabcdefghijklmnñopqrstuvwxyz";

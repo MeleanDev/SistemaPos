@@ -790,6 +790,24 @@ The Reports Hub provides multi-domain auditing with date ranges, cash registers,
    - Always use `<x-select2>` or `crearSelect2({ selectId, url, placeholder })` for high-volume catalogs (such as Users, Products, Customers, Warehouses).
    - Ensure modals always have a default option or cleanly reset upon opening to prevent blank unselected states.
 
+### 13.9 Multi-Tenant User Security, Role Hierarchy & Executive UI Standards
+
+1. **Multi-Tenant User Isolation & SuperAdmin Concealment**:
+   - **SuperAdmin Hierarchy Protection**: SuperAdmin accounts are strictly invisible to `Administrador` and `Operador` users across datatables, dropdowns, and user management.
+   - **Role Assignment Restrictions**: `Administrador` users can only create and manage users with roles `Operador` or `Administrador`. They can never create, view, edit, or delete `SuperAdmin` users.
+   - **Company Scope on User Assignment**: When an `Administrador` assigns companies to another user, they can only select from the subset of companies explicitly assigned to them.
+   - **Tenancy Boundary**: Non-SuperAdmin users can only access or switch between companies to which they are assigned (`users_empresas`). Any cross-company access attempt returns 403 Forbidden.
+
+2. **Module-Level User Scoping (Cajas & Vendedores)**:
+   - **Cajeros & Vendedores Scoping**: Cashier selection in cash register opening (`/cajas/turnos/aperturar`) and Seller selection in salesperson catalog (`/vendedores`) only display users belonging to the active company (`empresa_id`).
+   - SuperAdmin accounts are excluded from operational cashier lists to prevent administrative confusion.
+
+3. **Executive Tab Navigation & Clean Datatable Standard**:
+   - **No Nested Card Containers**: Tab content panes must never wrap `<x-datatable>` inside redundant outer card containers. Use the standalone executive pill navigation component (`<div class="card border rounded-4 p-2 shadow-xs mb-4 bg-white">`) followed directly by the `<div class="tab-pane">` containing `<x-datatable>`.
+   - **Header & Column Parity**: The count and semantics of `headers` in `<x-datatable>` must strictly match the `columns` definition in the accompanying JavaScript DataTable configuration to avoid rendering breakage.
+   - **Responsive Tab Redraw (`shown.bs.tab`)**: Always attach a listener to `$('button[data-bs-toggle="pill"]').on("shown.bs.tab", ...)` to invoke `columns.adjust().responsive.recalc()` so tables in hidden tab panes render with accurate widths upon activation.
+   - **No Gray Containers Policy**: Never use `bg-light` or `alert-light` for modal cards, summaries, or badges. Always use `bg-white border rounded-4 shadow-xs` with subtle status pills (`bg-success-subtle`, `bg-warning-subtle`, `bg-primary-subtle`).
+
 
 
 

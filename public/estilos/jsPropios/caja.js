@@ -24,7 +24,7 @@ $(document).ready(function () {
                 name: "nombre",
                 className: "text-start align-middle",
                 render: function (data, type, row) {
-                    const codigo = row.codigo ? `<span class="badge bg-light text-dark border me-1">${row.codigo}</span>` : '';
+                    const codigo = row.codigo ? `<span class="badge bg-white text-secondary border px-2 py-0.5 rounded-pill shadow-xs me-1 fw-bold">${row.codigo}</span>` : '';
                     return `
                         <div class="d-flex align-items-center gap-2 py-1">
                             <div class="avatar-executive-sm me-1 bg-primary-subtle text-primary border border-primary-subtle">
@@ -44,7 +44,7 @@ $(document).ready(function () {
                 className: "text-center align-middle",
                 render: function (data, type, row) {
                     if (row.almacen) {
-                        return `<span class="badge bg-light text-dark border"><i class="fas fa-warehouse text-muted me-1"></i>${row.almacen.nombre}</span>`;
+                        return `<span class="badge bg-white text-dark border px-2.5 py-1 rounded-pill shadow-xs"><i class="fas fa-warehouse text-primary me-1"></i>${row.almacen.nombre}</span>`;
                     }
                     return '<span class="text-muted small fst-italic">Global / Ninguno</span>';
                 },
@@ -65,7 +65,7 @@ $(document).ready(function () {
                             </div>
                         `;
                     }
-                    return '<span class="badge bg-light text-dark border px-2.5 py-1 rounded-pill"><i class="fas fa-lock-open me-1 text-success"></i>Disponible / Libre</span>';
+                    return '<span class="badge bg-white text-secondary border px-2.5 py-1 rounded-pill shadow-xs"><i class="fas fa-lock-open me-1 text-success"></i>Disponible / Libre</span>';
                 },
             },
             {
@@ -139,7 +139,7 @@ $(document).ready(function () {
                 className: "text-start align-middle",
                 render: function (data, type, row) {
                     const cajaNom = row.caja ? row.caja.nombre : 'Caja';
-                    const cajaCod = row.caja && row.caja.codigo ? `<span class="badge bg-light text-dark border me-1">${row.caja.codigo}</span>` : '';
+                    const cajaCod = row.caja && row.caja.codigo ? `<span class="badge bg-white text-secondary border px-2 py-0.5 rounded-pill shadow-xs me-1 fw-bold">${row.caja.codigo}</span>` : '';
                     return `
                         <div class="d-flex align-items-center gap-2">
                             <i class="fas fa-cash-register text-primary"></i>
@@ -295,6 +295,19 @@ $(document).ready(function () {
 
     $("#monto_cierre_usd, #monto_cierre_bs").on("input", function () {
         calcularDiferenciasCierre();
+    });
+
+    $('button[data-bs-toggle="pill"]').on("shown.bs.tab", function (e) {
+        const targetId = $(e.target).attr("data-bs-target");
+        if (targetId === "#pills-turnos") {
+            if ($("#datatable_turnos").length && $.fn.DataTable.isDataTable("#datatable_turnos")) {
+                $("#datatable_turnos").DataTable().columns.adjust().responsive.recalc();
+            }
+        } else if (targetId === "#pills-cajas") {
+            if ($("#datatable_cajas").length && $.fn.DataTable.isDataTable("#datatable_cajas")) {
+                $("#datatable_cajas").DataTable().columns.adjust().responsive.recalc();
+            }
+        }
     });
 });
 
@@ -473,7 +486,7 @@ const verCorteX = async function (turnoId) {
                 filasMetodos += `
                     <tr>
                         <td><strong>${pm.metodo}</strong></td>
-                        <td class="text-center"><span class="badge bg-light text-dark border">${pm.moneda}</span></td>
+                        <td class="text-center"><span class="badge bg-white text-dark border px-2 py-0.5 rounded-pill shadow-xs fw-bold">${pm.moneda}</span></td>
                         <td class="text-center">${pm.conteo}</td>
                         <td class="text-end fw-bold">${simbolo} ${parseFloat(pm.total_origen).toFixed(2)}</td>
                     </tr>
@@ -496,21 +509,21 @@ const verCorteX = async function (turnoId) {
 
             <div class="row g-3 mb-3">
                 <div class="col-6 col-md-3">
-                    <div class="card bg-light border-0 rounded-4 p-3 text-center">
+                    <div class="card bg-white border rounded-4 p-3 text-center shadow-xs">
                         <span class="text-muted small">Fondo Apertura</span>
                         <h6 class="fw-bold text-dark mb-0 mt-1">$${parseFloat(rep.monto_apertura_usd).toFixed(2)}</h6>
                         <small class="text-muted">Bs. ${parseFloat(rep.monto_apertura_bs).toFixed(2)}</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <div class="card bg-light border-0 rounded-4 p-3 text-center">
+                    <div class="card bg-white border rounded-4 p-3 text-center shadow-xs">
                         <span class="text-muted small">Ventas (${rep.cantidad_ventas})</span>
                         <h6 class="fw-bold text-success mb-0 mt-1">$${parseFloat(rep.total_ventas_usd).toFixed(2)}</h6>
                         <small class="text-muted">Bs. ${parseFloat(rep.total_ventas_bs).toFixed(2)}</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <div class="card bg-light border-0 rounded-4 p-3 text-center">
+                    <div class="card bg-white border rounded-4 p-3 text-center shadow-xs">
                         <span class="text-muted small">Devoluciones (${rep.cantidad_devoluciones})</span>
                         <h6 class="fw-bold text-danger mb-0 mt-1">-$${parseFloat(rep.total_devoluciones_usd).toFixed(2)}</h6>
                         <small class="text-muted">-Bs. ${parseFloat(rep.total_devoluciones_bs).toFixed(2)}</small>
@@ -528,7 +541,7 @@ const verCorteX = async function (turnoId) {
             <h6 class="fw-bold text-dark mb-2"><i class="fas fa-wallet text-muted me-1"></i> Desglose por Método de Pago</h6>
             <div class="table-responsive rounded-3 border mb-3">
                 <table class="table table-sm table-hover mb-0">
-                    <thead class="table-light">
+                    <thead class="bg-light-subtle text-dark border-bottom">
                         <tr>
                             <th>Método</th>
                             <th class="text-center">Moneda</th>

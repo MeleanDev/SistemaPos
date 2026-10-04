@@ -70,55 +70,61 @@
         </div>
     </div>
 
-    <!-- Navegación por Pestañas -->
-    <div class="card border-0 shadow-sm rounded-4 mb-4">
-        <div class="card-header bg-white border-bottom border-light-subtle p-3 rounded-top-4">
-            <ul class="nav nav-pills card-header-pills gap-2" id="cajaTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active rounded-pill fw-semibold px-4" id="cajas-tab" data-bs-toggle="tab" data-bs-target="#tab-cajas" type="button" role="tab">
-                        <i class="fas fa-cash-register me-2"></i>Cajas Físicas
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link rounded-pill fw-semibold px-4" id="turnos-tab" data-bs-toggle="tab" data-bs-target="#tab-turnos" type="button" role="tab">
-                        <i class="fas fa-history me-2"></i>Historial de Turnos y Arqueos
-                    </button>
-                </li>
-            </ul>
-        </div>
-        <div class="card-body p-4">
-            <div class="tab-content" id="cajaTabsContent">
-                <!-- Pestaña 1: Cajas Físicas -->
-                <div class="tab-pane fade show active" id="tab-cajas" role="tabpanel">
-                    <x-datatable
-                        id="datatable_cajas"
-                        :headers="[
-                            'Caja / Código',
-                            'Almacén Asignado',
-                            'Estado Turno Actual',
-                            'Estado Caja',
-                            'Acciones',
-                        ]"
-                    />
-                </div>
+    <!-- Navegación por Pestañas Ejecutivas -->
+    <div class="card border rounded-4 p-2 shadow-xs mb-4 bg-white">
+        <ul class="nav nav-pills nav-fill gap-2 p-1" id="pills-tab-cajas" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active rounded-pill fw-bold py-2.5 d-flex align-items-center justify-content-center gap-2"
+                    id="pills-cajas-tab" data-bs-toggle="pill" data-bs-target="#pills-cajas" type="button" role="tab"
+                    aria-controls="pills-cajas" aria-selected="true">
+                    <i class="fas fa-cash-register"></i>
+                    <span>Cajas Físicas</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link rounded-pill fw-bold py-2.5 d-flex align-items-center justify-content-center gap-2"
+                    id="pills-turnos-tab" data-bs-toggle="pill" data-bs-target="#pills-turnos" type="button" role="tab"
+                    aria-controls="pills-turnos" aria-selected="false">
+                    <i class="fas fa-history"></i>
+                    <span>Historial de Turnos y Arqueos</span>
+                </button>
+            </li>
+        </ul>
+    </div>
 
-                <!-- Pestaña 2: Historial de Turnos -->
-                <div class="tab-pane fade" id="tab-turnos" role="tabpanel">
-                    <x-datatable
-                        id="datatable_turnos"
-                        :headers="[
-                            'Turno #',
-                            'Caja',
-                            'Cajero Responsable',
-                            'Apertura',
-                            'Cierre',
-                            'Total Ventas',
-                            'Estado',
-                            'Acciones',
-                        ]"
-                    />
-                </div>
-            </div>
+    <!-- Contenido de las Pestañas -->
+    <div class="tab-content" id="pills-tabContentCajas">
+        <!-- Pestaña 1: Cajas Físicas -->
+        <div class="tab-pane fade show active" id="pills-cajas" role="tabpanel" aria-labelledby="pills-cajas-tab">
+            <x-datatable
+                id="datatable_cajas"
+                :headers="[
+                    'Caja / Código',
+                    'Almacén Asignado',
+                    'Estado Turno Actual',
+                    'Estado Caja',
+                    'Acciones',
+                ]"
+            />
+        </div>
+
+        <!-- Pestaña 2: Historial de Turnos -->
+        <div class="tab-pane fade" id="pills-turnos" role="tabpanel" aria-labelledby="pills-turnos-tab">
+            <x-datatable
+                id="datatable_turnos"
+                :headers="[
+                    'Turno #',
+                    'Caja',
+                    'Cajero Responsable',
+                    'Apertura',
+                    'Cierre',
+                    'Fondo Apertura',
+                    'Cierre Arqueo',
+                    'Diferencia',
+                    'Estado',
+                    'Acciones',
+                ]"
+            />
         </div>
     </div>
 
@@ -201,7 +207,7 @@
                         <p class="text-muted mt-2">Cargando desglose del turno...</p>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0 py-2">
+                <div class="modal-footer bg-white border-top border-light-subtle py-2">
                     <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cerrar</button>
                     <a id="btnImprimirCorteX" href="#" target="_blank" class="btn btn-dark rounded-pill px-4">
                         <i class="fas fa-print me-1"></i> Imprimir Ticket 80mm
@@ -222,7 +228,7 @@
 
             <div class="row g-3">
                 <div class="col-12">
-                    <div class="card bg-light border-0 rounded-4 p-3 mb-2">
+                    <div class="card bg-white border rounded-4 p-3 mb-2 shadow-xs">
                         <div class="row g-2 text-center">
                             <div class="col-6 col-md-3">
                                 <span class="text-muted small">Apertura USD</span>

@@ -15,9 +15,10 @@ class VendedorClass
     public function usuariosDisponibles(int $empresaId): Collection
     {
         return User::where('estado', true)
-            ->where(function ($query) use ($empresaId) {
-                $query->whereHas('empresas', fn ($q) => $q->where('empresas.id', $empresaId))
-                    ->orWhereHas('roles', fn ($q) => $q->whereIn('name', ['SuperAdmin', 'Admin', 'Operador', 'Vendedor']));
+            ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'SuperAdmin'))
+            ->whereHas('empresas', function ($q) use ($empresaId) {
+                $q->where('empresas.id', $empresaId)
+                    ->where('empresa_user.estado', true);
             })
             ->orderBy('name')
             ->get(['id', 'name', 'nombre', 'apellido', 'email']);

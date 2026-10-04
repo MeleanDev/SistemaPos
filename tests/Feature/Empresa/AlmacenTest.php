@@ -130,3 +130,22 @@ test('inactive warehouse is reactivated within the same company', function () {
     expect($inactivo->estado)->toBeTrue()
         ->and($inactivo->nombre)->toBe('Almacen Reactivado');
 });
+
+test('almacen allows alphanumeric names with numbers and symbols', function () {
+    $payload = [
+        'codigo' => 'BOD-02-B',
+        'nombre' => 'Almacén 02 Bodega 4-B',
+        'direccion' => 'Galpón 10 Calle 5',
+    ];
+
+    $response = $this->actingAs($this->userAdminA)
+        ->withSession(['empresa_activa_id' => $this->empresaA->id])
+        ->postJson('/almacenes', $payload);
+
+    $response->assertOk()
+        ->assertJsonPath('success', true);
+
+    $almacen = Almacen::where('codigo', 'BOD-02-B')->first();
+    expect($almacen)->not->toBeNull()
+        ->and($almacen->nombre)->toBe('Almacén 02 Bodega 4-B');
+});

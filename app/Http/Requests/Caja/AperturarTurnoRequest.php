@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Caja;
 
 use App\Http\Requests\BaseRequest;
+use App\Models\User;
 use Illuminate\Validation\Rule;
 
 class AperturarTurnoRequest extends BaseRequest
@@ -17,7 +18,29 @@ class AperturarTurnoRequest extends BaseRequest
                 'integer',
                 Rule::exists('cajas', 'id')->where(fn ($query) => $query->where('empresa_id', $empresaId)->where('estado', true)),
             ],
-            'user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'user_id' => [
+                'nullable',
+                'integer',
+                function ($attribute, $value, $fail) use ($empresaId) {
+                    if ($value) {
+                        $user = User::find($value);
+                        if (! $user || ! $user->estado) {
+                            $fail('El cajero seleccionado no es válido o está inactivo.');
+
+                            return;
+                        }
+                        if (! $user->hasRole('SuperAdmin')) {
+                            $pertenece = $user->empresas()
+                                ->where('empresas.id', $empresaId)
+                                ->wherePivot('estado', true)
+                                ->exists();
+                            if (! $pertenece) {
+                                $fail('El usuario seleccionado no pertenece a la empresa actual.');
+                            }
+                        }
+                    }
+                },
+            ],
             'monto_apertura_usd' => ['required', 'numeric', 'min:0'],
             'monto_apertura_bs' => ['required', 'numeric', 'min:0'],
             'observaciones' => ['nullable', 'string', 'max:500'],

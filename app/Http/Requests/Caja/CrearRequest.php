@@ -19,7 +19,12 @@ class CrearRequest extends BaseRequest
                 'max:100',
                 Rule::unique('cajas', 'nombre')->where(fn ($query) => $query->where('empresa_id', $empresaId)),
             ],
-            'codigo' => ['nullable', 'string', 'max:50'],
+            'codigo' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('cajas', 'codigo')->where(fn ($query) => $query->where('empresa_id', $empresaId)),
+            ],
             'almacen_id' => [
                 'nullable',
                 'integer',

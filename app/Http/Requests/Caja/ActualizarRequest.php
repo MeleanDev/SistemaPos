@@ -22,7 +22,14 @@ class ActualizarRequest extends BaseRequest
                     ->where(fn ($query) => $query->where('empresa_id', $empresaId))
                     ->ignore($cajaId),
             ],
-            'codigo' => ['nullable', 'string', 'max:50'],
+            'codigo' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('cajas', 'codigo')
+                    ->where(fn ($query) => $query->where('empresa_id', $empresaId))
+                    ->ignore($cajaId),
+            ],
             'almacen_id' => [
                 'nullable',
                 'integer',

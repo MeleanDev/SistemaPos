@@ -54,9 +54,10 @@ class CajaClass
     public function cajerosDisponibles(int $empresaId): Collection
     {
         return User::where('estado', true)
-            ->where(function ($query) use ($empresaId) {
-                $query->whereHas('empresas', fn ($q) => $q->where('empresas.id', $empresaId))
-                    ->orWhereHas('roles', fn ($q) => $q->whereIn('name', ['SuperAdmin', 'Admin', 'Operador']));
+            ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'SuperAdmin'))
+            ->whereHas('empresas', function ($q) use ($empresaId) {
+                $q->where('empresas.id', $empresaId)
+                    ->where('empresa_user.estado', true);
             })
             ->orderBy('name')
             ->get(['id', 'name', 'nombre', 'apellido', 'email']);
@@ -147,6 +148,19 @@ class CajaClass
 
             $cajaId = (int) $datos['caja_id'];
             $cajeroId = (int) ($datos['user_id'] ?? $adminUserId);
+
+            // Validar que el cajero pertenezca a la empresa o sea SuperAdmin
+            $cajero = User::findOrFail($cajeroId);
+            if (! $cajero->hasRole('SuperAdmin')) {
+                $pertenece = $cajero->empresas()
+                    ->where('empresas.id', $empresaId)
+                    ->wherePivot('estado', true)
+                    ->exists();
+
+                if (! $pertenece) {
+                    throw new Exception('El usuario seleccionado no pertenece a esta empresa o se encuentra inactivo en ella.');
+                }
+            }
 
             // 1. Validar que la caja no esté ocupada
             $turnoExistenteCaja = CajaTurno::where('empresa_id', $empresaId)
