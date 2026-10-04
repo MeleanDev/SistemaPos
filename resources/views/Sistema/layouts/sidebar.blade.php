@@ -50,16 +50,14 @@
                         </li>
                     @endcan
 
-                    @if (Auth::user()?->empresaActiva()?->maneja_vendedores ?? false)
-                        @can('vendedores.ver')
-                            <li class="sidebar-item @if (request()->routeIs('vendedor*')) selected @endif">
-                                <a class="sidebar-link" href="{{ route('vendedor') }}" aria-expanded="false">
-                                    <i class="fas fa-user-tie"></i>
-                                    <span class="hide-menu">Vendedores</span>
-                                </a>
-                            </li>
-                        @endcan
-                    @endif
+                    @can('vendedores.ver')
+                        <li class="sidebar-item @if (request()->routeIs('vendedor*')) selected @endif">
+                            <a class="sidebar-link" href="{{ route('vendedor') }}" aria-expanded="false">
+                                <i class="fas fa-user-tie"></i>
+                                <span class="hide-menu">Vendedores</span>
+                            </a>
+                        </li>
+                    @endcan
 
                     @hasrole('SuperAdmin')
                         <li class="sidebar-item @if (request()->routeIs('metodo_pago*')) selected @endif">
@@ -227,16 +225,14 @@
                         </li>
                     @endcan
 
-                    @if (Auth::user()?->empresaActiva()?->maneja_vendedores ?? false)
-                        @can('reportes.vendedores')
-                            <li class="sidebar-item @if (request()->routeIs('reportes.vendedores*')) selected @endif">
-                                <a class="sidebar-link" href="{{ route('reportes.vendedores') }}" aria-expanded="false">
-                                    <i class="fas fa-user-tie"></i>
-                                    <span class="hide-menu">Ventas por Vendedor</span>
-                                </a>
-                            </li>
-                        @endcan
-                    @endif
+                    @can('reportes.vendedores')
+                        <li class="sidebar-item @if (request()->routeIs('reportes.vendedores*')) selected @endif">
+                            <a class="sidebar-link" href="{{ route('reportes.vendedores') }}" aria-expanded="false">
+                                <i class="fas fa-user-tie"></i>
+                                <span class="hide-menu">Ventas por Vendedor</span>
+                            </a>
+                        </li>
+                    @endcan
                 @endif
 
                 <!-- ADMINISTRACIÓN Y CONFIGURACIÓN -->

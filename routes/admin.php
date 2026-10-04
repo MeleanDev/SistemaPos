@@ -262,7 +262,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/cajas/actualizar/{id}', 'actualizar')->middleware('permission:cajas.editar');
         Route::delete('/cajas/{id}', 'eliminar')->middleware('permission:cajas.eliminar');
         Route::post('/cajas/turnos/aperturar', 'aperturarTurno')->middleware('permission:cajas.aperturar');
-        Route::post('/cajas/turnos/{id}/cerrar', 'cerrarTurno')->middleware('permission:cajas.cerrar');
+        Route::match(['post', 'put'], '/cajas/turnos/{id}/cerrar', 'cerrarTurno')->middleware('permission:cajas.cerrar');
     });
 
     Route::middleware('permission:reportes.ver')->controller(ReporteController::class)->group(function () {

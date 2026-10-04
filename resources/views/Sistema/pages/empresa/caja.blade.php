@@ -37,32 +37,36 @@
 @section('contenido')
     <!-- Banner de Turno Activo del Usuario -->
     <div id="contenedorTurnoActivo" class="mb-4" style="{{ $turnoActivo ? '' : 'display: none;' }}">
-        <div class="card border-0 shadow-sm rounded-4 bg-gradient text-white p-4" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+        <div class="card bg-white border rounded-4 shadow-xs p-4">
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-circle bg-success bg-opacity-25 p-3 text-success border border-success border-opacity-50">
+                    <div class="bg-success-subtle text-success border border-success-subtle rounded-4 d-flex align-items-center justify-content-center p-3" style="width: 56px; height: 56px; min-width: 56px;">
                         <i class="fas fa-cash-register fa-2x"></i>
                     </div>
                     <div>
                         <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-success rounded-pill px-3 py-1 fw-bold"><i class="fas fa-circle fa-beat me-1"></i> TURNO EN CURSO</span>
-                            <span class="text-white-50 small">Turno #<span id="bannerTurnoId">{{ $turnoActivo?->id }}</span></span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1 fw-bold">
+                                <i class="fas fa-circle fa-beat me-1"></i> TURNO EN CURSO
+                            </span>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1 fw-semibold">
+                                Turno #<span id="bannerTurnoId">{{ $turnoActivo?->id }}</span>
+                            </span>
                         </div>
-                        <h4 class="fw-bold mb-0 text-white mt-1">Caja: <span id="bannerCajaNombre" class="text-warning">{{ $turnoActivo?->caja?->nombre }}</span></h4>
-                        <p class="text-white-50 mb-0 small">
-                            Aperturado el <span id="bannerFechaApertura">{{ $turnoActivo ? \Carbon\Carbon::parse($turnoActivo->fecha_apertura)->format('d/m/Y') : '' }} {{ $turnoActivo?->hora_apertura }}</span> por <strong>{{ Auth::user()->name }}</strong>
+                        <h4 class="fw-bold mb-0 text-dark mt-1">Caja: <span id="bannerCajaNombre" class="text-primary">{{ $turnoActivo?->caja?->nombre }}</span></h4>
+                        <p class="text-muted mb-0 small mt-1">
+                            Aperturado el <span id="bannerFechaApertura" class="fw-semibold text-dark">{{ $turnoActivo ? \Carbon\Carbon::parse($turnoActivo->fecha_apertura)->format('d/m/Y') : '' }} {{ $turnoActivo?->hora_apertura }}</span> por <strong class="text-dark">{{ Auth::user()->name }}</strong>
                         </p>
                     </div>
                 </div>
 
                 <div class="d-flex flex-wrap gap-2">
-                    <button type="button" class="btn btn-warning rounded-pill px-3 py-2 fw-semibold shadow-sm" onclick="verCorteX({{ $turnoActivo?->id ?? 'null' }})">
+                    <button type="button" class="btn btn-warning rounded-pill px-3 py-2 fw-semibold shadow-xs text-dark" onclick="verCorteX({{ $turnoActivo?->id ?? 'null' }})">
                         <i class="fas fa-file-invoice-dollar me-1"></i> Ver Corte X
                     </button>
-                    <button type="button" class="btn btn-danger rounded-pill px-3 py-2 fw-semibold shadow-sm" onclick="abrirModalCierre({{ $turnoActivo?->id ?? 'null' }})">
+                    <button type="button" class="btn btn-danger rounded-pill px-3 py-2 fw-semibold shadow-xs" onclick="abrirModalCierre({{ $turnoActivo?->id ?? 'null' }})">
                         <i class="fas fa-lock me-1"></i> Cerrar Turno (Z)
                     </button>
-                    <a href="{{ route('pos') }}" class="btn btn-light rounded-pill px-3 py-2 fw-semibold shadow-sm text-dark">
+                    <a href="{{ route('pos') }}" class="btn btn-primary rounded-pill px-3 py-2 fw-semibold shadow-xs">
                         <i class="fas fa-shopping-cart me-1"></i> Ir al POS
                     </a>
                 </div>
@@ -232,7 +236,7 @@
                         <div class="row g-2 text-center">
                             <div class="col-6 col-md-3">
                                 <span class="text-muted small">Apertura USD</span>
-                                <h6 class="fw-bold mb-0" id="resumenAperturaUsd">$0.00</h6>
+                                <h6 class="fw-bold text-dark mb-0" id="resumenAperturaUsd">$0.00</h6>
                             </div>
                             <div class="col-6 col-md-3">
                                 <span class="text-muted small">Ventas Totales USD</span>

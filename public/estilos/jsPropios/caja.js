@@ -502,7 +502,7 @@ const verCorteX = async function (turnoId) {
                     <h5 class="fw-bold mb-0 text-dark">Caja: ${rep.caja.nombre}</h5>
                     <span class="text-muted small">Cajero: <strong>${rep.usuario.name || rep.usuario.nombre_completo}</strong> | Turno #${String(rep.turno.id).padStart(5, '0')}</span>
                 </div>
-                <span class="badge ${rep.turno.estado === 'abierta' ? 'bg-success' : 'bg-secondary'} rounded-pill px-3 py-2 text-uppercase">
+                <span class="badge ${rep.turno.estado === 'abierta' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary border border-secondary-subtle'} rounded-pill px-3 py-1.5 text-uppercase fw-bold">
                     ${rep.turno.estado}
                 </span>
             </div>
@@ -541,7 +541,7 @@ const verCorteX = async function (turnoId) {
             <h6 class="fw-bold text-dark mb-2"><i class="fas fa-wallet text-muted me-1"></i> Desglose por Método de Pago</h6>
             <div class="table-responsive rounded-3 border mb-3">
                 <table class="table table-sm table-hover mb-0">
-                    <thead class="bg-light-subtle text-dark border-bottom">
+                    <thead class="table-light text-dark border-bottom">
                         <tr>
                             <th>Método</th>
                             <th class="text-center">Moneda</th>
@@ -636,7 +636,7 @@ $("#formularioCierreZ").on("submit", function (e) {
     enviarFormulario({
         form: this,
         url: url,
-        isEditar: true,
+        isEditar: false,
         modalSelector: "#modalCierreZ",
         tablaSelector: "#datatable_cajas",
         btnSubmit: "#modalCierreZBtnGuardar",
