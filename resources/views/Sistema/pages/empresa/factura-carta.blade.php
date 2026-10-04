@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Factura {{ $venta->codigo }} - {{ $venta->empresa->nombre }}</title>
+    <title>Factura Carta (Forma Libre) {{ $venta->codigo }}</title>
     <style>
         @page {
             size: letter portrait;
-            margin: 8mm 10mm 8mm 10mm;
+            margin: 47mm 11mm 20mm 11mm;
         }
+
         * {
             margin: 0;
             padding: 0;
@@ -17,28 +18,23 @@
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }
+
         body {
             background-color: #f1f5f9;
             color: #0f172a;
-            font-size: 11px;
-            line-height: 1.35;
+            font-size: 10px;
+            line-height: 1.3;
         }
-        .page-container {
-            max-width: 210mm;
-            margin: 20px auto;
-            background: #ffffff;
-            padding: 24px 28px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
+
         .no-print {
-            max-width: 210mm;
-            margin: 15px auto 5px auto;
+            max-width: 200mm;
+            margin: 15px auto 8px auto;
             display: flex;
             gap: 12px;
             justify-content: space-between;
             align-items: center;
         }
+
         .btn-action {
             display: inline-flex;
             align-items: center;
@@ -59,141 +55,91 @@
         .btn-close { background-color: #64748b; color: #ffffff; }
         .btn-close:hover { background-color: #475569; }
 
+        /* CONTENEDOR EN PANTALLA VS IMPRESIÓN */
+        .page-container {
+            max-width: 195mm;
+            margin: 10px auto;
+            background: #ffffff;
+            padding: 10px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
         .text-center { text-align: center; }
         .text-end { text-align: right; }
         .text-start { text-align: left; }
         .fw-bold { font-weight: bold; }
         .text-uppercase { text-transform: uppercase; }
         .font-mono { font-family: 'Courier New', Courier, monospace; }
-        .text-danger { color: #dc2626; }
         .text-muted { color: #475569; }
-        .text-primary { color: #1e3a8a; }
 
-        /* HEADER */
-        .invoice-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 2px solid #0f172a;
-            padding-bottom: 12px;
-            margin-bottom: 12px;
-        }
-        .company-info {
-            width: 58%;
-        }
-        .company-title {
-            font-size: 20px;
-            font-weight: 900;
-            color: #1e3a8a;
-            letter-spacing: -0.5px;
-            line-height: 1.1;
-            margin-bottom: 4px;
-        }
-        .company-rif {
-            font-size: 13px;
-            font-weight: 800;
-            color: #0f172a;
-            margin-bottom: 4px;
-        }
-        .company-address {
-            font-size: 10px;
-            color: #334155;
-            line-height: 1.25;
-        }
-
-        .fiscal-control {
-            width: 40%;
-            text-align: right;
-        }
-        .fiscal-badge {
-            font-size: 11px;
-            font-weight: bold;
-            color: #334155;
-            margin-bottom: 2px;
-        }
-        .control-number {
-            font-size: 16px;
-            font-weight: 900;
-            color: #dc2626;
-            letter-spacing: 1px;
-            font-family: 'Courier New', Courier, monospace;
-        }
-        .invoice-number-box {
-            margin-top: 6px;
-            font-size: 14px;
-            font-weight: 900;
-            color: #0f172a;
-        }
-
-        /* CLIENT & DOC DETAILS GRID */
+        /* SECCIÓN 1: DATOS DEL CLIENTE Y DOCUMENTO */
         .meta-section {
             border: 1px solid #cbd5e1;
             border-radius: 6px;
-            padding: 8px 12px;
-            margin-bottom: 12px;
-            background-color: #f8fafc;
+            padding: 6px 10px;
+            margin-bottom: 8px;
+            background-color: transparent;
         }
         .meta-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 4px;
-            font-size: 10.5px;
+            align-items: center;
+            margin-bottom: 3px;
+            font-size: 10px;
         }
         .meta-row:last-child {
             margin-bottom: 0;
         }
         .meta-label {
             font-weight: 700;
-            color: #1e293b;
+            color: #0f172a;
         }
         .meta-val {
             color: #0f172a;
         }
 
-        /* TABLE OF ITEMS */
+        /* SECCIÓN 2: TABLA DE DETALLES */
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
         .items-table th {
-            background-color: #f1f5f9;
             border-top: 1.5px solid #0f172a;
             border-bottom: 1.5px solid #0f172a;
-            padding: 6px 8px;
-            font-size: 10.5px;
+            padding: 5px 6px;
+            font-size: 10px;
             font-weight: 800;
             text-transform: uppercase;
             color: #0f172a;
         }
         .items-table td {
-            padding: 6px 8px;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 4px 6px;
+            border-bottom: 1px solid #f1f5f9;
             vertical-align: top;
-            font-size: 10.5px;
-        }
-        .items-table tr:nth-child(even) {
-            background-color: #fafafa;
+            font-size: 10px;
         }
         .item-spec-box {
-            font-size: 9.5px;
-            color: #334155;
+            font-size: 9px;
+            color: #1e293b;
             margin-top: 2px;
             line-height: 1.25;
             background: #ffffff;
-            padding: 3px 6px;
-            border-left: 2px solid #3b82f6;
+            padding: 2px 6px;
+            border-left: 2px solid #2563eb;
             border-radius: 2px;
         }
 
-        /* BREAKDOWN TOTALS SECTION */
+        /* SECCIÓN 3: DESGLOSE DE TOTALES DUAL CURRENCY */
         .breakdown-container {
             display: flex;
             justify-content: space-between;
             border: 1.5px solid #0f172a;
             border-radius: 6px;
-            padding: 8px 14px;
-            margin-bottom: 10px;
+            padding: 6px 12px;
+            margin-bottom: 8px;
             background-color: #ffffff;
         }
         .breakdown-column {
@@ -202,60 +148,62 @@
         .breakdown-row {
             display: flex;
             justify-content: space-between;
-            padding: 2px 0;
-            font-size: 10.5px;
+            padding: 1.5px 0;
+            font-size: 10px;
         }
         .breakdown-row.highlight {
             font-weight: 800;
-            font-size: 11.5px;
+            font-size: 10.5px;
             border-top: 1px solid #94a3b8;
-            margin-top: 3px;
-            padding-top: 3px;
+            margin-top: 2px;
+            padding-top: 2px;
         }
         .breakdown-row.total-final {
             font-weight: 900;
-            font-size: 12.5px;
+            font-size: 11.5px;
             color: #0f172a;
             border-top: 1.5px solid #0f172a;
-            margin-top: 4px;
-            padding-top: 4px;
+            margin-top: 3px;
+            padding-top: 3px;
         }
 
-        /* RATE & LEGAL FOOTER */
+        /* SECCIÓN 4: TASA DE CAMBIO BCV & NORMATIVA */
         .legal-notice-box {
-            font-size: 9px;
+            font-size: 8.5px;
             color: #334155;
             line-height: 1.3;
-            margin-bottom: 12px;
-            padding: 6px 8px;
+            margin-bottom: 8px;
+            padding: 5px 8px;
             border: 1px dashed #cbd5e1;
             border-radius: 4px;
-            background-color: #f8fafc;
+            background-color: transparent;
         }
+
+        /* SECCIÓN 5: FIRMAS */
         .signatures-container {
             display: flex;
             justify-content: space-around;
-            margin-top: 24px;
-            margin-bottom: 12px;
-            padding-top: 10px;
+            margin-top: 18px;
+            margin-bottom: 8px;
+            padding-top: 6px;
         }
         .sign-box {
-            width: 40%;
+            width: 38%;
             text-align: center;
             border-top: 1px solid #000000;
-            padding-top: 4px;
-            font-size: 10px;
+            padding-top: 3px;
+            font-size: 9.5px;
             font-weight: 700;
         }
+
+        /* SECCIÓN 6: LEYENDA LEGAL SENIAT */
         .bottom-tax-legend {
+            font-size: 8px;
+            color: #475569;
+            line-height: 1.25;
             text-align: center;
-            font-size: 8.5px;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: bold;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 6px;
+            border-top: 1px dashed #e2e8f0;
+            padding-top: 4px;
         }
 
         @media print {
@@ -267,6 +215,7 @@
                 max-width: 100%;
                 margin: 0;
                 padding: 0;
+                border: none;
                 box-shadow: none;
                 border-radius: 0;
             }
@@ -315,18 +264,16 @@
     $diasCredito = $venta->condicion_pago === 'credito' ? 15 : 0;
     $fechaEmision = \Carbon\Carbon::parse($venta->fecha_emision);
     $fechaVencimiento = $fechaEmision->copy()->addDays($diasCredito);
-
-    $tieneVehiculo = $venta->detalles->contains(fn($d) => $d->tipo_item === 'moto');
 @endphp
 
-    <!-- BARRA DE ACCIONES SUPERIOR (SOLO VISIBLE EN PANTALLA) -->
+    <!-- BARRA DE ACCIONES SUPERIOR (SOLO PANTALLA) -->
     <div class="no-print">
         <div>
-            <span class="fw-bold" style="font-size: 14px; color: #1e293b;">📄 Vista Previa: Factura Carta (Forma Libre)</span>
+            <span class="fw-bold" style="font-size: 14px; color: #1e293b;">📄 Impresión: Factura Carta (Forma Libre Preimpresa)</span>
         </div>
         <div style="display: flex; gap: 8px;">
             <button type="button" class="btn-action btn-print" onclick="window.print()">
-                🖨️ Imprimir Hoja Blanca
+                🖨️ Imprimir en Forma Libre
             </button>
             <a href="{{ route('pos.imprimir_ticket', $venta->id) }}" class="btn-action btn-ticket">
                 🧾 Ver Formato Ticket
@@ -337,41 +284,10 @@
         </div>
     </div>
 
-    <!-- DOCUMENTO FACTURA CARTA -->
+    <!-- DOCUMENTO FACTURA CARTA AJUSTADO A LA FORMA LIBRE -->
     <div class="page-container">
 
-        <!-- ENCABEZADO FISCAL -->
-        <div class="invoice-header">
-            <div class="company-info">
-                <div class="company-title text-uppercase">{{ $venta->empresa->nombre }}</div>
-                @if($venta->empresa->razon_social && $venta->empresa->razon_social !== $venta->empresa->nombre)
-                    <div style="font-size: 11px; font-weight: bold; color: #334155; margin-bottom: 2px;">{{ $venta->empresa->razon_social }}</div>
-                @endif
-                <div class="company-rif">RIF.: {{ $venta->empresa->rif }}</div>
-                <div class="company-address">
-                    {{ $venta->empresa->direccion ?? 'DIRECCIÓN FISCAL NO ESPECIFICADA' }}
-                    @if($venta->empresa->telefono)
-                        <br>Teléfono: {{ $venta->empresa->telefono }}
-                    @endif
-                    @if($venta->empresa->correo)
-                        • Correo: {{ $venta->empresa->correo }}
-                    @endif
-                </div>
-            </div>
-
-            <div class="fiscal-control">
-                <div class="fiscal-badge">Forma Libre</div>
-                <div class="control-number">N° CONTROL 00- <span style="font-size: 17px;">{{ str_pad(preg_replace('/^00-/', '', (string) ($venta->numero_control ?? $venta->id)), 8, '0', STR_PAD_LEFT) }}</span></div>
-                <div class="invoice-number-box">
-                    @if($tieneVehiculo)
-                        <span style="font-size: 11px; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; margin-right: 4px;">.VEHICULO</span>
-                    @endif
-                    FACTURA Nro. <span class="font-mono text-primary">{{ $venta->codigo }}</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- DATOS DEL CLIENTE Y METADATOS DE FACTURACIÓN -->
+        <!-- 1. DATOS DEL CLIENTE Y CONDICIONES -->
         <div class="meta-section">
             <div class="meta-row">
                 <div>
@@ -388,7 +304,7 @@
                 </div>
             </div>
 
-            <div class="meta-row" style="border-top: 1px dashed #cbd5e1; padding-top: 4px; margin-top: 4px;">
+            <div class="meta-row" style="border-top: 1px dashed #cbd5e1; padding-top: 3px; margin-top: 3px;">
                 <div style="width: 70%;">
                     <span class="meta-label">Nombre(s) y Apellido(s) o Razón Social:</span>
                     <span class="meta-val fw-bold text-uppercase">{{ $venta->cliente->nombre_completo }}</span>
@@ -402,18 +318,18 @@
             <div class="meta-row">
                 <div style="width: 100%;">
                     <span class="meta-label">Domicilio Fiscal:</span>
-                    <span class="meta-val">{{ $venta->cliente->direccion ?? 'DOMICILIO FISCAL NO REGISTRADO' }}</span>
+                    <span class="meta-val">{{ $venta->cliente->direccion ?? 'Ciudad' }}</span>
                 </div>
             </div>
 
-            <div class="meta-row" style="border-top: 1px dashed #cbd5e1; padding-top: 4px; margin-top: 4px;">
+            <div class="meta-row" style="border-top: 1px dashed #cbd5e1; padding-top: 3px; margin-top: 3px;">
                 <div>
                     <span class="meta-label">Teléfonos:</span>
-                    <span class="meta-val font-mono">{{ $venta->cliente->telefono ?? 'N/A' }}</span>
+                    <span class="meta-val font-mono">{{ $venta->cliente->telefono ?? '0000-0000000' }}</span>
                 </div>
                 <div>
                     <span class="meta-label">Correo Electrónico:</span>
-                    <span class="meta-val">{{ $venta->cliente->correo ?? 'N/A' }}</span>
+                    <span class="meta-val">{{ $venta->cliente->correo ?? 'cliente@pos.com' }}</span>
                 </div>
                 <div>
                     <span class="meta-label">ASESOR:</span>
@@ -422,15 +338,15 @@
             </div>
         </div>
 
-        <!-- TABLA DE DETALLES -->
+        <!-- 2. TABLA DE RENGLONES -->
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width: 14%;" class="text-start">Código</th>
-                    <th style="width: 48%;" class="text-start">Descripción</th>
-                    <th style="width: 10%;" class="text-center">Cant.</th>
-                    <th style="width: 14%;" class="text-end">P. Unitario (BS)</th>
-                    <th style="width: 14%;" class="text-end">Total (BS)</th>
+                    <th style="width: 14%;" class="text-start">CÓDIGO</th>
+                    <th style="width: 48%;" class="text-start">DESCRIPCIÓN</th>
+                    <th style="width: 10%;" class="text-center">CANT.</th>
+                    <th style="width: 14%;" class="text-end">P. UNITARIO (BS)</th>
+                    <th style="width: 14%;" class="text-end">TOTAL (BS)</th>
                 </tr>
             </thead>
             <tbody>
@@ -446,7 +362,12 @@
                         <td class="font-mono">{{ $codigoItem }}</td>
                         <td>
                             <strong class="text-uppercase">{{ $nombreItem }}</strong>
-                            
+                            @if($det->tipo_item !== 'moto')
+                                @if(!$det->aplica_iva || (float)$det->iva_porcentaje == 0)
+                                    <span style="font-size: 8.5px; color: #475569; font-weight: bold;">(EXENTO)</span>
+                                @endif
+                            @endif
+
                             @if($det->tipo_item === 'moto' && $det->moto)
                                 <div class="item-spec-box font-mono">
                                     Marca: <strong>{{ $det->moto->marca }}</strong> • Modelo: <strong>{{ $det->moto->modelo }}</strong>
@@ -469,16 +390,9 @@
                                     @endif
                                     @if($det->producto_serial_id || $det->productoSerial)
                                         @if($det->variante_texto) • @endif
-                                        Serial Único: <strong>{{ $det->productoSerial?->numero_serial ?? $det->serial_identificador }}</strong>
+                                        Serial: <strong>{{ $det->productoSerial?->numero_serial ?? $det->serial_identificador }}</strong>
                                     @endif
                                 </div>
-                            @endif
-                            @if($det->tipo_item !== 'moto')
-                                @if($det->aplica_iva)
-                                    <span style="font-size: 8.5px; color: #475569; font-weight: bold;">(IVA {{ (float)$det->iva_porcentaje }}%)</span>
-                                @else
-                                    <span style="font-size: 8.5px; color: #475569; font-weight: bold;">(EXENTO)</span>
-                                @endif
                             @endif
                         </td>
                         <td class="text-center font-mono fw-bold">{{ number_format($cant, 2, ',', '.') }}</td>
@@ -489,10 +403,10 @@
             </tbody>
         </table>
 
-        <!-- DESGLOSE DE MONTOS EN DÓLARES Y BOLÍVARES (DUAL CURRENCY) -->
+        <!-- 3. DESGLOSE DUAL CURRENCY (USD Y BS) -->
         <div class="breakdown-container">
             <!-- COLUMNA USD -->
-            <div class="breakdown-column font-mono" style="border-right: 1px dashed #cbd5e1; padding-right: 14px;">
+            <div class="breakdown-column font-mono" style="border-right: 1px dashed #cbd5e1; padding-right: 12px;">
                 <div class="breakdown-row">
                     <span>Subtotal USD:</span>
                     <span>{{ number_format($subtotalUsd, 2, ',', '.') }}</span>
@@ -531,7 +445,7 @@
             </div>
 
             <!-- COLUMNA BS -->
-            <div class="breakdown-column font-mono" style="padding-left: 14px;">
+            <div class="breakdown-column font-mono" style="padding-left: 12px;">
                 <div class="breakdown-row">
                     <span>Subtotal BS:</span>
                     <span>{{ number_format($subtotalBs, 2, ',', '.') }}</span>
@@ -570,7 +484,7 @@
             </div>
         </div>
 
-        <!-- TASA DE CAMBIO BCV Y NORMATIVA IGTF -->
+        <!-- 4. TASA BCV Y NORMATIVA IGTF -->
         <div class="legal-notice-box font-mono">
             <div style="font-weight: bold; margin-bottom: 2px;">
                 Tasa de cambio aplicada 1 BS/USD = {{ number_format($venta->tasa_cambio, 4, ',', '.') }} según la tasa del BCV al {{ $fechaEmision->format('d-m-Y') }}, PROV Nro. 0071
@@ -580,7 +494,7 @@
             </div>
         </div>
 
-        <!-- FIRMAS -->
+        <!-- 5. FIRMAS -->
         <div class="signatures-container">
             <div class="sign-box">
                 Por la Empresa
@@ -590,14 +504,9 @@
             </div>
         </div>
 
-        <!-- BASE LEGAL SENIAT -->
-        <div class="legal-notice-box" style="margin-bottom: 6px; font-size: 8.5px;">
-            A los efectos previstos en el art.13 de la PA-0071 Nro. SNAT\2011\0071 se expresan los montos de la factura en Bs. Considerando el tipo de cambio establecido por el BCV de Bs/US$ segun Res.#19-05-01 (GAC.OFIC.NRO.41.624 02-05-2019)
-        </div>
-
-        <!-- PIE DE PÁGINA -->
+        <!-- 6. BASE LEGAL SENIAT -->
         <div class="bottom-tax-legend">
-            ESTA FACTURA VA SIN TACHADURAS NI ENMENDADURAS
+            A los efectos previstos en el art.13 de la PA-0071 Nro. SNAT\2011\0071 se expresan los montos de la factura en Bs. Considerando el tipo de cambio establecido por el BCV de Bs/US$ segun Res.#19-05-01 (GAC.OFIC.NRO.41.624 02-05-2019)
         </div>
 
     </div>

@@ -1061,14 +1061,11 @@ test('pos puede renderizar formato factura carta y formato ticket termico', func
         ->get("/pos/imprimir-carta/{$venta->id}");
 
     $resCarta->assertOk()
-        ->assertSee('MULTIREPUESTOS LA LIMPIA 2024, C.A.')
-        ->assertSee('N° CONTROL 00-')
-        ->assertSee('00001607')
         ->assertSee('Karla Andreina')
         ->assertSee('Subtotal USD:')
         ->assertSee('Subtotal BS:')
         ->assertSee('Monto Exento USD:')
-        ->assertSee('ESTA FACTURA VA SIN TACHADURAS NI ENMENDADURAS');
+        ->assertSee('Tasa de cambio aplicada');
 
     // 2. Probar Ticket Térmico
     $resTicket = $this->actingAs($user)
