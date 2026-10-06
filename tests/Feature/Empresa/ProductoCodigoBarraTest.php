@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Almacen;
 use App\Models\Categoria;
 use App\Models\Empresa;
 use App\Models\Producto;
@@ -441,4 +442,149 @@ test('al guardar o editar un producto se persisten precios, costos y margenes si
                 'movimientos_kardex',
             ],
         ]);
+});
+
+test('un producto con variantes y seriales unicos registra, consulta y permite editar sus seriales', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-10000009-9',
+        'nombre' => 'Electrodomesticos Test',
+        'razon_social' => 'Electrodomesticos Test C.A.',
+        'direccion' => 'Zona Industrial',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'ALM-01',
+        'nombre' => 'Bodega Central',
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'CAT-ELECTRO',
+        'nombre' => 'Electrodomésticos',
+        'estado' => true,
+    ]);
+
+    $user = User::factory()->create(['estado' => true]);
+    $user->syncRoles('SuperAdmin');
+    $user->empresas()->attach($empresa->id, ['es_predeterminada' => true, 'estado' => true]);
+
+    $payloadCrear = [
+        'tipo' => 'producto',
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'AIRE-18BTU',
+        'nombre' => 'Aire Split 18000 BTU',
+        'unidad_medida' => 'UND',
+        'maneja_variantes' => true,
+        'atributos_variantes' => [
+            'nombre' => 'Color',
+            'opciones' => ['Blanco', 'Gris'],
+        ],
+        'maneja_seriales' => true,
+        'aplica_iva' => true,
+        'iva_porcentaje' => 16.00,
+        'aplica_igtf' => false,
+        'precio_costo_usd' => 250.00,
+        'precio_detal_usd' => 350.00,
+        'seriales' => [
+            [
+                'numero_serial' => 'SN-AIRE-001',
+                'variante_color' => 'Blanco',
+                'almacen_id' => $almacen->id,
+                'estado' => 'disponible',
+            ],
+            [
+                'numero_serial' => 'SN-AIRE-002',
+                'variante_color' => 'Gris',
+                'almacen_id' => $almacen->id,
+                'estado' => 'disponible',
+            ],
+        ],
+    ];
+
+    $response = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson(route('producto'), $payloadCrear);
+
+    $response->assertStatus(200)->assertJson(['success' => true]);
+
+    $producto = Producto::where('empresa_id', $empresa->id)->where('codigo_interno', 'AIRE-18BTU')->first();
+    expect($producto)->not->toBeNull();
+    expect($producto->maneja_variantes)->toBeTrue();
+    expect($producto->maneja_seriales)->toBeTrue();
+    expect($producto->seriales()->count())->toBe(2);
+
+    // Consultar detalle para verificar que devuelve los seriales con sus relaciones
+    $detalleResponse = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson("/productos/{$producto->id}");
+
+    $detalleResponse->assertStatus(200)
+        ->assertJsonPath('data.seriales.0.numero_serial', 'SN-AIRE-001')
+        ->assertJsonPath('data.seriales.0.almacen.nombre', 'Bodega Central');
+
+    $serial1 = $producto->seriales()->where('numero_serial', 'SN-AIRE-001')->first();
+    $serial2 = $producto->seriales()->where('numero_serial', 'SN-AIRE-002')->first();
+
+    // Actualizar producto: Modificar serial 1 y añadir un tercer serial
+    $payloadActualizar = [
+        'tipo' => 'producto',
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'AIRE-18BTU',
+        'nombre' => 'Aire Split 18000 BTU Inverter',
+        'unidad_medida' => 'UND',
+        'maneja_variantes' => true,
+        'atributos_variantes' => [
+            'nombre' => 'Color',
+            'opciones' => ['Blanco', 'Gris', 'Negro'],
+        ],
+        'maneja_seriales' => true,
+        'aplica_iva' => true,
+        'iva_porcentaje' => 16.00,
+        'aplica_igtf' => false,
+        'precio_costo_usd' => 260.00,
+        'precio_detal_usd' => 360.00,
+        'seriales' => [
+            [
+                'id' => $serial1->id,
+                'numero_serial' => 'SN-AIRE-001-MOD',
+                'variante_color' => 'Blanco',
+                'almacen_id' => $almacen->id,
+                'estado' => 'disponible',
+            ],
+            [
+                'id' => $serial2->id,
+                'numero_serial' => 'SN-AIRE-002',
+                'variante_color' => 'Gris',
+                'almacen_id' => $almacen->id,
+                'estado' => 'disponible',
+            ],
+            [
+                'numero_serial' => 'SN-AIRE-003',
+                'variante_color' => 'Negro',
+                'almacen_id' => $almacen->id,
+                'estado' => 'disponible',
+            ],
+        ],
+    ];
+
+    $updateResponse = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->putJson("/productos/actualizar/{$producto->id}", $payloadActualizar);
+
+    $updateResponse->assertStatus(200)->assertJson(['success' => true]);
+
+    expect($producto->fresh()->seriales()->count())->toBe(3);
+    $this->assertDatabaseHas('producto_seriales', [
+        'id' => $serial1->id,
+        'numero_serial' => 'SN-AIRE-001-MOD',
+    ]);
+    $this->assertDatabaseHas('producto_seriales', [
+        'producto_id' => $producto->id,
+        'numero_serial' => 'SN-AIRE-003',
+        'variante_color' => 'Negro',
+    ]);
 });

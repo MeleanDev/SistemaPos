@@ -20,6 +20,7 @@ let catalogosSistema = {
 
 let contadorFilasCodigos = 0;
 let contadorFilasProveedores = 0;
+let contadorFilasSeriales = 0;
 
 const obtenerTasaCompraModal = function () {
     const val = parseFloat($("#tasa_compra").val());
@@ -260,10 +261,139 @@ const limpiarOpcionesVariantes = function () {
     $("#input_nueva_opcion_variante").val("");
 };
 
+const toggleSerialesProducto = function () {
+    const maneja = $("#maneja_seriales").is(":checked");
+    if (maneja) {
+        $("#seccionListaSerialesProducto").slideDown(200);
+        actualizarContadoresSeriales();
+    } else {
+        $("#seccionListaSerialesProducto").slideUp(200);
+    }
+};
+
+const agregarFilaSerial = function (serialData = null) {
+    contadorFilasSeriales++;
+    const idFila = `fila_serial_${contadorFilasSeriales}`;
+    const id = serialData && serialData.id ? serialData.id : "";
+    const numeroSerial = serialData && serialData.numero_serial ? serialData.numero_serial : "";
+    const varianteColor = serialData && serialData.variante_color ? serialData.variante_color : "";
+    const almacenId = serialData && serialData.almacen_id ? serialData.almacen_id : (catalogosSistema.almacenes && catalogosSistema.almacenes.length > 0 ? catalogosSistema.almacenes[0].id : "");
+    const estado = serialData && serialData.estado ? serialData.estado : "disponible";
+
+    let opcionesAlmacen = "";
+    if (Array.isArray(catalogosSistema.almacenes)) {
+        catalogosSistema.almacenes.forEach((alm) => {
+            const sel = String(alm.id) === String(almacenId) ? "selected" : "";
+            opcionesAlmacen += `<option value="${alm.id}" ${sel}>${alm.nombre}</option>`;
+        });
+    }
+
+    let badgeEstado = "";
+    if (estado === "disponible") {
+        badgeEstado = '<span class="badge rounded-pill px-2 py-1 fw-bold font-monospace" style="background-color: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0;">Disponible</span>';
+    } else if (estado === "vendido") {
+        badgeEstado = '<span class="badge rounded-pill bg-secondary text-white px-2 py-1 fw-bold font-monospace">Vendido</span>';
+    } else if (estado === "reservado") {
+        badgeEstado = '<span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 fw-bold font-monospace">Reservado</span>';
+    } else {
+        badgeEstado = `<span class="badge rounded-pill bg-info-subtle text-info border px-2 py-1 fw-bold font-monospace">${estado}</span>`;
+    }
+
+    const esEditable = estado === "disponible" || !id;
+    const btnEliminar = esEditable
+        ? `<button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-xs" onclick="eliminarFilaSerial('${idFila}')" title="Eliminar serial" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;"><i class="fas fa-trash-alt" style="font-size: 0.75rem;"></i></button>`
+        : '<span class="text-muted" title="Serial bloqueado por venta"><i class="fas fa-lock small"></i></span>';
+
+    const filaHtml = `
+        <tr id="${idFila}" class="align-middle fila-serial-item" data-estado="${estado}">
+            <td class="ps-3 py-1.5 small text-muted font-monospace numero-indice-serial">
+                ${$("#contenedorFilasSeriales tr").length + 1}
+                <input type="hidden" name="seriales[${contadorFilasSeriales}][id]" value="${id}">
+                <input type="hidden" name="seriales[${contadorFilasSeriales}][estado]" value="${estado}">
+            </td>
+            <td class="py-1.5 pe-2">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white text-success"><i class="fas fa-barcode"></i></span>
+                    <input type="text" class="form-control form-control-sm font-monospace fw-bold input-serial-numero" name="seriales[${contadorFilasSeriales}][numero_serial]" value="${numeroSerial}" placeholder="Ej. SN-89201938" required ${!esEditable ? "readonly" : ""}>
+                </div>
+            </td>
+            <td class="py-1.5 pe-2">
+                <input type="text" class="form-control form-control-sm font-monospace input-serial-variante" name="seriales[${contadorFilasSeriales}][variante_color]" value="${varianteColor}" placeholder="Ej. Blanco / 220V" ${!esEditable ? "readonly" : ""}>
+            </td>
+            <td class="py-1.5 pe-2">
+                <select class="form-select form-select-sm font-monospace select-serial-almacen" name="seriales[${contadorFilasSeriales}][almacen_id]" required ${!esEditable ? "disabled" : ""}>
+                    ${opcionesAlmacen}
+                </select>
+            </td>
+            <td class="py-1.5 text-center">
+                ${badgeEstado}
+            </td>
+            <td class="py-1.5 text-center pe-3">
+                ${btnEliminar}
+            </td>
+        </tr>
+    `;
+
+    $("#contenedorFilasSeriales").append(filaHtml);
+    actualizarIndicesSeriales();
+    actualizarContadoresSeriales();
+};
+
+const eliminarFilaSerial = function (idFila) {
+    $(`#${idFila}`).remove();
+    actualizarIndicesSeriales();
+    actualizarContadoresSeriales();
+};
+
+const actualizarIndicesSeriales = function () {
+    $("#contenedorFilasSeriales tr.fila-serial-item").each(function (idx) {
+        $(this).find(".numero-indice-serial").contents().first().replaceWith((idx + 1).toString());
+    });
+    if ($("#contenedorFilasSeriales tr.fila-serial-item").length === 0) {
+        $("#placeholderSinSeriales").show();
+    } else {
+        $("#placeholderSinSeriales").hide();
+    }
+};
+
+const actualizarContadoresSeriales = function () {
+    const $filas = $("#contenedorFilasSeriales tr.fila-serial-item");
+    const total = $filas.length;
+    let disp = 0;
+    let vend = 0;
+
+    $filas.each(function () {
+        const est = $(this).attr("data-estado");
+        if (est === "disponible") disp++;
+        else if (est === "vendido") vend++;
+    });
+
+    $("#contadorSerialesTotal").text(total);
+    $("#contadorSerialesDisponibles").text(disp);
+    $("#contadorSerialesVendidos").text(vend);
+};
+
+const filtrarSerialesEnModal = function () {
+    const query = $("#buscarSerialEnModal").val().toLowerCase().trim();
+    $("#contenedorFilasSeriales tr.fila-serial-item").each(function () {
+        const serial = $(this).find(".input-serial-numero").val().toLowerCase();
+        const variante = $(this).find(".input-serial-variante").val().toLowerCase();
+        if (serial.includes(query) || variante.includes(query)) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+    });
+};
+
 window.toggleVariantesProducto = toggleVariantesProducto;
 window.agregarOpcionVariante = agregarOpcionVariante;
 window.eliminarOpcionVariante = eliminarOpcionVariante;
 window.limpiarOpcionesVariantes = limpiarOpcionesVariantes;
+window.toggleSerialesProducto = toggleSerialesProducto;
+window.agregarFilaSerial = agregarFilaSerial;
+window.eliminarFilaSerial = eliminarFilaSerial;
+window.filtrarSerialesEnModal = filtrarSerialesEnModal;
 
 $(document).ready(function () {
     crearSelect2({
@@ -673,6 +803,12 @@ const resetearFormularioProducto = function () {
 
     $("#contenedorFilasCodigos").empty();
     $("#contenedorFilasProveedores").empty();
+    $("#contenedorFilasSeriales").empty();
+    $("#buscarSerialEnModal").val("");
+    $("#placeholderSinSeriales").hide();
+    $("#contadorSerialesTotal").text("0");
+    $("#contadorSerialesDisponibles").text("0");
+    $("#contadorSerialesVendidos").text("0");
 
     const tabEl = document.getElementById("tab-basicos-btn");
     if (tabEl) {
@@ -705,6 +841,7 @@ const resetearFormularioProducto = function () {
     $("#nombre_atributo_variante").val("Color");
     limpiarOpcionesVariantes();
     $("#maneja_seriales").prop("checked", false);
+    toggleSerialesProducto();
 
     $("#aplica_iva").prop("checked", true);
     $("#iva_porcentaje").val("16.00").prop("disabled", false);
@@ -787,6 +924,7 @@ const editar = async function (id) {
 
         const manejaSeriales = prod.maneja_seriales == 1 || prod.maneja_seriales === true;
         $("#maneja_seriales").prop("checked", manejaSeriales);
+        toggleSerialesProducto();
 
         const tasaCompraProd =
             prod.tasa_compra && parseFloat(prod.tasa_compra) > 0
@@ -868,6 +1006,14 @@ const editar = async function (id) {
                 agregarFilaProveedor(pp.proveedor_id, pp.codigo_proveedor);
             });
         }
+
+        if (Array.isArray(prod.seriales)) {
+            prod.seriales.forEach((s) => {
+                agregarFilaSerial(s);
+            });
+        }
+        actualizarIndicesSeriales();
+        actualizarContadoresSeriales();
 
         const modal = bootstrap.Modal.getOrCreateInstance(
             document.getElementById("modalProducto"),

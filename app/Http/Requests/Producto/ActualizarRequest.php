@@ -112,6 +112,18 @@ class ActualizarRequest extends BaseRequest
             'proveedores.*.proveedor_id' => ['required_with:proveedores', 'integer'],
             'proveedores.*.codigo_proveedor' => ['nullable', 'string', 'max:100'],
             'proveedores.*.ultimo_costo_usd' => ['nullable', 'numeric', 'min:0'],
+
+            // Seriales físicos únicos opcionales
+            'seriales' => ['nullable', 'array'],
+            'seriales.*.id' => ['nullable', 'integer'],
+            'seriales.*.numero_serial' => ['required_with:seriales', 'string', 'max:100'],
+            'seriales.*.almacen_id' => [
+                'required_with:seriales',
+                'integer',
+                Rule::exists('almacenes', 'id')->where(fn ($q) => $q->where('empresa_id', $empresaId)->where('estado', true)),
+            ],
+            'seriales.*.variante_color' => ['nullable', 'string', 'max:100'],
+            'seriales.*.estado' => ['nullable', 'string', 'in:disponible,reservado,vendido,en_mantenimiento'],
         ];
     }
 
@@ -133,6 +145,9 @@ class ActualizarRequest extends BaseRequest
             'unidad_medida.required' => 'Debe seleccionar una unidad de medida.',
             'codigos_barra.*.codigo.distinct' => 'No puedes repetir el mismo código de barra o QR dentro del mismo producto.',
             'codigos_barra.*.codigo.unique' => 'El código de barra o QR ya está asignado a otro producto en tu empresa.',
+            'seriales.*.numero_serial.required_with' => 'El número de serial es obligatorio para cada unidad física registrada.',
+            'seriales.*.almacen_id.required_with' => 'Debe asignar un almacén válido para cada serial.',
+            'seriales.*.almacen_id.exists' => 'El almacén asignado al serial no existe o está inactivo.',
         ];
     }
 }

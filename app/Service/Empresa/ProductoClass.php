@@ -9,6 +9,7 @@ use App\Models\Kardex;
 use App\Models\Producto;
 use App\Models\ProductoCodigoBarra;
 use App\Models\ProductoProveedor;
+use App\Models\ProductoSerial;
 use App\Models\ProductoStockAlmacen;
 use App\Models\Proveedor;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,7 @@ class ProductoClass
      */
     public function lista(int $empresaId)
     {
-        return Producto::with(['categoria', 'codigosBarra', 'stockAlmacenes.almacen'])
+        return Producto::with(['categoria', 'codigosBarra', 'stockAlmacenes.almacen', 'seriales.almacen'])
             ->select('productos.*')
             ->where('productos.empresa_id', $empresaId)
             ->where('productos.estado', true);
@@ -89,6 +90,7 @@ class ProductoClass
             'codigosBarra',
             'productoProveedores.proveedor',
             'stockAlmacenes.almacen',
+            'seriales.almacen',
         ])->where('empresa_id', $empresaId)->findOrFail($id);
 
         // Cargar historial de movimientos de Kardex recientes del producto
@@ -159,10 +161,13 @@ class ProductoClass
             // Sincronizar Proveedores (Opcionales)
             $this->sincronizarProveedores($producto, $datos['proveedores'] ?? []);
 
+            // Sincronizar Seriales Físicos Únicos (Opcionales)
+            $this->sincronizarSeriales($producto, $datos['seriales'] ?? [], $empresaId);
+
             // Inicializar registros de stock en todos los almacenes activos de la empresa
             $this->inicializarStockAlmacenes($producto, $empresaId);
 
-            return $producto->fresh(['categoria', 'codigosBarra', 'stockAlmacenes.almacen']);
+            return $producto->fresh(['categoria', 'codigosBarra', 'stockAlmacenes.almacen', 'seriales.almacen']);
         });
     }
 
@@ -189,10 +194,13 @@ class ProductoClass
             // Sincronizar Proveedores
             $this->sincronizarProveedores($producto, $datos['proveedores'] ?? []);
 
+            // Sincronizar Seriales Físicos Únicos
+            $this->sincronizarSeriales($producto, $datos['seriales'] ?? [], $empresaId);
+
             // Asegurar que tenga registro en todos los almacenes activos
             $this->inicializarStockAlmacenes($producto, $empresaId);
 
-            return $producto->fresh(['categoria', 'codigosBarra', 'stockAlmacenes.almacen']);
+            return $producto->fresh(['categoria', 'codigosBarra', 'stockAlmacenes.almacen', 'seriales.almacen']);
         });
     }
 
@@ -251,6 +259,73 @@ class ProductoClass
                     'ultimo_costo_usd' => $item['ultimo_costo_usd'] ?? null,
                     'ultimo_costo_bs' => $item['ultimo_costo_bs'] ?? null,
                 ]);
+            }
+        }
+    }
+
+    /**
+     * Sincronizar seriales físicos únicos
+     */
+    private function sincronizarSeriales(Producto $producto, array $seriales, int $empresaId): void
+    {
+        if (! $producto->maneja_seriales) {
+            return;
+        }
+
+        $serialesActuales = $producto->seriales()->get()->keyBy('id');
+        $procesadosIds = [];
+
+        foreach ($seriales as $item) {
+            $serialId = isset($item['id']) && is_numeric($item['id']) ? (int) $item['id'] : null;
+            $numeroSerial = isset($item['numero_serial']) ? trim((string) $item['numero_serial']) : '';
+            $almacenId = isset($item['almacen_id']) && is_numeric($item['almacen_id']) ? (int) $item['almacen_id'] : null;
+            $varianteColor = isset($item['variante_color']) ? trim((string) $item['variante_color']) : null;
+            $estado = isset($item['estado']) ? trim((string) $item['estado']) : 'disponible';
+
+            if (empty($numeroSerial) || empty($almacenId)) {
+                continue;
+            }
+
+            if ($serialId && $serialesActuales->has($serialId)) {
+                $serialExistente = $serialesActuales->get($serialId);
+                $serialExistente->update([
+                    'numero_serial' => $numeroSerial,
+                    'variante_color' => $varianteColor,
+                    'almacen_id' => $almacenId,
+                ]);
+                $procesadosIds[] = $serialId;
+            } else {
+                $nuevoSerial = ProductoSerial::create([
+                    'empresa_id' => $empresaId,
+                    'producto_id' => $producto->id,
+                    'almacen_id' => $almacenId,
+                    'numero_serial' => $numeroSerial,
+                    'variante_color' => $varianteColor,
+                    'estado' => $estado ?: 'disponible',
+                ]);
+                $procesadosIds[] = $nuevoSerial->id;
+
+                if (($estado ?: 'disponible') === 'disponible') {
+                    $stockAlmacen = ProductoStockAlmacen::firstOrCreate(
+                        ['producto_id' => $producto->id, 'almacen_id' => $almacenId],
+                        ['cantidad_actual' => 0, 'cantidad_reservada' => 0]
+                    );
+                    $stockAlmacen->increment('cantidad_actual', 1);
+                }
+            }
+        }
+
+        foreach ($serialesActuales as $id => $serial) {
+            if (! in_array($id, $procesadosIds) && $serial->estado === 'disponible') {
+                $almacenId = $serial->almacen_id;
+                $serial->delete();
+
+                $stockAlmacen = ProductoStockAlmacen::where('producto_id', $producto->id)
+                    ->where('almacen_id', $almacenId)
+                    ->first();
+                if ($stockAlmacen && $stockAlmacen->cantidad_actual > 0) {
+                    $stockAlmacen->decrement('cantidad_actual', 1);
+                }
             }
         }
     }

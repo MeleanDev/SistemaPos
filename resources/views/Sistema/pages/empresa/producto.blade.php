@@ -205,14 +205,14 @@
                         <!-- CONTROL DE SERIALES ÚNICOS (ELECTRODOMÉSTICOS, AIRES, NEVERAS, FREEZERS) -->
                         <div class="col-12">
                             <div class="card border rounded-4 p-3.5 bg-white shadow-xs" style="border-left: 5px solid #10b981 !important;">
-                                <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
                                     <div class="d-flex align-items-center gap-2">
                                         <div class="avatar-executive-xs rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
                                             <i class="fas fa-barcode"></i>
                                         </div>
                                         <div>
                                             <h6 class="fw-bold text-dark mb-0">Control Estricto por Serial Único (Neveras, Aires, Freezers, Equipos)</h6>
-                                            <small class="text-muted">Al activar, cada unidad física que ingrese por compras tendrá su propio número de serial único para seguimiento de garantías y ventas.</small>
+                                            <small class="text-muted">Al activar, cada unidad física tendrá su propio número de serial único para seguimiento de garantías, inventario y ventas.</small>
                                         </div>
                                     </div>
                                     <x-checkbox
@@ -220,10 +220,60 @@
                                         id="maneja_seriales"
                                         name="maneja_seriales"
                                         value="1"
+                                        onchange="toggleSerialesProducto()"
                                         label="Habilitar Seriales"
                                         labelClass="fw-bold text-dark small"
                                         style="cursor: pointer; width: 2.5em; height: 1.3em;"
                                     />
+                                </div>
+
+                                <!-- SECCIÓN DINÁMICA DE SERIALES REGISTRADOS -->
+                                <div id="seccionListaSerialesProducto" class="mt-3 pt-3 border-top" style="display: none;">
+                                    <!-- TOOLBAR SUPERIOR: CONTADORES, BUSCADOR Y BOTÓN AÑADIR -->
+                                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 bg-white p-2.5 rounded-3 border shadow-xs">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2.5 py-1 font-monospace fw-bold" style="font-size: 0.78rem;">
+                                                <i class="fas fa-barcode me-1"></i> <span id="contadorSerialesTotal">0</span> Seriales
+                                            </span>
+                                            <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 font-monospace fw-bold" style="font-size: 0.78rem;">
+                                                <i class="fas fa-check me-1"></i> <span id="contadorSerialesDisponibles">0</span> Disponibles
+                                            </span>
+                                            <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary border px-2.5 py-1 font-monospace fw-bold" style="font-size: 0.78rem;">
+                                                <i class="fas fa-receipt me-1"></i> <span id="contadorSerialesVendidos">0</span> Vendidos
+                                            </span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="input-group input-group-sm" style="width: 220px;">
+                                                <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-search"></i></span>
+                                                <input type="text" id="buscarSerialEnModal" class="form-control form-control-sm border-start-0 font-monospace" placeholder="Buscar serial..." oninput="filtrarSerialesEnModal()">
+                                            </div>
+                                            <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 fw-bold shadow-xs" onclick="agregarFilaSerial()">
+                                                <i class="fas fa-plus me-1"></i> Añadir Serial
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- TABLA DINÁMICA DE SERIALES REGISTRADOS -->
+                                    <div class="table-responsive rounded-3 border shadow-xs bg-white" style="max-height: 320px; overflow-y: auto;">
+                                        <table class="table table-sm table-hover align-middle mb-0" id="tablaSerialesProducto">
+                                            <thead class="table-light sticky-top" style="z-index: 2;">
+                                                <tr class="text-uppercase small text-muted" style="font-size: 0.72rem; letter-spacing: 0.04em;">
+                                                    <th class="ps-3 py-2" style="width: 5%;">#</th>
+                                                    <th class="py-2" style="width: 32%;">Número de Serial Único</th>
+                                                    <th class="py-2" style="width: 25%;">Variante / Color</th>
+                                                    <th class="py-2" style="width: 23%;">Almacén Asignado</th>
+                                                    <th class="py-2 text-center" style="width: 10%;">Estado</th>
+                                                    <th class="py-2 text-center pe-3" style="width: 5%;">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="contenedorFilasSeriales">
+                                                <!-- Inyectado dinámicamente -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div id="placeholderSinSeriales" class="text-center py-3 text-muted fst-italic small" style="display: none;">
+                                        <i class="fas fa-info-circle me-1"></i> No hay seriales registrados en este producto. Puede añadir seriales manualmente con el botón "+ Añadir Serial" o ingresar stock por recepciones de mercancía.
+                                    </div>
                                 </div>
                             </div>
                         </div>
