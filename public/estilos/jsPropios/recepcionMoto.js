@@ -659,13 +659,16 @@ const calcularMargenDetalProducto = function () {
         moneda: monedaSeleccionada,
     });
     if (res.precioUsd > 0 || res.precioBs > 0) {
-        $("#prod_margen_detal").val(res.margen.toFixed(0));
+        $("#prod_margen_detal").val(res.margen.toFixed(2));
         $("#prod_detal_con_iva_badge").text(
             `$ ${res.precioConIvaUsd.toFixed(2)} | Bs. ${res.precioConIvaBs.toFixed(2)}`,
         );
         $("#prod_detal_sin_iva").text(
             `$ ${res.precioUsd.toFixed(2)} | Bs. ${res.precioBs.toFixed(2)}`,
         );
+    } else {
+        $("#prod_detal_con_iva_badge").text("$ 0.00 | Bs. 0.00");
+        $("#prod_detal_sin_iva").text("$ 0.00 | Bs. 0.00");
     }
 };
 
@@ -686,13 +689,16 @@ const calcularMargenMayoristaProducto = function () {
         moneda: monedaSeleccionada,
     });
     if (res.precioUsd > 0 || res.precioBs > 0) {
-        $("#prod_margen_mayorista").val(res.margen.toFixed(0));
+        $("#prod_margen_mayorista").val(res.margen.toFixed(2));
         $("#prod_mayorista_con_iva_badge").text(
             `$ ${res.precioConIvaUsd.toFixed(2)} | Bs. ${res.precioConIvaBs.toFixed(2)}`,
         );
         $("#prod_mayorista_sin_iva").text(
             `$ ${res.precioUsd.toFixed(2)} | Bs. ${res.precioUsd > 0 ? (res.precioUsd * tasaVentaActual).toFixed(2) : "0.00"}`,
         );
+    } else {
+        $("#prod_mayorista_con_iva_badge").text("$ 0.00 | Bs. 0.00");
+        $("#prod_mayorista_sin_iva").text("$ 0.00 | Bs. 0.00");
     }
 };
 
@@ -1193,13 +1199,16 @@ const calcularMargenDetalLote = function () {
     });
 
     if (res.precioUsd > 0 || res.precioBs > 0) {
-        $("#lote_margen_detal").val(res.margen.toFixed(0));
+        $("#lote_margen_detal").val(res.margen.toFixed(2));
         $("#lote_detal_con_iva_badge").text(
             `$ ${res.precioConIvaUsd.toFixed(2)} | Bs. ${res.precioConIvaBs.toFixed(2)}`,
         );
         $("#lote_detal_sin_iva").text(
             `$ ${res.precioUsd.toFixed(2)} | Bs. ${res.precioBs.toFixed(2)}`,
         );
+    } else {
+        $("#lote_detal_con_iva_badge").text("$ 0.00 | Bs. 0.00");
+        $("#lote_detal_sin_iva").text("$ 0.00 | Bs. 0.00");
     }
 };
 
@@ -1221,13 +1230,16 @@ const calcularMargenMayoristaLote = function () {
     });
 
     if (res.precioUsd > 0 || res.precioBs > 0) {
-        $("#lote_margen_mayorista").val(res.margen.toFixed(0));
+        $("#lote_margen_mayorista").val(res.margen.toFixed(2));
         $("#lote_mayorista_con_iva_badge").text(
             `$ ${res.precioConIvaUsd.toFixed(2)} | Bs. ${res.precioConIvaBs.toFixed(2)}`,
         );
         $("#lote_mayorista_sin_iva").text(
             `$ ${res.precioUsd.toFixed(2)} | Bs. ${res.precioUsd > 0 ? (res.precioUsd * tasaVentaActual).toFixed(2) : "0.00"}`,
         );
+    } else {
+        $("#lote_mayorista_con_iva_badge").text("$ 0.00 | Bs. 0.00");
+        $("#lote_mayorista_sin_iva").text("$ 0.00 | Bs. 0.00");
     }
 };
 
@@ -1798,55 +1810,55 @@ const renderizarLotesAgregados = function () {
 
     lotesAgregados.forEach((lote, idx) => {
         totalUnidades += lote.cantidad;
-        const costoUsd = lote.costo_unitario_usd.toLocaleString("en-US", {
+        const costoUsd = (parseFloat(lote.costo_unitario_usd) || 0).toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         });
-        const fleteUsd = (lote.flete_unitario_usd || 0).toLocaleString(
+        const fleteUsd = (parseFloat(lote.flete_unitario_usd) || 0).toLocaleString(
             "en-US",
             { minimumFractionDigits: 2, maximumFractionDigits: 2 },
         );
         const costoTotalUsd = (
-            lote.costo_total_unitario_usd || lote.costo_unitario_usd
+            parseFloat(lote.costo_total_unitario_usd) || parseFloat(lote.costo_unitario_usd) || 0
         ).toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         });
-        const subtotalUsd = lote.subtotal_usd.toLocaleString("en-US", {
+        const subtotalUsd = (parseFloat(lote.subtotal_usd) || 0).toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         });
 
-        const detalSinIva = lote.precio_detal_usd.toLocaleString("en-US", {
+        const detalSinIva = (parseFloat(lote.precio_detal_usd) || 0).toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         });
         const detalConIvaUsd = (
-            lote.precio_detal_con_iva_usd || lote.precio_detal_usd
+            parseFloat(lote.precio_detal_con_iva_usd) || parseFloat(lote.precio_detal_usd) || 0
         ).toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         });
         const detalConIvaBs = (
-            (lote.precio_detal_con_iva_usd || lote.precio_detal_usd) *
+            (parseFloat(lote.precio_detal_con_iva_usd) || parseFloat(lote.precio_detal_usd) || 0) *
             tasaVentaActual
         ).toLocaleString("es-VE", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         });
 
-        const mayorSinIva = lote.precio_mayorista_usd.toLocaleString("en-US", {
+        const mayorSinIva = (parseFloat(lote.precio_mayorista_usd) || 0).toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         });
         const mayorConIvaUsd = (
-            lote.precio_mayorista_con_iva_usd || lote.precio_mayorista_usd
+            parseFloat(lote.precio_mayorista_con_iva_usd) || parseFloat(lote.precio_mayorista_usd) || 0
         ).toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         });
         const mayorConIvaBs = (
-            (lote.precio_mayorista_con_iva_usd || lote.precio_mayorista_usd) *
+            (parseFloat(lote.precio_mayorista_con_iva_usd) || parseFloat(lote.precio_mayorista_usd) || 0) *
             tasaVentaActual
         ).toLocaleString("es-VE", {
             minimumFractionDigits: 2,

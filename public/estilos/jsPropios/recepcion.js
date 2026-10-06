@@ -970,8 +970,8 @@ function seleccionarProductoParaCarga(prod, datosPrecargados = null) {
     const ivaDefault = datosPrecargados ? datosPrecargados.iva_porcentaje : (prod.aplica_iva ? (parseFloat(prod.iva_porcentaje) || 16) : 0);
     $("#form_renglon_iva").val(ivaDefault);
 
-    $("#form_renglon_margen_detal").val(margenDetalSugerido.toFixed(0));
-    $("#form_renglon_margen_mayorista").val(margenMayoristaSugerido.toFixed(0));
+    $("#form_renglon_margen_detal").val(margenDetalSugerido.toFixed(2));
+    $("#form_renglon_margen_mayorista").val(margenMayoristaSugerido.toFixed(2));
 
     actualizarStockAlmacenFormulario();
     calcularCantidadDesdeBultos();
@@ -1106,9 +1106,12 @@ function calcularMargenDetalDesdePrecio() {
     });
 
     if (res.precioConIvaUsd > 0 || res.precioConIvaBs > 0) {
-        $("#form_renglon_margen_detal").val(res.margen.toFixed(0));
+        $("#form_renglon_margen_detal").val(res.margen.toFixed(2));
         $("#form_renglon_detal_con_iva_badge").text(`$ ${formatearMonto(res.precioConIvaUsd, 2)} | Bs. ${formatearMonto(res.precioConIvaBs, 2)}`);
         $("#form_renglon_detal_sin_iva").text(`$ ${formatearMonto(res.precioUsd, 2)} | Bs. ${formatearMonto(res.precioBs, 2)}`);
+    } else {
+        $("#form_renglon_detal_con_iva_badge").text("$ 0,00 | Bs. 0,00");
+        $("#form_renglon_detal_sin_iva").text("$ 0,00 | Bs. 0,00");
     }
     recalcularFormularioRenglon();
 }
@@ -1156,9 +1159,12 @@ function calcularMargenMayoristaDesdePrecio() {
     });
 
     if (res.precioConIvaUsd > 0 || res.precioConIvaBs > 0) {
-        $("#form_renglon_margen_mayorista").val(res.margen.toFixed(0));
+        $("#form_renglon_margen_mayorista").val(res.margen.toFixed(2));
         $("#form_renglon_mayorista_con_iva_badge").text(`$ ${formatearMonto(res.precioConIvaUsd, 2)} | Bs. ${formatearMonto(res.precioConIvaBs, 2)}`);
         $("#form_renglon_mayorista_sin_iva").text(`$ ${formatearMonto(res.precioUsd, 2)} | Bs. ${formatearMonto(res.precioBs, 2)}`);
+    } else {
+        $("#form_renglon_mayorista_con_iva_badge").text("$ 0,00 | Bs. 0,00");
+        $("#form_renglon_mayorista_sin_iva").text("$ 0,00 | Bs. 0,00");
     }
     recalcularFormularioRenglon();
 }
@@ -1308,8 +1314,8 @@ function agregarOActualizarRenglon() {
 
     const descPorc = normalizarNumero($("#form_renglon_descuento").val());
     const ivaPorc = normalizarNumero($("#form_renglon_iva").val());
-    const margenDetal = normalizarNumero($("#form_renglon_margen_detal").val()) || 30;
-    const margenMayor = normalizarNumero($("#form_renglon_margen_mayorista").val()) || 15;
+    let margenDetal = normalizarNumero($("#form_renglon_margen_detal").val()) || 30;
+    let margenMayor = normalizarNumero($("#form_renglon_margen_mayorista").val()) || 15;
 
     const resPrecios = window.CalculosCompra.calcularPreciosDesdeMargen({
         costo: costoInput,
@@ -1347,6 +1353,7 @@ function agregarOActualizarRenglon() {
         precioDetalConIvaBs = resDetal.precioConIvaBs;
         precioDetalUsd = resDetal.precioUsd;
         precioDetalBs = resDetal.precioBs;
+        margenDetal = parseFloat(resDetal.margen.toFixed(2));
     }
 
     let precioMayorUsd = resPrecios.precioMayoristaUsd;
@@ -1370,6 +1377,7 @@ function agregarOActualizarRenglon() {
         precioMayoristaConIvaBs = resMayor.precioConIvaBs;
         precioMayorUsd = resMayor.precioUsd;
         precioMayorBs = resMayor.precioBs;
+        margenMayor = parseFloat(resMayor.margen.toFixed(2));
     }
 
     const subtotalBrutoUsd = cantidad * costoUsd;
@@ -1551,13 +1559,13 @@ function renderizarTablaDetalles() {
         const costPrincipal = !esVes ? `$ ${formatearMonto(item.costo_unitario_usd, 4)}` : `Bs. ${formatearMonto(item.costo_unitario_bs, 4)}`;
         const costSecundario = !esVes ? `Bs. ${formatearMonto(item.costo_unitario_bs, 4)}` : `$ ${formatearMonto(item.costo_unitario_usd, 4)}`;
 
-        const detalSinIva = item.precio_detal_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const detalConIvaUsd = (item.precio_detal_con_iva_usd || item.precio_detal_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const detalConIvaBs = ((item.precio_detal_con_iva_usd || item.precio_detal_usd) * tasaVentaActual).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const detalSinIva = (parseFloat(item.precio_detal_usd) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const detalConIvaUsd = (parseFloat(item.precio_detal_con_iva_usd) || parseFloat(item.precio_detal_usd) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const detalConIvaBs = ((parseFloat(item.precio_detal_con_iva_usd) || parseFloat(item.precio_detal_usd) || 0) * tasaVentaActual).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-        const mayorSinIva = item.precio_mayorista_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const mayorConIvaUsd = (item.precio_mayorista_con_iva_usd || item.precio_mayorista_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const mayorConIvaBs = ((item.precio_mayorista_con_iva_usd || item.precio_mayorista_usd) * tasaVentaActual).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const mayorSinIva = (parseFloat(item.precio_mayorista_usd) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const mayorConIvaUsd = (parseFloat(item.precio_mayorista_con_iva_usd) || parseFloat(item.precio_mayorista_usd) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const mayorConIvaBs = ((parseFloat(item.precio_mayorista_con_iva_usd) || parseFloat(item.precio_mayorista_usd) || 0) * tasaVentaActual).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         const subtotalPrincipal = !esVes ? `$ ${formatearMonto(item.subtotal_usd, 2)}` : `Bs. ${formatearMonto(item.subtotal_bs, 2)}`;
         const subtotalSecundario = !esVes ? `Bs. ${formatearMonto(item.subtotal_bs, 2)}` : `$ ${formatearMonto(item.subtotal_usd, 2)}`;
