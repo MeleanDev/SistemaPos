@@ -35,12 +35,116 @@
                 <div class="col-12 col-lg-4 text-start text-lg-end">
                     <div class="d-inline-flex flex-column align-items-start align-items-lg-end bg-white bg-opacity-10 p-3 rounded-4">
                         <span class="text-white-50 small fw-semibold text-uppercase">Informes Disponibles</span>
-                        <span class="fs-5 fw-bold text-white"><i class="fas fa-file-invoice text-success me-2"></i>5 Módulos de Auditoría</span>
+                        <span class="fs-5 fw-bold text-white"><i class="fas fa-file-invoice text-success me-2"></i>6 Módulos de Auditoría</span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <style>
+        /* Modern Select2 Multi-Select Styles */
+        .select2-modern-wrapper .select2-container {
+            width: 100% !important;
+            display: block !important;
+        }
+        .select2-modern-wrapper .select2-container .select2-selection--multiple {
+            min-height: 48px !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 12px !important;
+            padding: 4px 10px !important;
+            background-color: #f8fafc !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            align-items: center !important;
+            gap: 4px !important;
+            cursor: pointer !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        .select2-modern-wrapper .select2-container--focus .select2-selection--multiple,
+        .select2-modern-wrapper .select2-container--open .select2-selection--multiple {
+            border-color: #4f46e5 !important;
+            background-color: #ffffff !important;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+        }
+        .select2-modern-wrapper .select2-selection__rendered {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            align-items: center !important;
+            gap: 5px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            list-style: none !important;
+        }
+        .select2-modern-wrapper .select2-selection__choice {
+            background: #eef2ff !important;
+            border: 1px solid #c7d2fe !important;
+            color: #3730a3 !important;
+            border-radius: 20px !important;
+            padding: 3px 10px 3px 10px !important;
+            font-size: 0.76rem !important;
+            font-weight: 600 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            margin: 2px 0 !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        }
+        .select2-modern-wrapper .select2-selection__choice__remove {
+            color: #6366f1 !important;
+            border: none !important;
+            background: transparent !important;
+            font-size: 0.95rem !important;
+            font-weight: bold !important;
+            cursor: pointer !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            line-height: 1 !important;
+            order: 2 !important;
+        }
+        .select2-modern-wrapper .select2-selection__choice__remove:hover {
+            color: #ef4444 !important;
+        }
+        .select2-modern-wrapper .select2-search--inline {
+            flex-grow: 1 !important;
+            margin: 2px 0 !important;
+        }
+        .select2-modern-wrapper .select2-search__field {
+            margin-top: 0 !important;
+            height: 30px !important;
+            font-size: 0.84rem !important;
+            color: #1e293b !important;
+            border: none !important;
+            background: transparent !important;
+            outline: none !important;
+        }
+        .select2-modern-wrapper .select2-search__field::placeholder {
+            color: #94a3b8 !important;
+            font-size: 0.82rem !important;
+        }
+        .select2-dropdown {
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 12px !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+            overflow: hidden !important;
+            z-index: 1060 !important;
+        }
+        .select2-results__option {
+            padding: 8px 14px !important;
+            font-size: 0.84rem !important;
+            color: #1e293b !important;
+        }
+        .select2-results__option--highlighted[aria-selected] {
+            background-color: #4f46e5 !important;
+            color: #ffffff !important;
+        }
+        .select2-results__option[aria-selected="true"] {
+            background-color: #f1f5f9 !important;
+            color: #64748b !important;
+            font-weight: 600 !important;
+        }
+    </style>
 
     <!-- GRILLA DE REPORTES EJECUTIVOS RESPONSIVE -->
     <div class="row g-4">
@@ -353,6 +457,94 @@
                     <x-button variant="outline-dark" icon="fas fa-file-pdf" iconColor="text-danger" text="Ver PDF" onclick="generarReporte('vendedores', 'pdf_ver')" class="flex-fill" />
                     <x-button variant="outline-danger" icon="fas fa-download" text="Descargar PDF" onclick="generarReporte('vendedores', 'pdf_descargar')" class="flex-fill" />
                     <x-button variant="outline-success" icon="fas fa-file-excel" text="Excel" onclick="generarReporte('vendedores', 'excel')" class="flex-fill" />
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. REPORTE DE EXISTENCIAS POR ALMACÉN (MATRIZ MULTIALMACÉN) -->
+        <div class="col-12 col-xl-6">
+            <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
+                <div class="p-4 border-bottom bg-white">
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <div class="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                            <i class="fas fa-warehouse fs-5"></i>
+                        </div>
+                        <div>
+                            <span class="badge bg-primary bg-opacity-10 text-primary fw-semibold rounded-pill px-2.5 py-1 small">Multialmacén & Stock</span>
+                            <h5 class="fw-bold text-dark mb-0 mt-1">Existencias por Almacén</h5>
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-0">
+                        Matriz de existencias físicas desglosadas por cada almacén con filtro de productos específicos y categorías múltiples.
+                    </p>
+                </div>
+
+                <div class="p-4 bg-white flex-grow-1">
+                    <div class="row g-3">
+                        <!-- BUSCADOR / SELECTOR MÚLTIPLE DE PRODUCTOS -->
+                        <div class="col-12">
+                            <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                <label for="stock_producto_ids" class="form-label small fw-bold text-uppercase text-muted mb-0">
+                                    <i class="fas fa-box text-primary me-1"></i> Filtrar Productos Seleccionados
+                                </label>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge rounded-pill bg-light text-muted border px-2 py-0.5" id="badgeContadorProductos" style="font-size: 0.72rem;">Todos</span>
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-danger fw-semibold" style="font-size: 0.72rem;" onclick="limpiarSelectorModerno('#stock_producto_ids')">
+                                        <i class="fas fa-times-circle me-0.5"></i>Limpiar
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="select2-modern-wrapper">
+                                <select name="stock_producto_ids[]" id="stock_producto_ids" class="select2-modern-multiselect" multiple="multiple" style="width: 100%;">
+                                    @foreach($productos as $prod)
+                                        <option value="{{ $prod->id }}">{{ $prod->codigo_interno }} — {{ $prod->nombre }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <small class="text-muted d-block mt-1" style="font-size: 0.73rem;">
+                                <i class="fas fa-info-circle me-1 text-primary"></i>Deje vacío para consultar todo el inventario, o busque y seleccione varios artículos.
+                            </small>
+                        </div>
+
+                        <!-- BUSCADOR / SELECTOR MÚLTIPLE DE CATEGORÍAS -->
+                        <div class="col-12 col-md-7">
+                            <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                <label for="stock_categoria_ids" class="form-label small fw-bold text-uppercase text-muted mb-0">
+                                    <i class="fas fa-tags text-primary me-1"></i> Categorías
+                                </label>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge rounded-pill bg-light text-muted border px-2 py-0.5" id="badgeContadorCategorias" style="font-size: 0.72rem;">Todas</span>
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-danger fw-semibold" style="font-size: 0.72rem;" onclick="limpiarSelectorModerno('#stock_categoria_ids')">
+                                        <i class="fas fa-times-circle me-0.5"></i>Limpiar
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="select2-modern-wrapper">
+                                <select name="stock_categoria_ids[]" id="stock_categoria_ids" class="select2-modern-multiselect" multiple="multiple" style="width: 100%;">
+                                    @foreach($categorias as $cat)
+                                        <option value="{{ $cat->id }}">{{ $cat->nombre }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- TOGGLE SOLO CON STOCK -->
+                        <div class="col-12 col-md-5 d-flex align-items-center">
+                            <div class="form-check form-switch p-2.5 rounded-3 bg-light border w-100 mt-md-4">
+                                <input class="form-check-input ms-0 me-2" type="checkbox" id="stock_solo_con_stock" value="1" style="cursor: pointer;">
+                                <label class="form-check-label small fw-semibold text-dark" for="stock_solo_con_stock" style="cursor: pointer;">
+                                    Solo con existencia (> 0)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-white border-top d-flex flex-column flex-sm-row flex-wrap gap-2 align-items-stretch align-items-sm-center">
+                    <x-button variant="primary" icon="fas fa-eye" text="Vista Previa" onclick="generarReporte('stock_almacenes', 'previa')" class="flex-fill" />
+                    <x-button variant="outline-dark" icon="fas fa-file-pdf" iconColor="text-danger" text="Ver PDF" onclick="generarReporte('stock_almacenes', 'pdf_ver')" class="flex-fill" />
+                    <x-button variant="outline-danger" icon="fas fa-download" text="Descargar PDF" onclick="generarReporte('stock_almacenes', 'pdf_descargar')" class="flex-fill" />
+                    <x-button variant="outline-success" icon="fas fa-file-excel" text="Excel" onclick="generarReporte('stock_almacenes', 'excel')" class="flex-fill" />
                 </div>
             </div>
         </div>

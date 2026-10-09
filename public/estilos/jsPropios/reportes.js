@@ -52,6 +52,17 @@ function generarReporte(modulo, accion) {
             fecha_fin: $('#vend_fecha_fin').val() || '',
             vendedor_id: $('#vend_vendedor_id').val() || ''
         };
+    } else if (modulo === 'stock_almacenes') {
+        urlPdf = '/reportes/stock-almacenes/pdf';
+        urlExcel = '/reportes/stock-almacenes/excel';
+        urlJson = '/reportes/stock-almacenes';
+        const selectedProducts = $('#stock_producto_ids').val() || [];
+        const selectedCategories = $('#stock_categoria_ids').val() || [];
+        params = {
+            categoria_ids: Array.isArray(selectedCategories) ? selectedCategories.join(',') : (selectedCategories || ''),
+            producto_ids: Array.isArray(selectedProducts) ? selectedProducts.join(',') : (selectedProducts || ''),
+            solo_con_stock: $('#stock_solo_con_stock').is(':checked') ? 1 : 0
+        };
     }
 
     const queryString = new URLSearchParams(params).toString();
@@ -616,6 +627,141 @@ function renderizarVistaPrevia(modulo, data) {
         }
         htmlTabla += '</tbody></table>';
         tablaEl.html(htmlTabla);
+    } else if (modulo === 'stock_almacenes') {
+        tituloModalEl.text('Informe de Existencias por Almacén');
+        badgeModuloEl.text('MULTIALMACÉN & STOCK');
+        periodoEl.text(`Corte al ${new Date().toLocaleDateString('es-VE')}`);
+        tituloTablaEl.html('<i class="fas fa-warehouse text-primary me-2"></i>Matriz de Stock Físico por Almacén');
+        conteoEl.text(`${data.items?.length || 0} productos`);
+
+        kpisEl.html(`
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted fw-bold small text-uppercase" style="letter-spacing: 0.5px; font-size: 0.72rem;">Productos</span>
+                        <div class="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <i class="fas fa-boxes-stacked fs-6"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold text-primary mb-0 font-monospace">${formatearNumero(data.kpis?.total_productos, 0)}</h3>
+                    <div class="text-muted mt-1" style="font-size: 0.78rem;">Artículos consultados</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted fw-bold small text-uppercase" style="letter-spacing: 0.5px; font-size: 0.72rem;">Existencia Total</span>
+                        <div class="rounded-3 bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <i class="fas fa-cubes fs-6"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold text-success mb-0 font-monospace">${formatearNumero(data.kpis?.total_unidades)}</h3>
+                    <div class="text-muted mt-1" style="font-size: 0.78rem;">Unidades físicas</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted fw-bold small text-uppercase" style="letter-spacing: 0.5px; font-size: 0.72rem;">Almacenes</span>
+                        <div class="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <i class="fas fa-warehouse fs-6"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold text-dark mb-0 font-monospace">${formatearNumero(data.kpis?.total_almacenes, 0)}</h3>
+                    <div class="text-muted mt-1" style="font-size: 0.78rem;">Ubicaciones activas</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted fw-bold small text-uppercase" style="letter-spacing: 0.5px; font-size: 0.72rem;">Sin Existencia</span>
+                        <div class="rounded-3 bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <i class="fas fa-circle-exclamation fs-6"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold text-danger mb-0 font-monospace">${formatearNumero(data.kpis?.productos_sin_stock, 0)}</h3>
+                    <div class="text-muted mt-1" style="font-size: 0.78rem;">Productos en 0</div>
+                </div>
+            </div>
+        `);
+
+        let htmlTabla = `
+            <table class="table table-hover align-middle mb-0 font-monospace small">
+                <thead style="background-color: #0f172a;">
+                    <tr>
+                        <th class="ps-3 py-2.5 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Código</th>
+                        <th class="py-2.5 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Producto</th>
+                        <th class="py-2.5 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Categoría</th>
+                        <th class="text-center py-2.5 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">U.M.</th>
+        `;
+
+        if (data.almacenes && data.almacenes.length > 0) {
+            data.almacenes.forEach(function (alm) {
+                htmlTabla += `<th class="text-end py-2.5 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">${alm.nombre}</th>`;
+            });
+        }
+
+        htmlTabla += `
+                        <th class="text-end pe-3 py-2.5 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Stock Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        if (data.items && data.items.length > 0) {
+            data.items.forEach(function (item) {
+                const stockTotalClass = item.stock_total > 0 ? 'text-success' : 'text-danger';
+                htmlTabla += `
+                    <tr class="border-bottom">
+                        <td class="ps-3 py-2.5 fw-bold text-dark">${item.codigo_interno}</td>
+                        <td class="py-2.5"><strong class="text-dark">${item.nombre}</strong></td>
+                        <td class="py-2.5 text-muted">${item.categoria}</td>
+                        <td class="text-center py-2.5"><span class="badge bg-white text-dark border">${item.unidad_medida}</span></td>
+                `;
+
+                if (data.almacenes && data.almacenes.length > 0) {
+                    data.almacenes.forEach(function (alm) {
+                        const stockVal = (item.stocks_por_almacen && item.stocks_por_almacen[alm.id] !== undefined) ? item.stocks_por_almacen[alm.id] : 0;
+                        const stockTextClass = stockVal > 0 ? 'fw-bold text-dark' : 'text-muted';
+                        htmlTabla += `<td class="text-end py-2.5 ${stockTextClass}">${formatearNumero(stockVal)}</td>`;
+                    });
+                }
+
+                htmlTabla += `
+                        <td class="text-end pe-3 py-2.5 fw-bold ${stockTotalClass}">${formatearNumero(item.stock_total)}</td>
+                    </tr>
+                `;
+            });
+
+            htmlTabla += `
+                <tr class="fw-bold" style="background-color: #f1f5f9;">
+                    <td colspan="4" class="ps-3 py-2.5 text-uppercase text-dark">TOTALES CONSOLIDADOS:</td>
+            `;
+
+            if (data.almacenes && data.almacenes.length > 0) {
+                data.almacenes.forEach(function (alm) {
+                    const totalAlm = (data.totales_por_almacen && data.totales_por_almacen[alm.id] !== undefined) ? data.totales_por_almacen[alm.id] : 0;
+                    htmlTabla += `<td class="text-end py-2.5 text-dark">${formatearNumero(totalAlm)}</td>`;
+                });
+            }
+
+            htmlTabla += `
+                    <td class="text-end pe-3 py-2.5 text-success">${formatearNumero(data.kpis?.total_unidades)}</td>
+                </tr>
+            `;
+        } else {
+            const colspan = 5 + (data.almacenes ? data.almacenes.length : 0);
+            htmlTabla += `
+                <tr>
+                    <td colspan="${colspan}" class="text-center py-4 text-muted">
+                        <i class="fas fa-boxes-stacked fs-3 mb-2 d-block opacity-50"></i>
+                        No hay existencias que coincidan con los filtros seleccionados
+                    </td>
+                </tr>
+            `;
+        }
+        htmlTabla += '</tbody></table>';
+        tablaEl.html(htmlTabla);
     }
 }
 
@@ -626,3 +772,36 @@ function formatearNumero(val, dec = 2) {
         maximumFractionDigits: dec
     });
 }
+
+function limpiarSelectorModerno(selector) {
+    const el = $(selector);
+    if (el.length) {
+        el.val(null).trigger('change');
+    }
+}
+
+$(document).ready(function () {
+    if ($.fn.select2) {
+        $('#stock_producto_ids').select2({
+            placeholder: 'Buscar productos por código o nombre...',
+            allowClear: false,
+            width: '100%'
+        }).on('change', function () {
+            const val = $(this).val();
+            const count = Array.isArray(val) ? val.length : 0;
+            $('#badgeContadorProductos').text(count > 0 ? `${count} seleccionados` : 'Todos');
+        });
+
+        $('#stock_categoria_ids').select2({
+            placeholder: 'Todas las categorías...',
+            allowClear: false,
+            width: '100%'
+        }).on('change', function () {
+            const val = $(this).val();
+            const count = Array.isArray(val) ? val.length : 0;
+            $('#badgeContadorCategorias').text(count > 0 ? `${count} seleccionadas` : 'Todas');
+        });
+    }
+});
+
+

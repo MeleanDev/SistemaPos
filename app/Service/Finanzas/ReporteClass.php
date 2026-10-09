@@ -56,12 +56,19 @@ class ReporteClass
                 ->get(['id', 'nombre', 'tipo_documento', 'documento', 'comision_porcentaje']);
         }
 
+        $productos = Producto::where('empresa_id', $empresaId)
+            ->where('estado', true)
+            ->where('tipo', '!=', 'servicio')
+            ->orderBy('nombre')
+            ->get(['id', 'codigo_interno', 'nombre']);
+
         return [
             'cajas' => $cajas,
             'almacenes' => $almacenes,
             'categorias' => $categorias,
             'metodos_pago' => $metodosPago,
             'vendedores' => $vendedores,
+            'productos' => $productos,
             'maneja_vendedores' => (bool) $empresa->maneja_vendedores,
             'tasa_usd' => (float) ($empresa->tasa_usd > 0 ? $empresa->tasa_usd : 1),
             'empresa_nombre' => $empresa->nombre_comercial,
@@ -395,7 +402,7 @@ class ReporteClass
         $stocks = $query->get();
 
         $totalItems = $stocks->pluck('producto_id')->unique()->count();
-        $totalUnidadesFisicas = round((float) $stocks->sum('stock_actual'), 2);
+        $totalUnidadesFisicas = round((float) $stocks->sum('cantidad_actual'), 2);
         $conteoStockBajo = 0;
 
         $valorTotalCostoUsd = 0;
@@ -406,8 +413,8 @@ class ReporteClass
         foreach ($stocks as $item) {
             /** @var Producto $prod */
             $prod = $item->producto;
-            $stockActual = (float) $item->stock_actual;
-            $stockMinimo = (float) ($item->stock_minimo > 0 ? $item->stock_minimo : $prod->stock_minimo);
+            $stockActual = (float) $item->cantidad_actual;
+            $stockMinimo = (float) ($prod->stock_minimo ?? 0);
             $costoUnitarioUsd = (float) ($prod->precio_costo_usd ?? 0);
             $precioVentaUsd = (float) ($prod->precio_detal_usd ?? 0);
 
@@ -433,7 +440,7 @@ class ReporteClass
                 'nombre' => $prod->nombre,
                 'categoria' => $prod->categoria?->nombre ?: 'Sin Categoría',
                 'almacen' => $item->almacen?->nombre ?: 'Almacén Central',
-                'ubicacion' => $item->ubicacion ?: ($item->almacen?->nombre ?: 'Piso'),
+                'ubicacion' => $item->ubicacion_pasillo ?: ($item->almacen?->nombre ?: 'Piso'),
                 'stock_actual' => $stockActual,
                 'stock_minimo' => $stockMinimo,
                 'es_bajo_stock' => $esBajoStock,
@@ -571,6 +578,107 @@ class ReporteClass
                 'periodo_texto' => "Del {$fechaInicio->format('d/m/Y')} al {$fechaFin->format('d/m/Y')}",
             ],
             'top_productos' => $topProductos,
+        ];
+    }
+
+    /**
+     * Reporte 6: Existencias y Stock por Almacén (Matriz Multialmacén)
+     */
+    public function reporteStockAlmacenes(int $empresaId, array $filtros): array
+    {
+        $almacenes = Almacen::where('empresa_id', $empresaId)
+            ->where('estado', true)
+            ->orderBy('id')
+            ->get(['id', 'codigo', 'nombre']);
+
+        $query = Producto::where('empresa_id', $empresaId)
+            ->where('estado', true)
+            ->where('tipo', '!=', 'servicio');
+
+        if (! empty($filtros['categoria_ids'])) {
+            $categoriaIds = is_array($filtros['categoria_ids'])
+                ? $filtros['categoria_ids']
+                : explode(',', (string) $filtros['categoria_ids']);
+            $categoriaIds = array_filter(array_map('intval', $categoriaIds));
+            if (! empty($categoriaIds)) {
+                $query->whereIn('categoria_id', $categoriaIds);
+            }
+        } elseif (! empty($filtros['categoria_id'])) {
+            $query->where('categoria_id', (int) $filtros['categoria_id']);
+        }
+
+        if (! empty($filtros['producto_ids'])) {
+            $productoIds = is_array($filtros['producto_ids'])
+                ? $filtros['producto_ids']
+                : explode(',', (string) $filtros['producto_ids']);
+            $productoIds = array_filter(array_map('intval', $productoIds));
+            if (! empty($productoIds)) {
+                $query->whereIn('id', $productoIds);
+            }
+        }
+
+        $productos = $query->with([
+            'categoria:id,nombre',
+            'stockAlmacenes',
+        ])->orderBy('nombre')->get();
+
+        $items = [];
+        $totalUnidadesGlobal = 0.0;
+        $totalesPorAlmacen = [];
+        foreach ($almacenes as $alm) {
+            $totalesPorAlmacen[$alm->id] = 0.0;
+        }
+        $productosSinStock = 0;
+
+        foreach ($productos as $prod) {
+            $stockMap = [];
+            $stockTotalProd = 0.0;
+
+            $stocksRel = $prod->stockAlmacenes->keyBy('almacen_id');
+
+            foreach ($almacenes as $alm) {
+                $cant = isset($stocksRel[$alm->id]) ? (float) $stocksRel[$alm->id]->cantidad_actual : 0.0;
+                $stockMap[$alm->id] = $cant;
+                $stockTotalProd += $cant;
+                $totalesPorAlmacen[$alm->id] += $cant;
+            }
+
+            if (! empty($filtros['solo_con_stock']) && $stockTotalProd <= 0) {
+                continue;
+            }
+
+            if ($stockTotalProd <= 0) {
+                $productosSinStock++;
+            }
+
+            $totalUnidadesGlobal += $stockTotalProd;
+
+            $items[] = [
+                'id' => $prod->id,
+                'codigo_interno' => $prod->codigo_interno ?: 'S/C',
+                'codigo_barra' => $prod->codigo_barra ?: 'S/C',
+                'nombre' => $prod->nombre,
+                'categoria' => $prod->categoria?->nombre ?: 'General',
+                'unidad_medida' => $prod->unidad_medida ?: 'UND',
+                'stocks_por_almacen' => $stockMap,
+                'stock_total' => round($stockTotalProd, 3),
+            ];
+        }
+
+        return [
+            'kpis' => [
+                'total_productos' => count($items),
+                'total_unidades' => round($totalUnidadesGlobal, 2),
+                'total_almacenes' => $almacenes->count(),
+                'productos_sin_stock' => $productosSinStock,
+            ],
+            'almacenes' => $almacenes->map(fn ($a) => [
+                'id' => $a->id,
+                'codigo' => $a->codigo,
+                'nombre' => $a->nombre,
+            ])->values()->toArray(),
+            'totales_por_almacen' => array_map(fn ($val) => round($val, 2), $totalesPorAlmacen),
+            'items' => $items,
         ];
     }
 }

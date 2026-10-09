@@ -286,6 +286,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/reportes/vendedores/json', 'vendedores')->name('reportes.vendedores.json');
         Route::get('/reportes/vendedores/pdf', 'pdfVendedores')->name('reportes.vendedores.pdf');
         Route::get('/reportes/vendedores/excel', 'excelVendedores')->name('reportes.vendedores.excel');
+
+        Route::get('/reportes/stock-almacenes', 'stockAlmacenes')->name('reportes.stock_almacenes');
+        Route::get('/reportes/stock-almacenes/pdf', 'pdfStockAlmacenes')->name('reportes.stock_almacenes.pdf');
+        Route::get('/reportes/stock-almacenes/excel', 'excelStockAlmacenes')->name('reportes.stock_almacenes.excel');
     });
 
     Route::middleware('permission:reportes.vendedores')->controller(ReporteVendedorController::class)->group(function () {

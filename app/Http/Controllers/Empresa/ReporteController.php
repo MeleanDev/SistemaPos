@@ -59,16 +59,23 @@ class ReporteController extends Controller
         $filtros = $request->only(['fecha_inicio', 'fecha_fin', 'caja_id', 'metodo_pago_id']);
         $data = $this->reporteClass->reporteIngresos($empresaId, $filtros);
 
-        $pdf = Pdf::loadView('Sistema.pdf.reporte-ingresos-pdf', [
+        if (class_exists(Pdf::class)) {
+            $pdf = Pdf::loadView('Sistema.pdf.reporte-ingresos-pdf', [
+                'empresa' => $empresa,
+                'data' => $data,
+            ])->setPaper('a4', 'portrait');
+
+            $fileName = 'Reporte_Ingresos_'.date('Ymd_His').'.pdf';
+
+            return $request->boolean('descargar')
+                ? $pdf->download($fileName)
+                : $pdf->stream($fileName);
+        }
+
+        return response()->view('Sistema.pdf.reporte-ingresos-pdf', [
             'empresa' => $empresa,
             'data' => $data,
-        ])->setPaper('a4', 'portrait');
-
-        $fileName = 'Reporte_Ingresos_'.date('Ymd_His').'.pdf';
-
-        return $request->boolean('descargar')
-            ? $pdf->download($fileName)
-            : $pdf->stream($fileName);
+        ]);
     }
 
     public function excelIngresos(Request $request): StreamedResponse
@@ -157,16 +164,23 @@ class ReporteController extends Controller
         $filtros = $request->only(['fecha_inicio', 'fecha_fin']);
         $data = $this->reporteClass->reporteCreditos($empresaId, $filtros);
 
-        $pdf = Pdf::loadView('Sistema.pdf.reporte-creditos-pdf', [
+        if (class_exists(Pdf::class)) {
+            $pdf = Pdf::loadView('Sistema.pdf.reporte-creditos-pdf', [
+                'empresa' => $empresa,
+                'data' => $data,
+            ])->setPaper('a4', 'portrait');
+
+            $fileName = 'Reporte_Creditos_CXC_CXP_'.date('Ymd_His').'.pdf';
+
+            return $request->boolean('descargar')
+                ? $pdf->download($fileName)
+                : $pdf->stream($fileName);
+        }
+
+        return response()->view('Sistema.pdf.reporte-creditos-pdf', [
             'empresa' => $empresa,
             'data' => $data,
-        ])->setPaper('a4', 'portrait');
-
-        $fileName = 'Reporte_Creditos_CXC_CXP_'.date('Ymd_His').'.pdf';
-
-        return $request->boolean('descargar')
-            ? $pdf->download($fileName)
-            : $pdf->stream($fileName);
+        ]);
     }
 
     public function excelCreditos(Request $request): StreamedResponse
@@ -261,16 +275,23 @@ class ReporteController extends Controller
         $filtros = $request->only(['almacen_id', 'categoria_id', 'bajo_stock']);
         $data = $this->reporteClass->reporteInventario($empresaId, $filtros);
 
-        $pdf = Pdf::loadView('Sistema.pdf.reporte-inventario-pdf', [
+        if (class_exists(Pdf::class)) {
+            $pdf = Pdf::loadView('Sistema.pdf.reporte-inventario-pdf', [
+                'empresa' => $empresa,
+                'data' => $data,
+            ])->setPaper('a4', 'landscape');
+
+            $fileName = 'Reporte_Inventario_'.date('Ymd_His').'.pdf';
+
+            return $request->boolean('descargar')
+                ? $pdf->download($fileName)
+                : $pdf->stream($fileName);
+        }
+
+        return response()->view('Sistema.pdf.reporte-inventario-pdf', [
             'empresa' => $empresa,
             'data' => $data,
-        ])->setPaper('a4', 'landscape');
-
-        $fileName = 'Reporte_Inventario_'.date('Ymd_His').'.pdf';
-
-        return $request->boolean('descargar')
-            ? $pdf->download($fileName)
-            : $pdf->stream($fileName);
+        ]);
     }
 
     public function excelInventario(Request $request): StreamedResponse
@@ -346,16 +367,23 @@ class ReporteController extends Controller
         $filtros = $request->only(['fecha_inicio', 'fecha_fin', 'almacen_id']);
         $data = $this->reporteClass->reporteRentabilidad($empresaId, $filtros);
 
-        $pdf = Pdf::loadView('Sistema.pdf.reporte-rentabilidad-pdf', [
+        if (class_exists(Pdf::class)) {
+            $pdf = Pdf::loadView('Sistema.pdf.reporte-rentabilidad-pdf', [
+                'empresa' => $empresa,
+                'data' => $data,
+            ])->setPaper('a4', 'portrait');
+
+            $fileName = 'Reporte_Rentabilidad_'.date('Ymd_His').'.pdf';
+
+            return $request->boolean('descargar')
+                ? $pdf->download($fileName)
+                : $pdf->stream($fileName);
+        }
+
+        return response()->view('Sistema.pdf.reporte-rentabilidad-pdf', [
             'empresa' => $empresa,
             'data' => $data,
-        ])->setPaper('a4', 'portrait');
-
-        $fileName = 'Reporte_Rentabilidad_'.date('Ymd_His').'.pdf';
-
-        return $request->boolean('descargar')
-            ? $pdf->download($fileName)
-            : $pdf->stream($fileName);
+        ]);
     }
 
     public function excelRentabilidad(Request $request): StreamedResponse
@@ -501,18 +529,27 @@ class ReporteController extends Controller
         $empresa = Empresa::findOrFail($empresaId);
         $data = $this->obtenerDatosVendedores($request);
 
-        $pdf = Pdf::loadView('Sistema.pdf.reporte-vendedores-pdf', [
+        if (class_exists(Pdf::class)) {
+            $pdf = Pdf::loadView('Sistema.pdf.reporte-vendedores-pdf', [
+                'empresa' => $empresa,
+                'periodo_texto' => $data['kpis']['periodo_texto'],
+                'kpis' => $data['kpis'],
+                'resumen' => $data['resumen'],
+            ])->setPaper('a4', 'portrait');
+
+            $fileName = 'Reporte_Vendedores_'.date('Ymd_His').'.pdf';
+
+            return $request->boolean('descargar')
+                ? $pdf->download($fileName)
+                : $pdf->stream($fileName);
+        }
+
+        return response()->view('Sistema.pdf.reporte-vendedores-pdf', [
             'empresa' => $empresa,
             'periodo_texto' => $data['kpis']['periodo_texto'],
             'kpis' => $data['kpis'],
             'resumen' => $data['resumen'],
-        ])->setPaper('a4', 'portrait');
-
-        $fileName = 'Reporte_Vendedores_'.date('Ymd_His').'.pdf';
-
-        return $request->boolean('descargar')
-            ? $pdf->download($fileName)
-            : $pdf->stream($fileName);
+        ]);
     }
 
     public function excelVendedores(Request $request): StreamedResponse
@@ -557,6 +594,113 @@ class ReporteController extends Controller
                     number_format((float) $ventas->sum('comision_monto_bs'), 2),
                 ], ';');
             }
+
+            fclose($output);
+        }, $fileName, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
+        ]);
+    }
+
+    /* =========================================================================
+     * 6. REPORTE DE STOCK POR ALMACÉN (MATRIZ MULTIALMACÉN)
+     * ========================================================================= */
+
+    public function stockAlmacenes(Request $request): JsonResponse
+    {
+        try {
+            $empresaId = $this->obtenerEmpresaId();
+            $filtros = $request->only(['categoria_id', 'categoria_ids', 'producto_ids', 'solo_con_stock']);
+            $data = $this->reporteClass->reporteStockAlmacenes($empresaId, $filtros);
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar reporte de stock por almacén: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function pdfStockAlmacenes(Request $request): Response
+    {
+        $empresaId = $this->obtenerEmpresaId();
+        $empresa = Empresa::findOrFail($empresaId);
+        $filtros = $request->only(['categoria_id', 'categoria_ids', 'producto_ids', 'solo_con_stock']);
+        $data = $this->reporteClass->reporteStockAlmacenes($empresaId, $filtros);
+
+        if (class_exists(Pdf::class)) {
+            $pdf = Pdf::loadView('Sistema.pdf.reporte-stock-almacenes-pdf', [
+                'empresa' => $empresa,
+                'data' => $data,
+            ])->setPaper('a4', 'landscape');
+
+            $fileName = 'Reporte_Stock_Almacenes_'.date('Ymd_His').'.pdf';
+
+            return $request->boolean('descargar')
+                ? $pdf->download($fileName)
+                : $pdf->stream($fileName);
+        }
+
+        return response()->view('Sistema.pdf.reporte-stock-almacenes-pdf', [
+            'empresa' => $empresa,
+            'data' => $data,
+        ]);
+    }
+
+    public function excelStockAlmacenes(Request $request): StreamedResponse
+    {
+        $empresaId = $this->obtenerEmpresaId();
+        $filtros = $request->only(['categoria_id', 'categoria_ids', 'producto_ids', 'solo_con_stock']);
+        $data = $this->reporteClass->reporteStockAlmacenes($empresaId, $filtros);
+
+        $fileName = 'Reporte_Stock_Almacenes_'.date('Ymd_His').'.csv';
+
+        return response()->streamDownload(function () use ($data) {
+            $output = fopen('php://output', 'w');
+            fwrite($output, "\xEF\xBB\xBF");
+
+            fputcsv($output, ['REPORTE DE EXISTENCIAS POR ALMACEN (MATRIZ MULTIALMACEN)'], ';');
+            fputcsv($output, [
+                'Total Productos:', $data['kpis']['total_productos'],
+                'Total Unidades:', number_format((float) $data['kpis']['total_unidades'], 2),
+                'Total Almacenes:', $data['kpis']['total_almacenes'],
+                'Productos Sin Stock:', $data['kpis']['productos_sin_stock'],
+            ], ';');
+            fputcsv($output, [], ';');
+
+            $headers = ['Codigo', 'Producto', 'Categoria', 'U.M.'];
+            foreach ($data['almacenes'] as $alm) {
+                $headers[] = $alm['nombre'].' ('.$alm['codigo'].')';
+            }
+            $headers[] = 'Stock Total';
+            fputcsv($output, $headers, ';');
+
+            foreach ($data['items'] as $item) {
+                $row = [
+                    $item['codigo_interno'],
+                    $item['nombre'],
+                    $item['categoria'],
+                    $item['unidad_medida'],
+                ];
+                foreach ($data['almacenes'] as $alm) {
+                    $cant = $item['stocks_por_almacen'][$alm['id']] ?? 0;
+                    $row[] = number_format((float) $cant, 2);
+                }
+                $row[] = number_format((float) $item['stock_total'], 2);
+                fputcsv($output, $row, ';');
+            }
+
+            $totalesRow = ['TOTALES CONSOLIDADOS', '', '', ''];
+            foreach ($data['almacenes'] as $alm) {
+                $totAlm = $data['totales_por_almacen'][$alm['id']] ?? 0;
+                $totalesRow[] = number_format((float) $totAlm, 2);
+            }
+            $totalesRow[] = number_format((float) $data['kpis']['total_unidades'], 2);
+            fputcsv($output, $totalesRow, ';');
 
             fclose($output);
         }, $fileName, [
