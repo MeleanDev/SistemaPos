@@ -486,8 +486,22 @@
                                             </div>
                                         </div>
 
-                                        <!-- Descuento Comercial % -->
+                                        <!-- Flete Unitario -->
                                         <div class="col-md-3">
+                                            <label class="form-label-executive"><i class="fas fa-truck-ramp-box text-warning"></i> Flete Unitario</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white label-simbolo-moneda-fac text-warning fw-bold">$</span>
+                                                <input type="number" step="any" min="0" id="form_renglon_flete" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="0.0000" value="0.0000" oninput="actualizarCostoUnitarioManual()">
+                                            </div>
+                                            <div class="mt-1 text-end">
+                                                <span class="badge rounded-pill px-2.5 py-0.5 font-monospace fw-semibold shadow-xs d-inline-block" id="form_renglon_flete_equivalente" style="background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; font-size: 0.78rem;">
+                                                    Flete: Bs. 0.0000
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Descuento Comercial % -->
+                                        <div class="col-md-2">
                                             <label class="form-label-executive"><i class="fas fa-percent text-secondary"></i> Descuento (%)</label>
                                             <div class="input-group">
                                                 <input type="number" step="any" min="0" max="100" id="form_renglon_descuento" class="form-control form-control-executive font-monospace text-center" value="0.00" oninput="recalcularFormularioRenglon()">
@@ -496,13 +510,22 @@
                                         </div>
 
                                         <!-- IVA -->
-                                        <div class="col-md-3">
+                                        <div class="col-md-2">
                                             <label class="form-label-executive"><i class="fas fa-receipt text-secondary"></i> IVA Compra</label>
                                             <select id="form_renglon_iva" class="form-select form-select-executive font-monospace" onchange="recalcularFormularioRenglon()">
                                                 <option value="16">IVA 16%</option>
                                                 <option value="8">IVA 8%</option>
                                                 <option value="0">Exento (0%)</option>
                                             </select>
+                                        </div>
+
+                                        <!-- Costo Total Calculado (Base + IVA + Flete) -->
+                                        <div class="col-md-5">
+                                            <label class="form-label-executive"><i class="fas fa-coins text-dark"></i> Costo Total Calculado (Base + IVA + Flete)</label>
+                                            <div class="p-2 rounded-3 bg-white border shadow-xs d-flex align-items-center justify-content-between" style="min-height: 42px;">
+                                                <span class="fw-bold font-monospace text-dark fs-6" id="form_renglon_costo_total_usd">$ 0.0000</span>
+                                                <span class="badge rounded-pill bg-dark text-white font-monospace px-3 py-1.5" id="form_renglon_costo_total_bs">Bs. 0.0000</span>
+                                            </div>
                                         </div>
 
                                         <!-- Margen Detal % & Nuevo Precio Detal Sin/Con IVA -->
@@ -513,7 +536,7 @@
                                                 <span class="input-group-text bg-white">%</span>
                                                 <input type="number" step="any" min="0" id="form_renglon_precio_detal" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="PVP Con IVA" oninput="calcularMargenDetalDesdePrecio()">
                                             </div>
-                                            <div class="d-flex flex-column gap-1.5 p-2.5 rounded-3 bg-light border shadow-xs">
+                                            <div class="d-flex flex-column gap-1.5 p-2.5 rounded-3 bg-white border shadow-xs">
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <small class="text-primary fw-bold"><i class="fas fa-tag me-1"></i>PVP (Con IVA):</small>
                                                     <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="form_renglon_detal_con_iva_badge" style="background-color: #eff6ff; color: #1d4ed8; border: 1.5px solid #bfdbfe; font-size: 0.84rem;">
@@ -537,7 +560,7 @@
                                                 <span class="input-group-text bg-white">%</span>
                                                 <input type="number" step="any" min="0" id="form_renglon_precio_mayorista" class="form-control form-control-executive font-monospace fw-bold text-end" placeholder="Mayor Con IVA" oninput="calcularMargenMayoristaDesdePrecio()">
                                             </div>
-                                            <div class="d-flex flex-column gap-1.5 p-2.5 rounded-3 bg-light border shadow-xs">
+                                            <div class="d-flex flex-column gap-1.5 p-2.5 rounded-3 bg-white border shadow-xs">
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <small class="fw-bold" style="color: #7e22ce;"><i class="fas fa-tag me-1"></i>Mayor (Con IVA):</small>
                                                     <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" id="form_renglon_mayorista_con_iva_badge" style="background-color: #faf5ff; color: #6b21a8; border: 1.5px solid #d8b4fe; font-size: 0.84rem;">

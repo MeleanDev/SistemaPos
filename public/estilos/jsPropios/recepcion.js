@@ -965,6 +965,8 @@ function seleccionarProductoParaCarga(prod, datosPrecargados = null) {
     $("#form_renglon_cantidad").val(cantidadInicial);
     $("#form_renglon_costo_bulto").val(costoBultoInicial);
     $("#form_renglon_costo_unitario").val(costoInicial > 0 ? costoInicial.toFixed(4) : "0.0000");
+    const fletePrecargado = datosPrecargados ? (!esVes ? (datosPrecargados.flete_unitario_usd || 0) : (datosPrecargados.flete_unitario_bs || 0)) : 0;
+    $("#form_renglon_flete").val(fletePrecargado > 0 ? fletePrecargado.toFixed(4) : "0.0000");
     $("#form_renglon_descuento").val(datosPrecargados?.descuento_porcentaje || 0);
 
     const ivaDefault = datosPrecargados ? datosPrecargados.iva_porcentaje : (prod.aplica_iva ? (parseFloat(prod.iva_porcentaje) || 16) : 0);
@@ -1067,7 +1069,7 @@ function calcularPrecioDetalDesdeMargen() {
     const ivaPorcentaje = normalizarNumero($("#form_renglon_iva").val());
     const res = window.CalculosCompra.calcularPreciosDesdeMargen({
         costo: $("#form_renglon_costo_unitario").val(),
-        flete: 0,
+        flete: normalizarNumero($("#form_renglon_flete").val()) || 0,
         ivaPorcentaje: ivaPorcentaje,
         aplicaIva: ivaPorcentaje > 0,
         margenDetal: $("#form_renglon_margen_detal").val(),
@@ -1096,6 +1098,7 @@ function calcularMargenDetalDesdePrecio() {
     const ivaPorcentaje = normalizarNumero($("#form_renglon_iva").val());
     const res = window.CalculosCompra.calcularMargenDesdePrecio({
         costo: $("#form_renglon_costo_unitario").val(),
+        flete: normalizarNumero($("#form_renglon_flete").val()) || 0,
         precio: $("#form_renglon_precio_detal").val(),
         tipoPrecio: 'con_iva',
         ivaPorcentaje: ivaPorcentaje,
@@ -1120,7 +1123,7 @@ function calcularPrecioMayoristaDesdeMargen() {
     const ivaPorcentaje = normalizarNumero($("#form_renglon_iva").val());
     const res = window.CalculosCompra.calcularPreciosDesdeMargen({
         costo: $("#form_renglon_costo_unitario").val(),
-        flete: 0,
+        flete: normalizarNumero($("#form_renglon_flete").val()) || 0,
         ivaPorcentaje: ivaPorcentaje,
         aplicaIva: ivaPorcentaje > 0,
         margenDetal: $("#form_renglon_margen_detal").val(),
@@ -1149,6 +1152,7 @@ function calcularMargenMayoristaDesdePrecio() {
     const ivaPorcentaje = normalizarNumero($("#form_renglon_iva").val());
     const res = window.CalculosCompra.calcularMargenDesdePrecio({
         costo: $("#form_renglon_costo_unitario").val(),
+        flete: normalizarNumero($("#form_renglon_flete").val()) || 0,
         precio: $("#form_renglon_precio_mayorista").val(),
         tipoPrecio: 'con_iva',
         ivaPorcentaje: ivaPorcentaje,
@@ -1173,7 +1177,9 @@ function recalcularFormularioRenglon() {
     const esVes = monedaDocumentoActual === "VES";
     const cantidad = normalizarNumero($("#form_renglon_cantidad").val());
     const costoInput = normalizarNumero($("#form_renglon_costo_unitario").val());
+    const fleteInput = normalizarNumero($("#form_renglon_flete").val());
     const descPorc = normalizarNumero($("#form_renglon_descuento").val());
+    const ivaPorc = normalizarNumero($("#form_renglon_iva").val());
 
     const eq = window.CalculosCompra.calcularEquivalenteMoneda(costoInput, monedaDocumentoActual, tasaCompraActual, tasaVentaActual);
     const costoUsd = eq.usd;
@@ -1184,6 +1190,28 @@ function recalcularFormularioRenglon() {
     } else {
         $("#form_renglon_costo_equivalente").text(`Equiv: $ ${formatearMonto(costoUsd, 4)}`);
     }
+
+    const eqFlete = window.CalculosCompra.calcularEquivalenteMoneda(fleteInput, monedaDocumentoActual, tasaCompraActual, tasaVentaActual);
+    if (!esVes) {
+        $("#form_renglon_flete_equivalente").text(`Flete: Bs. ${formatearMonto(eqFlete.bs, 4)}`);
+    } else {
+        $("#form_renglon_flete_equivalente").text(`Flete: $ ${formatearMonto(eqFlete.usd, 4)}`);
+    }
+
+    const resPrecios = window.CalculosCompra.calcularPreciosDesdeMargen({
+        costo: costoInput,
+        flete: fleteInput,
+        ivaPorcentaje: ivaPorc,
+        aplicaIva: ivaPorc > 0,
+        margenDetal: $("#form_renglon_margen_detal").val() || 30,
+        margenMayorista: $("#form_renglon_margen_mayorista").val() || 15,
+        tasaCompra: tasaCompraActual,
+        tasaVenta: tasaVentaActual,
+        moneda: monedaDocumentoActual,
+    });
+
+    $("#form_renglon_costo_total_usd").text(`$ ${formatearMonto(resPrecios.costoTotalUsd, 4)}`);
+    $("#form_renglon_costo_total_bs").text(`Bs. ${formatearMonto(resPrecios.costoTotalBs, 4)}`);
 
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
     const subtotalBrutoUsd = cantidad * costoUsd;
@@ -1312,6 +1340,17 @@ function agregarOActualizarRenglon() {
         costoBultoUsd = tasaMenor ? (costoBultoBs / tCompra) : (costoBultoBs / tVenta);
     }
 
+    const fleteInput = normalizarNumero($("#form_renglon_flete").val());
+    let fleteUsd = 0;
+    let fleteBs = 0;
+    if (!esVes) {
+        fleteUsd = fleteInput;
+        fleteBs = tasaMenor ? (fleteUsd * tVenta) : (fleteUsd * tCompra);
+    } else {
+        fleteBs = fleteInput;
+        fleteUsd = tasaMenor ? (fleteBs / tCompra) : (fleteBs / tVenta);
+    }
+
     const descPorc = normalizarNumero($("#form_renglon_descuento").val());
     const ivaPorc = normalizarNumero($("#form_renglon_iva").val());
     let margenDetal = normalizarNumero($("#form_renglon_margen_detal").val()) || 30;
@@ -1319,7 +1358,7 @@ function agregarOActualizarRenglon() {
 
     const resPrecios = window.CalculosCompra.calcularPreciosDesdeMargen({
         costo: costoInput,
-        flete: 0,
+        flete: fleteInput,
         ivaPorcentaje: ivaPorc,
         aplicaIva: ivaPorc > 0,
         margenDetal: margenDetal,
@@ -1340,7 +1379,7 @@ function agregarOActualizarRenglon() {
     if (pDetalInput > 0) {
         const resDetal = window.CalculosCompra.calcularMargenDesdePrecio({
             costo: costoInput,
-            flete: 0,
+            flete: fleteInput,
             precio: pDetalInput,
             tipoPrecio: 'con_iva',
             ivaPorcentaje: ivaPorc,
@@ -1364,7 +1403,7 @@ function agregarOActualizarRenglon() {
     if (pMayorInput > 0) {
         const resMayor = window.CalculosCompra.calcularMargenDesdePrecio({
             costo: costoInput,
-            flete: 0,
+            flete: fleteInput,
             precio: pMayorInput,
             tipoPrecio: 'con_iva',
             ivaPorcentaje: ivaPorc,
@@ -1401,6 +1440,10 @@ function agregarOActualizarRenglon() {
         costo_bulto_bs: costoBultoBs,
         costo_unitario_usd: costoUsd,
         costo_unitario_bs: costoBs,
+        flete_unitario_usd: fleteUsd,
+        flete_unitario_bs: fleteBs,
+        costo_total_unitario_usd: resPrecios.costoTotalUsd,
+        costo_total_unitario_bs: resPrecios.costoTotalBs,
         descuento_porcentaje: descPorc,
         descuento_usd: descuentoUsd,
         descuento_bs: descuentoUsd * tCompra,
@@ -1439,6 +1482,10 @@ function agregarOActualizarRenglon() {
             listaProductosCargados[indiceExistente].cantidad += itemRenglon.cantidad;
             listaProductosCargados[indiceExistente].costo_unitario_usd = itemRenglon.costo_unitario_usd;
             listaProductosCargados[indiceExistente].costo_unitario_bs = itemRenglon.costo_unitario_bs;
+            listaProductosCargados[indiceExistente].flete_unitario_usd = itemRenglon.flete_unitario_usd;
+            listaProductosCargados[indiceExistente].flete_unitario_bs = itemRenglon.flete_unitario_bs;
+            listaProductosCargados[indiceExistente].costo_total_unitario_usd = itemRenglon.costo_total_unitario_usd;
+            listaProductosCargados[indiceExistente].costo_total_unitario_bs = itemRenglon.costo_total_unitario_bs;
             listaProductosCargados[indiceExistente].precio_detal_usd = itemRenglon.precio_detal_usd;
             listaProductosCargados[indiceExistente].precio_detal_bs = itemRenglon.precio_detal_bs;
             listaProductosCargados[indiceExistente].precio_detal_con_iva_usd = itemRenglon.precio_detal_con_iva_usd;
@@ -1503,6 +1550,10 @@ function cancelarEdicionRenglon() {
     $("#panelInfoProductoSeleccionado").slideUp(100);
     $("#panelFormularioRenglon").slideUp(100);
     $("#badgeModoEdicion").hide();
+    $("#form_renglon_flete").val("0.0000");
+    $("#form_renglon_flete_equivalente").text("Flete: Bs. 0.0000");
+    $("#form_renglon_costo_total_usd").text("$ 0.0000");
+    $("#form_renglon_costo_total_bs").text("Bs. 0.0000");
     $("#form_renglon_detal_con_iva_badge").text("$ 0,00 | Bs. 0,00");
     $("#form_renglon_detal_sin_iva").text("$ 0,00 | Bs. 0,00");
     $("#form_renglon_mayorista_con_iva_badge").text("$ 0,00 | Bs. 0,00");
@@ -1652,6 +1703,10 @@ function renderizarTablaDetalles() {
             <input type="hidden" name="detalles[${idx}][costo_bulto_bs]" value="${item.costo_bulto_bs}">
             <input type="hidden" name="detalles[${idx}][costo_unitario_usd]" value="${item.costo_unitario_usd}">
             <input type="hidden" name="detalles[${idx}][costo_unitario_bs]" value="${item.costo_unitario_bs}">
+            <input type="hidden" name="detalles[${idx}][flete_unitario_usd]" value="${item.flete_unitario_usd || 0}">
+            <input type="hidden" name="detalles[${idx}][flete_unitario_bs]" value="${item.flete_unitario_bs || 0}">
+            <input type="hidden" name="detalles[${idx}][costo_total_unitario_usd]" value="${item.costo_total_unitario_usd || item.costo_unitario_usd}">
+            <input type="hidden" name="detalles[${idx}][costo_total_unitario_bs]" value="${item.costo_total_unitario_bs || item.costo_unitario_bs}">
             <input type="hidden" name="detalles[${idx}][descuento_porcentaje]" value="${item.descuento_porcentaje}">
             <input type="hidden" name="detalles[${idx}][iva_porcentaje]" value="${item.iva_porcentaje}">
             <input type="hidden" name="detalles[${idx}][margen_detal_porcentaje]" value="${item.margen_detal_porcentaje}">
