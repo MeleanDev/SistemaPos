@@ -661,18 +661,19 @@
                     <table class="table table-hover align-middle mb-0 pos-table" id="tablaPosVenta">
                         <thead class="sticky-top" style="z-index: 5;">
                             <tr>
-                                <th style="width: 120px;">Código</th>
-                                <th style="min-width: 230px;">Producto / Descripción</th>
-                                <th class="text-center" style="width: 130px;">Cantidad</th>
-                                <th class="text-end" style="width: 130px;">Precio Unit.</th>
-                                <th class="text-center" style="width: 90px;">IVA</th>
-                                <th class="text-end" style="width: 140px;">Subtotal</th>
-                                <th class="text-center" style="width: 50px;"></th>
+                                <th style="width: 110px;">Código</th>
+                                <th style="min-width: 200px;">Producto / Descripción</th>
+                                <th style="width: 140px;">Departamento</th>
+                                <th class="text-center" style="width: 125px;">Cantidad</th>
+                                <th class="text-end" style="width: 125px;">Precio Unit.</th>
+                                <th class="text-center" style="width: 85px;">IVA</th>
+                                <th class="text-end" style="width: 130px;">Subtotal</th>
+                                <th class="text-center" style="width: 45px;"></th>
                             </tr>
                         </thead>
                         <tbody id="contenedorFilasPos">
                             <tr id="filaPosVacia">
-                                <td colspan="7" class="text-center py-5">
+                                <td colspan="8" class="text-center py-5">
                                     <div class="avatar-executive-sm rounded-circle bg-primary bg-opacity-10 text-primary mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px; font-size: 1.5rem;">
                                         <i class="fas fa-cash-register"></i>
                                     </div>

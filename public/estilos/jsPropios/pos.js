@@ -29,6 +29,9 @@ $(document).ready(function () {
         $inp.trigger("focus");
         $inp.select();
     });
+    $(document).on("change", "#posSelectAlmacen", function () {
+        posAlmacenActualId = parseInt($(this).val()) || 1;
+    });
 });
 
 function formatearMonto(monto, decimales = 2) {
@@ -1394,7 +1397,7 @@ function renderizarCarritoPos() {
     if (posCarrito.length === 0) {
         $tbody.append(`
             <tr id="filaPosVacia">
-                <td colspan="7" class="text-center py-5">
+                <td colspan="8" class="text-center py-5">
                     <div class="avatar-executive-sm rounded-circle bg-primary bg-opacity-10 text-primary mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 64px; height: 64px; font-size: 1.8rem;">
                         <i class="fas fa-cash-register"></i>
                     </div>
@@ -1452,14 +1455,25 @@ function renderizarCarritoPos() {
                 </div>
             `;
 
+        let departamentoHtml = '';
+        const almId = item.almacen_id ? parseInt(item.almacen_id) : (posAlmacenActualId ? parseInt(posAlmacenActualId) : 1);
+        const almacenActual = (posCatalogos.almacenes || []).find((a) => parseInt(a.id) === almId);
+        const nombreAlmacen = almacenActual ? almacenActual.nombre : '';
+
+        if (item.tipo_item === 'servicio') {
+            departamentoHtml = `<span class="badge rounded-pill bg-light text-muted border px-2.5 py-1 font-monospace" style="font-size: 0.72rem;"><i class="fas fa-wrench me-1 text-info"></i>N/A (Servicio)</span>`;
+        } else if (almId) {
+            departamentoHtml = `<span class="badge rounded-pill bg-light text-dark border px-2.5 py-1 font-monospace fw-bold shadow-xs" style="font-size: 0.76rem;" title="${nombreAlmacen ? `Almacén: ${nombreAlmacen} (ID: ${almId})` : `ID Almacén: ${almId}`}"><i class="fas fa-warehouse text-primary me-1"></i>ID: ${almId}${nombreAlmacen ? ` (${nombreAlmacen})` : ''}</span>`;
+        } else {
+            departamentoHtml = `<span class="badge rounded-pill bg-light text-muted border px-2 py-1 font-monospace" style="font-size: 0.72rem;">S/D</span>`;
+        }
+
         const filaHtml = `
             <tr class="fila-pos-item ${esSeleccionado ? 'fila-activa' : ''}" data-idx="${idx}" onclick="seleccionarFilaPos(${idx})" style="cursor: pointer;">
-                <!-- Código -->
                 <td class="font-monospace">
                     <span class="badge bg-light text-secondary border px-2 py-1">${item.codigo}</span>
                 </td>
 
-                <!-- Producto / Descripción -->
                 <td>
                     <strong class="text-dark d-block font-monospace" style="font-size: 0.90rem;">${itemIcon} ${item.nombre} ${badgeTipo} ${badgeVariante} ${badgeSerial}</strong>
                     <div class="small text-muted font-monospace" style="font-size: 0.72rem;">
@@ -1468,12 +1482,14 @@ function renderizarCarritoPos() {
                     </div>
                 </td>
 
-                <!-- Cantidad -->
+                <td class="font-monospace">
+                    ${departamentoHtml}
+                </td>
+
                 <td class="text-center font-monospace">
                     ${cantidadHtml}
                 </td>
 
-                <!-- Precio Unitario -->
                 <td class="text-end font-monospace">
                     <strong class="text-primary d-block" style="font-size: 0.92rem;">$ ${precioUnitUsd.toFixed(2)}</strong>
                     <small class="badge rounded-pill px-2 py-0.5 fw-bold" style="font-size: 0.72rem; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">
@@ -1481,14 +1497,12 @@ function renderizarCarritoPos() {
                     </small>
                 </td>
 
-                <!-- IVA -->
                 <td class="text-center font-monospace small">
                     <span class="badge rounded-pill ${aplicaIva ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-light text-secondary border'} px-2 py-1">
                         ${aplicaIva ? `IVA ${ivaPorcentaje}%` : 'Exento'}
                     </span>
                 </td>
 
-                <!-- Total Renglón -->
                 <td class="text-end font-monospace">
                     <strong class="text-dark d-block" style="font-size: 0.96rem;">$ ${subtotalUsd.toFixed(2)}</strong>
                     <small class="badge rounded-pill px-2 py-0.5 fw-bold" style="font-size: 0.72rem; background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">
@@ -1496,7 +1510,6 @@ function renderizarCarritoPos() {
                     </small>
                 </td>
 
-                <!-- Acciones -->
                 <td class="text-center">
                     <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-xs" onclick="event.stopPropagation(); eliminarItemCarrito(${idx});" title="Eliminar Producto" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                         <i class="fas fa-trash-alt" style="font-size: 0.75rem;"></i>
@@ -1508,7 +1521,22 @@ function renderizarCarritoPos() {
     });
 
     $("#posContadorItems").html(`<i class="fas fa-shopping-basket text-primary me-1"></i> ${posCarrito.length} Ítem${posCarrito.length === 1 ? '' : 's'} (${totalUnidades.toLocaleString()} Unid.)`);
-};
+}
+
+function cambiarAlmacenItem(idx, nuevoAlmacenId) {
+    if (idx < 0 || idx >= posCarrito.length) return;
+    const almId = parseInt(nuevoAlmacenId);
+    posCarrito[idx].almacen_id = almId;
+
+    const prodOriginal = (posCatalogos.productos || []).find((p) => p.id === posCarrito[idx].producto_id);
+    if (prodOriginal && Array.isArray(prodOriginal.stock_almacenes)) {
+        const stk = prodOriginal.stock_almacenes.find((s) => parseInt(s.almacen_id) === almId);
+        posCarrito[idx].stock_disponible = stk ? stk.cantidad_actual : 0;
+    }
+
+    renderizarCarritoPos();
+    recalcularTotalesPos();
+}
 
 function seleccionarFilaPos(idx) {
     posIndiceRenglonSeleccionado = idx;
