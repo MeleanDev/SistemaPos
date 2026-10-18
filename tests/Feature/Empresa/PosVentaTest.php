@@ -15,6 +15,7 @@ use App\Models\Servicio;
 use App\Models\User;
 use App\Models\Venta;
 use App\Models\VentaDetalle;
+use App\Service\Ventas\VentaClass;
 use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
@@ -627,7 +628,6 @@ test('pos procesa venta de moto con seriales cambiando estado a vendida y permit
     expect($motoCatalogo)->not->toBeNull();
     expect($motoCatalogo['tipo_item'])->toBe('moto');
     expect($motoCatalogo['placa'])->toBe('AB1C23D');
-    expect($motoCatalogo['nombre'])->toContain('Placa: AB1C23D');
     expect($motoCatalogo['codigos_barra'])->toContain('AB1C23D');
 
     // 1. Facturar la Moto en POS
@@ -675,7 +675,7 @@ test('pos procesa venta de moto con seriales cambiando estado a vendida y permit
     expect($det->tipo_item)->toBe('moto');
     expect($det->moto_id)->toBe($moto->id);
     expect($det->serial_identificador)->toBe('BERA150NIV2026001');
-    expect($det->nombre_item)->toContain('Placa: AB1C23D');
+    expect($det->moto->placa)->toBe('AB1C23D');
 
     // Verificar que el ticket de venta impreso muestre la placa
     $resTicket = $this->actingAs($user)
@@ -1099,4 +1099,135 @@ test('pos puede renderizar formato factura carta y formato ticket termico', func
         ->assertSee('FACTURA NRO:')
         ->assertSee('TOTAL USD:')
         ->assertSee('TOTAL BS:');
+});
+
+test('generarNumeroControl incrementa correlativamente por empresa', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-99999999-9',
+        'nombre' => 'Empresa Control Test',
+        'razon_social' => 'Empresa Control Test C.A.',
+        'direccion' => 'Av. Test',
+        'estado' => true,
+    ]);
+
+    $ventaService = app(VentaClass::class);
+
+    // Primer número debe ser 00-00000001
+    expect($ventaService->generarNumeroControl($empresa->id))->toBe('00-00000001');
+
+    $cliente = Cliente::create([
+        'cedula' => 'V-99999999',
+        'nombre' => 'Cliente',
+        'apellido' => 'Test',
+        'telefono' => '0414-1234567',
+        'direccion' => 'Test',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Almacen Control',
+        'codigo' => 'ALM-CTRL',
+        'direccion' => 'Test',
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $user = User::factory()->create();
+
+    Venta::create([
+        'empresa_id' => $empresa->id,
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'user_id' => $user->id,
+        'codigo' => 'VEN-00001',
+        'numero_control' => '00-00000001',
+        'tipo_venta' => 'detal',
+        'moneda' => 'USD',
+        'tasa_cambio' => 50.0,
+        'fecha_emision' => '2026-06-16',
+        'hora_emision' => '10:00:00',
+        'monto_bruto_usd' => 10,
+        'monto_bruto_bs' => 500,
+        'subtotal_neto_usd' => 10,
+        'subtotal_neto_bs' => 500,
+        'total_usd' => 10,
+        'total_bs' => 500,
+        'condicion_pago' => 'contado',
+        'monto_pagado_usd' => 10,
+        'monto_pagado_bs' => 500,
+        'estado' => 'completada',
+    ]);
+
+    // Segundo número debe ser 00-00000002
+    expect($ventaService->generarNumeroControl($empresa->id))->toBe('00-00000002');
+
+    Venta::create([
+        'empresa_id' => $empresa->id,
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'user_id' => $user->id,
+        'codigo' => 'VEN-00002',
+        'numero_control' => '00-00000002',
+        'tipo_venta' => 'detal',
+        'moneda' => 'USD',
+        'tasa_cambio' => 50.0,
+        'fecha_emision' => '2026-06-16',
+        'hora_emision' => '10:05:00',
+        'monto_bruto_usd' => 10,
+        'monto_bruto_bs' => 500,
+        'subtotal_neto_usd' => 10,
+        'subtotal_neto_bs' => 500,
+        'total_usd' => 10,
+        'total_bs' => 500,
+        'condicion_pago' => 'contado',
+        'monto_pagado_usd' => 10,
+        'monto_pagado_bs' => 500,
+        'estado' => 'completada',
+    ]);
+
+    // Tercer número debe ser 00-00000003
+    expect($ventaService->generarNumeroControl($empresa->id))->toBe('00-00000003');
+
+    // Validación Multitenant: Otra empresa debe tener su propio correlativo independiente
+    $empresa2 = Empresa::create([
+        'rif' => 'J-88888888-8',
+        'nombre' => 'Segunda Empresa MultiTenant',
+        'razon_social' => 'Segunda Empresa MultiTenant C.A.',
+        'direccion' => 'Av. Secundaria',
+        'estado' => true,
+    ]);
+
+    // La empresa 2 debe iniciar desde 00-00000001 aunque la empresa 1 ya vaya por 00-00000003
+    expect($ventaService->generarNumeroControl($empresa2->id))->toBe('00-00000001');
+
+    Venta::create([
+        'empresa_id' => $empresa2->id,
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'user_id' => $user->id,
+        'codigo' => 'VEN-00001',
+        'numero_control' => '00-00000001',
+        'tipo_venta' => 'detal',
+        'moneda' => 'USD',
+        'tasa_cambio' => 50.0,
+        'fecha_emision' => '2026-06-16',
+        'hora_emision' => '10:10:00',
+        'monto_bruto_usd' => 10,
+        'monto_bruto_bs' => 500,
+        'subtotal_neto_usd' => 10,
+        'subtotal_neto_bs' => 500,
+        'total_usd' => 10,
+        'total_bs' => 500,
+        'condicion_pago' => 'contado',
+        'monto_pagado_usd' => 10,
+        'monto_pagado_bs' => 500,
+        'estado' => 'completada',
+    ]);
+
+    // Empresa 2 avanza a 00-00000002
+    expect($ventaService->generarNumeroControl($empresa2->id))->toBe('00-00000002');
+    // Empresa 1 se mantiene intacta en su propio correlativo (00-00000003)
+    expect($ventaService->generarNumeroControl($empresa->id))->toBe('00-00000003');
 });

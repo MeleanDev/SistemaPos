@@ -90,9 +90,18 @@ class FacturaController extends Controller
         }
 
         return datatables()->of($query)
+            ->editColumn('fecha_emision', function (Venta $venta) {
+                return $venta->fecha_emision ? Carbon::parse($venta->fecha_emision)->format('d/m/Y') : '--';
+            })
+            ->orderColumn('fecha_emision', 'fecha_emision $1')
             ->filter(function ($q) {
                 if ($search = request('search.value')) {
-                    $q->where(function ($sub) use ($search) {
+                    $fechaSearch = null;
+                    if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', trim($search), $m)) {
+                        $fechaSearch = "{$m[3]}-{$m[2]}-{$m[1]}";
+                    }
+
+                    $q->where(function ($sub) use ($search, $fechaSearch) {
                         $sub->where('codigo', 'LIKE', "%{$search}%")
                             ->orWhere('numero_control', 'LIKE', "%{$search}%")
                             ->orWhereHas('cliente', function ($cq) use ($search) {
@@ -103,6 +112,12 @@ class FacturaController extends Controller
                             ->orWhereHas('almacen', function ($aq) use ($search) {
                                 $aq->where('nombre', 'LIKE', "%{$search}%");
                             });
+
+                        if ($fechaSearch) {
+                            $sub->orWhere('fecha_emision', $fechaSearch);
+                        } else {
+                            $sub->orWhere('fecha_emision', 'LIKE', "%{$search}%");
+                        }
                     });
                 }
             })

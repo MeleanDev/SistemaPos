@@ -813,7 +813,6 @@ function renderizarDropdownProductos(productos, requiereModal = false) {
                         </div>
                         <div class="small font-monospace text-muted mt-0.5">
                             Stock: ${stockText}
-                            ${p.tipo_item === 'moto' && p.placa ? `• Placa: <strong class="text-primary font-monospace">${p.placa}</strong> ` : ''}
                             • Detal: <strong class="text-primary">$${precioDetalUsd.toFixed(2)}</strong> <small class="text-muted">(Bs. ${precioDetalBs})</small>
                             • Mayor: <strong style="color: #7e22ce;">$${precioMayorUsd.toFixed(2)}</strong> <small class="text-muted">(Bs. ${precioMayorBs})</small>
                         </div>
@@ -1496,7 +1495,6 @@ function renderizarCarritoPos() {
                     <strong class="text-dark d-block font-monospace" style="font-size: 0.90rem;">${itemIcon} ${item.nombre} ${badgeTipo} ${badgePlaca} ${badgeVariante} ${badgeSerial}</strong>
                     <div class="small text-muted font-monospace" style="font-size: 0.72rem;">
                         <span>${item.unidad}</span>
-                        ${item.tipo_item === 'moto' && item.placa ? ` • <span class="text-primary fw-semibold"><i class="fas fa-id-card me-1"></i>Placa: ${item.placa}</span>` : ''}
                         ${item.stock_disponible !== undefined && item.tipo_item === 'producto' ? ` • <span class="${item.stock_disponible <= 0 ? 'text-danger' : 'text-success'}">Disp: ${item.stock_disponible}</span>` : ''}
                     </div>
                 </td>
@@ -2419,10 +2417,11 @@ function filtrarConsultaProductos() {
             <tr class="fila-consulta-prod" onclick="cargarProductoDesdeConsulta(${p.id}, '${p.tipo_item}')" style="cursor: pointer;">
                 <td class="font-monospace"><span class="badge bg-light text-secondary border px-2 py-1">#${p.codigo_interno}</span></td>
                 <td>
-                    <strong class="text-dark font-monospace d-block" style="font-size: 0.88rem;">${p.nombre} ${tipoBadge} ${placaBadge}</strong>
-                    <div class="d-flex align-items-center gap-2 mt-0.5">
-                        <small class="text-muted font-monospace">${p.categoria_nombre || 'General'}</small>
-                        ${p.tipo_item === 'moto' && p.placa ? `<span class="small font-monospace text-primary fw-semibold"><i class="fas fa-id-card me-1"></i>Placa: ${p.placa}</span>` : ''}
+                    <strong class="text-dark font-monospace d-block" style="font-size: 0.88rem;">${p.nombre}</strong>
+                    <div class="d-flex align-items-center gap-1.5 flex-wrap mt-0.5">
+                        ${tipoBadge}
+                        ${placaBadge}
+                        <small class="text-muted font-monospace ms-0.5">${p.categoria_nombre || 'General'}</small>
                     </div>
                 </td>
                 <td class="text-center font-monospace">

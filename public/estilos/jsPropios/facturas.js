@@ -1,5 +1,51 @@
 let datatableFacturas = null;
 
+const formatearFechaLegal = function (fechaStr) {
+    if (!fechaStr) {
+        return "--/--/----";
+    }
+    const str = String(fechaStr).trim();
+    const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+        const anio = match[1];
+        const mes = match[2];
+        const dia = match[3];
+        return `${dia}/${mes}/${anio}`;
+    }
+    const matchInv = str.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})/);
+    if (matchInv) {
+        return `${matchInv[1]}/${matchInv[2]}/${matchInv[3]}`;
+    }
+    const d = new Date(fechaStr);
+    if (!isNaN(d.getTime())) {
+        const dia = String(d.getUTCDate()).padStart(2, "0");
+        const mes = String(d.getUTCMonth() + 1).padStart(2, "0");
+        const anio = d.getUTCFullYear();
+        return `${dia}/${mes}/${anio}`;
+    }
+    return fechaStr;
+};
+
+const formatearHoraLegal = function (horaStr) {
+    if (!horaStr || horaStr === "--") {
+        return "--:--";
+    }
+    const str = String(horaStr).trim();
+    const match = str.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (match) {
+        let horas = parseInt(match[1], 10);
+        const minutos = match[2];
+        const segundos = match[3];
+        const ampm = horas >= 12 ? "PM" : "AM";
+        horas = horas % 12;
+        horas = horas ? horas : 12;
+        const horasPad = String(horas).padStart(2, "0");
+        const segStr = segundos !== undefined ? `:${segundos}` : "";
+        return `${horasPad}:${minutos}${segStr} ${ampm}`;
+    }
+    return horaStr;
+};
+
 $(document).ready(function () {
     inicializarTablaFacturas();
     cargarKpisFacturas();
@@ -23,17 +69,25 @@ const inicializarTablaFacturas = function () {
                     const controlHtml = row.numero_control
                         ? `<small class="text-muted font-monospace d-block" style="font-size: 0.72rem;"><i class="fas fa-barcode me-1"></i>Ctrl: ${row.numero_control}</small>`
                         : "";
-                    return `<span class="badge rounded-pill bg-light text-dark border font-monospace fw-bold px-2.5 py-1.5"><i class="fas fa-receipt text-primary me-1"></i>${data}</span>${controlHtml}`;
+                    return `<span class="badge rounded-pill bg-primary-subtle text-primary font-monospace fw-bold px-2.5 py-1.5"><i class="fas fa-receipt me-1"></i>${data}</span>${controlHtml}`;
                 }
             },
             {
                 data: "fecha_emision",
                 name: "fecha_emision",
                 render: function (data, type, row) {
+                    const fechaFormateada = formatearFechaLegal(data);
+                    const horaFormateada = formatearHoraLegal(row.hora_emision);
                     return `
-                        <div>
-                            <strong class="text-dark font-monospace d-block" style="font-size: 0.85rem;">${data}</strong>
-                            <small class="text-muted font-monospace" style="font-size: 0.72rem;"><i class="fas fa-clock me-1"></i>${row.hora_emision || '--'}</small>
+                        <div class="d-flex flex-column text-nowrap" style="gap: 2px;">
+                            <div class="d-inline-flex align-items-center gap-1.5">
+                                <i class="far fa-calendar-alt text-primary" style="font-size: 0.8rem;"></i>
+                                <span class="text-dark font-monospace fw-bold" style="font-size: 0.84rem; letter-spacing: 0.2px;">${fechaFormateada}</span>
+                            </div>
+                            <div class="d-inline-flex align-items-center gap-1 text-muted" style="font-size: 0.73rem;">
+                                <i class="far fa-clock text-secondary" style="font-size: 0.7rem;"></i>
+                                <span class="font-monospace">${horaFormateada}</span>
+                            </div>
                         </div>
                     `;
                 }
@@ -47,7 +101,7 @@ const inicializarTablaFacturas = function () {
                     return `
                         <div>
                             <strong class="text-dark font-monospace d-block" style="font-size: 0.88rem;">${cliNombre}</strong>
-                            <small class="text-muted font-monospace" style="font-size: 0.72rem;">${cliCedula}</small>
+                            <span class="d-inline-flex align-items-center font-monospace text-secondary" style="font-size: 0.74rem;"><i class="far fa-id-card me-1 text-primary"></i>${cliCedula}</span>
                         </div>
                     `;
                 }
@@ -56,7 +110,7 @@ const inicializarTablaFacturas = function () {
                 data: "almacen.nombre",
                 name: "almacen.nombre",
                 render: function (data) {
-                    return `<span class="badge rounded-pill bg-light text-secondary border px-2 py-1 font-monospace"><i class="fas fa-warehouse me-1"></i>${data || 'General'}</span>`;
+                    return `<span class="badge rounded-pill bg-secondary-subtle text-secondary px-2 py-1 font-monospace"><i class="fas fa-warehouse me-1"></i>${data || 'General'}</span>`;
                 }
             },
             {
@@ -205,7 +259,7 @@ const verDetalleFactura = async function (id) {
             if (Array.isArray(v.detalles)) {
                 v.detalles.forEach((det, idx) => {
                     const itemNombre = det.nombre_item || (det.producto ? det.producto.nombre : (det.moto ? `${det.moto.marca} ${det.moto.modelo}` : (det.servicio ? det.servicio.nombre : "Ítem")));
-                    const serialBadge = det.serial_identificador ? `<span class="badge bg-light text-dark border font-monospace ms-1">#${det.serial_identificador}</span>` : "";
+                    const serialBadge = det.serial_identificador ? `<span class="badge bg-primary-subtle text-primary font-monospace ms-1">#${det.serial_identificador}</span>` : "";
                     const tipoBadge = `<span class="badge bg-secondary-subtle text-secondary font-monospace rounded-pill">${det.tipo_item}</span>`;
 
                     renglonesHtml += `
@@ -229,7 +283,7 @@ const verDetalleFactura = async function (id) {
                 v.pagos.forEach((p) => {
                     const metodoNombre = p.metodo_pago ? p.metodo_pago.nombre : "Pago";
                     pagosHtml += `
-                        <div class="d-flex align-items-center justify-content-between p-2 border rounded-3 bg-light mb-1 font-monospace small">
+                        <div class="d-flex align-items-center justify-content-between p-2.5 border rounded-3 bg-white mb-1.5 font-monospace small shadow-xs">
                             <div>
                                 <strong class="text-dark">${metodoNombre}</strong>
                                 ${p.referencia ? `<span class="text-muted ms-1">(Ref: ${p.referencia})</span>` : ''}
@@ -243,7 +297,7 @@ const verDetalleFactura = async function (id) {
                     `;
                 });
             } else {
-                pagosHtml = `<div class="p-2 border rounded-3 bg-light text-muted font-monospace small text-center">Facturado 100% a Crédito (Sin abono inicial en caja).</div>`;
+                pagosHtml = `<div class="p-3 border rounded-3 bg-white text-muted font-monospace small text-center shadow-xs">Facturado 100% a Crédito (Sin abono inicial en caja).</div>`;
             }
 
             let cxcHtml = "";
@@ -254,7 +308,7 @@ const verDetalleFactura = async function (id) {
                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom border-warning pb-2 mb-2">
                             <div>
                                 <h6 class="fw-bold mb-0"><i class="fas fa-hand-holding-usd me-1"></i> Cuenta por Cobrar Registrada</h6>
-                                <small>Vencimiento: ${cxc.fecha_vencimiento}</small>
+                                <small>Vencimiento: ${formatearFechaLegal(cxc.fecha_vencimiento)}</small>
                             </div>
                             <div class="text-end">
                                 <span class="badge bg-warning text-dark rounded-pill px-3 py-1 fw-bold fs-6">Saldo: $ ${parseFloat(cxc.saldo_pendiente_usd).toFixed(2)}</span>
@@ -270,7 +324,6 @@ const verDetalleFactura = async function (id) {
             }
 
             $("#contenidoDetalleFactura").html(`
-                <!-- CABECERA DE FACTURA Y CLIENTE -->
                 <div class="card border rounded-4 p-3 bg-white shadow-xs mb-3">
                     <div class="row g-3">
                         <div class="col-md-6 border-end">
@@ -286,7 +339,7 @@ const verDetalleFactura = async function (id) {
                                 </div>
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="text-muted">Fecha & Hora:</span>
-                                    <span>${v.fecha_emision} ${v.hora_emision || ''}</span>
+                                    <span class="fw-bold text-dark">${formatearFechaLegal(v.fecha_emision)} ${formatearHoraLegal(v.hora_emision)}</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="text-muted">Almacén Despacho:</span>
@@ -329,9 +382,8 @@ const verDetalleFactura = async function (id) {
 
                 ${cxcHtml}
 
-                <!-- TABLA DE RENGLONES -->
                 <div class="card border rounded-4 bg-white shadow-xs overflow-hidden mb-3">
-                    <div class="p-2.5 bg-light border-bottom">
+                    <div class="p-2.5 bg-white border-bottom">
                         <strong class="text-dark small"><i class="fas fa-boxes-stacked text-primary me-1"></i> Productos & Servicios Facturados</strong>
                     </div>
                     <div class="table-responsive" style="max-height: 240px; overflow-y: auto;">
@@ -353,7 +405,6 @@ const verDetalleFactura = async function (id) {
                     </div>
                 </div>
 
-                <!-- FORMAS DE PAGO Y TOTALES -->
                 <div class="row g-3">
                     <div class="col-md-6">
                         <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
@@ -377,7 +428,7 @@ const verDetalleFactura = async function (id) {
                                 <span class="fw-bold text-dark fs-6">TOTAL FACTURA:</span>
                                 <div class="text-end">
                                     <h4 class="fw-bold text-success mb-0">$ ${parseFloat(v.total_usd).toFixed(2)}</h4>
-                                    <small class="badge rounded-pill bg-light text-secondary border">Bs. ${parseFloat(v.total_bs).toFixed(2)}</small>
+                                    <small class="badge rounded-pill bg-success-subtle text-success px-2 py-0.5">Bs. ${parseFloat(v.total_bs).toFixed(2)}</small>
                                 </div>
                             </div>
                             <div class="d-flex justify-content-between mt-2 pt-2 border-top small">

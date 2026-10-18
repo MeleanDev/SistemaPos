@@ -209,7 +209,7 @@ class VentaClass
                     'tipo_item' => 'moto',
                     'codigo_interno' => $referencia ?: $m->numero_niv,
                     'referencia' => $referencia,
-                    'nombre' => "{$m->marca} {$m->modelo} ({$m->anio})".($referencia ? " [Ref: #{$referencia}]" : '')." - NIV: {$m->numero_niv}".$placaTexto,
+                    'nombre' => "{$m->marca} {$m->modelo} ({$m->anio})".($referencia ? " [Ref: #{$referencia}]" : '')." - NIV: {$m->numero_niv}",
                     'marca' => $m->marca,
                     'modelo' => $m->modelo,
                     'anio' => $m->anio,
@@ -333,12 +333,19 @@ class VentaClass
      */
     public function generarNumeroControl(int $empresaId): string
     {
-        $ventas = Venta::where('empresa_id', $empresaId)->get(['id', 'numero_control']);
+        $ventas = Venta::where('empresa_id', $empresaId)
+            ->whereNotNull('numero_control')
+            ->get(['id', 'numero_control']);
         $maxNum = 0;
 
         foreach ($ventas as $v) {
             $control = trim($v->numero_control ?? '');
-            if ($control && preg_match('/(\d+)/', $control, $matches)) {
+            if ($control === '') {
+                continue;
+            }
+
+            $sinPrefijo = preg_replace('/^00-/', '', $control);
+            if (preg_match('/(\d+)$/', $sinPrefijo, $matches)) {
                 $val = (int) $matches[1];
                 if ($val > $maxNum) {
                     $maxNum = $val;
@@ -509,8 +516,7 @@ class VentaClass
                     $costoUnitarioUsd = (float) $moto->precio_costo_usd;
                     $aplicaIva = true;
                     $ivaPorcentaje = 16.00;
-                    $placa = trim($moto->placa ?? '');
-                    $nombreItem = "{$moto->marca} {$moto->modelo} ({$moto->anio})".($placa !== '' ? " [Placa: {$placa}]" : '');
+                    $nombreItem = "{$moto->marca} {$moto->modelo} ({$moto->anio})";
                     $serialIdentificador = $moto->numero_niv;
                     $almacenItem = $moto->almacen_id ?: $almacenItem;
                 } elseif ($tipoItem === 'servicio') {
