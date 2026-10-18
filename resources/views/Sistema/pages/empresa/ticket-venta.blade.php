@@ -274,6 +274,7 @@
                             <div class="fw-bold text-uppercase">{{ $nombreItem }}</div>
                             <div style="font-size: 9px; color: #333;">
                                 @if($det->tipo_item === 'moto' && $det->moto)
+                                    @if($det->moto->placa)Placa: {{ $det->moto->placa }}<br>@endif
                                     NIV: {{ $det->serial_identificador ?? $det->moto->numero_niv }}
                                     @if($det->moto->numero_motor)<br>Mot: {{ $det->moto->numero_motor }}@endif
                                     @if($det->moto->color)<br>Col: {{ $det->moto->color }}@endif

@@ -193,13 +193,15 @@ class VentaClass
                 $mayorConIvaUsd = (float) ($m->precio_mayorista_con_iva_usd > 0 ? $m->precio_mayorista_con_iva_usd : round($mayorBaseUsd * $factorIva, 2));
 
                 $referencia = trim($m->referencia ?? '');
+                $placa = trim($m->placa ?? '');
+                $placaTexto = $placa !== '' ? " - Placa: {$placa}" : '';
                 $codigos = array_values(array_filter([
                     $referencia,
                     $m->numero_niv,
                     $m->numero_chasis,
                     $m->numero_motor,
                     $m->certificado_origen,
-                    $m->placa,
+                    $placa,
                 ]));
 
                 return [
@@ -207,7 +209,7 @@ class VentaClass
                     'tipo_item' => 'moto',
                     'codigo_interno' => $referencia ?: $m->numero_niv,
                     'referencia' => $referencia,
-                    'nombre' => "{$m->marca} {$m->modelo} ({$m->anio})".($referencia ? " [Ref: #{$referencia}]" : '')." - NIV: {$m->numero_niv}",
+                    'nombre' => "{$m->marca} {$m->modelo} ({$m->anio})".($referencia ? " [Ref: #{$referencia}]" : '')." - NIV: {$m->numero_niv}".$placaTexto,
                     'marca' => $m->marca,
                     'modelo' => $m->modelo,
                     'anio' => $m->anio,
@@ -217,7 +219,7 @@ class VentaClass
                     'numero_chasis' => $m->numero_chasis,
                     'numero_motor' => $m->numero_motor,
                     'certificado_origen' => $m->certificado_origen,
-                    'placa' => $m->placa,
+                    'placa' => $placa ?: null,
                     'unidad_medida' => 'UND',
                     'categoria_nombre' => 'Motos & Vehículos',
                     'precio_costo_usd' => $costoUsd,
@@ -507,7 +509,8 @@ class VentaClass
                     $costoUnitarioUsd = (float) $moto->precio_costo_usd;
                     $aplicaIva = true;
                     $ivaPorcentaje = 16.00;
-                    $nombreItem = "{$moto->marca} {$moto->modelo} ({$moto->anio})";
+                    $placa = trim($moto->placa ?? '');
+                    $nombreItem = "{$moto->marca} {$moto->modelo} ({$moto->anio})".($placa !== '' ? " [Placa: {$placa}]" : '');
                     $serialIdentificador = $moto->numero_niv;
                     $almacenItem = $moto->almacen_id ?: $almacenItem;
                 } elseif ($tipoItem === 'servicio') {

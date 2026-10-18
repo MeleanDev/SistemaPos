@@ -661,8 +661,9 @@ function configurarBuscadorProductosPos() {
 
             const prodExacto = posCatalogos.productos.find((p) => {
                 const skuMatch = (p.codigo_interno || "").toLowerCase() === query;
+                const placaMatch = p.tipo_item === 'moto' && (p.placa || "").toLowerCase() === query;
                 const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => cb.toLowerCase() === query);
-                return skuMatch || barcodeMatch;
+                return skuMatch || placaMatch || barcodeMatch;
             });
 
             if (prodExacto) {
@@ -676,9 +677,13 @@ function configurarBuscadorProductosPos() {
                 return;
             }
 
-            const coincidencias = posCatalogos.productos.filter((p) =>
-                p.nombre.toLowerCase().includes(query) || (p.codigo_interno || "").toLowerCase().includes(query)
-            );
+            const coincidencias = posCatalogos.productos.filter((p) => {
+                const nombreMatch = (p.nombre || "").toLowerCase().includes(query);
+                const skuMatch = (p.codigo_interno || "").toLowerCase().includes(query);
+                const placaMatch = p.tipo_item === 'moto' && (p.placa || "").toLowerCase().includes(query);
+                const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => cb.toLowerCase().includes(query));
+                return nombreMatch || skuMatch || placaMatch || barcodeMatch;
+            });
 
             if (coincidencias.length === 1) {
                 if (requiereModal) {
@@ -716,10 +721,11 @@ function configurarBuscadorProductosPos() {
 
         debounceTimer = setTimeout(() => {
             const coincidencias = posCatalogos.productos.filter((p) => {
-                const nombreMatch = p.nombre.toLowerCase().includes(query);
+                const nombreMatch = (p.nombre || "").toLowerCase().includes(query);
                 const skuMatch = (p.codigo_interno || "").toLowerCase().includes(query);
-                const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => cb.toLowerCase() === query);
-                return nombreMatch || skuMatch || barcodeMatch;
+                const placaMatch = p.tipo_item === 'moto' && (p.placa || "").toLowerCase().includes(query);
+                const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => cb.toLowerCase().includes(query));
+                return nombreMatch || skuMatch || placaMatch || barcodeMatch;
             });
 
             renderizarDropdownProductos(coincidencias, requiereModal);
@@ -761,11 +767,15 @@ function renderizarDropdownProductos(productos, requiereModal = false) {
         let itemIcon = '<i class="fas fa-box"></i>';
         let itemBg = 'bg-primary bg-opacity-10 text-primary';
         let tipoBadge = '';
+        let placaBadge = '';
 
         if (p.tipo_item === 'moto') {
             itemIcon = '<i class="fas fa-motorcycle"></i>';
             itemBg = 'bg-warning bg-opacity-15 text-warning-emphasis';
-            tipoBadge = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle font-monospace" style="font-size: 0.70rem;">Moto / Serial</span>';
+            tipoBadge = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle font-monospace" style="font-size: 0.70rem;">Moto</span>';
+            if (p.placa) {
+                placaBadge = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-1.5 py-0.5" style="font-size: 0.70rem;"><i class="fas fa-id-card me-1"></i>Placa: ${p.placa}</span>`;
+            }
         } else if (p.tipo_item === 'servicio') {
             itemIcon = '<i class="fas fa-wrench"></i>';
             itemBg = 'bg-info bg-opacity-15 text-info-emphasis';
@@ -798,10 +808,12 @@ function renderizarDropdownProductos(productos, requiereModal = false) {
                             <strong class="text-dark font-monospace" style="font-size: 0.90rem;">${p.nombre}</strong>
                             <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.70rem;">#${p.codigo_interno}</span>
                             ${tipoBadge}
+                            ${placaBadge}
                             ${badgeIvaHtml}
                         </div>
                         <div class="small font-monospace text-muted mt-0.5">
                             Stock: ${stockText}
+                            ${p.tipo_item === 'moto' && p.placa ? `• Placa: <strong class="text-primary font-monospace">${p.placa}</strong> ` : ''}
                             • Detal: <strong class="text-primary">$${precioDetalUsd.toFixed(2)}</strong> <small class="text-muted">(Bs. ${precioDetalBs})</small>
                             • Mayor: <strong style="color: #7e22ce;">$${precioMayorUsd.toFixed(2)}</strong> <small class="text-muted">(Bs. ${precioMayorBs})</small>
                         </div>
@@ -1055,6 +1067,7 @@ function abrirModalSeleccionCantidadAlmacen(prod) {
         iconHtml = '<i class="fas fa-motorcycle"></i>';
         iconBg = 'bg-warning bg-opacity-15 text-warning-emphasis';
         $("#modalDetalleContenedorMoto").show();
+        $("#modalDetallePlaca").text(prod.placa || 'Sin Asignar');
         $("#modalDetalleNiv").text(prod.numero_niv || '--');
         $("#modalDetalleMotor").text(prod.numero_motor || '--');
         $("#modalDetalleChasis").text(prod.numero_chasis || '--');
@@ -1293,6 +1306,7 @@ function agregarProductoAlCarrito(prod, cantidad = 1, almacenId = null, descuent
             numero_niv: prod.numero_niv || null,
             numero_motor: prod.numero_motor || null,
             numero_chasis: prod.numero_chasis || null,
+            placa: prod.placa || null,
             cantidad: cantidad,
             precio_detal_usd: parseFloat(prod.precio_detal_usd || 0),
             precio_mayorista_usd: parseFloat(prod.precio_mayorista_usd || 0),
@@ -1428,10 +1442,14 @@ function renderizarCarritoPos() {
 
         let itemIcon = '<i class="fas fa-box text-primary me-1"></i>';
         let badgeTipo = '';
+        let badgePlaca = '';
 
         if (item.tipo_item === 'moto') {
             itemIcon = '<i class="fas fa-motorcycle text-warning me-1"></i>';
             badgeTipo = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle font-monospace ms-1" style="font-size: 0.68rem;">Moto</span>';
+            if (item.placa) {
+                badgePlaca = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace ms-1" style="font-size: 0.68rem;"><i class="fas fa-id-card me-1"></i>Placa: ${item.placa}</span>`;
+            }
         } else if (item.tipo_item === 'servicio') {
             itemIcon = '<i class="fas fa-wrench text-info me-1"></i>';
             badgeTipo = '<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle font-monospace ms-1" style="font-size: 0.68rem;">Servicio</span>';
@@ -1475,9 +1493,10 @@ function renderizarCarritoPos() {
                 </td>
 
                 <td>
-                    <strong class="text-dark d-block font-monospace" style="font-size: 0.90rem;">${itemIcon} ${item.nombre} ${badgeTipo} ${badgeVariante} ${badgeSerial}</strong>
+                    <strong class="text-dark d-block font-monospace" style="font-size: 0.90rem;">${itemIcon} ${item.nombre} ${badgeTipo} ${badgePlaca} ${badgeVariante} ${badgeSerial}</strong>
                     <div class="small text-muted font-monospace" style="font-size: 0.72rem;">
                         <span>${item.unidad}</span>
+                        ${item.tipo_item === 'moto' && item.placa ? ` • <span class="text-primary fw-semibold"><i class="fas fa-id-card me-1"></i>Placa: ${item.placa}</span>` : ''}
                         ${item.stock_disponible !== undefined && item.tipo_item === 'producto' ? ` • <span class="${item.stock_disponible <= 0 ? 'text-danger' : 'text-success'}">Disp: ${item.stock_disponible}</span>` : ''}
                     </div>
                 </td>
@@ -2093,6 +2112,7 @@ async function recuperarCuentaEspera(id) {
                     numero_niv: item.numero_niv || null,
                     numero_motor: item.numero_motor || null,
                     numero_chasis: item.numero_chasis || null,
+                    placa: item.placa || null,
                     cantidad: cant,
                     precio_detal_usd: pDetal,
                     precio_mayorista_usd: pMayor,
@@ -2191,7 +2211,7 @@ async function buscarFacturaParaDevolucion() {
 
             if (Array.isArray(res.data.detalles)) {
                 res.data.detalles.forEach((det) => {
-                    const prodNombre = det.nombre_item || (det.producto ? det.producto.nombre : (det.moto ? (det.moto.marca + ' ' + det.moto.modelo) : (det.servicio ? det.servicio.nombre : "Artículo")));
+                    const prodNombre = det.nombre_item || (det.producto ? det.producto.nombre : (det.moto ? (det.moto.marca + ' ' + det.moto.modelo + (det.moto.placa ? ' [Placa: ' + det.moto.placa + ']' : '')) : (det.servicio ? det.servicio.nombre : "Artículo")));
                     const precioUnit = parseFloat(det.precio_unitario_usd).toFixed(2);
 
                     let cantDevueltaPrevia = 0;
@@ -2350,10 +2370,11 @@ function filtrarConsultaProductos() {
 
     const prods = posCatalogos.productos.filter((p) => {
         if (!query) return true;
-        const nombreMatch = p.nombre.toLowerCase().includes(query);
+        const nombreMatch = (p.nombre || "").toLowerCase().includes(query);
         const skuMatch = (p.codigo_interno || "").toLowerCase().includes(query);
+        const placaMatch = p.tipo_item === 'moto' && (p.placa || "").toLowerCase().includes(query);
         const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => cb.toLowerCase().includes(query));
-        return nombreMatch || skuMatch || barcodeMatch;
+        return nombreMatch || skuMatch || placaMatch || barcodeMatch;
     });
 
     if (prods.length === 0) {
@@ -2379,11 +2400,15 @@ function filtrarConsultaProductos() {
         let stockText = `${stockTotal} ${p.unidad_medida || 'und'}`;
         let stockBadgeClass = stockTotal <= 0 && p.tipo_item === 'producto' ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success';
         let tipoBadge = '';
+        let placaBadge = '';
 
         if (p.tipo_item === 'moto') {
             stockText = '1 UND Disp.';
             stockBadgeClass = 'bg-warning-subtle text-warning-emphasis';
             tipoBadge = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle font-monospace ms-1">Moto</span>';
+            if (p.placa) {
+                placaBadge = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace ms-1"><i class="fas fa-id-card me-1"></i>Placa: ${p.placa}</span>`;
+            }
         } else if (p.tipo_item === 'servicio') {
             stockText = 'Servicio';
             stockBadgeClass = 'bg-info-subtle text-info-emphasis';
@@ -2394,8 +2419,11 @@ function filtrarConsultaProductos() {
             <tr class="fila-consulta-prod" onclick="cargarProductoDesdeConsulta(${p.id}, '${p.tipo_item}')" style="cursor: pointer;">
                 <td class="font-monospace"><span class="badge bg-light text-secondary border px-2 py-1">#${p.codigo_interno}</span></td>
                 <td>
-                    <strong class="text-dark font-monospace d-block" style="font-size: 0.88rem;">${p.nombre} ${tipoBadge}</strong>
-                    <small class="text-muted font-monospace">${p.categoria_nombre || 'General'}</small>
+                    <strong class="text-dark font-monospace d-block" style="font-size: 0.88rem;">${p.nombre} ${tipoBadge} ${placaBadge}</strong>
+                    <div class="d-flex align-items-center gap-2 mt-0.5">
+                        <small class="text-muted font-monospace">${p.categoria_nombre || 'General'}</small>
+                        ${p.tipo_item === 'moto' && p.placa ? `<span class="small font-monospace text-primary fw-semibold"><i class="fas fa-id-card me-1"></i>Placa: ${p.placa}</span>` : ''}
+                    </div>
                 </td>
                 <td class="text-center font-monospace">
                     <span class="badge ${stockBadgeClass} rounded-pill px-2.5 py-1">

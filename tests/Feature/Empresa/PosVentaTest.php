@@ -592,6 +592,7 @@ test('pos procesa venta de moto con seriales cambiando estado a vendida y permit
         'numero_chasis' => 'CHASIS-BERA-001',
         'numero_motor' => 'MOTOR-BERA-001',
         'certificado_origen' => 'CERT-BERA-001',
+        'placa' => 'AB1C23D',
         'precio_costo_usd' => 800.00,
         'precio_costo_bs' => 29200.00,
         'precio_detal_usd' => 1100.00,
@@ -615,6 +616,19 @@ test('pos procesa venta de moto con seriales cambiando estado a vendida y permit
     $user = User::factory()->create(['name' => 'V-90000008']);
     $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id);
+
+    // 0. Verificar que en /pos/datos la moto incluye el número de placa y en el nombre para facilitar la búsqueda
+    $resDatos = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get('/pos/datos');
+
+    $resDatos->assertOk();
+    $motoCatalogo = collect($resDatos->json('data.productos'))->firstWhere('id', $moto->id);
+    expect($motoCatalogo)->not->toBeNull();
+    expect($motoCatalogo['tipo_item'])->toBe('moto');
+    expect($motoCatalogo['placa'])->toBe('AB1C23D');
+    expect($motoCatalogo['nombre'])->toContain('Placa: AB1C23D');
+    expect($motoCatalogo['codigos_barra'])->toContain('AB1C23D');
 
     // 1. Facturar la Moto en POS
     $payload = [
@@ -661,6 +675,14 @@ test('pos procesa venta de moto con seriales cambiando estado a vendida y permit
     expect($det->tipo_item)->toBe('moto');
     expect($det->moto_id)->toBe($moto->id);
     expect($det->serial_identificador)->toBe('BERA150NIV2026001');
+    expect($det->nombre_item)->toContain('Placa: AB1C23D');
+
+    // Verificar que el ticket de venta impreso muestre la placa
+    $resTicket = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get("/pos/imprimir-ticket/{$venta->id}");
+    $resTicket->assertOk()
+        ->assertSee('Placa: AB1C23D');
 
     // 2. Procesar Devolución de la Moto
     $payloadDev = [

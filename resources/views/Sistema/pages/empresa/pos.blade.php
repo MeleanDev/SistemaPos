@@ -642,7 +642,7 @@
                                 <div class="scanner-icon-wrap">
                                     <i class="fas fa-barcode"></i>
                                 </div>
-                                <input type="text" id="posInputBuscadorProducto" placeholder="Escanear código de barras / serial o escribir *código para elegir almacén... [F1]" autocomplete="off">
+                                <input type="text" id="posInputBuscadorProducto" placeholder="Escanear código de barras, serial, placa o escribir *código... [F1]" autocomplete="off">
                             </div>
                             <!-- RESULTADOS FLOTANTES DE BÚSQUEDA INTERACTIVA -->
                             <div id="dropdownProductosPos" class="list-group position-absolute w-100 start-0 mt-1 shadow-lg rounded-4" style="z-index: 1070; display: none; max-height: 320px; overflow-y: auto; background: #ffffff; border: 1.5px solid #c7d2fe;"></div>
@@ -1226,7 +1226,7 @@
             <div class="modal-body p-4 bg-white">
                 <div class="input-group input-group-lg mb-3">
                     <span class="input-group-text bg-white border-end-0 rounded-start-pill ps-3"><i class="fas fa-search text-primary"></i></span>
-                    <input type="text" id="inputConsultaProdFiltro" class="form-control form-control-executive border-start-0 rounded-end-pill font-monospace" placeholder="Buscar por código de barras, SKU, nombre o categoría..." oninput="filtrarConsultaProductos()">
+                    <input type="text" id="inputConsultaProdFiltro" class="form-control form-control-executive border-start-0 rounded-end-pill font-monospace" placeholder="Buscar por código de barras, placa, serial, nombre o categoría..." oninput="filtrarConsultaProductos()">
                 </div>
 
                 <div class="card border rounded-4 bg-white shadow-xs overflow-hidden">
@@ -1426,9 +1426,10 @@
 
                         <div id="modalDetalleContenedorMoto" class="p-2.5 rounded-3 bg-warning-subtle text-warning-emphasis font-monospace small mb-2 border border-warning-subtle" style="display: none;">
                             <div class="row g-1">
-                                <div class="col-md-4"><strong>NIV:</strong> <span id="modalDetalleNiv">--</span></div>
-                                <div class="col-md-4"><strong>Motor:</strong> <span id="modalDetalleMotor">--</span></div>
-                                <div class="col-md-4"><strong>Chasis:</strong> <span id="modalDetalleChasis">--</span></div>
+                                <div class="col-md-3"><strong>Placa:</strong> <span id="modalDetallePlaca" class="fw-bold text-dark">--</span></div>
+                                <div class="col-md-3"><strong>NIV:</strong> <span id="modalDetalleNiv">--</span></div>
+                                <div class="col-md-3"><strong>Motor:</strong> <span id="modalDetalleMotor">--</span></div>
+                                <div class="col-md-3"><strong>Chasis:</strong> <span id="modalDetalleChasis">--</span></div>
                             </div>
                         </div>
 
