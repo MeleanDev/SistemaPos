@@ -76,10 +76,26 @@ class FacturaController extends Controller
             ->where('empresa_id', $empresaId)
             ->orderBy('id', 'desc');
 
-        if ($fechaInicio = $request->input('fecha_inicio')) {
+        $hoy = Carbon::now()->toDateString();
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin = $request->input('fecha_fin');
+
+        if ($fechaInicio && $fechaInicio > $hoy) {
+            $fechaInicio = $hoy;
+        }
+        if ($fechaFin && $fechaFin > $hoy) {
+            $fechaFin = $hoy;
+        }
+        if ($fechaInicio && $fechaFin && $fechaInicio > $fechaFin) {
+            $temp = $fechaInicio;
+            $fechaInicio = $fechaFin;
+            $fechaFin = $temp;
+        }
+
+        if ($fechaInicio) {
             $query->where('fecha_emision', '>=', $fechaInicio);
         }
-        if ($fechaFin = $request->input('fecha_fin')) {
+        if ($fechaFin) {
             $query->where('fecha_emision', '<=', $fechaFin);
         }
         if ($condicion = $request->input('condicion_pago')) {

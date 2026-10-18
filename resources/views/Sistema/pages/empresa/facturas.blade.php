@@ -86,8 +86,8 @@
     <!-- 2. BARRA DE FILTROS AVANZADOS -->
     <div class="card border rounded-4 shadow-xs bg-white p-3 mb-3">
         <div class="row g-2 align-items-end">
-            <x-input type="date" id="filtroFechaInicio" name="filtroFechaInicio" label="Desde Fecha" icon="fas fa-calendar-alt text-primary" col="col-12 col-md-3" class="font-monospace" onchange="recargarTablaFacturas()" />
-            <x-input type="date" id="filtroFechaFin" name="filtroFechaFin" label="Hasta Fecha" icon="fas fa-calendar-alt text-primary" col="col-12 col-md-3" class="font-monospace" onchange="recargarTablaFacturas()" />
+            <x-input type="date" id="filtroFechaInicio" name="filtroFechaInicio" label="Desde Fecha" icon="fas fa-calendar-alt text-primary" col="col-12 col-md-3" class="font-monospace" max="{{ date('Y-m-d') }}" onchange="recargarTablaFacturas()" />
+            <x-input type="date" id="filtroFechaFin" name="filtroFechaFin" label="Hasta Fecha" icon="fas fa-calendar-alt text-primary" col="col-12 col-md-3" class="font-monospace" max="{{ date('Y-m-d') }}" onchange="recargarTablaFacturas()" />
             <x-select id="filtroCondicion" name="filtroCondicion" label="Condición" icon="fas fa-money-check text-secondary" col="col-12 col-md-2" onchange="recargarTablaFacturas()">
                 <option value="">Todas</option>
                 <option value="contado">Contado</option>

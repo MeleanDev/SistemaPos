@@ -44,11 +44,16 @@ window.crearDataTable = function (config) {
         ajax: {
             url: config.url,
             type: "GET",
-            data: typeof config.dataExtra === "function" ? config.dataExtra : function (d) {
-                if (config.dataExtra && typeof config.dataExtra === "object") {
-                    Object.assign(d, config.dataExtra);
-                }
-            },
+            data: typeof config.dataExtra === "function"
+                ? config.dataExtra
+                : (typeof config.data === "function"
+                    ? config.data
+                    : function (d) {
+                        const extra = config.dataExtra || config.data;
+                        if (extra && typeof extra === "object") {
+                            Object.assign(d, extra);
+                        }
+                    }),
         },
         responsive: config.responsive !== undefined ? config.responsive : true,
         processing: config.processing !== undefined ? config.processing : true,

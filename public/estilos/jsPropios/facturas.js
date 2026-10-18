@@ -46,7 +46,83 @@ const formatearHoraLegal = function (horaStr) {
     return horaStr;
 };
 
+const obtenerFechaHoy = function () {
+    const hoy = new Date();
+    const anio = hoy.getFullYear();
+    const mes = String(hoy.getMonth() + 1).padStart(2, "0");
+    const dia = String(hoy.getDate()).padStart(2, "0");
+    return `${anio}-${mes}-${dia}`;
+};
+
+const validarFiltroFechas = function () {
+    const hoy = obtenerFechaHoy();
+    const $inicio = $("#filtroFechaInicio");
+    const $fin = $("#filtroFechaFin");
+
+    let fechaInicio = $inicio.val();
+    let fechaFin = $fin.val();
+
+    if (fechaInicio && fechaInicio > hoy) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "warning",
+                title: "Fecha no permitida",
+                text: "La fecha inicial no puede ser posterior a la fecha actual."
+            });
+        }
+        $inicio.val(hoy);
+        fechaInicio = hoy;
+    }
+
+    if (fechaFin && fechaFin > hoy) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "warning",
+                title: "Fecha no permitida",
+                text: "La fecha final no puede ser posterior a la fecha actual."
+            });
+        }
+        $fin.val(hoy);
+        fechaFin = hoy;
+    }
+
+    if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "warning",
+                title: "Rango inválido",
+                text: "La fecha 'Desde' no puede ser mayor que la fecha 'Hasta'."
+            });
+        }
+        $fin.val(fechaInicio);
+        fechaFin = fechaInicio;
+    }
+
+    if (fechaInicio) {
+        $fin.attr("min", fechaInicio);
+    } else {
+        $fin.removeAttr("min");
+    }
+
+    if (fechaFin) {
+        $inicio.attr("max", fechaFin > hoy ? hoy : fechaFin);
+    } else {
+        $inicio.attr("max", hoy);
+    }
+    $fin.attr("max", hoy);
+
+    return true;
+};
+
 $(document).ready(function () {
+    const hoy = obtenerFechaHoy();
+    $("#filtroFechaInicio").attr("max", hoy);
+    $("#filtroFechaFin").attr("max", hoy);
+
+    $("#filtroFechaInicio, #filtroFechaFin").on("change blur", function () {
+        validarFiltroFechas();
+    });
+
     inicializarTablaFacturas();
     cargarKpisFacturas();
 });
@@ -55,7 +131,7 @@ const inicializarTablaFacturas = function () {
     datatableFacturas = crearDataTable({
         selector: "#datatable_facturas",
         url: urlFacturasLista,
-        data: function (d) {
+        dataExtra: function (d) {
             d.fecha_inicio = $("#filtroFechaInicio").val();
             d.fecha_fin = $("#filtroFechaFin").val();
             d.condicion_pago = $("#filtroCondicion").val();
@@ -220,6 +296,7 @@ const cargarKpisFacturas = async function () {
 };
 
 const recargarTablaFacturas = function () {
+    validarFiltroFechas();
     if (datatableFacturas) {
         datatableFacturas.ajax.reload();
     }
@@ -228,8 +305,9 @@ const recargarTablaFacturas = function () {
 window.recargarTablaFacturas = recargarTablaFacturas;
 
 const limpiarFiltrosFacturas = function () {
-    $("#filtroFechaInicio").val("");
-    $("#filtroFechaFin").val("");
+    const hoy = obtenerFechaHoy();
+    $("#filtroFechaInicio").val("").attr("max", hoy).removeAttr("min");
+    $("#filtroFechaFin").val("").attr("max", hoy).removeAttr("min");
     $("#filtroCondicion").val("");
     $("#filtroEstado").val("");
     recargarTablaFacturas();
