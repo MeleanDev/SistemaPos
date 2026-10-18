@@ -28,6 +28,43 @@ class UsuarioController extends Controller
     {
         $usuarios = $this->usuarioClass->lista(Auth::user());
 
+        if (request()->has('draw')) {
+            return datatables()->of($usuarios)
+                ->filter(function ($instance) {
+                    if ($search = request('search.value')) {
+                        $search = mb_strtolower($search);
+                        $instance->collection = $instance->collection->filter(function ($row) use ($search) {
+                            $empresas = collect($row['empresas'] ?? [])->pluck('nombre')->implode(' ');
+                            $nombreCompleto = trim(($row['nombre'] ?? '').' '.($row['apellido'] ?? ''));
+
+                            return str_contains(mb_strtolower($row['name'] ?? ''), $search)
+                                || str_contains(mb_strtolower($row['nombre'] ?? ''), $search)
+                                || str_contains(mb_strtolower($row['apellido'] ?? ''), $search)
+                                || str_contains(mb_strtolower($nombreCompleto), $search)
+                                || str_contains(mb_strtolower($row['email'] ?? ''), $search)
+                                || str_contains(mb_strtolower($row['rol'] ?? ''), $search)
+                                || str_contains(mb_strtolower($empresas), $search);
+                        });
+                    }
+
+                    if ($rol = request('rol')) {
+                        $instance->collection = $instance->collection->filter(fn ($row) => ($row['rol'] ?? '') === $rol);
+                    }
+
+                    if ($empresa = request('empresa')) {
+                        $instance->collection = $instance->collection->filter(function ($row) use ($empresa) {
+                            if (($row['rol'] ?? '') === 'SuperAdmin') {
+                                return true;
+                            }
+                            $empresas = collect($row['empresas'] ?? []);
+
+                            return $empresas->contains(fn ($e) => strcasecmp($e['nombre'] ?? '', $empresa) === 0);
+                        });
+                    }
+                })
+                ->toJson();
+        }
+
         return response()->json([
             'success' => true,
             'data' => $usuarios,

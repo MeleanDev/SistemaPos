@@ -1,5 +1,6 @@
 @props([
     'id' => 'datatable_' . uniqid(),
+    'tbodyId' => null,
     'headers' => [],
     'withCard' => true,
     'tableClass' => 'table border-0 w-100 align-middle',
@@ -32,7 +33,7 @@
                 @endif
             </tr>
         </thead>
-        <tbody>
+        <tbody @if($tbodyId) id="{{ $tbodyId }}" @endif>
             {{ $slot }}
         </tbody>
     </table>

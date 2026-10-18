@@ -17,12 +17,86 @@
 @endsection
 
 @section('contenido')
+    <!-- BARRA EJECUTIVA DE CONTROL, BÚSQUEDA Y FILTROS USANDO COMPONENTE OFICIAL TOTALMENTE RESPONSIVE -->
     <x-search-filter inputId="buscadorUsuarios" counterId="contadorUsuarios"
-        placeholder="Buscar usuario por Cédula, nombre, correo, rol o empresa..." loadingText="Cargando usuarios..."
-        counterIcon="fas fa-users" />
+        placeholder="Buscar por cédula, nombre, correo, rol o sede..." loadingText="Cargando usuarios..."
+        counterIcon="fas fa-users">
+        <x-slot:filters>
+            <select class="form-select font-monospace fw-semibold rounded-pill bg-white shadow-xs" id="filtroEmpresa"
+                style="border-color: #e2e8f0; font-size: 0.84rem; height: 42px; min-width: 180px;">
+                <option value="" selected>🏢 Todas las Sedes</option>
+                @if (!empty($catalogos['empresas']))
+                    @foreach ($catalogos['empresas'] as $empresa)
+                        <option value="{{ $empresa->nombre }}">{{ $empresa->nombre }}</option>
+                    @endforeach
+                @endif
+            </select>
+        </x-slot:filters>
 
-    <!-- CONTENEDOR GRID DE TARJETAS EJECUTIVAS -->
-    <div class="row g-4" id="contenedorUsuarios">
+        <x-slot:actions>
+            <div class="btn-group p-1 bg-white border rounded-pill shadow-xs flex-shrink-0" role="group"
+                aria-label="Cambiar vista">
+                <button type="button"
+                    class="btn btn-sm rounded-pill px-3 py-1 fw-bold transition-all btn-toggle-vista active"
+                    id="btnVistaGrid" data-vista="grid" title="Vista Tarjetas">
+                    <i class="fas fa-th-large me-1"></i> Tarjetas
+                </button>
+                <button type="button"
+                    class="btn btn-sm rounded-pill px-3 py-1 fw-bold transition-all btn-toggle-vista text-muted"
+                    id="btnVistaTabla" data-vista="tabla" title="Vista Tabla">
+                    <i class="fas fa-table-list me-1"></i> Tabla
+                </button>
+            </div>
+        </x-slot:actions>
+
+        <x-slot:bottom>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <small class="text-muted fw-bold me-1 text-uppercase"
+                    style="font-size: 0.70rem; letter-spacing: 0.04em;">Filtrar por Rol:</small>
+                <button type="button"
+                    class="btn btn-sm rounded-pill px-3 py-1 fw-semibold filter-role-chip active bg-primary text-white shadow-xs"
+                    data-rol="" style="font-size: 0.78rem;">
+                    Todos (<span id="countRolTodos">0</span>)
+                </button>
+                @if (auth()->user()?->hasRole('SuperAdmin'))
+                    <button type="button"
+                        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold filter-role-chip bg-white border text-dark shadow-xs"
+                        data-rol="SuperAdmin" style="font-size: 0.78rem;">
+                        <i class="fas fa-crown text-warning me-1"></i> SuperAdmin (<span id="countRolSuperAdmin">0</span>)
+                    </button>
+                @endif
+                <button type="button"
+                    class="btn btn-sm rounded-pill px-3 py-1 fw-semibold filter-role-chip bg-white border text-dark shadow-xs"
+                    data-rol="Admin" style="font-size: 0.78rem;">
+                    <i class="fas fa-user-shield text-primary me-1"></i> Administrador (<span id="countRolAdmin">0</span>)
+                </button>
+                <button type="button"
+                    class="btn btn-sm rounded-pill px-3 py-1 fw-semibold filter-role-chip bg-white border text-dark shadow-xs"
+                    data-rol="Operador" style="font-size: 0.78rem;">
+                    <i class="fas fa-headset text-info me-1"></i> Operador (<span id="countRolOperador">0</span>)
+                </button>
+            </div>
+        </x-slot:bottom>
+    </x-search-filter>
+
+    <!-- CONTENEDOR 1: GRID DE TARJETAS EJECUTIVAS -->
+    <div class="row g-4 mb-4" id="contenedorUsuariosGrid">
+    </div>
+
+    <!-- CONTENEDOR 2: VISTA TABLA EJECUTIVA CON COMPONENTE OFICIAL DEL SISTEMA -->
+    <div class="d-none mb-4" id="contenedorUsuariosTabla">
+        <x-datatable
+            id="datatable_usuarios"
+            :headers="[
+                'Usuario & Nombre',
+                'Cédula',
+                'Correo Electrónico',
+                'Rol',
+                'Sedes Autorizadas',
+                'Permisos',
+                'Acciones',
+            ]"
+        />
     </div>
 
     <!-- MODAL PRINCIPAL: CREACIÓN / EDICIÓN DE USUARIO -->
@@ -92,21 +166,21 @@
                         <div class="row g-3" id="listaEmpresasCheckboxes">
                             @if (!empty($catalogos['empresas']) && count($catalogos['empresas']) > 0)
                                 @foreach ($catalogos['empresas'] as $empresa)
-                                    <div class="col-md-6 col-lg-4">
+                                    <div class="col-12 col-md-6 col-lg-4">
                                         <div class="card-empresa-select card rounded-4 p-3 mb-0 h-100 d-flex flex-row align-items-center justify-content-between cursor-pointer"
                                             onclick="toggleEmpresaCard(this)" id="card_empresa_{{ $empresa->id }}"
                                             style="border: 1.5px solid #e2e8f0; background: #ffffff; cursor: pointer; transition: all 0.2s ease;">
-                                            <div class="d-flex align-items-center gap-2.5 overflow-hidden me-2">
-                                                <div class="rounded-3 bg-primary-subtle text-primary p-2 d-flex align-items-center justify-content-center"
-                                                    style="width: 36px; height: 36px; min-width: 36px; font-size: 1.1rem;">
+                                            <div class="d-flex align-items-center gap-3 overflow-hidden me-2">
+                                                <div class="rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0"
+                                                    style="width: 40px; height: 40px; min-width: 40px; font-size: 1.15rem;">
                                                     <i class="fas fa-store"></i>
                                                 </div>
-                                                <div class="d-flex flex-column overflow-hidden">
+                                                <div class="d-flex flex-column overflow-hidden justify-content-center">
                                                     <span class="fw-bold text-dark text-truncate"
-                                                        style="font-size: 0.88rem;">{{ $empresa->nombre }}</span>
-                                                    <span class="text-muted small text-truncate"
-                                                        style="font-size: 0.74rem;">
-                                                        <i class="fas fa-id-card me-1 text-muted"></i>{{ $empresa->rif }}
+                                                        style="font-size: 0.90rem;">{{ $empresa->nombre }}</span>
+                                                    <span class="text-muted small font-monospace text-truncate"
+                                                        style="font-size: 0.76rem;">
+                                                        RIF: {{ $empresa->rif }}
                                                     </span>
                                                 </div>
                                             </div>
@@ -153,14 +227,17 @@
                     <div>
                         <div class="d-flex align-items-center gap-2">
                             <h6 class="fw-bold text-dark mb-0" id="permisos_nombre_display" style="font-size: 1.05rem;">
-                                Operador</h6>
+                                Operador
+                            </h6>
                             <span class="badge px-2.5 py-0.5 rounded-pill fw-bold"
                                 style="background: #e0f2fe; color: #0369a1; font-size: 0.72rem;">
                                 <i class="fas fa-headset me-1"></i>Operador
                             </span>
                         </div>
-                        <span class="badge-documento mt-1 d-inline-block" id="permisos_cedula_display">
-                            <i class="fas fa-id-card me-1"></i>V-00000000
+                        <span class="d-inline-flex align-items-center gap-2 font-monospace fw-semibold text-secondary mt-1"
+                            id="permisos_cedula_display" style="font-size: 0.82rem;">
+                            <i class="fas fa-id-card text-primary"></i>
+                            <span>V-00000000</span>
                         </span>
                     </div>
                 </div>
@@ -183,12 +260,12 @@
                     @foreach ($catalogos['permisos_modulos'] as $moduloInfo)
                         <div class="col-12 col-md-6 col-xl-4">
                             <div class="card h-100 border rounded-4 bg-white shadow-sm card-modulo-permiso">
-                                <!-- HEADER DEL MÓDULO -->
+                                <!-- HEADER DEL MÓDULO CON ICONO LIMPIO SIN BORDES FEOS -->
                                 <div class="card-header bg-white border-bottom px-3 py-2.5 d-flex align-items-center justify-content-between gap-2"
-                                    style="border-color: #e2e8f0 !important;">
+                                    style="border-color: #f1f5f9 !important;">
                                     <div class="d-flex align-items-center gap-2.5 overflow-hidden">
-                                        <div class="rounded-3 bg-white border p-2 d-flex align-items-center justify-content-center shadow-xs"
-                                            style="width: 38px; height: 38px; min-width: 38px; font-size: 1.1rem; border-color: #e2e8f0;">
+                                        <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0"
+                                            style="width: 38px; height: 38px; min-width: 38px; font-size: 1.05rem; border: none !important;">
                                             <i class="{{ $moduloInfo['icono'] }}"></i>
                                         </div>
                                         <div class="overflow-hidden">
@@ -236,8 +313,8 @@
                                                 </label>
                                             </div>
                                             <div class="form-check form-switch m-0 p-0 d-flex align-items-center">
-                                                <input class="form-check-input modal-permiso-chk m-0" type="checkbox"
-                                                    name="permisos[]" value="{{ $permiso['name'] }}"
+                                                <input class="form-check-input modal-permiso-chk m-0 cursor-pointer"
+                                                    type="checkbox" name="permisos[]" value="{{ $permiso['name'] }}"
                                                     id="chk_perm_{{ str_replace('.', '_', $permiso['name']) }}"
                                                     style="cursor: pointer; width: 2.25em; height: 1.2em;">
                                             </div>
@@ -255,6 +332,39 @@
 
 @section('scripts')
     <style>
+        .search-input-wrapper:focus-within {
+            background-color: #ffffff !important;
+            border-color: #6366f1 !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12) !important;
+        }
+
+        .search-input-wrapper input::placeholder {
+            color: #94a3b8;
+            font-weight: 400;
+        }
+
+        .btn-toggle-vista.active {
+            background-color: #4f46e5 !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+        }
+
+        .filter-role-chip {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-role-chip:hover:not(.active) {
+            border-color: #94a3b8 !important;
+            background-color: #f8fafc !important;
+        }
+
+        .filter-role-chip.active {
+            background-color: #4f46e5 !important;
+            border-color: #4f46e5 !important;
+            color: #ffffff !important;
+        }
+
         .card-modulo-permiso {
             border: 1.5px solid #e2e8f0 !important;
             border-radius: 1rem !important;
@@ -273,7 +383,7 @@
         }
 
         .permiso-row-sleek:hover {
-            background-color: #f1f5f9;
+            background-color: #f8fafc;
         }
 
         .permiso-row-sleek .form-check-input {
@@ -288,7 +398,18 @@
             border-color: #4f46e5;
             box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
         }
+
+        .card-search-filter .search-input-wrapper {
+            max-width: 440px;
+            width: 100%;
+        }
+
+        #contadorUsuarios {
+            min-width: 130px;
+            justify-content: center;
+        }
     </style>
+    @include('Sistema.components.datatable')
     <script
         src="{{ asset('estilos/jsPropios/usuario.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/usuario.js')) ?: time() }}">
     </script>

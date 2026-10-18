@@ -281,3 +281,12 @@ test('action permission automatically grants parent view permission upon saving'
         ->and($usuario->hasPermissionTo('productos.editar'))->toBeTrue()
         ->and($usuario->hasPermissionTo('productos.ver'))->toBeTrue();
 });
+
+test('usuarios lista with draw parameter returns datatables structure', function () {
+    $response = $this->actingAs($this->superAdmin)->getJson('/usuarios/lista?draw=1&start=0&length=10');
+
+    $response->assertOk();
+    expect($response->json('draw'))->toBe(1)
+        ->and($response->json('recordsTotal'))->toBeGreaterThanOrEqual(1)
+        ->and($response->json('data'))->toBeArray();
+});
