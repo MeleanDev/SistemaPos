@@ -18,27 +18,27 @@
         <!-- Bootstrap 5 CSS -->
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
-        <!-- Favicon -->
-        <link rel="icon" type="image/jpeg" href="{{ asset('estilos/imgPropio/datavault-logo.jpg') }}">
+        <!-- Favicon & PWA -->
+        @include('Sistema.components.pwa-head')
+        <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
 
         <style>
             * {
                 font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
             }
             body {
-                background-color: #0b1120;
+                background-color: #090d16;
                 background-image: 
-                    radial-gradient(at 15% 15%, rgba(14, 165, 233, 0.18) 0px, transparent 50%),
-                    radial-gradient(at 85% 85%, rgba(79, 70, 229, 0.18) 0px, transparent 50%),
-                    radial-gradient(at 50% 50%, rgba(15, 23, 42, 0.8) 0px, transparent 100%);
+                    radial-gradient(at 10% 10%, rgba(79, 70, 229, 0.22) 0px, transparent 55%),
+                    radial-gradient(at 90% 90%, rgba(14, 165, 233, 0.18) 0px, transparent 55%),
+                    radial-gradient(at 50% 50%, rgba(15, 23, 42, 0.85) 0px, transparent 100%);
                 background-attachment: fixed;
                 min-height: 100vh;
             }
             .dv-guest-card {
                 background: #ffffff;
-                border-radius: 24px;
-                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 28px;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.1);
             }
         </style>
     </head>
@@ -57,5 +57,6 @@
         <div class="text-center mt-4 text-white-50 small">
             &copy; {{ date('Y') }} DataVault System • Todos los derechos reservados.
         </div>
+        @include('Sistema.components.pwa-scripts')
     </body>
 </html>

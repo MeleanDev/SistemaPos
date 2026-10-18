@@ -10,11 +10,8 @@
         <meta name="description" content="Sistema POS - Punto de Venta Pantalla Completa">
         <meta name="author" content="POS System">
 
-        <meta name="mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <meta name="theme-color" content="#0f172a">
-        <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('estilos/imgPropio/favicon.ico') }}">
+        @include('Sistema.components.pwa-head')
+        <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
 
         <title>POS | @yield('titulo', 'Punto de Venta')</title>
 
@@ -163,6 +160,7 @@
 
         @yield('scripts')
         @stack('scripts')
+        @include('Sistema.components.pwa-scripts')
     </body>
 
 </html>

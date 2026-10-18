@@ -8,6 +8,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>Configuración Inicial — Sistema POS Multisede</title>
+    @include('Sistema.components.pwa-head')
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
 
     <!-- Google Fonts: Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -864,6 +866,7 @@
     @include('Sistema.components.js-components')
 
     <script src="{{ asset('estilos/jsPropios/setup.js') }}?v={{ time() }}"></script>
+    @include('Sistema.components.pwa-scripts')
 </body>
 
 </html>

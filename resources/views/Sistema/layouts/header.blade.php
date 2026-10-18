@@ -105,6 +105,13 @@
                     <span class="d-none d-md-inline" style="font-size: 0.82rem; color: #1e293b;">Consultor</span>
                 </a>
 
+                <!-- Botón Instalar PWA (Se muestra si está disponible para instalar) -->
+                <button type="button" class="btn btn-outline-primary rounded-pill shadow-xs d-none align-items-center gap-1.5 px-3 py-1 me-2"
+                    data-pwa-install title="Instalar aplicación POS en este dispositivo" style="height: 38px; border-color: #6366f1; color: #4f46e5;">
+                    <i class="fas fa-download"></i>
+                    <span class="d-none d-lg-inline fw-bold" style="font-size: 0.82rem;">Instalar App</span>
+                </button>
+
                 <!-- Perfil de Usuario Dropdown -->
                 <div class="dropdown">
                     <button class="btn btn-link p-0 border-0 text-decoration-none d-flex align-items-center gap-2"
@@ -155,6 +162,13 @@
                         </div>
 
                         <div class="dropdown-divider my-1" style="border-color: #f1f5f9;"></div>
+
+                        <!-- Opción Instalar App POS -->
+                        <button type="button" class="dropdown-item rounded-3 px-3 py-2 text-primary d-none align-items-center gap-2 fw-semibold w-100"
+                            data-pwa-install style="font-size: 0.84rem; transition: all 0.15s ease;">
+                            <i class="fas fa-download"></i>
+                            <span>Instalar App POS</span>
+                        </button>
 
                         <!-- Botón Cerrar Sesión -->
                         <form method="POST" action="{{ route('logout') }}" class="m-0">

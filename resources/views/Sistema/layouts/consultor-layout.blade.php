@@ -10,11 +10,8 @@
         <meta name="description" content="Kiosco Digital Consultor de Precios - Pantalla TV">
         <meta name="author" content="POS System">
 
-        <meta name="mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <meta name="theme-color" content="#0b1120">
-        <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('estilos/imgPropio/favicon.ico') }}">
+        @include('Sistema.components.pwa-head')
+        <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
 
         <title>{{ $empresa->nombre ?? 'Kiosco' }} | Consultor de Precios</title>
 
@@ -531,6 +528,7 @@
 
         @yield('scripts')
         @stack('scripts')
+        @include('Sistema.components.pwa-scripts')
     </body>
 
 </html>

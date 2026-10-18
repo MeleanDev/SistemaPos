@@ -21,6 +21,11 @@ class VerificarConfiguracionInicial
             'storage/*',
             'build/*',
             'favicon.ico',
+            'manifest.json',
+            'sw.js',
+            'offline.html',
+            'icons/*',
+            'apple-touch-icon*',
         ];
 
         foreach ($rutasExcluidas as $patron) {

@@ -18,14 +18,8 @@
         <meta property="og:description" content="Sistema POS - Punto de Venta y Control de Inventario">
         <meta property="og:image" content="{{ asset('estilos/imgPropio/logo.png') }}">
 
-        <meta name="mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <meta name="apple-mobile-web-app-title" content="Sistema POS">
-        <meta name="application-name" content="Sistema POS">
-        <meta name="theme-color" content="#4f46e5">
-        <link rel="apple-touch-icon" href="{{ asset('estilos/imgPropio/logo.png') }}">
-        <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('estilos/imgPropio/favicon.ico') }}">
+        @include('Sistema.components.pwa-head')
+        <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
 
         <title>Sistema POS - @yield('subtitulo', 'Panel Principal')</title>
 
@@ -675,6 +669,7 @@
             </div>
         </div>
         --}}
+        @include('Sistema.components.pwa-scripts')
     </body>
 
 </html>
