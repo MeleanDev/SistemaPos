@@ -57,10 +57,14 @@ async function cargarDatosInicialesPos() {
             $("#cobroModalTasa").text(formatearMonto(posTasaDia, 2));
 
             const $selAlm = $("#posSelectAlmacen");
+            const $selAlmMobile = $("#posSelectAlmacenMobile");
             $selAlm.empty();
+            if ($selAlmMobile.length) $selAlmMobile.empty();
             if (Array.isArray(res.data.almacenes) && res.data.almacenes.length > 0) {
                 res.data.almacenes.forEach((a, idx) => {
-                    $selAlm.append(`<option value="${a.id}" ${idx === 0 ? "selected" : ""}>${a.nombre}</option>`);
+                    const optHtml = `<option value="${a.id}" ${idx === 0 ? "selected" : ""}>${a.nombre}</option>`;
+                    $selAlm.append(optHtml);
+                    if ($selAlmMobile.length) $selAlmMobile.append(optHtml);
                 });
                 posAlmacenActualId = parseInt(res.data.almacenes[0].id);
             }
@@ -78,11 +82,11 @@ async function cargarDatosInicialesPos() {
             }
 
             if (res.data.es_vendedor) {
-                $("#btnCobrarPos").addClass("d-none");
-                $("#btnPreventaPos").removeClass("d-none").addClass("d-flex");
+                $("#btnCobrarPos, #btnCobrarPosMobile").addClass("d-none").removeClass("d-flex");
+                $("#btnPreventaPos, #btnPreventaPosMobile").removeClass("d-none").addClass("d-flex");
             } else {
-                $("#btnPreventaPos").addClass("d-none").removeClass("d-flex");
-                $("#btnCobrarPos").removeClass("d-none");
+                $("#btnPreventaPos, #btnPreventaPosMobile").addClass("d-none").removeClass("d-flex");
+                $("#btnCobrarPos, #btnCobrarPosMobile").removeClass("d-none").addClass("d-flex");
             }
 
             if (res.data.maneja_vendedores === false) {
@@ -1405,7 +1409,9 @@ function limpiarPantallaPos() {
 
 function renderizarCarritoPos() {
     const $tbody = $("#contenedorFilasPos");
+    const $mobileContainer = $("#contenedorCardsPosMobile");
     $tbody.empty();
+    if ($mobileContainer.length) $mobileContainer.empty();
 
     if (posCarrito.length === 0) {
         $tbody.append(`
@@ -1421,6 +1427,19 @@ function renderizarCarritoPos() {
                 </td>
             </tr>
         `);
+        if ($mobileContainer.length) {
+            $mobileContainer.append(`
+                <div class="card border rounded-4 p-4 text-center bg-white shadow-xs my-2">
+                    <div class="avatar-executive-sm rounded-circle bg-primary bg-opacity-10 text-primary mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; font-size: 1.4rem;">
+                        <i class="fas fa-cash-register"></i>
+                    </div>
+                    <h6 class="fw-bold text-dark mb-1 font-monospace" style="font-size: 0.95rem;">Carrito Vacío</h6>
+                    <p class="mb-0 font-monospace text-muted" style="font-size: 0.78rem;">
+                        Escanea un producto o búscalo arriba para iniciar la venta.
+                    </p>
+                </div>
+            `);
+        }
         $("#posContadorItems").html('<i class="fas fa-shopping-basket text-primary me-1"></i> 0 Ítems (0 Unid.)');
         return;
     }
@@ -1535,6 +1554,35 @@ function renderizarCarritoPos() {
             </tr>
         `;
         $tbody.append(filaHtml);
+
+        if ($mobileContainer.length) {
+            const cardMobileHtml = `
+                <div class="pos-mobile-cart-card card border rounded-4 p-2.5 mb-2 bg-white shadow-xs ${esSeleccionado ? 'fila-activa' : ''}" data-idx="${idx}" onclick="seleccionarFilaPos(${idx})" style="cursor: pointer;">
+                    <div class="d-flex align-items-start justify-content-between gap-2 mb-1.5">
+                        <div class="overflow-hidden">
+                            <span class="badge bg-light text-secondary border font-monospace px-1.5 py-0.5" style="font-size: 0.68rem;">${item.codigo}</span>
+                            ${badgeTipo} ${badgePlaca} ${badgeVariante} ${badgeSerial}
+                            <strong class="text-dark d-block font-monospace text-truncate mt-1" style="font-size: 0.88rem;">${itemIcon} ${item.nombre}</strong>
+                            <small class="text-muted font-monospace" style="font-size: 0.70rem;">${item.unidad}${item.stock_disponible !== undefined && item.tipo_item === 'producto' ? ` • Disp: ${item.stock_disponible}` : ''}</small>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-circle flex-shrink-0 shadow-xs" onclick="event.stopPropagation(); eliminarItemCarrito(${idx});" title="Eliminar" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-trash-alt" style="font-size: 0.70rem;"></i>
+                        </button>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between gap-2 pt-1 border-top">
+                        <div>
+                            ${cantidadHtml}
+                        </div>
+                        <div class="text-end font-monospace">
+                            <small class="text-muted d-block" style="font-size: 0.70rem;">$ ${precioUnitUsd.toFixed(2)} c/u</small>
+                            <strong class="text-dark d-block" style="font-size: 0.92rem;">$ ${subtotalUsd.toFixed(2)}</strong>
+                            <small class="text-primary fw-bold" style="font-size: 0.70rem;">Bs. ${subtotalBs.toFixed(2)}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+            $mobileContainer.append(cardMobileHtml);
+        }
     });
 
     $("#posContadorItems").html(`<i class="fas fa-shopping-basket text-primary me-1"></i> ${posCarrito.length} Ítem${posCarrito.length === 1 ? '' : 's'} (${totalUnidades.toLocaleString()} Unid.)`);
@@ -1557,8 +1605,8 @@ function cambiarAlmacenItem(idx, nuevoAlmacenId) {
 
 function seleccionarFilaPos(idx) {
     posIndiceRenglonSeleccionado = idx;
-    $(".fila-pos-item").removeClass("fila-activa table-active border-primary");
-    $(`.fila-pos-item[data-idx="${idx}"]`).addClass("fila-activa");
+    $(".fila-pos-item, .pos-mobile-cart-card").removeClass("fila-activa table-active border-primary");
+    $(`.fila-pos-item[data-idx="${idx}"], .pos-mobile-cart-card[data-idx="${idx}"]`).addClass("fila-activa border-primary");
 };
 
 function recalcularTotalesPos() {
@@ -1599,6 +1647,9 @@ function recalcularTotalesPos() {
 
     $("#posTotalVentaUsd").text(`$ ${totalGeneralUsd.toFixed(2)}`);
     $("#posTotalVentaBs").text(`Bs. ${totalGeneralBs.toFixed(2)}`);
+
+    $("#posMobileTotalUsd").text(`$ ${totalGeneralUsd.toFixed(2)}`);
+    $("#posMobileTotalBs").text(`(Bs. ${totalGeneralBs.toFixed(2)})`);
 };
 
 function abrirModalCobro() {
@@ -2780,8 +2831,8 @@ async function guardarPreventaDirecta() {
         total_bs: totalBs,
     };
 
-    const $btn = $("#btnPreventaPos");
-    const orig = $btn.html();
+    const $btn = $("#btnPreventaPos, #btnPreventaPosMobile");
+    const orig = '<i class="fas fa-clipboard-check fs-4"></i> <span>GUARDAR PREVENTA EN ESPERA</span> <span class="badge bg-white text-primary font-monospace rounded-pill px-2 py-1 ms-1" style="font-size: 0.75rem;">F4</span>';
     $btn.prop("disabled", true).html('<i class="fas fa-spinner fa-spin me-1"></i> Guardando...');
 
     try {

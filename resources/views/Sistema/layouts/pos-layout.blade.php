@@ -32,23 +32,79 @@
                 --pos-bg: #f1f5f9;
             }
 
-            html, body {
-                height: 100vh;
-                max-height: 100vh;
-                overflow: hidden !important;
-                margin: 0;
-                padding: 0;
-                background-color: var(--pos-bg);
-                font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-                user-select: none;
+            @media (min-width: 992px) {
+                html, body {
+                    height: 100vh;
+                    max-height: 100vh;
+                    overflow: hidden !important;
+                    margin: 0;
+                    padding: 0;
+                    background-color: var(--pos-bg);
+                    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+                    user-select: none;
+                }
+
+                #pos-kiosk-app {
+                    height: 100vh;
+                    max-height: 100vh;
+                    display: flex;
+                    flex-direction: column;
+                    overflow: hidden;
+                }
+
+                .pos-main-workspace {
+                    flex: 1;
+                    height: calc(100vh - var(--pos-header-height) - var(--pos-footer-height));
+                    max-height: calc(100vh - var(--pos-header-height) - var(--pos-footer-height));
+                    overflow: hidden;
+                    padding: 0.5rem;
+                }
             }
 
-            #pos-kiosk-app {
-                height: 100vh;
-                max-height: 100vh;
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
+            @media (max-width: 991.98px) {
+                :root {
+                    --pos-header-height: 54px;
+                }
+
+                html, body {
+                    height: auto !important;
+                    min-height: 100% !important;
+                    max-height: none !important;
+                    overflow-x: hidden !important;
+                    overflow-y: auto !important;
+                    margin: 0;
+                    padding: 0;
+                    background-color: var(--pos-bg);
+                    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+                    user-select: auto;
+                }
+
+                #pos-kiosk-app {
+                    height: auto !important;
+                    min-height: 100vh !important;
+                    max-height: none !important;
+                    display: block !important;
+                    overflow: visible !important;
+                }
+
+                .pos-top-header {
+                    position: sticky;
+                    top: 0;
+                    padding: 0 0.75rem;
+                }
+
+                .pos-main-workspace {
+                    height: auto !important;
+                    max-height: none !important;
+                    flex: none !important;
+                    overflow: visible !important;
+                    padding: 0.5rem;
+                    padding-bottom: 95px !important;
+                }
+
+                .pos-bottom-statusbar {
+                    display: none !important;
+                }
             }
 
             .pos-top-header {
@@ -63,14 +119,6 @@
                 padding: 0 1rem;
                 z-index: 1040;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-            }
-
-            .pos-main-workspace {
-                flex: 1;
-                height: calc(100vh - var(--pos-header-height) - var(--pos-footer-height));
-                max-height: calc(100vh - var(--pos-header-height) - var(--pos-footer-height));
-                overflow: hidden;
-                padding: 0.5rem;
             }
 
             .pos-bottom-statusbar {
