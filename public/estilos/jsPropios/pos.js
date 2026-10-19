@@ -1138,6 +1138,7 @@ function abrirModalSeleccionCantidadAlmacen(prod) {
     }
 
     $("#modalDetalleInputDescuento").val(0);
+    $("#modalDetalleInputDescuentoMonto").val(0);
     $("#modalDetalleTasa").text(formatearMonto(posTasaDia, 2));
 
     actualizarStockAlmacenModalDetalle();
@@ -1159,14 +1160,48 @@ function actualizarStockAlmacenModalDetalle() {
         .addClass(stock <= 0 && productoSeleccionadoModalDetalle?.tipo_item === 'producto' ? "bg-danger" : "bg-success");
 };
 
+function sincronizarDescuentoModalDetalle(origen) {
+    if (!productoSeleccionadoModalDetalle) return;
+    const prod = productoSeleccionadoModalDetalle;
+    const cant = Math.max(0.001, parseFloat($("#modalDetalleInputCantidad").val()) || 0);
+    const precioUnit = posTipoVentaActual === "mayor" ? parseFloat(prod.precio_mayorista_usd || 0) : parseFloat(prod.precio_detal_usd || 0);
+    const bruto = roundDecimals(cant * precioUnit, 2);
+
+    let monto = parseFloat($("#modalDetalleInputDescuentoMonto").val()) || 0;
+    let pct = parseFloat($("#modalDetalleInputDescuento").val()) || 0;
+
+    if (origen === "monto") {
+        if (monto < 0) monto = 0;
+        if (monto > bruto) monto = bruto;
+        pct = bruto > 0 ? roundDecimals((monto / bruto) * 100, 2) : 0;
+        $("#modalDetalleInputDescuento").val(pct > 0 ? pct : "");
+    } else if (origen === "porcentaje") {
+        if (pct < 0) pct = 0;
+        if (pct > 100) pct = 100;
+        monto = roundDecimals(bruto * (pct / 100), 2);
+        $("#modalDetalleInputDescuentoMonto").val(monto > 0 ? monto : "");
+    }
+
+    actualizarSubtotalModalDetalle();
+};
+
 function actualizarSubtotalModalDetalle() {
     if (!productoSeleccionadoModalDetalle) return;
     const prod = productoSeleccionadoModalDetalle;
     const cant = parseFloat($("#modalDetalleInputCantidad").val()) || 0;
-    const desc = parseFloat($("#modalDetalleInputDescuento").val()) || 0;
     const precioUnit = posTipoVentaActual === "mayor" ? parseFloat(prod.precio_mayorista_usd || 0) : parseFloat(prod.precio_detal_usd || 0);
+    const bruto = roundDecimals(cant * precioUnit, 2);
 
-    const subtotalUsd = roundDecimals(cant * precioUnit * (1 - desc / 100), 2);
+    let montoDesc = parseFloat($("#modalDetalleInputDescuentoMonto").val()) || 0;
+    let pctDesc = parseFloat($("#modalDetalleInputDescuento").val()) || 0;
+
+    if (montoDesc <= 0 && pctDesc > 0) {
+        montoDesc = roundDecimals(bruto * (pctDesc / 100), 2);
+    } else if (montoDesc > 0 && pctDesc <= 0 && bruto > 0) {
+        pctDesc = roundDecimals((montoDesc / bruto) * 100, 2);
+    }
+
+    const subtotalUsd = Math.max(0, roundDecimals(bruto - montoDesc, 2));
     const subtotalBs = roundDecimals(subtotalUsd * posTasaDia, 2);
 
     $("#modalDetalleSubtotalUsd").text(`$ ${subtotalUsd.toFixed(2)}`);
@@ -1178,14 +1213,14 @@ function alterarCantidadModalDetalle(delta) {
     const actual = parseFloat($("#modalDetalleInputCantidad").val()) || 1;
     const nueva = Math.max(0.001, actual + delta);
     $("#modalDetalleInputCantidad").val(nueva);
-    actualizarSubtotalModalDetalle();
+    sincronizarDescuentoModalDetalle("porcentaje");
 };
 
 function sumarPresetModalDetalle(cant) {
     if (productoSeleccionadoModalDetalle?.tipo_item === 'moto' || productoSeleccionadoModalDetalle?.maneja_seriales) return;
     const actual = parseFloat($("#modalDetalleInputCantidad").val()) || 0;
     $("#modalDetalleInputCantidad").val(actual + cant);
-    actualizarSubtotalModalDetalle();
+    sincronizarDescuentoModalDetalle("porcentaje");
 };
 
 function confirmarAgregarConDetalle(e) {
@@ -1194,7 +1229,8 @@ function confirmarAgregarConDetalle(e) {
 
     const prod = productoSeleccionadoModalDetalle;
     const cant = parseFloat($("#modalDetalleInputCantidad").val()) || 1;
-    const desc = parseFloat($("#modalDetalleInputDescuento").val()) || 0;
+    const descPorc = parseFloat($("#modalDetalleInputDescuento").val()) || 0;
+    const descMonto = parseFloat($("#modalDetalleInputDescuentoMonto").val()) || 0;
     const almId = parseInt($("#modalDetalleSelectAlmacen").val()) || posAlmacenActualId;
 
     if (cant <= 0) {
@@ -1227,7 +1263,7 @@ function confirmarAgregarConDetalle(e) {
         }
     }
 
-    agregarProductoAlCarrito(prod, cant, almId, desc, varianteTexto, productoSerialId, serialNumero);
+    agregarProductoAlCarrito(prod, cant, almId, descPorc, varianteTexto, productoSerialId, serialNumero, descMonto);
 
     const modalEl = document.getElementById("modalDetalleVentaProducto");
     const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -1236,7 +1272,7 @@ function confirmarAgregarConDetalle(e) {
     $("#posInputBuscadorProducto").val("").focus();
 };
 
-function agregarProductoAlCarrito(prod, cantidad = 1, almacenId = null, descuentoPorcentaje = 0, varianteTexto = null, productoSerialId = null, serialNumero = null) {
+function agregarProductoAlCarrito(prod, cantidad = 1, almacenId = null, descuentoPorcentaje = 0, varianteTexto = null, productoSerialId = null, serialNumero = null, descuentoUsd = null) {
     const precioUnitUsd = posTipoVentaActual === "mayor" ? parseFloat(prod.precio_mayorista_usd || 0) : parseFloat(prod.precio_detal_usd || 0);
     const targetAlmId = almacenId || posAlmacenActualId;
 
@@ -1260,16 +1296,28 @@ function agregarProductoAlCarrito(prod, cantidad = 1, almacenId = null, descuent
 
     if (idxExistente !== -1) {
         posCarrito[idxExistente].cantidad += cantidad;
-        if (descuentoPorcentaje > 0) {
-            posCarrito[idxExistente].descuento_porcentaje = descuentoPorcentaje;
-        }
         if (almacenId) {
             posCarrito[idxExistente].almacen_id = targetAlmId;
         }
-        posCarrito[idxExistente].subtotal_usd = roundDecimals(
-            posCarrito[idxExistente].cantidad * posCarrito[idxExistente].precio_unitario_usd * (1 - posCarrito[idxExistente].descuento_porcentaje / 100),
-            2
-        );
+
+        const brutoItem = roundDecimals(posCarrito[idxExistente].cantidad * posCarrito[idxExistente].precio_unitario_usd, 2);
+        let descItemMonto = posCarrito[idxExistente].descuento_usd || 0;
+        let descItemPorc = posCarrito[idxExistente].descuento_porcentaje || 0;
+
+        if (descuentoUsd !== null && descuentoUsd !== undefined && parseFloat(descuentoUsd) > 0) {
+            descItemMonto = parseFloat(descuentoUsd);
+            descItemPorc = descuentoPorcentaje > 0 ? descuentoPorcentaje : (brutoItem > 0 ? roundDecimals((descItemMonto / brutoItem) * 100, 2) : 0);
+        } else if (descuentoPorcentaje > 0) {
+            descItemPorc = descuentoPorcentaje;
+            descItemMonto = roundDecimals(brutoItem * (descItemPorc / 100), 2);
+        } else if (descItemPorc > 0) {
+            descItemMonto = roundDecimals(brutoItem * (descItemPorc / 100), 2);
+        }
+
+        if (descItemMonto > brutoItem) descItemMonto = brutoItem;
+        posCarrito[idxExistente].descuento_porcentaje = descItemPorc;
+        posCarrito[idxExistente].descuento_usd = descItemMonto;
+        posCarrito[idxExistente].subtotal_usd = Math.max(0, roundDecimals(brutoItem - descItemMonto, 2));
         posCarrito[idxExistente].subtotal_bs = roundDecimals(posCarrito[idxExistente].subtotal_usd * posTasaDia, 2);
         posIndiceRenglonSeleccionado = idxExistente;
     } else {
@@ -1287,7 +1335,19 @@ function agregarProductoAlCarrito(prod, cantidad = 1, almacenId = null, descuent
             }
         }
 
-        const subtotalUsd = roundDecimals(cantidad * precioUnitUsd * (1 - descuentoPorcentaje / 100), 2);
+        const brutoUsd = roundDecimals(cantidad * precioUnitUsd, 2);
+        let montoDesc = (descuentoUsd !== null && descuentoUsd !== undefined && parseFloat(descuentoUsd) > 0)
+            ? parseFloat(descuentoUsd)
+            : roundDecimals(brutoUsd * (descuentoPorcentaje / 100), 2);
+        if (montoDesc > brutoUsd) montoDesc = brutoUsd;
+        if (montoDesc < 0) montoDesc = 0;
+
+        let pctDesc = descuentoPorcentaje;
+        if (pctDesc <= 0 && montoDesc > 0 && brutoUsd > 0) {
+            pctDesc = roundDecimals((montoDesc / brutoUsd) * 100, 2);
+        }
+
+        const subtotalUsd = Math.max(0, roundDecimals(brutoUsd - montoDesc, 2));
         const subtotalBs = roundDecimals(subtotalUsd * posTasaDia, 2);
 
         let stockAlm = 0;
@@ -1316,7 +1376,8 @@ function agregarProductoAlCarrito(prod, cantidad = 1, almacenId = null, descuent
             precio_unitario_usd: precioUnitUsd,
             aplica_iva: !!prod.aplica_iva,
             iva_porcentaje: parseFloat(prod.iva_porcentaje || 16),
-            descuento_porcentaje: descuentoPorcentaje,
+            descuento_porcentaje: pctDesc,
+            descuento_usd: montoDesc,
             subtotal_usd: subtotalUsd,
             subtotal_bs: subtotalBs,
             stock_disponible: stockAlm,
@@ -1341,10 +1402,11 @@ function actualizarCantidadItem(idx, nuevaCantidad) {
     }
 
     posCarrito[idx].cantidad = cant;
-    posCarrito[idx].subtotal_usd = roundDecimals(
-        cant * posCarrito[idx].precio_unitario_usd * (1 - posCarrito[idx].descuento_porcentaje / 100),
-        2
-    );
+    const descPorc = parseFloat(posCarrito[idx].descuento_porcentaje) || 0;
+    const bruto = roundDecimals(cant * posCarrito[idx].precio_unitario_usd, 2);
+    const descMonto = roundDecimals(bruto * (descPorc / 100), 2);
+    posCarrito[idx].descuento_usd = descMonto;
+    posCarrito[idx].subtotal_usd = Math.max(0, roundDecimals(bruto - descMonto, 2));
     posCarrito[idx].subtotal_bs = roundDecimals(posCarrito[idx].subtotal_usd * posTasaDia, 2);
 
     renderizarCarritoPos();
@@ -1481,6 +1543,10 @@ function renderizarCarritoPos() {
             ? `<span class="badge bg-dark text-white font-monospace ms-1" style="font-size: 0.68rem;"><i class="fas fa-barcode me-1 text-warning"></i>SN: ${item.serial_numero}</span>`
             : '';
 
+        const badgeDescuento = (item.descuento_usd > 0 || item.descuento_porcentaje > 0)
+            ? `<span class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace ms-1" style="font-size: 0.68rem;" title="Descuento aplicado"><i class="fas fa-tag me-1"></i>-${parseFloat(item.descuento_porcentaje || 0)}% (-$${parseFloat(item.descuento_usd || 0).toFixed(2)})</span>`
+            : '';
+
         const cantidadHtml = (item.tipo_item === 'moto' || item.producto_serial_id)
             ? `<span class="badge ${item.tipo_item === 'moto' ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle' : 'bg-info-subtle text-info-emphasis border-info-subtle'} border font-monospace px-2.5 py-1.5 fw-bold" style="font-size: 0.80rem;"><i class="fas fa-tag me-1"></i> 1 UND</span>`
             : `
@@ -1505,13 +1571,13 @@ function renderizarCarritoPos() {
         }
 
         const filaHtml = `
-            <tr class="fila-pos-item ${esSeleccionado ? 'fila-activa' : ''}" data-idx="${idx}" onclick="seleccionarFilaPos(${idx})" style="cursor: pointer;">
+            <tr class="fila-pos-item ${esSeleccionado ? 'fila-activa' : ''}" data-idx="${idx}" onclick="seleccionarFilaPos(${idx})" ondblclick="seleccionarFilaPos(${idx}); modificarRenglonSeleccionado();" style="cursor: pointer;">
                 <td class="font-monospace">
                     <span class="badge bg-light text-secondary border px-2 py-1">${item.codigo}</span>
                 </td>
 
                 <td>
-                    <strong class="text-dark d-block font-monospace" style="font-size: 0.90rem;">${itemIcon} ${item.nombre} ${badgeTipo} ${badgePlaca} ${badgeVariante} ${badgeSerial}</strong>
+                    <strong class="text-dark d-block font-monospace" style="font-size: 0.90rem;">${itemIcon} ${item.nombre} ${badgeTipo} ${badgePlaca} ${badgeVariante} ${badgeSerial} ${badgeDescuento}</strong>
                     <div class="small text-muted font-monospace" style="font-size: 0.72rem;">
                         <span>${item.unidad}</span>
                         ${item.stock_disponible !== undefined && item.tipo_item === 'producto' ? ` • <span class="${item.stock_disponible <= 0 ? 'text-danger' : 'text-success'}">Disp: ${item.stock_disponible}</span>` : ''}
@@ -1557,11 +1623,11 @@ function renderizarCarritoPos() {
 
         if ($mobileContainer.length) {
             const cardMobileHtml = `
-                <div class="pos-mobile-cart-card card border rounded-4 p-2.5 mb-2 bg-white shadow-xs ${esSeleccionado ? 'fila-activa' : ''}" data-idx="${idx}" onclick="seleccionarFilaPos(${idx})" style="cursor: pointer;">
+                <div class="pos-mobile-cart-card card border rounded-4 p-2.5 mb-2 bg-white shadow-xs ${esSeleccionado ? 'fila-activa' : ''}" data-idx="${idx}" onclick="seleccionarFilaPos(${idx})" ondblclick="seleccionarFilaPos(${idx}); modificarRenglonSeleccionado();" style="cursor: pointer;">
                     <div class="d-flex align-items-start justify-content-between gap-2 mb-1.5">
                         <div class="overflow-hidden">
                             <span class="badge bg-light text-secondary border font-monospace px-1.5 py-0.5" style="font-size: 0.68rem;">${item.codigo}</span>
-                            ${badgeTipo} ${badgePlaca} ${badgeVariante} ${badgeSerial}
+                            ${badgeTipo} ${badgePlaca} ${badgeVariante} ${badgeSerial} ${badgeDescuento}
                             <strong class="text-dark d-block font-monospace text-truncate mt-1" style="font-size: 0.88rem;">${itemIcon} ${item.nombre}</strong>
                             <small class="text-muted font-monospace" style="font-size: 0.70rem;">${item.unidad}${item.stock_disponible !== undefined && item.tipo_item === 'producto' ? ` • Disp: ${item.stock_disponible}` : ''}</small>
                         </div>
@@ -1924,6 +1990,7 @@ async function procesarVentaFinal() {
             cantidad: it.cantidad,
             precio_unitario_usd: it.precio_unitario_usd,
             descuento_porcentaje: it.descuento_porcentaje,
+            descuento_usd: it.descuento_usd !== undefined ? it.descuento_usd : roundDecimals((it.cantidad * it.precio_unitario_usd) * (it.descuento_porcentaje / 100), 2),
             almacen_id: it.almacen_id || posAlmacenActualId,
             variante_texto: it.variante_texto || null,
             producto_serial_id: it.producto_serial_id || null,
@@ -2169,6 +2236,7 @@ async function recuperarCuentaEspera(id) {
                     aplica_iva: aplicaIva,
                     iva_porcentaje: ivaPct,
                     descuento_porcentaje: desc,
+                    descuento_usd: parseFloat(item.descuento_usd) || roundDecimals(cant * (pUnit > 0 ? pUnit : (posTipoVentaActual === "mayor" ? pMayor : pDetal)) * (desc / 100), 2),
                     subtotal_usd: subUsd,
                     subtotal_bs: subBs,
                     stock_disponible: parseFloat(item.stock_disponible) || 0,
@@ -2562,31 +2630,162 @@ function modificarRenglonSeleccionado() {
     }
 
     const item = posCarrito[posIndiceRenglonSeleccionado];
+    const precioUnit = parseFloat(item.precio_unitario_usd) || 0;
+    const cantInicial = parseFloat(item.cantidad) || 1;
+    const brutoInicial = roundDecimals(cantInicial * precioUnit, 2);
+    let descMontoInicial = item.descuento_usd !== undefined ? parseFloat(item.descuento_usd) : 0;
+    let descPorcInicial = parseFloat(item.descuento_porcentaje) || 0;
+
+    if (descMontoInicial <= 0 && descPorcInicial > 0) {
+        descMontoInicial = roundDecimals(brutoInicial * (descPorcInicial / 100), 2);
+    } else if (descMontoInicial > 0 && descPorcInicial <= 0 && brutoInicial > 0) {
+        descPorcInicial = roundDecimals((descMontoInicial / brutoInicial) * 100, 2);
+    }
+
     if (window.Swal) {
         Swal.fire({
             title: `Modificar: ${item.nombre}`,
+            width: "500px",
             html: `
                 <div class="text-start">
-                    <label class="form-label small fw-bold">Cantidad:</label>
-                    <input type="number" step="any" min="0.001" id="swalInputCant" class="form-control mb-2 font-monospace" value="${item.cantidad}">
-                    <label class="form-label small fw-bold">Descuento (%):</label>
-                    <input type="number" step="any" min="0" max="100" id="swalInputDesc" class="form-control font-monospace" value="${item.descuento_porcentaje}">
+                    <div class="p-2.5 mb-3 rounded-3 bg-light border d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-muted small d-block">Precio Unitario:</span>
+                            <strong class="text-dark font-monospace fs-6">$ ${precioUnit.toFixed(2)}</strong>
+                        </div>
+                        <div class="text-end">
+                            <span class="text-muted small d-block">Total Bruto:</span>
+                            <strong id="swalTotalBruto" class="text-primary font-monospace fs-6">$ ${brutoInicial.toFixed(2)}</strong>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary mb-1">
+                            <i class="fas fa-boxes me-1 text-primary"></i> Cantidad:
+                        </label>
+                        <input type="number" step="any" min="0.001" id="swalInputCant" class="form-control form-control-lg font-monospace text-center fw-bold" value="${cantInicial}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary mb-1">
+                            <i class="fas fa-tags me-1 text-warning"></i> Descuento a Aplicar:
+                        </label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small text-muted mb-1" for="swalInputMontoDesc">Monto Descuento ($)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text font-monospace bg-white text-muted fw-bold">$</span>
+                                    <input type="number" step="any" min="0" id="swalInputMontoDesc" class="form-control font-monospace fw-bold text-center" value="${descMontoInicial > 0 ? descMontoInicial : ''}" placeholder="0.00">
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small text-muted mb-1" for="swalInputDesc">Porcentaje Descuento (%)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text font-monospace bg-white text-muted fw-bold">%</span>
+                                    <input type="number" step="any" min="0" max="100" id="swalInputDesc" class="form-control font-monospace fw-bold text-center" value="${descPorcInicial > 0 ? descPorcInicial : ''}" placeholder="0">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 rounded-3 bg-light border">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary small fw-bold">Descuento Calculado:</span>
+                            <span id="swalResumenDescuento" class="font-monospace fw-bold text-danger">-$0.00 (0%)</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-dark fw-bold">Total Neto Renglón:</span>
+                            <div class="text-end">
+                                <strong id="swalTotalNetoUsd" class="font-monospace text-success fs-5 d-block">$ 0.00</strong>
+                                <small id="swalTotalNetoBs" class="font-monospace text-muted d-block">Bs. 0.00</small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `,
             showCancelButton: true,
             confirmButtonText: "Guardar Cambios",
             cancelButtonText: "Cancelar",
+            didOpen: () => {
+                const inputCant = document.getElementById("swalInputCant");
+                const inputMonto = document.getElementById("swalInputMontoDesc");
+                const inputPct = document.getElementById("swalInputDesc");
+                const elTotalBruto = document.getElementById("swalTotalBruto");
+                const elResumenDesc = document.getElementById("swalResumenDescuento");
+                const elTotalNetoUsd = document.getElementById("swalTotalNetoUsd");
+                const elTotalNetoBs = document.getElementById("swalTotalNetoBs");
+
+                function sincronizar(origen) {
+                    const cant = Math.max(0.001, parseFloat(inputCant.value) || 0);
+                    const bruto = roundDecimals(cant * precioUnit, 2);
+
+                    let monto = parseFloat(inputMonto.value) || 0;
+                    let pct = parseFloat(inputPct.value) || 0;
+
+                    if (origen === "monto") {
+                        if (monto < 0) monto = 0;
+                        if (monto > bruto) monto = bruto;
+                        pct = bruto > 0 ? roundDecimals((monto / bruto) * 100, 2) : 0;
+                        inputPct.value = pct > 0 ? pct : "";
+                    } else if (origen === "porcentaje") {
+                        if (pct < 0) pct = 0;
+                        if (pct > 100) pct = 100;
+                        monto = roundDecimals(bruto * (pct / 100), 2);
+                        inputMonto.value = monto > 0 ? monto : "";
+                    } else if (origen === "cantidad") {
+                        if (pct > 0) {
+                            monto = roundDecimals(bruto * (pct / 100), 2);
+                            inputMonto.value = monto > 0 ? monto : "";
+                        } else if (monto > 0) {
+                            if (monto > bruto) monto = bruto;
+                            pct = bruto > 0 ? roundDecimals((monto / bruto) * 100, 2) : 0;
+                            inputPct.value = pct > 0 ? pct : "";
+                        }
+                    }
+
+                    const netoUsd = Math.max(0, roundDecimals(bruto - monto, 2));
+                    const netoBs = roundDecimals(netoUsd * posTasaDia, 2);
+
+                    elTotalBruto.textContent = `$ ${bruto.toFixed(2)}`;
+                    elResumenDesc.textContent = `-$${monto.toFixed(2)} (${pct}%)`;
+                    elTotalNetoUsd.textContent = `$ ${netoUsd.toFixed(2)}`;
+                    elTotalNetoBs.textContent = `Bs. ${netoBs.toFixed(2)}`;
+                }
+
+                inputCant.addEventListener("input", () => sincronizar("cantidad"));
+                inputMonto.addEventListener("input", () => sincronizar("monto"));
+                inputPct.addEventListener("input", () => sincronizar("porcentaje"));
+
+                sincronizar(descMontoInicial > 0 ? "monto" : "porcentaje");
+                setTimeout(() => {
+                    inputMonto.focus();
+                    inputMonto.select();
+                }, 100);
+            },
             preConfirm: () => {
-                const cant = parseFloat(document.getElementById("swalInputCant").value) || 1;
-                const desc = parseFloat(document.getElementById("swalInputDesc").value) || 0;
-                return { cant, desc };
+                const cant = Math.max(0.001, parseFloat(document.getElementById("swalInputCant").value) || 1);
+                const descMonto = Math.max(0, parseFloat(document.getElementById("swalInputMontoDesc").value) || 0);
+                const descPorc = Math.max(0, Math.min(100, parseFloat(document.getElementById("swalInputDesc").value) || 0));
+                return { cant, descMonto, descPorc };
             },
         }).then((res) => {
             if (res.isConfirmed && res.value) {
+                const bruto = roundDecimals(res.value.cant * item.precio_unitario_usd, 2);
+                let montoFinal = Math.min(bruto, res.value.descMonto);
+                let porcFinal = res.value.descPorc;
+
+                if (montoFinal > 0 && porcFinal <= 0 && bruto > 0) {
+                    porcFinal = roundDecimals((montoFinal / bruto) * 100, 2);
+                } else if (porcFinal > 0 && montoFinal <= 0) {
+                    montoFinal = roundDecimals(bruto * (porcFinal / 100), 2);
+                }
+
                 item.cantidad = res.value.cant;
-                item.descuento_porcentaje = res.value.desc;
-                item.subtotal_usd = roundDecimals(item.cantidad * item.precio_unitario_usd * (1 - item.descuento_porcentaje / 100), 2);
+                item.descuento_usd = montoFinal;
+                item.descuento_porcentaje = porcFinal;
+                item.subtotal_usd = Math.max(0, roundDecimals(bruto - montoFinal, 2));
                 item.subtotal_bs = roundDecimals(item.subtotal_usd * posTasaDia, 2);
+
                 renderizarCarritoPos();
                 recalcularTotalesPos();
             }

@@ -536,7 +536,13 @@ class VentaClass
                 $montoBrutoUsd += $renglonBrutoUsd;
 
                 $descuentoItemUsd = 0;
-                if ($descuentoPorc > 0) {
+                if (isset($it['descuento_usd']) && (float) $it['descuento_usd'] > 0) {
+                    $descuentoItemUsd = min($renglonBrutoUsd, round((float) $it['descuento_usd'], 2));
+                    if ($renglonBrutoUsd > 0 && $descuentoPorc <= 0) {
+                        $descuentoPorc = round(($descuentoItemUsd / $renglonBrutoUsd) * 100, 2);
+                    }
+                    $totalDescuentosUsd += $descuentoItemUsd;
+                } elseif ($descuentoPorc > 0) {
                     $descuentoItemUsd = round($renglonBrutoUsd * ($descuentoPorc / 100), 2);
                     $totalDescuentosUsd += $descuentoItemUsd;
                 }

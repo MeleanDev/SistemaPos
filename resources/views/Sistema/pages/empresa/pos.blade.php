@@ -1719,10 +1719,22 @@
                             </div>
 
                             <div class="col-md-6">
-                                <label class="form-label-executive mb-1"><i class="fas fa-percent text-warning me-1"></i> Descuento Especial (%)</label>
-                                <div class="input-group input-group-lg">
-                                    <span class="input-group-text bg-white text-muted font-monospace border">%</span>
-                                    <input type="number" step="any" min="0" max="100" id="modalDetalleInputDescuento" class="form-control form-control-executive font-monospace text-center fw-bold" value="0" oninput="actualizarSubtotalModalDetalle()">
+                                <label class="form-label-executive mb-1"><i class="fas fa-tags text-warning me-1"></i> Descuento Especial</label>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="input-group input-group-lg">
+                                            <span class="input-group-text bg-white text-muted font-monospace border">$</span>
+                                            <input type="number" step="any" min="0" id="modalDetalleInputDescuentoMonto" class="form-control form-control-executive font-monospace text-center fw-bold" value="0" placeholder="0.00" oninput="sincronizarDescuentoModalDetalle('monto')">
+                                        </div>
+                                        <small class="text-muted font-monospace mt-1 d-block text-center">Monto ($)</small>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="input-group input-group-lg">
+                                            <span class="input-group-text bg-white text-muted font-monospace border">%</span>
+                                            <input type="number" step="any" min="0" max="100" id="modalDetalleInputDescuento" class="form-control form-control-executive font-monospace text-center fw-bold" value="0" placeholder="0" oninput="sincronizarDescuentoModalDetalle('porcentaje')">
+                                        </div>
+                                        <small class="text-muted font-monospace mt-1 d-block text-center">Porcentaje (%)</small>
+                                    </div>
                                 </div>
                                 <small class="text-muted font-monospace mt-1 d-block">Aplica únicamente a este renglón</small>
                             </div>

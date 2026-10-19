@@ -1231,3 +1231,121 @@ test('generarNumeroControl incrementa correlativamente por empresa', function ()
     // Empresa 1 se mantiene intacta en su propio correlativo (00-00000003)
     expect($ventaService->generarNumeroControl($empresa->id))->toBe('00-00000003');
 });
+
+test('pos procesa venta con descuento exacto por monto en usd (descuento_usd)', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-90000099-9',
+        'nombre' => 'Empresa Descuento Exacto',
+        'razon_social' => 'Empresa Descuento Exacto C.A.',
+        'direccion' => 'Av. Principal',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'ALM-DESC-1',
+        'nombre' => 'Almacén Principal',
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'CAT-DESC',
+        'nombre' => 'Ferretería',
+        'estado' => true,
+    ]);
+
+    $producto = Producto::create([
+        'empresa_id' => $empresa->id,
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'PRD-GATO',
+        'nombre' => 'GATO CAIMAN 3T TRUPER',
+        'unidad_medida' => 'UND',
+        'precio_costo_usd' => 250.00,
+        'precio_detal_usd' => 410.00,
+        'precio_mayorista_usd' => 410.00,
+        'aplica_iva' => false,
+        'iva_porcentaje' => 0.00,
+        'estado' => true,
+    ]);
+
+    ProductoStockAlmacen::create([
+        'producto_id' => $producto->id,
+        'almacen_id' => $almacen->id,
+        'cantidad_actual' => 5,
+    ]);
+
+    $cliente = Cliente::create([
+        'empresa_id' => $empresa->id,
+        'tipo_documento' => 'V',
+        'cedula' => 'V-99887766',
+        'nombre' => 'Cliente',
+        'apellido' => 'Descuento',
+        'telefono' => '0414-0000000',
+        'tipo_cliente' => 'detal',
+        'email' => 'cliente.descuento@test.com',
+        'direccion' => 'Ciudad',
+        'estado' => true,
+    ]);
+
+    $metodoUsd = MetodoPago::firstOrCreate([
+        'nombre' => 'Efectivo Divisas ($)',
+    ], [
+        'descripcion' => 'Efectivo USD',
+        'estado' => true,
+    ]);
+
+    $user = User::factory()->create(['name' => 'V-99887766']);
+    $user->assignRole('SuperAdmin');
+    $user->empresas()->attach($empresa->id);
+
+    $payload = [
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'tipo_venta' => 'detal',
+        'tasa_cambio' => 50.0000,
+        'condicion_pago' => 'contado',
+        'items' => [
+            [
+                'producto_id' => $producto->id,
+                'tipo_item' => 'producto',
+                'cantidad' => 1,
+                'precio_unitario_usd' => 410.00,
+                'descuento_porcentaje' => 4.88,
+                'descuento_usd' => 20.00,
+                'almacen_id' => $almacen->id,
+            ],
+        ],
+        'pagos' => [
+            [
+                'metodo_pago_id' => $metodoUsd->id,
+                'moneda' => 'USD',
+                'tasa_cambio' => 50.0000,
+                'monto' => 390.00,
+                'referencia' => 'Efectivo Exacto',
+            ],
+        ],
+    ];
+
+    $response = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', $payload);
+
+    $response->assertOk()
+        ->assertJsonPath('success', true);
+
+    $venta = Venta::with('detalles')->where('empresa_id', $empresa->id)->first();
+    expect($venta)->not->toBeNull();
+    expect((float) $venta->monto_bruto_usd)->toBe(410.00);
+    expect((float) $venta->descuento_usd)->toBe(20.00);
+    expect((float) $venta->total_usd)->toBe(390.00);
+    expect((float) $venta->subtotal_neto_usd)->toBe(390.00);
+
+    $detalle = $venta->detalles->first();
+    expect($detalle)->not->toBeNull();
+    expect((float) $detalle->precio_unitario_usd)->toBe(410.00);
+    expect((float) $detalle->descuento_usd)->toBe(20.00);
+    expect((float) $detalle->subtotal_usd)->toBe(390.00);
+});
