@@ -131,6 +131,7 @@ const inicializarTablaFacturas = function () {
     datatableFacturas = crearDataTable({
         selector: "#datatable_facturas",
         url: urlFacturasLista,
+        responsive: true,
         dataExtra: function (d) {
             d.fecha_inicio = $("#filtroFechaInicio").val();
             d.fecha_fin = $("#filtroFechaFin").val();
@@ -143,9 +144,16 @@ const inicializarTablaFacturas = function () {
                 name: "codigo",
                 render: function (data, type, row) {
                     const controlHtml = row.numero_control
-                        ? `<small class="text-muted font-monospace d-block" style="font-size: 0.72rem;"><i class="fas fa-barcode me-1"></i>Ctrl: ${row.numero_control}</small>`
+                        ? `<div class="d-inline-flex align-items-center gap-1 font-monospace text-secondary text-nowrap mt-0.5" style="font-size: 0.73rem;"><i class="fas fa-barcode text-muted"></i> <span>Ctrl: <strong class="text-dark">${row.numero_control}</strong></span></div>`
                         : "";
-                    return `<span class="badge rounded-pill bg-primary-subtle text-primary font-monospace fw-bold px-2.5 py-1.5"><i class="fas fa-receipt me-1"></i>${data}</span>${controlHtml}`;
+                    return `
+                        <div class="d-inline-flex flex-column text-nowrap align-items-start" style="gap: 2px;">
+                            <span class="badge rounded-pill bg-primary-subtle text-primary font-monospace fw-bold px-2.5 py-1" style="font-size: 0.84rem;">
+                                <i class="fas fa-receipt me-1"></i>${data}
+                            </span>
+                            ${controlHtml}
+                        </div>
+                    `;
                 }
             },
             {
@@ -186,7 +194,13 @@ const inicializarTablaFacturas = function () {
                 data: "almacen.nombre",
                 name: "almacen.nombre",
                 render: function (data) {
-                    return `<span class="badge rounded-pill bg-secondary-subtle text-secondary px-2 py-1 font-monospace"><i class="fas fa-warehouse me-1"></i>${data || 'General'}</span>`;
+                    const nombre = data || "General";
+                    return `
+                        <div class="d-inline-flex align-items-center gap-1.5 text-nowrap">
+                            <i class="fas fa-warehouse text-primary" style="font-size: 0.82rem;"></i>
+                            <span class="font-monospace fw-semibold text-dark" style="font-size: 0.84rem;">${nombre}</span>
+                        </div>
+                    `;
                 }
             },
             {
@@ -195,10 +209,10 @@ const inicializarTablaFacturas = function () {
                 render: function (data, type, row) {
                     const esCredito = data === "credito";
                     const badgeCond = esCredito
-                        ? '<span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle font-monospace px-2 py-0.5">Crédito (CXC)</span>'
-                        : '<span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-0.5">Contado</span>';
+                        ? '<span class="badge rounded-pill bg-warning-subtle text-warning-emphasis font-monospace px-2 py-0.5">Crédito (CXC)</span>'
+                        : '<span class="badge rounded-pill bg-success-subtle text-success font-monospace px-2 py-0.5">Contado</span>';
                     const tipoVenta = row.tipo_venta === "mayor" ? "Mayor" : "Detal";
-                    return `<div>${badgeCond}<small class="text-muted font-monospace d-block mt-0.5">${tipoVenta}</small></div>`;
+                    return `<div class="text-nowrap">${badgeCond}<small class="text-muted font-monospace d-block mt-0.5">${tipoVenta}</small></div>`;
                 }
             },
             {
@@ -208,7 +222,7 @@ const inicializarTablaFacturas = function () {
                 render: function (data, type, row) {
                     const usd = parseFloat(data || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                     const bs = parseFloat(row.total_bs || 0).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    return `<div><strong class="text-dark d-block" style="font-size: 0.92rem;">$ ${usd}</strong><small class="badge rounded-pill px-2 py-0.5 fw-bold" style="font-size: 0.72rem; background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">Bs. ${bs}</small></div>`;
+                    return `<div><strong class="text-dark d-block" style="font-size: 0.92rem;">$ ${usd}</strong><small class="badge rounded-pill bg-success-subtle text-success px-2 py-0.5 fw-bold" style="font-size: 0.74rem;">Bs. ${bs}</small></div>`;
                 }
             },
             {
@@ -324,7 +338,8 @@ const verDetalleFactura = async function (id) {
 
         if (res.success && res.data) {
             const v = res.data;
-            $("#modalFacturaCodigoHeader").text(`Comprobante #${v.codigo}`);
+            $("#modalDetalleFacturaSubtitulo").text(`Comprobante #${v.codigo}`);
+            $("#modalDetalleFacturaTitulo").text(`Detalle de Factura #${v.codigo}`);
             $("#btnImprimirCartaModalDetalle").attr("onclick", `imprimirCartaFactura(${v.id})`);
             $("#btnReimprimirModalDetalle").attr("onclick", `imprimirTicketFactura(${v.id})`);
 
@@ -338,18 +353,26 @@ const verDetalleFactura = async function (id) {
                 v.detalles.forEach((det, idx) => {
                     const itemNombre = det.nombre_item || (det.producto ? det.producto.nombre : (det.moto ? `${det.moto.marca} ${det.moto.modelo}` : (det.servicio ? det.servicio.nombre : "Ítem")));
                     const serialBadge = det.serial_identificador ? `<span class="badge bg-primary-subtle text-primary font-monospace ms-1">#${det.serial_identificador}</span>` : "";
-                    const tipoBadge = `<span class="badge bg-secondary-subtle text-secondary font-monospace rounded-pill">${det.tipo_item}</span>`;
+
+                    let tipoBadge = "";
+                    if (det.tipo_item === "moto") {
+                        tipoBadge = '<span class="badge rounded-pill bg-info-subtle text-info font-monospace px-2 py-0.5"><i class="fas fa-motorcycle me-1"></i>Moto</span>';
+                    } else if (det.tipo_item === "servicio") {
+                        tipoBadge = '<span class="badge rounded-pill bg-warning-subtle text-warning-emphasis font-monospace px-2 py-0.5"><i class="fas fa-wrench me-1"></i>Servicio</span>';
+                    } else {
+                        tipoBadge = '<span class="badge rounded-pill bg-primary-subtle text-primary font-monospace px-2 py-0.5"><i class="fas fa-box me-1"></i>Producto</span>';
+                    }
 
                     renglonesHtml += `
                         <tr>
-                            <td class="font-monospace text-center small">${idx + 1}</td>
+                            <td class="font-monospace text-center small text-secondary">${idx + 1}</td>
                             <td>
                                 <strong class="text-dark font-monospace d-block">${itemNombre} ${serialBadge}</strong>
-                                <small class="text-muted font-monospace">${tipoBadge} • Almacén: ${det.almacen?.nombre || 'General'}</small>
+                                <small class="text-secondary font-monospace d-inline-flex align-items-center gap-1.5 mt-0.5">${tipoBadge} <span>•</span> <i class="fas fa-warehouse text-primary"></i> <span class="text-dark fw-semibold">${det.almacen?.nombre || 'General'}</span></small>
                             </td>
-                            <td class="text-center font-monospace fw-bold">${parseFloat(det.cantidad).toLocaleString()}</td>
-                            <td class="text-end font-monospace">$ ${parseFloat(det.precio_unitario_usd).toFixed(2)}</td>
-                            <td class="text-center font-monospace small">${det.aplica_iva ? `IVA ${det.iva_porcentaje}%` : 'Exento'}</td>
+                            <td class="text-center font-monospace fw-bold text-dark">${parseFloat(det.cantidad).toLocaleString()}</td>
+                            <td class="text-end font-monospace text-dark">$ ${parseFloat(det.precio_unitario_usd).toFixed(2)}</td>
+                            <td class="text-center font-monospace small"><span class="badge rounded-pill ${det.aplica_iva ? 'bg-info-subtle text-info' : 'bg-success-subtle text-success'} px-2 py-0.5">${det.aplica_iva ? `IVA ${parseFloat(det.iva_porcentaje)}%` : 'Exento'}</span></td>
                             <td class="text-end font-monospace fw-bold text-dark">$ ${parseFloat(det.subtotal_usd).toFixed(2)}</td>
                         </tr>
                     `;
@@ -361,15 +384,15 @@ const verDetalleFactura = async function (id) {
                 v.pagos.forEach((p) => {
                     const metodoNombre = p.metodo_pago ? p.metodo_pago.nombre : "Pago";
                     pagosHtml += `
-                        <div class="d-flex align-items-center justify-content-between p-2.5 border rounded-3 bg-white mb-1.5 font-monospace small shadow-xs">
+                        <div class="d-flex align-items-center justify-content-between p-2.5 border rounded-3 bg-white mb-2 font-monospace small shadow-xs">
                             <div>
                                 <strong class="text-dark">${metodoNombre}</strong>
-                                ${p.referencia ? `<span class="text-muted ms-1">(Ref: ${p.referencia})</span>` : ''}
+                                ${p.referencia ? `<small class="text-secondary ms-1.5">(Ref: ${p.referencia})</small>` : ''}
                             </div>
                             <div>
-                                <span class="badge ${p.moneda === 'VES' ? 'bg-info-subtle text-info-emphasis' : 'bg-success-subtle text-success'} rounded-pill me-1">${p.moneda}</span>
+                                <span class="badge ${p.moneda === 'VES' ? 'bg-info-subtle text-info' : 'bg-success-subtle text-success'} rounded-pill me-1.5 px-2 py-0.5">${p.moneda}</span>
                                 <strong class="text-success">$ ${parseFloat(p.monto_usd).toFixed(2)}</strong>
-                                <small class="text-muted ms-1">(Bs. ${parseFloat(p.monto_bs).toFixed(2)})</small>
+                                <small class="text-secondary ms-1.5 fw-semibold">(Bs. ${parseFloat(p.monto_bs).toFixed(2)})</small>
                             </div>
                         </div>
                     `;
@@ -405,53 +428,53 @@ const verDetalleFactura = async function (id) {
                 <div class="card border rounded-4 p-3 bg-white shadow-xs mb-3">
                     <div class="row g-3">
                         <div class="col-md-6 border-end">
-                            <h6 class="fw-bold text-dark mb-2"><i class="fas fa-receipt text-primary me-1"></i> Información de Comprobante</h6>
+                            <h6 class="fw-bold text-dark mb-2.5"><i class="fas fa-receipt text-primary me-1"></i> Información de Comprobante</h6>
                             <div class="font-monospace small">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span class="text-muted">Número Factura:</span>
+                                <div class="d-flex justify-content-between mb-1.5">
+                                    <span class="text-secondary fw-medium">Número Factura:</span>
                                     <strong class="text-dark">${v.codigo}</strong>
                                 </div>
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span class="text-muted">N° Control Fiscal:</span>
-                                    <span class="badge rounded-pill bg-danger-subtle text-danger font-monospace fw-bold">${v.numero_control || 'N/A'}</span>
+                                <div class="d-flex justify-content-between mb-1.5">
+                                    <span class="text-secondary fw-medium">N° Control Fiscal:</span>
+                                    <span class="badge rounded-pill bg-danger-subtle text-danger font-monospace fw-bold px-2.5 py-0.5">${v.numero_control || 'N/A'}</span>
                                 </div>
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span class="text-muted">Fecha & Hora:</span>
-                                    <span class="fw-bold text-dark">${formatearFechaLegal(v.fecha_emision)} ${formatearHoraLegal(v.hora_emision)}</span>
+                                <div class="d-flex justify-content-between mb-1.5">
+                                    <span class="text-secondary fw-medium">Fecha & Hora:</span>
+                                    <strong class="text-dark">${formatearFechaLegal(v.fecha_emision)} ${formatearHoraLegal(v.hora_emision)}</strong>
                                 </div>
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span class="text-muted">Almacén Despacho:</span>
-                                    <strong class="text-primary">${v.almacen?.nombre || 'General'}</strong>
+                                <div class="d-flex justify-content-between mb-1.5">
+                                    <span class="text-secondary fw-medium">Almacén Despacho:</span>
+                                    <span class="d-inline-flex align-items-center gap-1.5 font-monospace fw-semibold text-dark"><i class="fas fa-warehouse text-primary"></i> ${v.almacen?.nombre || 'General'}</span>
                                 </div>
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span class="text-muted">Condición de Pago:</span>
-                                    <span class="badge ${v.condicion_pago === 'credito' ? 'bg-warning-subtle text-warning-emphasis' : 'bg-success-subtle text-success'} rounded-pill">${v.condicion_pago === 'credito' ? 'Crédito' : 'Contado'} (${v.tipo_venta})</span>
+                                <div class="d-flex justify-content-between mb-1.5">
+                                    <span class="text-secondary fw-medium">Condición de Pago:</span>
+                                    <span class="badge rounded-pill ${v.condicion_pago === 'credito' ? 'bg-warning-subtle text-warning-emphasis' : 'bg-success-subtle text-success'} font-monospace px-2.5 py-0.5">${v.condicion_pago === 'credito' ? 'Crédito' : 'Contado'} (${v.tipo_venta === 'mayor' ? 'Mayor' : 'Detal'})</span>
                                 </div>
                                 <div class="d-flex justify-content-between">
-                                    <span class="text-muted">Operador de Caja:</span>
-                                    <span>${v.usuario?.name || 'Sistema'}</span>
+                                    <span class="text-secondary fw-medium">Operador de Caja:</span>
+                                    <span class="d-inline-flex align-items-center gap-1.5 font-monospace fw-semibold text-dark"><i class="fas fa-user-circle text-secondary"></i> ${v.usuario?.name || 'Sistema'}</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="col-md-6">
-                            <h6 class="fw-bold text-dark mb-2"><i class="fas fa-user-check text-success me-1"></i> Datos del Cliente</h6>
+                            <h6 class="fw-bold text-dark mb-2.5"><i class="fas fa-user-check text-success me-1"></i> Datos del Cliente</h6>
                             <div class="font-monospace small">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span class="text-muted">Cliente:</span>
-                                    <strong class="text-dark">${cliNombre}</strong>
+                                <div class="d-flex justify-content-between mb-1.5">
+                                    <span class="text-secondary fw-medium">Cliente:</span>
+                                    <strong class="text-dark font-monospace">${cliNombre}</strong>
                                 </div>
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span class="text-muted">Cédula / RIF:</span>
-                                    <span>${cliCedula}</span>
+                                <div class="d-flex justify-content-between mb-1.5">
+                                    <span class="text-secondary fw-medium">Cédula / RIF:</span>
+                                    <span class="d-inline-flex align-items-center font-monospace text-secondary fw-semibold"><i class="far fa-id-card text-primary me-1"></i>${cliCedula}</span>
                                 </div>
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span class="text-muted">Teléfono:</span>
-                                    <span>${cliTelefono}</span>
+                                <div class="d-flex justify-content-between mb-1.5">
+                                    <span class="text-secondary fw-medium">Teléfono:</span>
+                                    <span class="font-monospace text-dark"><i class="fas fa-phone text-secondary me-1"></i>${cliTelefono}</span>
                                 </div>
                                 <div class="d-flex justify-content-between">
-                                    <span class="text-muted">Dirección:</span>
-                                    <span class="text-truncate" style="max-width: 220px;">${cliDireccion}</span>
+                                    <span class="text-secondary fw-medium">Dirección:</span>
+                                    <span class="text-dark text-truncate d-inline-block" style="max-width: 240px;" title="${cliDireccion}"><i class="fas fa-map-marker-alt text-danger me-1"></i>${cliDireccion}</span>
                                 </div>
                             </div>
                         </div>
@@ -466,7 +489,7 @@ const verDetalleFactura = async function (id) {
                     </div>
                     <div class="table-responsive" style="max-height: 240px; overflow-y: auto;">
                         <table class="table table-sm table-hover align-middle mb-0">
-                            <thead class="table-light font-monospace small">
+                            <thead class="bg-primary bg-opacity-10 text-primary font-monospace small">
                                 <tr>
                                     <th class="text-center" style="width: 40px;">#</th>
                                     <th>Descripción</th>
@@ -486,35 +509,35 @@ const verDetalleFactura = async function (id) {
                 <div class="row g-3">
                     <div class="col-md-6">
                         <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
-                            <h6 class="fw-bold text-dark mb-2"><i class="fas fa-wallet text-secondary me-1"></i> Formas de Cobro Aplicadas</h6>
+                            <h6 class="fw-bold text-dark mb-2.5"><i class="fas fa-wallet text-primary me-1"></i> Formas de Cobro Aplicadas</h6>
                             ${pagosHtml}
                         </div>
                     </div>
 
                     <div class="col-md-6">
                         <div class="card border rounded-4 p-3 bg-white shadow-xs font-monospace">
-                            <div class="d-flex justify-content-between mb-1">
-                                <span class="text-muted">Sub-Total Neto:</span>
+                            <div class="d-flex justify-content-between mb-1.5">
+                                <span class="text-secondary fw-semibold">Sub-Total Neto:</span>
                                 <strong class="text-dark">$ ${parseFloat(v.subtotal_neto_usd).toFixed(2)}</strong>
                             </div>
-                            <div class="d-flex justify-content-between mb-1">
-                                <span class="text-muted">Total IVA:</span>
+                            <div class="d-flex justify-content-between mb-1.5">
+                                <span class="text-secondary fw-semibold">Total IVA:</span>
                                 <strong class="text-dark">$ ${parseFloat(v.iva_monto_usd).toFixed(2)}</strong>
                             </div>
                             <hr class="my-2">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <span class="fw-bold text-dark fs-6">TOTAL FACTURA:</span>
                                 <div class="text-end">
-                                    <h4 class="fw-bold text-success mb-0">$ ${parseFloat(v.total_usd).toFixed(2)}</h4>
-                                    <small class="badge rounded-pill bg-success-subtle text-success px-2 py-0.5">Bs. ${parseFloat(v.total_bs).toFixed(2)}</small>
+                                    <h3 class="fw-bold text-success mb-0 font-monospace">$ ${parseFloat(v.total_usd).toFixed(2)}</h3>
+                                    <span class="badge rounded-pill bg-success-subtle text-success font-monospace px-2.5 py-1 fw-bold mt-1">Bs. ${parseFloat(v.total_bs).toFixed(2)}</span>
                                 </div>
                             </div>
                             <div class="d-flex justify-content-between mt-2 pt-2 border-top small">
-                                <span class="text-muted">Monto Pagado:</span>
+                                <span class="text-secondary fw-semibold">Monto Pagado:</span>
                                 <strong class="text-success">$ ${parseFloat(v.monto_pagado_usd).toFixed(2)}</strong>
                             </div>
                             ${parseFloat(v.vuelto_usd) > 0 ? `
-                                <div class="d-flex justify-content-between small text-info">
+                                <div class="d-flex justify-content-between small text-info fw-semibold">
                                     <span>Vuelto / Cambio:</span>
                                     <strong>$ ${parseFloat(v.vuelto_usd).toFixed(2)}</strong>
                                 </div>

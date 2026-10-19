@@ -101,7 +101,7 @@
                 <option value="anulada">Anulada</option>
             </x-select>
             <div class="col-12 col-md-2 text-end">
-                <x-button variant="outline-secondary" class="w-100" icon="fas fa-broom" text="Limpiar Filtros" onclick="limpiarFiltrosFacturas()" />
+                <x-button variant="outline-danger" class="w-100" icon="fas fa-broom" text="Limpiar Filtros" onclick="limpiarFiltrosFacturas()" />
             </div>
         </div>
     </div>
