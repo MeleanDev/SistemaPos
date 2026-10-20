@@ -204,12 +204,15 @@ class VentaClass
                     $placa,
                 ]));
 
+                $colorTexto = ! empty($m->color) ? " - Color: {$m->color}" : '';
+                $motorTexto = ! empty($m->numero_motor) ? " - Motor: {$m->numero_motor}" : '';
+
                 return [
                     'id' => $m->id,
                     'tipo_item' => 'moto',
                     'codigo_interno' => $referencia ?: $m->numero_niv,
                     'referencia' => $referencia,
-                    'nombre' => "{$m->marca} {$m->modelo} ({$m->anio})".($referencia ? " [Ref: #{$referencia}]" : '')." - NIV: {$m->numero_niv}",
+                    'nombre' => "{$m->marca} {$m->modelo} ({$m->anio})".($referencia ? " [Ref: #{$referencia}]" : '')." - NIV: {$m->numero_niv}{$colorTexto}{$motorTexto}",
                     'marca' => $m->marca,
                     'modelo' => $m->modelo,
                     'anio' => $m->anio,
@@ -516,7 +519,9 @@ class VentaClass
                     $costoUnitarioUsd = (float) $moto->precio_costo_usd;
                     $aplicaIva = true;
                     $ivaPorcentaje = 16.00;
-                    $nombreItem = "{$moto->marca} {$moto->modelo} ({$moto->anio})";
+                    $colorTexto = ! empty($moto->color) ? " - Color: {$moto->color}" : '';
+                    $motorTexto = ! empty($moto->numero_motor) ? " - Motor: {$moto->numero_motor}" : '';
+                    $nombreItem = "{$moto->marca} {$moto->modelo} ({$moto->anio}){$colorTexto}{$motorTexto}";
                     $serialIdentificador = $moto->numero_niv;
                     $almacenItem = $moto->almacen_id ?: $almacenItem;
                 } elseif ($tipoItem === 'servicio') {

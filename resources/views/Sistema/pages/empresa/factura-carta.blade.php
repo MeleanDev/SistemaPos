@@ -132,18 +132,18 @@
             border-radius: 2px;
         }
 
-        /* SECCIÓN 3: DESGLOSE DE TOTALES DUAL CURRENCY */
+        /* SECCIÓN 3: DESGLOSE DE TOTALES EN BS */
         .breakdown-container {
             display: flex;
-            justify-content: space-between;
-            border: 1.5px solid #0f172a;
-            border-radius: 6px;
-            padding: 6px 12px;
-            margin-bottom: 8px;
-            background-color: #ffffff;
+            justify-content: flex-end;
+            margin-bottom: 12px;
         }
         .breakdown-column {
             width: 48%;
+            border: 1.5px solid #0f172a;
+            border-radius: 6px;
+            padding: 6px 14px;
+            background-color: #ffffff;
         }
         .breakdown-row {
             display: flex;
@@ -167,23 +167,11 @@
             padding-top: 3px;
         }
 
-        /* SECCIÓN 4: TASA DE CAMBIO BCV & NORMATIVA */
-        .legal-notice-box {
-            font-size: 8.5px;
-            color: #334155;
-            line-height: 1.3;
-            margin-bottom: 8px;
-            padding: 5px 8px;
-            border: 1px dashed #cbd5e1;
-            border-radius: 4px;
-            background-color: transparent;
-        }
-
         /* SECCIÓN 5: FIRMAS */
         .signatures-container {
             display: flex;
             justify-content: space-around;
-            margin-top: 18px;
+            margin-top: 24px;
             margin-bottom: 8px;
             padding-top: 6px;
         }
@@ -228,9 +216,7 @@
 <body>
 
 @php
-    $montoExentoUsd = 0;
     $montoExentoBs = 0;
-    $baseImponibleUsd = 0;
     $baseImponibleBs = 0;
 
     foreach ($venta->detalles as $det) {
@@ -238,27 +224,18 @@
         $ivaPct = (float) $det->iva_porcentaje;
 
         if ($aplicaIva && $ivaPct > 0) {
-            $baseImponibleUsd += (float) $det->subtotal_usd;
             $baseImponibleBs += (float) $det->subtotal_bs;
         } else {
-            $montoExentoUsd += (float) $det->subtotal_usd;
             $montoExentoBs += (float) $det->subtotal_bs;
         }
     }
 
-    $subtotalUsd = (float) $venta->subtotal_neto_usd;
     $subtotalBs = (float) $venta->subtotal_neto_bs;
-    $ivaUsd = (float) $venta->iva_monto_usd;
     $ivaBs = (float) $venta->iva_monto_bs;
-    $totalNetoUsd = $subtotalUsd + $ivaUsd;
     $totalNetoBs = $subtotalBs + $ivaBs;
 
-    $baseIgtfUsd = (float) ($venta->igtf_monto_usd > 0 ? ($venta->igtf_monto_usd / 0.03) : 0);
     $baseIgtfBs = (float) ($venta->igtf_monto_bs > 0 ? ($venta->igtf_monto_bs / 0.03) : 0);
-    $igtfUsd = (float) ($venta->igtf_monto_usd ?? 0);
     $igtfBs = (float) ($venta->igtf_monto_bs ?? 0);
-
-    $totalPagarUsd = (float) $venta->total_usd;
     $totalPagarBs = (float) $venta->total_bs;
 
     $diasCredito = $venta->condicion_pago === 'credito' ? 15 : 0;
@@ -403,49 +380,9 @@
             </tbody>
         </table>
 
-        <!-- 3. DESGLOSE DUAL CURRENCY (USD Y BS) -->
+        <!-- 3. DESGLOSE DE TOTALES EN BS -->
         <div class="breakdown-container">
-            <!-- COLUMNA USD -->
-            <div class="breakdown-column font-mono" style="border-right: 1px dashed #cbd5e1; padding-right: 12px;">
-                <div class="breakdown-row">
-                    <span>Subtotal USD:</span>
-                    <span>{{ number_format($subtotalUsd, 2, ',', '.') }}</span>
-                </div>
-                <div class="breakdown-row">
-                    <span>Monto Exento USD:</span>
-                    <span>{{ number_format($montoExentoUsd, 2, ',', '.') }}</span>
-                </div>
-                <div class="breakdown-row">
-                    <span>Base Imponible IVA (16,00%) USD:</span>
-                    <span>{{ number_format($baseImponibleUsd, 2, ',', '.') }}</span>
-                </div>
-                <div class="breakdown-row">
-                    <span>IVA 16,00% USD:</span>
-                    <span>{{ number_format($ivaUsd, 2, ',', '.') }}</span>
-                </div>
-
-                <div class="breakdown-row highlight">
-                    <span>Total Neto Factura USD:</span>
-                    <span>{{ number_format($totalNetoUsd, 2, ',', '.') }}</span>
-                </div>
-
-                <div class="breakdown-row">
-                    <span>Base Imponible IGTF (3%) USD:</span>
-                    <span>{{ number_format($baseIgtfUsd, 2, ',', '.') }}</span>
-                </div>
-                <div class="breakdown-row">
-                    <span>IGTF 3% USD:</span>
-                    <span>{{ number_format($igtfUsd, 2, ',', '.') }}</span>
-                </div>
-
-                <div class="breakdown-row total-final">
-                    <span>Monto Total a Pagar USD:</span>
-                    <span>$ {{ number_format($totalPagarUsd, 2, ',', '.') }}</span>
-                </div>
-            </div>
-
-            <!-- COLUMNA BS -->
-            <div class="breakdown-column font-mono" style="padding-left: 12px;">
+            <div class="breakdown-column font-mono">
                 <div class="breakdown-row">
                     <span>Subtotal BS:</span>
                     <span>{{ number_format($subtotalBs, 2, ',', '.') }}</span>
@@ -481,16 +418,6 @@
                     <span>Monto Total a Pagar BS:</span>
                     <span>Bs. {{ number_format($totalPagarBs, 2, ',', '.') }}</span>
                 </div>
-            </div>
-        </div>
-
-        <!-- 4. TASA BCV Y NORMATIVA IGTF -->
-        <div class="legal-notice-box font-mono">
-            <div style="font-weight: bold; margin-bottom: 2px;">
-                Tasa de cambio aplicada 1 BS/USD = {{ number_format($venta->tasa_cambio, 4, ',', '.') }} según la tasa del BCV al {{ $fechaEmision->format('d-m-Y') }}, PROV Nro. 0071
-            </div>
-            <div>
-                GACETA OFICIAL NRO 6687, ART 6 providencia 000013, SE FIJA UNA ALÍCUOTA DEL 3% PARA LOS PAGOS REALIZADOS A SUJETOS PASIVOS ESPECIALES EN MONEDA DIFERENTE A LA DE CURSO LEGAL EN EL PAÍS.
             </div>
         </div>
 

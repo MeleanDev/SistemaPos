@@ -666,8 +666,10 @@ function configurarBuscadorProductosPos() {
             const prodExacto = posCatalogos.productos.find((p) => {
                 const skuMatch = (p.codigo_interno || "").toLowerCase() === query;
                 const placaMatch = p.tipo_item === 'moto' && (p.placa || "").toLowerCase() === query;
+                const motorMatch = p.tipo_item === 'moto' && (p.numero_motor || "").toLowerCase() === query;
+                const nivMatch = p.tipo_item === 'moto' && (p.numero_niv || "").toLowerCase() === query;
                 const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => cb.toLowerCase() === query);
-                return skuMatch || placaMatch || barcodeMatch;
+                return skuMatch || placaMatch || motorMatch || nivMatch || barcodeMatch;
             });
 
             if (prodExacto) {
@@ -685,8 +687,10 @@ function configurarBuscadorProductosPos() {
                 const nombreMatch = (p.nombre || "").toLowerCase().includes(query);
                 const skuMatch = (p.codigo_interno || "").toLowerCase().includes(query);
                 const placaMatch = p.tipo_item === 'moto' && (p.placa || "").toLowerCase().includes(query);
+                const motorMatch = p.tipo_item === 'moto' && (p.numero_motor || "").toLowerCase().includes(query);
+                const colorMatch = p.tipo_item === 'moto' && (p.color || "").toLowerCase().includes(query);
                 const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => cb.toLowerCase().includes(query));
-                return nombreMatch || skuMatch || placaMatch || barcodeMatch;
+                return nombreMatch || skuMatch || placaMatch || motorMatch || colorMatch || barcodeMatch;
             });
 
             if (coincidencias.length === 1) {
@@ -728,8 +732,10 @@ function configurarBuscadorProductosPos() {
                 const nombreMatch = (p.nombre || "").toLowerCase().includes(query);
                 const skuMatch = (p.codigo_interno || "").toLowerCase().includes(query);
                 const placaMatch = p.tipo_item === 'moto' && (p.placa || "").toLowerCase().includes(query);
+                const motorMatch = p.tipo_item === 'moto' && (p.numero_motor || "").toLowerCase().includes(query);
+                const colorMatch = p.tipo_item === 'moto' && (p.color || "").toLowerCase().includes(query);
                 const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => cb.toLowerCase().includes(query));
-                return nombreMatch || skuMatch || placaMatch || barcodeMatch;
+                return nombreMatch || skuMatch || placaMatch || motorMatch || colorMatch || barcodeMatch;
             });
 
             renderizarDropdownProductos(coincidencias, requiereModal);
@@ -1074,6 +1080,7 @@ function abrirModalSeleccionCantidadAlmacen(prod) {
         $("#modalDetalleNiv").text(prod.numero_niv || '--');
         $("#modalDetalleMotor").text(prod.numero_motor || '--');
         $("#modalDetalleChasis").text(prod.numero_chasis || '--');
+        $("#modalDetalleColor").text(prod.color || '--');
         $("#modalDetalleInputCantidad").val(1).prop("readonly", true);
         $("#modalDetallePresets").hide();
     } else {
@@ -1356,16 +1363,27 @@ function agregarProductoAlCarrito(prod, cantidad = 1, almacenId = null, descuent
             if (stk) stockAlm = stk.cantidad_actual;
         }
 
+        let nombreItem = prod.nombre;
+        if (prod.tipo_item === 'moto') {
+            if (prod.color && !nombreItem.includes('Color:')) {
+                nombreItem += ` - Color: ${prod.color}`;
+            }
+            if (prod.numero_motor && !nombreItem.includes('Motor:')) {
+                nombreItem += ` - Motor: ${prod.numero_motor}`;
+            }
+        }
+
         posCarrito.push({
             producto_id: prod.id,
             tipo_item: prod.tipo_item || "producto",
             almacen_id: targetAlmId,
             codigo: prod.codigo_interno || "--",
-            nombre: prod.nombre,
+            nombre: nombreItem,
             unidad: prod.unidad_medida || "UND",
             variante_texto: varianteTexto || null,
             producto_serial_id: productoSerialId || null,
             serial_numero: serialNumero || null,
+            color: prod.color || null,
             numero_niv: prod.numero_niv || null,
             numero_motor: prod.numero_motor || null,
             numero_chasis: prod.numero_chasis || null,
@@ -1520,6 +1538,16 @@ function renderizarCarritoPos() {
         totalUnidades += cant;
         const esSeleccionado = posIndiceRenglonSeleccionado === idx;
 
+        let nombreDisplay = item.nombre;
+        if (item.tipo_item === 'moto') {
+            if (item.color && !nombreDisplay.includes('Color:')) {
+                nombreDisplay += ` - Color: ${item.color}`;
+            }
+            if (item.numero_motor && !nombreDisplay.includes('Motor:')) {
+                nombreDisplay += ` - Motor: ${item.numero_motor}`;
+            }
+        }
+
         let itemIcon = '<i class="fas fa-box text-primary me-1"></i>';
         let badgeTipo = '';
         let badgePlaca = '';
@@ -1577,7 +1605,7 @@ function renderizarCarritoPos() {
                 </td>
 
                 <td>
-                    <strong class="text-dark d-block font-monospace" style="font-size: 0.90rem;">${itemIcon} ${item.nombre} ${badgeTipo} ${badgePlaca} ${badgeVariante} ${badgeSerial} ${badgeDescuento}</strong>
+                    <strong class="text-dark d-block font-monospace" style="font-size: 0.90rem;">${itemIcon} ${nombreDisplay} ${badgeTipo} ${badgePlaca} ${badgeVariante} ${badgeSerial} ${badgeDescuento}</strong>
                     <div class="small text-muted font-monospace" style="font-size: 0.72rem;">
                         <span>${item.unidad}</span>
                         ${item.stock_disponible !== undefined && item.tipo_item === 'producto' ? ` • <span class="${item.stock_disponible <= 0 ? 'text-danger' : 'text-success'}">Disp: ${item.stock_disponible}</span>` : ''}
@@ -1628,7 +1656,7 @@ function renderizarCarritoPos() {
                         <div class="overflow-hidden">
                             <span class="badge bg-light text-secondary border font-monospace px-1.5 py-0.5" style="font-size: 0.68rem;">${item.codigo}</span>
                             ${badgeTipo} ${badgePlaca} ${badgeVariante} ${badgeSerial} ${badgeDescuento}
-                            <strong class="text-dark d-block font-monospace text-truncate mt-1" style="font-size: 0.88rem;">${itemIcon} ${item.nombre}</strong>
+                            <strong class="text-dark d-block font-monospace text-truncate mt-1" style="font-size: 0.88rem;">${itemIcon} ${nombreDisplay}</strong>
                             <small class="text-muted font-monospace" style="font-size: 0.70rem;">${item.unidad}${item.stock_disponible !== undefined && item.tipo_item === 'producto' ? ` • Disp: ${item.stock_disponible}` : ''}</small>
                         </div>
                         <button type="button" class="btn btn-outline-danger btn-sm rounded-circle flex-shrink-0 shadow-xs" onclick="event.stopPropagation(); eliminarItemCarrito(${idx});" title="Eliminar" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
@@ -2225,6 +2253,7 @@ async function recuperarCuentaEspera(id) {
                     codigo: item.codigo || "--",
                     nombre: item.nombre || "Artículo",
                     unidad: item.unidad || "UND",
+                    color: item.color || null,
                     numero_niv: item.numero_niv || null,
                     numero_motor: item.numero_motor || null,
                     numero_chasis: item.numero_chasis || null,
@@ -2490,8 +2519,10 @@ function filtrarConsultaProductos() {
         const nombreMatch = (p.nombre || "").toLowerCase().includes(query);
         const skuMatch = (p.codigo_interno || "").toLowerCase().includes(query);
         const placaMatch = p.tipo_item === 'moto' && (p.placa || "").toLowerCase().includes(query);
+        const motorMatch = p.tipo_item === 'moto' && (p.numero_motor || "").toLowerCase().includes(query);
+        const colorMatch = p.tipo_item === 'moto' && (p.color || "").toLowerCase().includes(query);
         const barcodeMatch = Array.isArray(p.codigos_barra) && p.codigos_barra.some((cb) => cb.toLowerCase().includes(query));
-        return nombreMatch || skuMatch || placaMatch || barcodeMatch;
+        return nombreMatch || skuMatch || placaMatch || motorMatch || colorMatch || barcodeMatch;
     });
 
     if (prods.length === 0) {

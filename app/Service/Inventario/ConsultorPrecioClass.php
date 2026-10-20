@@ -189,11 +189,15 @@ class ConsultorPrecioClass
                 $m->placa,
             ]));
 
+            $colorTexto = ! empty($m->color) ? " - Color: {$m->color}" : '';
+            $motorTexto = ! empty($m->numero_motor) ? " - Motor: {$m->numero_motor}" : '';
+            $nivTexto = ! empty($m->numero_niv) ? " - NIV: {$m->numero_niv}" : '';
+
             $resultados->push([
                 'id' => $m->id,
                 'tipo_item' => 'moto',
                 'codigo_interno' => $m->referencia ?: $m->numero_niv,
-                'nombre' => "{$m->marca} {$m->modelo} ({$m->anio}) - Color: {$m->color}".($m->referencia ? " [Ref: #{$m->referencia}]" : ''),
+                'nombre' => "{$m->marca} {$m->modelo} ({$m->anio})".($m->referencia ? " [Ref: #{$m->referencia}]" : '')."{$nivTexto}{$colorTexto}{$motorTexto}",
                 'categoria' => 'Moto / Vehículo',
                 'unidad_medida' => 'UND',
                 'precio_usd_con_iva' => $detalConIvaUsd,

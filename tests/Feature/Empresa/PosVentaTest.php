@@ -1084,10 +1084,10 @@ test('pos puede renderizar formato factura carta y formato ticket termico', func
 
     $resCarta->assertOk()
         ->assertSee('Karla Andreina')
-        ->assertSee('Subtotal USD:')
         ->assertSee('Subtotal BS:')
-        ->assertSee('Monto Exento USD:')
-        ->assertSee('Tasa de cambio aplicada');
+        ->assertDontSee('Subtotal USD:')
+        ->assertDontSee('Monto Exento USD:')
+        ->assertDontSee('Tasa de cambio aplicada');
 
     // 2. Probar Ticket Térmico
     $resTicket = $this->actingAs($user)

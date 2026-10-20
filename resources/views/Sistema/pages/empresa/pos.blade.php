@@ -1656,11 +1656,11 @@
                         </div>
 
                         <div id="modalDetalleContenedorMoto" class="p-2.5 rounded-3 bg-warning-subtle text-warning-emphasis font-monospace small mb-2 border border-warning-subtle" style="display: none;">
-                            <div class="row g-1">
+                            <div class="row g-2 align-items-center">
                                 <div class="col-md-3"><strong>Placa:</strong> <span id="modalDetallePlaca" class="fw-bold text-dark">--</span></div>
-                                <div class="col-md-3"><strong>NIV:</strong> <span id="modalDetalleNiv">--</span></div>
-                                <div class="col-md-3"><strong>Motor:</strong> <span id="modalDetalleMotor">--</span></div>
-                                <div class="col-md-3"><strong>Chasis:</strong> <span id="modalDetalleChasis">--</span></div>
+                                <div class="col-md-3"><strong>NIV:</strong> <span id="modalDetalleNiv" class="fw-bold text-dark">--</span></div>
+                                <div class="col-md-3"><strong>Color:</strong> <span id="modalDetalleColor" class="fw-bold text-dark">--</span></div>
+                                <div class="col-md-3"><strong>Motor:</strong> <span id="modalDetalleMotor" class="fw-bold text-dark">--</span></div>
                             </div>
                         </div>
 
