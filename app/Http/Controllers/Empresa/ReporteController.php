@@ -12,6 +12,7 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -440,8 +441,14 @@ class ReporteController extends Controller
         $fechaFin = $request->input('fecha_fin') ?: date('Y-m-d');
         $vendedorId = $request->input('vendedor_id');
 
+        $user = Auth::user();
+        $esAdmin = $user && ($user->hasRole(['SuperAdmin', 'Admin']) || $user->can('reportes.ver'));
+        $vendedorPropio = $user?->vendedor()->where('empresa_id', $empresaId)->first();
+
         $queryVendedores = Vendedor::where('empresa_id', $empresaId);
-        if ($vendedorId) {
+        if (! $esAdmin && $vendedorPropio) {
+            $queryVendedores->where('id', $vendedorPropio->id);
+        } elseif ($vendedorId) {
             $queryVendedores->where('id', $vendedorId);
         }
         $vendedores = $queryVendedores->orderBy('nombre')->get();
@@ -458,7 +465,7 @@ class ReporteController extends Controller
         foreach ($vendedores as $v) {
             $ventas = Venta::where('empresa_id', $empresaId)
                 ->where('vendedor_id', $v->id)
-                ->where('estado', '!=', 'anulada')
+                ->whereNotIn('estado', ['anulada', 'devuelta_total'])
                 ->whereBetween('fecha_emision', [$fechaInicio, $fechaFin])
                 ->get();
 
@@ -559,8 +566,14 @@ class ReporteController extends Controller
         $fechaFin = $request->input('fecha_fin') ?: date('Y-m-d');
         $vendedorId = $request->input('vendedor_id');
 
+        $user = Auth::user();
+        $esAdmin = $user && ($user->hasRole(['SuperAdmin', 'Admin']) || $user->can('reportes.ver'));
+        $vendedorPropio = $user?->vendedor()->where('empresa_id', $empresaId)->first();
+
         $queryVendedores = Vendedor::where('empresa_id', $empresaId);
-        if ($vendedorId) {
+        if (! $esAdmin && $vendedorPropio) {
+            $queryVendedores->where('id', $vendedorPropio->id);
+        } elseif ($vendedorId) {
             $queryVendedores->where('id', $vendedorId);
         }
         $vendedores = $queryVendedores->orderBy('nombre')->get();
@@ -579,7 +592,7 @@ class ReporteController extends Controller
             foreach ($vendedores as $v) {
                 $ventas = Venta::where('empresa_id', $empresaId)
                     ->where('vendedor_id', $v->id)
-                    ->where('estado', '!=', 'anulada')
+                    ->whereNotIn('estado', ['anulada', 'devuelta_total'])
                     ->whereBetween('fecha_emision', [$fechaInicio, $fechaFin])
                     ->get();
 

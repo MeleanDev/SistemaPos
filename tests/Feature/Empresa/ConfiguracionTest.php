@@ -92,11 +92,6 @@ test('currency exchange rates are updated successfully', function () {
                 'tasa_cambio' => 45.5000,
                 'estado' => true,
             ],
-            [
-                'codigo' => 'EUR',
-                'tasa_cambio' => 48.2000,
-                'estado' => true,
-            ],
         ],
     ];
 

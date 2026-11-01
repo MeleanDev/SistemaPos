@@ -1,503 +1,586 @@
-/**
- * Módulo de Cuentas por Pagar (CXP) - Frontend Controller
- * Estándar Ejecutivo UI/UX con Algoritmo FIFO y Pago Específico a Proveedores
- */
+const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
+const urlLista = `${urlBase}/lista`;
+const urlCatalogos = `${urlBase}/catalogos`;
+const urlDetalleProveedor = `${urlBase}/proveedor/`;
+const urlAbonarFactura = `${urlBase}/abonar-factura`;
+const urlAbonarGeneral = `${urlBase}/abonar-general`;
 
-let catalogoMetodosPagoCxp = [];
-let tasaCambioActivaCxp = 1.0;
-let proveedorSeleccionadoActual = null;
-let facturasPendientesActualesCxp = [];
-let tablaCxp = null;
+let metodosPagoList = [];
+let tasaBcvActiva = 1.0;
+let proveedorActivo = null;
+let facturasPendientesLista = [];
+let saldoFacturaSeleccionadaUsd = 0;
+let saldoFacturaSeleccionadaBs = 0;
+let filtroEstadoActual = "todos";
+let proveedoresCache = [];
+let tablaCxpInstancia = null;
 
-document.addEventListener('DOMContentLoaded', function () {
+$(document).ready(function () {
     cargarCatalogosCxp();
     inicializarTablaCxp();
+    aplicarRestriccionesInput();
 
-    // Eventos de Formularios
-    const formEspecifico = document.getElementById('formAbonarFacturaCxp');
-    if (formEspecifico) {
-        formEspecifico.addEventListener('submit', procesarAbonoEspecificoCxp);
-    }
-
-    const formGeneral = document.getElementById('formAbonoGeneralCxp');
-    if (formGeneral) {
-        formGeneral.addEventListener('submit', procesarAbonoGeneralCxp);
-    }
+    $('button[data-bs-toggle="pill"]').on("shown.bs.tab", function () {
+        $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
+    });
 });
 
-/**
- * Cargar métodos de pago y tasa de cambio desde el servidor
- */
-function cargarCatalogosCxp() {
-    fetch('/cuentas-por-pagar/catalogos')
-        .then(response => response.json())
-        .then(res => {
-            if (res.success) {
-                catalogoMetodosPagoCxp = res.data.metodos_pago || [];
-                tasaCambioActivaCxp = parseFloat(res.data.tasa_usd) || 1.0;
-                poblarSelectsMetodosPagoCxp();
-            }
-        })
-        .catch(err => console.error('Error al cargar catálogos CXP:', err));
-}
+const cargarCatalogosCxp = async function () {
+    try {
+        const res = await peticionAjax({
+            url: urlCatalogos,
+            type: "GET",
+        });
 
-function poblarSelectsMetodosPagoCxp() {
-    const selects = ['abono_cxp_metodo_pago_id', 'gen_cxp_metodo_pago_id'];
-    selects.forEach(id => {
-        const select = document.getElementById(id);
-        if (!select) return;
-        select.innerHTML = '<option value="">Seleccione forma de pago...</option>';
-        catalogoMetodosPagoCxp.forEach(m => {
-            const opt = document.createElement('option');
-            opt.value = m.id;
-            opt.textContent = `${m.nombre} (${m.tipo.toUpperCase()})`;
-            select.appendChild(opt);
+        if (res && res.success && res.data) {
+            metodosPagoList = res.data.metodos_pago || [];
+            tasaBcvActiva = parseFloat(res.data.tasa_usd) || 1.0;
+            $("#kpi_tasa_bcv_badge").text(`${formatearNumero(tasaBcvActiva, 2)} Bs/$`);
+            poblarSelectsMetodos();
+        }
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+const poblarSelectsMetodos = function () {
+    const selects = ["#abono_metodo_pago_id", "#gen_metodo_pago_id"];
+    selects.forEach(function (selId) {
+        const $select = $(selId);
+        if (!$select.length) return;
+        $select.empty();
+        $select.append('<option value="">Seleccione forma de pago...</option>');
+
+        metodosPagoList.forEach(function (m) {
+            const nombreMetodo = m.nombre || "Método";
+            $select.append(`<option value="${m.id}" data-nombre="${nombreMetodo}">${nombreMetodo}</option>`);
         });
     });
-}
+};
 
-/**
- * Inicializar y cargar DataTables de proveedores con deudas
- */
-function inicializarTablaCxp() {
-    cargarResumenCxp();
-}
+const actualizarComportamientoReferencia = function (tipo) {
+    const selectId = tipo === "abono" ? "#abono_metodo_pago_id" : "#gen_metodo_pago_id";
+    const labelId = tipo === "abono" ? "#abono_label_referencia" : "#gen_label_referencia";
+    const inputId = tipo === "abono" ? "#abono_referencia" : "#gen_referencia";
 
-function recargarTabla() {
-    cargarResumenCxp();
-}
+    const $selected = $(selectId).find("option:selected");
+    const nombre = ($selected.data("nombre") || "").toLowerCase();
 
-function cargarResumenCxp() {
-    fetch('/cuentas-por-pagar/lista')
-        .then(response => response.json())
-        .then(res => {
-            if (!res.success) {
-                Swal.fire('Error', res.message || 'No se pudo cargar la información.', 'error');
-                return;
-            }
-
-            const kpis = res.data.kpis;
-            const proveedores = res.data.proveedores || [];
-
-            // Actualizar KPIs
-            document.getElementById('kpi_total_usd').textContent = `$${formatearNumero(kpis.total_por_pagar_usd)}`;
-            document.getElementById('kpi_total_bs').textContent = `Bs. ${formatearNumero(kpis.total_por_pagar_bs)}`;
-            document.getElementById('kpi_proveedores_count').textContent = kpis.proveedores_deudores_count;
-            document.getElementById('kpi_facturas_count').textContent = kpis.facturas_pendientes_count;
-            document.getElementById('kpi_vencidas_count').textContent = kpis.facturas_vencidas_count;
-            document.getElementById('kpi_vencidas_monto').textContent = `$${formatearNumero(kpis.total_vencido_usd)} en mora`;
-
-            if (kpis.tasa_cambio) {
-                tasaCambioActivaCxp = parseFloat(kpis.tasa_cambio);
-            }
-
-            renderizarTablaProveedores(proveedores);
-        })
-        .catch(err => {
-            console.error('Error al cargar resumen CXP:', err);
-        });
-}
-
-function renderizarTablaProveedores(proveedores) {
-    if ($.fn.DataTable.isDataTable('#tabla_cxp_proveedores')) {
-        $('#tabla_cxp_proveedores').DataTable().destroy();
+    if (nombre.includes("efectivo") || nombre.includes("cash") || nombre.includes("divisa")) {
+        $(labelId).text("Referencia (Opcional)");
+        $(inputId).attr("placeholder", "No requerida para pagos en efectivo");
+    } else if (nombre.includes("pago móvil") || nombre.includes("pago movil") || nombre.includes("transferencia") || nombre.includes("zelle") || nombre.includes("punto") || nombre.includes("tarjeta") || nombre.includes("cheque")) {
+        $(labelId).html('Referencia Bancaria <span class="text-danger">*</span>');
+        $(inputId).attr("placeholder", "Ej. # Comprobante / Transf / Cheque");
+    } else {
+        $(labelId).text("N° Comprobante / Referencia");
+        $(inputId).attr("placeholder", "Ej. #123456");
     }
+};
 
-    const tbody = document.querySelector('#tabla_cxp_proveedores tbody');
-    tbody.innerHTML = '';
+const inicializarTablaCxp = function () {
+    recargarCxp();
+};
 
-    proveedores.forEach(p => {
-        let alertaBadge = '';
-        if (p.estado_alerta === 'vencida') {
-            alertaBadge = '<span class="badge bg-danger rounded-pill px-3 py-1 fw-bold"><i class="fas fa-exclamation-circle me-1"></i> Vencida</span>';
-        } else if (p.estado_alerta === 'por_vencer') {
-            alertaBadge = '<span class="badge bg-warning text-dark rounded-pill px-3 py-1 fw-bold"><i class="fas fa-clock me-1"></i> Por Vencer</span>';
-        } else {
-            alertaBadge = '<span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 fw-bold"><i class="fas fa-check-circle me-1"></i> Al Día</span>';
+const recargarCxp = async function () {
+    try {
+        const res = await peticionAjax({
+            url: urlLista,
+            type: "GET",
+            mensajeCarga: "Cargando cartera de proveedores...",
+        });
+
+        if (!res || !res.success) {
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "error",
+                    title: "Error",
+                    text: res?.message || "No se pudo cargar la información de cuentas por pagar.",
+                });
+            }
+            return;
         }
 
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>
-                <div class="d-flex align-items-center gap-2">
-                    <div class="bg-light text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 38px; height: 38px;">
-                        <i class="fas fa-truck-moving"></i>
+        const kpis = res.data.kpis;
+        proveedoresCache = res.data.proveedores || [];
+
+        $("#kpi_total_usd").text(`$${formatearNumero(kpis.total_por_pagar_usd)}`);
+        $("#kpi_total_bs").text(`Bs. ${formatearNumero(kpis.total_por_pagar_bs)}`);
+        $("#kpi_proveedores_count").text(kpis.proveedores_deudores_count);
+        $("#kpi_facturas_count").text(kpis.facturas_pendientes_count);
+        $("#kpi_vencidas_count").text(kpis.facturas_vencidas_count);
+        $("#kpi_vencidas_monto").text(`$${formatearNumero(kpis.total_vencido_usd)} en mora`);
+
+        if (kpis.tasa_cambio) {
+            tasaBcvActiva = parseFloat(kpis.tasa_cambio);
+            $("#kpi_tasa_bcv_badge").text(`${formatearNumero(tasaBcvActiva, 2)} Bs/$`);
+        }
+
+        renderizarTablaProveedores();
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+const filtrarEstado = function (estado, btn) {
+    filtroEstadoActual = estado;
+    $("#filtro_estado_cxp button").removeClass("active btn-primary").addClass("text-secondary");
+    $(btn).removeClass("text-secondary").addClass("active btn-primary");
+    renderizarTablaProveedores();
+};
+
+const renderizarTablaProveedores = function () {
+    if ($.fn.DataTable.isDataTable("#tabla_cxp_proveedores")) {
+        $("#tabla_cxp_proveedores").DataTable().destroy();
+    }
+
+    const $tbody = $("#tabla_cxp_proveedores tbody");
+    $tbody.empty();
+
+    let listaFiltrada = proveedoresCache;
+    if (filtroEstadoActual !== "todos") {
+        listaFiltrada = proveedoresCache.filter(function (p) {
+            return p.estado_alerta === filtroEstadoActual;
+        });
+    }
+
+    listaFiltrada.forEach(function (p) {
+        let badgeAlerta = "";
+        if (p.estado_alerta === "vencida") {
+            badgeAlerta = '<span class="badge bg-danger rounded-pill px-3 py-1 fw-bold"><i class="fas fa-exclamation-circle me-1"></i>Vencida</span>';
+        } else if (p.estado_alerta === "por_vencer") {
+            badgeAlerta = '<span class="badge bg-warning text-dark rounded-pill px-3 py-1 fw-bold"><i class="fas fa-clock me-1"></i>Por Vencer</span>';
+        } else {
+            badgeAlerta = '<span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 fw-bold"><i class="fas fa-check-circle me-1"></i>Al Día</span>';
+        }
+
+        const tieneTelefono = p.proveedor_telefono && p.proveedor_telefono !== "No registrado" && p.proveedor_telefono !== "Sin teléfono";
+        const telefonoHtml = tieneTelefono
+            ? `<span class="small fw-semibold text-dark"><i class="fas fa-phone-alt text-primary me-1 small"></i>${p.proveedor_telefono}</span>`
+            : '<span class="text-muted small fst-italic"><i class="fas fa-phone-slash me-1"></i>Sin teléfono</span>';
+
+        const botonWhatsApp = tieneTelefono
+            ? `<button type="button" class="btn btn-outline-success btn-sm rounded-circle shadow-sm" onclick="contactarProveedorWhatsApp(${p.proveedor_id});" title="Contactar por WhatsApp" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                    <i class="fab fa-whatsapp"></i>
+               </button>`
+            : `<button type="button" class="btn btn-outline-secondary btn-sm rounded-circle shadow-sm opacity-50" disabled title="Sin número telefónico registrado" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                    <i class="fab fa-whatsapp"></i>
+               </button>`;
+
+        const tr = `
+            <tr>
+                <td>
+                    <div class="d-flex align-items-center gap-2 py-1">
+                        <div class="avatar-executive-sm me-1 bg-light-primary text-primary shadow-xs" style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background-color: #eef2ff; color: #4f46e5;">
+                            <i class="fas fa-truck-moving" style="font-size: 0.90rem;"></i>
+                        </div>
+                        <div class="d-flex flex-column">
+                            <span class="fw-bold text-dark text-capitalize" style="font-size: 0.92rem;">${p.proveedor_nombre}</span>
+                            <div class="d-flex align-items-center gap-1">
+                                <span class="badge bg-white text-secondary border rounded-pill px-2 py-0 small">${p.proveedor_rif}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <div class="fw-bold text-dark">${p.proveedor_nombre}</div>
-                        <span class="badge bg-light text-muted border rounded-pill px-2 py-0 small">${p.proveedor_rif}</span>
+                </td>
+                <td>
+                    <div><i class="fas fa-user-circle text-muted me-1 small"></i><span class="small fw-semibold text-dark">${p.proveedor_contacto || "No registrado"}</span></div>
+                    ${telefonoHtml}
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-warning bg-opacity-25 text-dark fw-bold rounded-pill px-3 py-1">
+                        ${p.total_facturas_pendientes}
+                    </span>
+                </td>
+                <td>
+                    <div class="fw-semibold text-dark">${p.factura_mas_antigua_fecha}</div>
+                    <small class="text-muted">${p.dias_antiguedad} día(s) transcurridos</small>
+                </td>
+                <td>${badgeAlerta}</td>
+                <td class="text-end fw-bold text-danger fs-6">$${formatearNumero(p.total_deuda_usd)}</td>
+                <td class="text-end fw-bold text-dark">Bs. ${formatearNumero(p.total_deuda_bs)}</td>
+                <td class="text-center">
+                    <div class="d-flex justify-content-center gap-1">
+                        ${botonWhatsApp}
+                        <button type="button" class="btn btn-outline-info btn-sm rounded-circle shadow-sm" onclick="abrirDetalleProveedor(${p.proveedor_id});" title="Ver facturas y estado de cuenta" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm rounded-circle shadow-sm" onclick="abrirModalAbonoGeneral(${p.proveedor_id});" title="Abono Rápido FIFO" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-coins"></i>
+                        </button>
                     </div>
-                </div>
-            </td>
-            <td>
-                <div><i class="fas fa-user-circle text-muted me-1 small"></i> ${p.proveedor_contacto}</div>
-                <small class="text-muted"><i class="fas fa-phone-alt me-1"></i> ${p.proveedor_telefono}</small>
-            </td>
-            <td class="text-center">
-                <span class="badge bg-warning bg-opacity-25 text-dark fw-bold rounded-pill px-3 py-1 fs-6">
-                    ${p.total_facturas_pendientes}
-                </span>
-            </td>
-            <td>
-                <div class="fw-semibold text-dark">${p.factura_mas_antigua_fecha}</div>
-                <small class="text-muted">${p.dias_antiguedad} día(s) transcurridos</small>
-            </td>
-            <td>${alertaBadge}</td>
-            <td class="text-end fw-bold text-danger fs-6">$${formatearNumero(p.total_deuda_usd)}</td>
-            <td class="text-end fw-bold text-dark">Bs. ${formatearNumero(p.total_deuda_bs)}</td>
-            <td class="text-center">
-                <div class="d-flex justify-content-center gap-2">
-                    <button class="btn btn-sm btn-outline-info rounded-pill px-3 shadow-none fw-bold" onclick="abrirDetalleProveedor(${p.proveedor_id})" title="Ver facturas pendientes">
-                        <i class="fas fa-eye me-1"></i> Ver Facturas
-                    </button>
-                    <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-bold" onclick="abrirModalAbonoGeneralCxp(${p.proveedor_id})" title="Abono General FIFO">
-                        <i class="fas fa-coins me-1"></i> Pagar Rápido
-                    </button>
-                </div>
-            </td>
+                </td>
+            </tr>
         `;
-        tbody.appendChild(tr);
+        $tbody.append(tr);
     });
 
-    tablaCxp = $('#tabla_cxp_proveedores').DataTable({
+    const idioma = Object.assign({}, window.CONFIG_POS?.DATATABLE_LENGUAJE_ES || {
+        sSearch: "Buscar proveedor, RIF...",
+        zeroRecords: "No se encontraron proveedores con deudas pendientes",
+        emptyTable: "No hay cuentas por pagar registradas",
+        info: "Mostrando _START_ a _END_ de _TOTAL_ proveedores",
+        oPaginate: { sFirst: "Primero", sLast: "Último", sNext: "Siguiente", sPrevious: "Anterior" },
+    });
+
+    tablaCxpInstancia = $("#tabla_cxp_proveedores").DataTable({
         responsive: true,
-        order: [[5, 'desc']], // Ordenar por mayor deuda en USD
-        language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
-        },
+        order: [[5, "desc"]],
+        language: idioma,
         pageLength: 10,
     });
-}
+};
 
-/**
- * Abrir Modal Nivel 2: Explorador de Facturas de Proveedor
- */
-function abrirDetalleProveedor(proveedorId) {
-    fetch(`/cuentas-por-pagar/proveedor/${proveedorId}`)
-        .then(response => response.json())
-        .then(res => {
-            if (!res.success) {
-                Swal.fire('Error', res.message || 'No se pudo obtener el estado de cuenta.', 'error');
-                return;
-            }
-
-            const data = res.data;
-            proveedorSeleccionadoActual = data.proveedor;
-            facturasPendientesActualesCxp = data.facturas_pendientes || [];
-
-            // Llenar Cabecera y KPIs
-            document.getElementById('det_proveedor_nombre').textContent = data.proveedor.nombre;
-            document.getElementById('det_proveedor_rif').textContent = data.proveedor.rif;
-            document.getElementById('det_proveedor_contacto').textContent = `Contacto: ${data.proveedor.nombre_contacto} | Teléfono: ${data.proveedor.telefono} | Correo: ${data.proveedor.correo}`;
-            document.getElementById('det_deuda_total_usd').textContent = `$${formatearNumero(data.proveedor.total_deuda_usd)}`;
-            document.getElementById('det_deuda_total_bs').textContent = `Bs. ${formatearNumero(data.proveedor.total_deuda_bs)}`;
-            document.getElementById('det_facturas_pendientes_count').textContent = facturasPendientesActualesCxp.length;
-            document.getElementById('det_tasa_bcv').textContent = `${formatearNumero(data.tasa_cambio, 2)} Bs/$`;
-
-            document.getElementById('badge_count_cxp_pendientes').textContent = facturasPendientesActualesCxp.length;
-            document.getElementById('badge_count_cxp_pagadas').textContent = (data.facturas_pagadas || []).length;
-
-            // Configurar botón de Abono General
-            const btnAbonoGen = document.getElementById('btn_abono_general_proveedor');
-            btnAbonoGen.onclick = () => {
-                const modalDetalle = bootstrap.Modal.getInstance(document.getElementById('modalDetalleProveedor'));
-                if (modalDetalle) modalDetalle.hide();
-                abrirModalAbonoGeneralCxp(proveedorId);
-            };
-
-            // Renderizar Facturas Pendientes
-            renderizarFacturasPendientesCxp(facturasPendientesActualesCxp);
-
-            // Renderizar Facturas Pagadas
-            renderizarFacturasPagadasCxp(data.facturas_pagadas || []);
-
-            const modal = new bootstrap.Modal(document.getElementById('modalDetalleProveedor'));
-            modal.show();
-        })
-        .catch(err => {
-            console.error('Error al abrir detalle proveedor:', err);
-            Swal.fire('Error', 'No se pudo cargar el detalle del proveedor.', 'error');
+const abrirDetalleProveedor = async function (proveedorId) {
+    try {
+        const res = await peticionAjax({
+            url: `${urlDetalleProveedor}${proveedorId}`,
+            type: "GET",
+            mensajeCarga: "Consultando estado de cuenta...",
         });
-}
 
-function renderizarFacturasPendientesCxp(facturas) {
-    const tbody = document.getElementById('tbody_cxp_pendientes');
-    tbody.innerHTML = '';
-
-    if (facturas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-check-circle text-success fs-4 d-block mb-2"></i>No hay facturas pendientes con este proveedor.</td></tr>';
-        return;
-    }
-
-    facturas.forEach(f => {
-        let badgeMora = '';
-        if (f.es_vencida) {
-            badgeMora = `<span class="badge bg-danger rounded-pill px-2 py-1 small fw-bold"><i class="fas fa-exclamation-triangle me-1"></i> ${Math.abs(f.dias_vencimiento)}d vencida</span>`;
-        } else if (f.dias_vencimiento <= 3) {
-            badgeMora = `<span class="badge bg-warning text-dark rounded-pill px-2 py-1 small fw-bold"><i class="fas fa-clock me-1"></i> Vence en ${f.dias_vencimiento}d</span>`;
-        } else {
-            badgeMora = `<span class="badge bg-success bg-opacity-10 text-success rounded-pill px-2 py-1 small fw-bold"><i class="fas fa-calendar-check me-1"></i> ${f.dias_vencimiento}d restantes</span>`;
+        if (!res || !res.success) {
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "error",
+                    title: "Error",
+                    text: res?.message || "No se pudo obtener el estado de cuenta del proveedor.",
+                });
+            }
+            return;
         }
 
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td class="ps-4">
-                <div class="fw-bold text-dark">${f.numero_factura}</div>
-                <small class="text-muted">Recepción: ${f.recepcion_codigo}</small>
-            </td>
-            <td><i class="far fa-calendar-alt text-muted me-1"></i> ${f.fecha_emision}</td>
-            <td><i class="far fa-calendar-times text-muted me-1"></i> ${f.fecha_vencimiento}</td>
-            <td>${badgeMora}</td>
-            <td class="text-end fw-semibold text-dark">$${formatearNumero(f.monto_total_usd)}</td>
-            <td class="text-end fw-semibold text-success">$${formatearNumero(f.monto_pagado_usd)}</td>
-            <td class="text-end fw-bold text-danger fs-6">
-                <div>$${formatearNumero(f.saldo_pendiente_usd)}</div>
-                <small class="text-muted">Bs. ${formatearNumero(f.saldo_pendiente_bs)}</small>
-            </td>
-            <td class="text-center pe-4">
-                <div class="d-flex justify-content-center gap-1">
-                    <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-bold" onclick="abrirModalAbonoFacturaCxp(${f.id}, '${f.numero_factura}', ${f.saldo_pendiente_usd}, ${f.saldo_pendiente_bs})">
-                        <i class="fas fa-hand-holding-usd me-1"></i> Pagar
-                    </button>
-                    ${f.abonos_count > 0 ? `
-                        <button class="btn btn-sm btn-outline-secondary rounded-pill px-2" onclick='abrirHistorialAbonosFacturaCxp(${JSON.stringify(f.abonos)}, "${f.numero_factura}")' title="Ver historial de pagos">
-                            <i class="fas fa-history"></i>
-                        </button>
-                    ` : ''}
-                </div>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
+        const data = res.data;
+        proveedorActivo = data.proveedor;
+        facturasPendientesLista = data.facturas_pendientes || [];
 
-function renderizarFacturasPagadasCxp(facturas) {
-    const tbody = document.getElementById('tbody_cxp_pagadas');
-    tbody.innerHTML = '';
+        $("#det_proveedor_nombre").text(data.proveedor.nombre);
+        $("#det_proveedor_rif").text(data.proveedor.rif);
 
-    if (facturas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No hay facturas pagadas en el historial reciente.</td></tr>';
+        const contactoDetalle = `Contacto: ${data.proveedor.nombre_contacto || "No registrado"} | Teléfono: ${data.proveedor.telefono || "No registrado"}`;
+        $("#det_proveedor_contacto").text(contactoDetalle);
+
+        $("#det_deuda_total_usd").text(`$${formatearNumero(data.proveedor.total_deuda_usd)}`);
+        $("#det_deuda_total_bs").text(`Bs. ${formatearNumero(data.proveedor.total_deuda_bs)}`);
+        $("#det_facturas_pendientes_count").text(facturasPendientesLista.length);
+        $("#det_facturas_pagadas_count").text((data.facturas_pagadas || []).length);
+        $("#det_tasa_bcv").text(`${formatearNumero(data.tasa_cambio, 2)} Bs/$`);
+
+        $("#badge_count_cxp_pendientes").text(facturasPendientesLista.length);
+        $("#badge_count_cxp_pagadas").text((data.facturas_pagadas || []).length);
+
+        const $btnWa = $("#btn_whatsapp_proveedor");
+        const tieneTel = data.proveedor.telefono && data.proveedor.telefono !== "No registrado" && data.proveedor.telefono !== "Sin teléfono";
+        if (tieneTel) {
+            $btnWa.show().off("click").on("click", function () {
+                contactarProveedorWhatsApp(data.proveedor.id);
+            });
+        } else {
+            $btnWa.hide();
+        }
+
+        $("#btn_abono_general_proveedor").off("click").on("click", function () {
+            const modalDetalle = bootstrap.Modal.getInstance(document.getElementById("modalDetalleProveedor"));
+            if (modalDetalle) {
+                modalDetalle.hide();
+            }
+            abrirModalAbonoGeneral(data.proveedor.id);
+        });
+
+        renderizarFacturasPendientesCxp(facturasPendientesLista);
+        renderizarFacturasPagadasCxp(data.facturas_pagadas || []);
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDetalleProveedor"));
+        modal.show();
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+const renderizarFacturasPendientesCxp = function (facturas) {
+    const $tbody = $("#tbody_cxp_pendientes");
+    $tbody.empty();
+
+    if (!facturas || facturas.length === 0) {
+        $tbody.html('<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-check-circle text-success fs-4 d-block mb-2"></i>No hay facturas pendientes con este proveedor.</td></tr>');
         return;
     }
 
-    facturas.forEach(f => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td class="ps-4">
-                <div class="fw-bold text-dark">${f.numero_factura}</div>
-                <small class="text-muted">Recepción: ${f.recepcion_codigo}</small>
-            </td>
-            <td>${f.fecha_emision}</td>
-            <td>${f.fecha_vencimiento}</td>
-            <td class="text-end fw-semibold text-dark">$${formatearNumero(f.monto_total_usd)}</td>
-            <td class="text-end fw-semibold text-success">$${formatearNumero(f.monto_pagado_usd)}</td>
-            <td class="text-center">
-                <span class="badge bg-success rounded-pill px-3 py-1 fw-bold"><i class="fas fa-check-double me-1"></i> 100% Saldada</span>
-            </td>
-            <td class="text-center pe-4">
-                ${f.abonos && f.abonos.length > 0 ? `
-                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-2" onclick='abrirHistorialAbonosFacturaCxp(${JSON.stringify(f.abonos)}, "${f.numero_factura}")' title="Ver pagos">
-                        <i class="fas fa-history"></i>
-                    </button>
-                ` : '<span class="text-muted small">-</span>'}
-            </td>
+    facturas.forEach(function (f) {
+        let badgeMora = "";
+        if (f.es_vencida) {
+            badgeMora = `<span class="badge bg-danger rounded-pill px-2 py-1 small fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>${Math.abs(f.dias_vencimiento)}d vencida</span>`;
+        } else if (f.dias_vencimiento <= 3) {
+            badgeMora = `<span class="badge bg-warning text-dark rounded-pill px-2 py-1 small fw-bold"><i class="fas fa-clock me-1"></i>Vence en ${f.dias_vencimiento}d</span>`;
+        } else {
+            badgeMora = `<span class="badge bg-success bg-opacity-10 text-success rounded-pill px-2 py-1 small fw-bold"><i class="fas fa-calendar-check me-1"></i>${f.dias_vencimiento}d restantes</span>`;
+        }
+
+        const abonosEncoded = encodeURIComponent(JSON.stringify(f.abonos || []));
+        const tieneAbonos = f.abonos && f.abonos.length > 0;
+
+        const botonHistorial = tieneAbonos
+            ? `<button type="button" class="btn btn-outline-warning btn-sm rounded-circle shadow-sm" onclick="abrirHistorialAbonosFactura('${abonosEncoded}', '${f.numero_factura}');" title="Ver historial de abonos" style="width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-history"></i>
+               </button>`
+            : "";
+
+        const tr = `
+            <tr>
+                <td class="ps-4">
+                    <div class="fw-bold text-dark">${f.numero_factura}</div>
+                    <small class="text-muted">Recepción: ${f.recepcion_codigo || f.numero_factura}</small>
+                </td>
+                <td><i class="far fa-calendar-alt text-muted me-1"></i>${f.fecha_emision}</td>
+                <td><i class="far fa-calendar-times text-muted me-1"></i>${f.fecha_vencimiento}</td>
+                <td>${badgeMora}</td>
+                <td class="text-end fw-bold text-dark">$${formatearNumero(f.monto_total_usd)}</td>
+                <td class="text-end text-success fw-semibold">$${formatearNumero(f.monto_pagado_usd)}</td>
+                <td class="text-end fw-bold text-danger fs-6">$${formatearNumero(f.saldo_pendiente_usd)}</td>
+                <td class="text-center pe-4">
+                    <div class="d-flex justify-content-center gap-1">
+                        <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm fw-bold" onclick="abrirModalAbonarFactura(${f.id});">
+                            <i class="fas fa-coins me-1"></i>Pagar
+                        </button>
+                        ${botonHistorial}
+                    </div>
+                </td>
+            </tr>
         `;
-        tbody.appendChild(tr);
+        $tbody.append(tr);
     });
-}
+};
 
-/**
- * Abrir Modal Operativo 1: Abonar a Factura Específica de Proveedor
- */
-let saldoFacturaCxpActualUsd = 0;
-let saldoFacturaCxpActualBs = 0;
+const renderizarFacturasPagadasCxp = function (facturas) {
+    const $tbody = $("#tbody_cxp_pagadas");
+    $tbody.empty();
 
-function abrirModalAbonoFacturaCxp(cuentaId, numeroFactura, saldoUsd, saldoBs) {
-    saldoFacturaCxpActualUsd = parseFloat(saldoUsd);
-    saldoFacturaCxpActualBs = parseFloat(saldoBs);
+    if (!facturas || facturas.length === 0) {
+        $tbody.html('<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-folder-open text-muted fs-4 d-block mb-2"></i>No hay historial de facturas saldadas aún.</td></tr>');
+        return;
+    }
 
-    document.getElementById('abono_cxp_cuenta_id').value = cuentaId;
-    document.getElementById('abono_cxp_tasa_cambio').value = tasaCambioActivaCxp;
-    document.getElementById('abono_cxp_factura_label').textContent = `Factura #${numeroFactura}`;
-    document.getElementById('abono_cxp_saldo_label').textContent = `$${formatearNumero(saldoFacturaCxpActualUsd)}`;
-    document.getElementById('abono_cxp_saldo_bs_label').textContent = `Bs. ${formatearNumero(saldoFacturaCxpActualBs)}`;
+    facturas.forEach(function (f) {
+        const abonosEncoded = encodeURIComponent(JSON.stringify(f.abonos || []));
+        const tieneAbonos = f.abonos && f.abonos.length > 0;
 
-    document.getElementById('abono_cxp_monto').value = '';
-    document.getElementById('abono_cxp_moneda').value = 'USD';
-    document.getElementById('abono_cxp_moneda_sym').textContent = '$';
-    document.getElementById('abono_cxp_referencia').value = '';
-    document.getElementById('abono_cxp_observaciones').value = '';
-    document.getElementById('abono_cxp_equivalente_label').textContent = `Equivalente: Bs. 0.00`;
+        const botonHistorial = tieneAbonos
+            ? `<button type="button" class="btn btn-outline-info btn-sm rounded-circle shadow-sm" onclick="abrirHistorialAbonosFactura('${abonosEncoded}', '${f.numero_factura}');" title="Ver historial de abonos" style="width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-receipt"></i>
+               </button>`
+            : '<span class="text-muted small">-</span>';
 
-    poblarSelectsMetodosPagoCxp();
+        const tr = `
+            <tr>
+                <td class="ps-4">
+                    <div class="fw-bold text-dark">${f.numero_factura}</div>
+                    <small class="text-muted">Recepción: ${f.recepcion_codigo || f.numero_factura}</small>
+                </td>
+                <td><i class="far fa-calendar-alt text-muted me-1"></i>${f.fecha_emision}</td>
+                <td><i class="far fa-calendar-times text-muted me-1"></i>${f.fecha_vencimiento}</td>
+                <td class="text-end fw-bold text-dark">$${formatearNumero(f.monto_total_usd)}</td>
+                <td class="text-end fw-bold text-success">$${formatearNumero(f.monto_pagado_usd)}</td>
+                <td class="text-center">
+                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 fw-bold">
+                        <i class="fas fa-check-circle me-1"></i>Saldada
+                    </span>
+                </td>
+                <td class="text-center pe-4">${botonHistorial}</td>
+            </tr>
+        `;
+        $tbody.append(tr);
+    });
+};
 
-    const modal = new bootstrap.Modal(document.getElementById('modalAbonarFacturaCxp'));
+const abrirModalAbonarFactura = function (facturaId) {
+    const f = facturasPendientesLista.find(function (item) {
+        return item.id === facturaId;
+    });
+
+    if (!f) return;
+
+    $("#formAbonarFactura")[0].reset();
+    $("#modalAbonarFactura .is-invalid").removeClass("is-invalid");
+    $("#modalAbonarFactura .invalid-feedback").remove();
+
+    saldoFacturaSeleccionadaUsd = parseFloat(f.saldo_pendiente_usd) || 0;
+    saldoFacturaSeleccionadaBs = roundNum(saldoFacturaSeleccionadaUsd * tasaBcvActiva, 2);
+
+    $("#abono_cuenta_id").val(f.id);
+    $("#abono_tasa_cambio").val(tasaBcvActiva);
+    $("#abono_factura_label").text(`#${f.numero_factura} (${f.recepcion_codigo || "Recepción"})`);
+    $("#abono_saldo_label").text(`$${formatearNumero(saldoFacturaSeleccionadaUsd)}`);
+    $("#abono_saldo_bs_label").text(`Bs. ${formatearNumero(saldoFacturaSeleccionadaBs)} (Tasa: ${formatearNumero(tasaBcvActiva, 2)} Bs/$)`);
+
+    $("#abono_monto").val("");
+    $("#abono_moneda").val("USD");
+    $("#abono_moneda_sym").text("$");
+    $("#abono_referencia").val("");
+    $("#abono_observaciones").val("");
+    $("#abono_equivalente_label").text("Equivalente: Bs. 0.00");
+
+    poblarSelectsMetodos();
+    actualizarComportamientoReferencia("abono");
+    recalcularAbonoEspecifico();
+
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalAbonarFactura"));
     modal.show();
-}
+};
 
-function recalcularAbonoEspecificoCxp() {
-    const moneda = document.getElementById('abono_cxp_moneda').value;
-    const monto = parseFloat(document.getElementById('abono_cxp_monto').value) || 0;
-    const sym = document.getElementById('abono_cxp_moneda_sym');
-    const eqLabel = document.getElementById('abono_cxp_equivalente_label');
+const recalcularAbonoEspecifico = function () {
+    const moneda = $("#abono_moneda").val();
+    const monto = parseFloat($("#abono_monto").val()) || 0;
+    const $sym = $("#abono_moneda_sym");
+    const $eqLabel = $("#abono_equivalente_label");
 
-    if (moneda === 'USD') {
-        sym.textContent = '$';
-        const bs = round(monto * tasaCambioActivaCxp, 2);
-        eqLabel.textContent = `Equivalente: Bs. ${formatearNumero(bs)}`;
+    if (moneda === "USD") {
+        $sym.text("$");
+        const bs = roundNum(monto * tasaBcvActiva, 2);
+        $eqLabel.text(`Equivalente: Bs. ${formatearNumero(bs)} (Tasa: ${formatearNumero(tasaBcvActiva, 2)})`);
     } else {
-        sym.textContent = 'Bs';
-        const usd = tasaCambioActivaCxp > 0 ? round(monto / tasaCambioActivaCxp, 2) : 0;
-        eqLabel.textContent = `Equivalente: $${formatearNumero(usd)}`;
+        $sym.text("Bs");
+        const usd = tasaBcvActiva > 0 ? roundNum(monto / tasaBcvActiva, 2) : 0;
+        $eqLabel.text(`Equivalente: $${formatearNumero(usd)} (Tasa: ${formatearNumero(tasaBcvActiva, 2)})`);
     }
-}
+};
 
-function pagarTotalidadFacturaCxp() {
-    const moneda = document.getElementById('abono_cxp_moneda').value;
-    if (moneda === 'USD') {
-        document.getElementById('abono_cxp_monto').value = saldoFacturaCxpActualUsd.toFixed(2);
+const pagarTotalidadFactura = function () {
+    const moneda = $("#abono_moneda").val();
+    if (moneda === "USD") {
+        $("#abono_monto").val(saldoFacturaSeleccionadaUsd.toFixed(2));
     } else {
-        document.getElementById('abono_cxp_monto').value = (saldoFacturaCxpActualUsd * tasaCambioActivaCxp).toFixed(2);
+        $("#abono_monto").val(saldoFacturaSeleccionadaBs.toFixed(2));
     }
-    recalcularAbonoEspecificoCxp();
-}
+    recalcularAbonoEspecifico();
+};
 
-/**
- * Procesar formulario de Pago Específico a Proveedor
- */
-function procesarAbonoEspecificoCxp(e) {
+$("#formAbonarFactura").on("submit", function (e) {
     e.preventDefault();
-    const btn = document.getElementById('btn_guardar_abono_especifico_cxp');
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Procesando...';
 
-    const formData = new FormData(document.getElementById('formAbonarFacturaCxp'));
-
-    fetch('/cuentas-por-pagar/abonar-factura', {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'Accept': 'application/json',
-        },
-        body: formData,
-    })
-        .then(response => response.json())
-        .then(res => {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-
-            if (!res.success) {
-                Swal.fire('Error', res.message || 'No se pudo registrar el pago.', 'error');
-                return;
-            }
-
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalAbonarFacturaCxp'));
-            if (modal) modal.hide();
-
-            Swal.fire({
-                title: '¡Pago Registrado!',
-                text: res.message,
-                icon: 'success',
-                showCancelButton: true,
-                confirmButtonText: '<i class="fas fa-print me-1"></i> Imprimir Comprobante',
-                cancelButtonText: 'Cerrar',
-                confirmButtonColor: '#2563eb',
-            }).then((result) => {
-                if (result.isConfirmed && res.data.abono_id) {
-                    abrirVentanaTicketCxp(`/cuentas-por-pagar/ticket/${res.data.abono_id}`);
+    enviarFormulario({
+        form: this,
+        url: urlAbonarFactura,
+        isEditar: false,
+        modalSelector: "#modalAbonarFactura",
+        btnSubmit: "#modalAbonarFacturaBtnGuardar",
+        textoGuardarOriginal: "Confirmar Pago",
+        onSuccess: function (res) {
+            if (res.data && res.data.abono_id) {
+                if (window.Swal) {
+                    Swal.fire({
+                        title: "¡Pago Registrado!",
+                        text: res.message || "El pago a la factura del proveedor se procesó con éxito.",
+                        icon: "success",
+                        showCancelButton: true,
+                        confirmButtonText: '<i class="fas fa-print me-1"></i> Imprimir Comprobante',
+                        cancelButtonText: "Cerrar",
+                        confirmButtonColor: "#059669",
+                        cancelButtonColor: "#6b7280",
+                    }).then(function (result) {
+                        if (result.isConfirmed) {
+                            abrirVentanaTicket(`${urlBase}/ticket/${res.data.abono_id}`);
+                        }
+                    });
                 }
-            });
-
-            // Recargar datos
-            cargarResumenCxp();
-            if (proveedorSeleccionadoActual) {
-                abrirDetalleProveedor(proveedorSeleccionadoActual.id);
             }
-        })
-        .catch(err => {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-            console.error('Error:', err);
-            Swal.fire('Error', 'Ocurrió un fallo en el servidor.', 'error');
+
+            recargarCxp();
+            if (proveedorActivo) {
+                abrirDetalleProveedor(proveedorActivo.id);
+            }
+        },
+    });
+});
+
+const abrirModalAbonoGeneral = async function (proveedorId) {
+    try {
+        const res = await peticionAjax({
+            url: `${urlDetalleProveedor}${proveedorId}`,
+            type: "GET",
+            mensajeCarga: "Consultando facturas del proveedor...",
         });
-}
 
-/**
- * Abrir Modal Operativo 2: Abono General FIFO a Proveedor
- */
-function abrirModalAbonoGeneralCxp(proveedorId) {
-    fetch(`/cuentas-por-pagar/proveedor/${proveedorId}`)
-        .then(response => response.json())
-        .then(res => {
-            if (!res.success) {
-                Swal.fire('Error', res.message || 'No se pudo consultar el proveedor.', 'error');
-                return;
+        if (!res || !res.success) {
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "error",
+                    title: "Error",
+                    text: res?.message || "No se pudo consultar el proveedor.",
+                });
             }
+            return;
+        }
 
-            proveedorSeleccionadoActual = res.data.proveedor;
-            facturasPendientesActualesCxp = res.data.facturas_pendientes || [];
+        proveedorActivo = res.data.proveedor;
+        facturasPendientesLista = res.data.facturas_pendientes || [];
 
-            if (facturasPendientesActualesCxp.length === 0) {
-                Swal.fire('Aviso', 'Este proveedor no tiene facturas con saldo pendiente.', 'info');
-                return;
+        if (facturasPendientesLista.length === 0) {
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "info",
+                    title: "Aviso",
+                    text: "Este proveedor no tiene facturas con saldo pendiente.",
+                });
             }
+            return;
+        }
 
-            document.getElementById('gen_cxp_proveedor_id').value = proveedorSeleccionadoActual.id;
-            document.getElementById('gen_cxp_tasa_cambio').value = tasaCambioActivaCxp;
-            document.getElementById('gen_cxp_proveedor_label').textContent = `${proveedorSeleccionadoActual.nombre} (${proveedorSeleccionadoActual.rif})`;
-            document.getElementById('gen_cxp_deuda_total_label').textContent = `$${formatearNumero(proveedorSeleccionadoActual.total_deuda_usd)}`;
-            document.getElementById('gen_cxp_deuda_total_bs_label').textContent = `Bs. ${formatearNumero(proveedorSeleccionadoActual.total_deuda_bs)}`;
+        $("#formAbonoGeneral")[0].reset();
+        $("#modalAbonoGeneral .is-invalid").removeClass("is-invalid");
+        $("#modalAbonoGeneral .invalid-feedback").remove();
 
-            document.getElementById('gen_cxp_monto').value = '';
-            document.getElementById('gen_cxp_moneda').value = 'USD';
-            document.getElementById('gen_cxp_moneda_sym').textContent = '$';
-            document.getElementById('gen_cxp_referencia').value = '';
-            document.getElementById('gen_cxp_observaciones').value = '';
-            document.getElementById('gen_cxp_equivalente_label').textContent = `Equivalente: Bs. 0.00`;
+        $("#gen_proveedor_id").val(proveedorActivo.id);
+        $("#gen_tasa_cambio").val(tasaBcvActiva);
+        $("#gen_proveedor_label").text(`${proveedorActivo.nombre} (${proveedorActivo.rif})`);
+        $("#gen_deuda_total_label").text(`$${formatearNumero(proveedorActivo.total_deuda_usd)}`);
+        $("#gen_deuda_total_bs_label").text(`Bs. ${formatearNumero(proveedorActivo.total_deuda_bs)} (Tasa: ${formatearNumero(tasaBcvActiva, 2)} Bs/$)`);
 
-            poblarSelectsMetodosPagoCxp();
-            recalcularAbonoGeneralCxp();
+        $("#gen_monto").val("");
+        $("#gen_moneda").val("USD");
+        $("#gen_moneda_sym").text("$");
+        $("#gen_referencia").val("");
+        $("#gen_observaciones").val("");
+        $("#gen_equivalente_label").text("Equivalente: Bs. 0.00");
 
-            const modal = new bootstrap.Modal(document.getElementById('modalAbonoGeneralCxp'));
-            modal.show();
-        })
-        .catch(err => {
-            console.error('Error:', err);
-            Swal.fire('Error', 'No se pudo abrir el pago general a proveedor.', 'error');
-        });
-}
+        poblarSelectsMetodos();
+        actualizarComportamientoReferencia("gen");
+        recalcularAbonoGeneral();
 
-function recalcularAbonoGeneralCxp() {
-    const moneda = document.getElementById('gen_cxp_moneda').value;
-    const monto = parseFloat(document.getElementById('gen_cxp_monto').value) || 0;
-    const sym = document.getElementById('gen_cxp_moneda_sym');
-    const eqLabel = document.getElementById('gen_cxp_equivalente_label');
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalAbonoGeneral"));
+        modal.show();
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+const recalcularAbonoGeneral = function () {
+    const moneda = $("#gen_moneda").val();
+    const monto = parseFloat($("#gen_monto").val()) || 0;
+    const $sym = $("#gen_moneda_sym");
+    const $eqLabel = $("#gen_equivalente_label");
 
     let montoUsd = 0;
-    if (moneda === 'USD') {
-        sym.textContent = '$';
+    if (moneda === "USD") {
+        $sym.text("$");
         montoUsd = monto;
-        const bs = round(monto * tasaCambioActivaCxp, 2);
-        eqLabel.textContent = `Equivalente: Bs. ${formatearNumero(bs)}`;
+        const bs = roundNum(monto * tasaBcvActiva, 2);
+        $eqLabel.text(`Equivalente: Bs. ${formatearNumero(bs)} (Tasa: ${formatearNumero(tasaBcvActiva, 2)})`);
     } else {
-        sym.textContent = 'Bs';
-        montoUsd = tasaCambioActivaCxp > 0 ? round(monto / tasaCambioActivaCxp, 2) : 0;
-        eqLabel.textContent = `Equivalente: $${formatearNumero(montoUsd)}`;
+        $sym.text("Bs");
+        montoUsd = tasaBcvActiva > 0 ? roundNum(monto / tasaBcvActiva, 2) : 0;
+        $eqLabel.text(`Equivalente: $${formatearNumero(montoUsd)} (Tasa: ${formatearNumero(tasaBcvActiva, 2)})`);
     }
 
-    // Simular Cascada FIFO en la tabla de previsualización
-    simularCascadaFifoCxp(montoUsd);
-}
+    simularCascadaFifo(montoUsd);
+};
 
-function simularCascadaFifoCxp(montoTotalUsd) {
-    const tbody = document.getElementById('tbody_cxp_preview_fifo');
-    const badgeResumen = document.getElementById('gen_cxp_preview_resumen');
-    tbody.innerHTML = '';
+const simularCascadaFifo = function (montoTotalUsd) {
+    const $tbody = $("#tabla_cxp_preview_fifo tbody");
+    const $badgeResumen = $("#gen_preview_resumen");
+    $tbody.empty();
 
-    if (montoTotalUsd <= 0 || facturasPendientesActualesCxp.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-2">Ingresa un monto para ver la cascada de amortización</td></tr>';
-        badgeResumen.textContent = '0 facturas cubiertas';
+    if (montoTotalUsd <= 0 || facturasPendientesLista.length === 0) {
+        $tbody.html('<tr><td colspan="6" class="text-center text-muted py-3">Ingresa un monto para ver la cascada de amortización automática</td></tr>');
+        $badgeResumen.text("0 facturas cubiertas");
         return;
     }
 
@@ -505,7 +588,7 @@ function simularCascadaFifoCxp(montoTotalUsd) {
     let cubiertasCompletas = 0;
     let facturasAfectadasCount = 0;
 
-    facturasPendientesActualesCxp.forEach(f => {
+    facturasPendientesLista.forEach(function (f) {
         if (restanteUsd <= 0.001) return;
 
         const saldoActual = parseFloat(f.saldo_pendiente_usd);
@@ -516,155 +599,162 @@ function simularCascadaFifoCxp(montoTotalUsd) {
         if (quedaPagada) cubiertasCompletas++;
         facturasAfectadasCount++;
 
-        const tr = document.createElement('tr');
-        tr.className = quedaPagada ? 'table-primary bg-opacity-25' : 'table-warning bg-opacity-25';
-        tr.innerHTML = `
-            <td class="fw-bold">${f.numero_factura}</td>
-            <td>${f.fecha_emision}</td>
-            <td class="text-end">$${formatearNumero(saldoActual)}</td>
-            <td class="text-end fw-bold text-primary">+$${formatearNumero(aplicar)}</td>
-            <td class="text-end fw-bold ${quedaPagada ? 'text-success' : 'text-danger'}">$${formatearNumero(nuevoSaldo)}</td>
-            <td class="text-center">
-                ${quedaPagada
-                    ? '<span class="badge bg-success rounded-pill px-2 py-1"><i class="fas fa-check me-1"></i> Quedará Saldada (100%)</span>'
-                    : '<span class="badge bg-warning text-dark rounded-pill px-2 py-1"><i class="fas fa-adjust me-1"></i> Abono Parcial</span>'}
-            </td>
+        const tr = `
+            <tr class="${quedaPagada ? "table-success bg-opacity-25" : "table-warning bg-opacity-25"}">
+                <td class="fw-bold">${f.numero_factura}</td>
+                <td>${f.fecha_emision}</td>
+                <td class="text-end">$${formatearNumero(saldoActual)}</td>
+                <td class="text-end fw-bold text-success">+$${formatearNumero(aplicar)}</td>
+                <td class="text-end fw-bold ${quedaPagada ? "text-success" : "text-danger"}">$${formatearNumero(nuevoSaldo)}</td>
+                <td class="text-center">
+                    ${quedaPagada
+                        ? '<span class="badge bg-success rounded-pill px-2 py-1"><i class="fas fa-check me-1"></i>Pagada 100%</span>'
+                        : '<span class="badge bg-warning text-dark rounded-pill px-2 py-1"><i class="fas fa-adjust me-1"></i>Pago Parcial</span>'}
+                </td>
+            </tr>
         `;
-        tbody.appendChild(tr);
+        $tbody.append(tr);
 
         restanteUsd -= aplicar;
     });
 
-    badgeResumen.textContent = `${facturasAfectadasCount} factura(s) impactadas (${cubiertasCompletas} al 100%)`;
-}
+    $badgeResumen.text(`${facturasAfectadasCount} factura(s) amortizadas (${cubiertasCompletas} al 100%)`);
+};
 
-function pagarDeudaTotalGeneralCxp() {
-    if (!proveedorSeleccionadoActual) return;
-    const moneda = document.getElementById('gen_cxp_moneda').value;
-    const deudaUsd = parseFloat(proveedorSeleccionadoActual.total_deuda_usd);
+const pagarDeudaTotalGeneral = function () {
+    if (!proveedorActivo) return;
+    const moneda = $("#gen_moneda").val();
+    const deudaUsd = parseFloat(proveedorActivo.total_deuda_usd);
 
-    if (moneda === 'USD') {
-        document.getElementById('gen_cxp_monto').value = deudaUsd.toFixed(2);
+    if (moneda === "USD") {
+        $("#gen_monto").val(deudaUsd.toFixed(2));
     } else {
-        document.getElementById('gen_cxp_monto').value = (deudaUsd * tasaCambioActivaCxp).toFixed(2);
+        $("#gen_monto").val((deudaUsd * tasaBcvActiva).toFixed(2));
     }
-    recalcularAbonoGeneralCxp();
-}
+    recalcularAbonoGeneral();
+};
 
-/**
- * Procesar formulario de Abono General FIFO a Proveedor
- */
-function procesarAbonoGeneralCxp(e) {
+$("#formAbonoGeneral").on("submit", function (e) {
     e.preventDefault();
-    const btn = document.getElementById('btn_guardar_abono_general_cxp');
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Procesando FIFO...';
 
-    const formData = new FormData(document.getElementById('formAbonoGeneralCxp'));
-
-    fetch('/cuentas-por-pagar/abonar-general', {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'Accept': 'application/json',
-        },
-        body: formData,
-    })
-        .then(response => response.json())
-        .then(res => {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-
-            if (!res.success) {
-                Swal.fire('Error', res.message || 'No se pudo procesar el pago general.', 'error');
-                return;
+    enviarFormulario({
+        form: this,
+        url: urlAbonarGeneral,
+        isEditar: false,
+        modalSelector: "#modalAbonoGeneral",
+        btnSubmit: "#modalAbonoGeneralBtnGuardar",
+        textoGuardarOriginal: "Procesar Pago General",
+        onSuccess: function (res) {
+            if (res.data && res.data.primer_abono_id) {
+                if (window.Swal) {
+                    Swal.fire({
+                        title: "¡Abono FIFO Aplicado!",
+                        text: res.message || "El abono en cascada a facturas del proveedor se procesó exitosamente.",
+                        icon: "success",
+                        showCancelButton: true,
+                        confirmButtonText: '<i class="fas fa-print me-1"></i> Imprimir Comprobante',
+                        cancelButtonText: "Cerrar",
+                        confirmButtonColor: "#059669",
+                        cancelButtonColor: "#6b7280",
+                    }).then(function (result) {
+                        if (result.isConfirmed) {
+                            abrirVentanaTicket(`${urlBase}/ticket/${res.data.primer_abono_id}`);
+                        }
+                    });
+                }
             }
 
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalAbonoGeneralCxp'));
-            if (modal) modal.hide();
+            recargarCxp();
+        },
+    });
+});
 
-            Swal.fire({
-                title: '¡Pago FIFO Aplicado!',
-                text: res.message,
-                icon: 'success',
-                showCancelButton: true,
-                confirmButtonText: '<i class="fas fa-print me-1"></i> Imprimir Comprobante',
-                cancelButtonText: 'Cerrar',
-                confirmButtonColor: '#2563eb',
-            }).then((result) => {
-                if (result.isConfirmed && res.data.primer_abono_id) {
-                    abrirVentanaTicketCxp(`/cuentas-por-pagar/ticket/${res.data.primer_abono_id}`);
-                }
-            });
+const abrirHistorialAbonosFactura = function (abonosEncoded, numeroFactura) {
+    let abonos = [];
+    try {
+        abonos = JSON.parse(decodeURIComponent(abonosEncoded));
+    } catch (e) {
+        console.error(e);
+    }
 
-            // Recargar
-            cargarResumenCxp();
-        })
-        .catch(err => {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-            console.error('Error:', err);
-            Swal.fire('Error', 'Ocurrió un fallo al procesar el pago general.', 'error');
-        });
-}
-
-/**
- * Abrir Modal Informativo de Historial de Abonos de una Factura de Proveedor
- */
-function abrirHistorialAbonosFacturaCxp(abonos, numeroFactura) {
-    document.getElementById('hist_cxp_modal_title').textContent = `Historial de Pagos - Factura #${numeroFactura}`;
-    const tbody = document.getElementById('tbody_cxp_historial_abonos');
-    tbody.innerHTML = '';
+    $("#hist_modal_title").text(`Historial de Pagos - Factura #${numeroFactura}`);
+    const $tbody = $("#tbody_historial_abonos");
+    $tbody.empty();
 
     if (!abonos || abonos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No hay pagos registrados para esta factura.</td></tr>';
+        $tbody.html('<tr><td colspan="7" class="text-center text-muted py-3">No hay pagos registrados para esta factura.</td></tr>');
     } else {
-        abonos.forEach(a => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><i class="far fa-calendar-alt text-muted me-1"></i> ${a.fecha}</td>
-                <td><span class="badge bg-light text-dark border rounded-pill px-2 py-1">${a.metodo_pago}</span></td>
-                <td><small class="text-muted">${a.referencia || 'N/A'}</small></td>
-                <td class="text-end fw-bold text-success">+$${formatearNumero(a.monto_usd)}</td>
-                <td class="text-end text-dark">Bs. ${formatearNumero(a.monto_bs)}</td>
-                <td><small class="text-muted"><i class="fas fa-user-edit me-1"></i> ${a.usuario || 'Sistema'}</small></td>
-                <td class="text-center">
-                    <button class="btn btn-sm btn-outline-dark rounded-pill px-2" onclick="abrirVentanaTicketCxp('/cuentas-por-pagar/ticket/${a.id}')" title="Imprimir Ticket">
-                        <i class="fas fa-print"></i>
-                    </button>
-                </td>
+        abonos.forEach(function (a) {
+            const tr = `
+                <tr>
+                    <td><i class="far fa-calendar-alt text-muted me-1"></i>${a.fecha}</td>
+                    <td><span class="badge bg-white text-dark border rounded-pill px-2 py-1 shadow-xs">${a.metodo_pago}</span></td>
+                    <td><small class="text-muted">${a.referencia || "N/A"}</small></td>
+                    <td class="text-end fw-bold text-success">+$${formatearNumero(a.monto_usd)}</td>
+                    <td class="text-end text-dark">Bs. ${formatearNumero(a.monto_bs)}</td>
+                    <td><small class="text-muted"><i class="fas fa-user-edit me-1"></i>${a.usuario || "Sistema"}</small></td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-outline-dark btn-sm rounded-circle shadow-sm" onclick="abrirVentanaTicket('${urlBase}/ticket/${a.id}');" title="Imprimir Ticket" style="width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-print"></i>
+                        </button>
+                    </td>
+                </tr>
             `;
-            tbody.appendChild(tr);
+            $tbody.append(tr);
         });
     }
 
-    const modal = new bootstrap.Modal(document.getElementById('modalHistorialAbonosCxp'));
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalHistorialAbonos"));
     modal.show();
-}
+};
 
-/**
- * Abrir ventana de impresión térmica de comprobante CXP
- */
-function abrirVentanaTicketCxp(url) {
+const contactarProveedorWhatsApp = function (proveedorId) {
+    const prov = proveedoresCache.find(function (p) {
+        return p.proveedor_id === proveedorId;
+    });
+
+    if (!prov) return;
+
+    let telefono = (prov.proveedor_telefono || "").replace(/\D/g, "");
+    if (!telefono) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "warning",
+                title: "Sin Teléfono",
+                text: "El proveedor no tiene un número telefónico registrado para enviar WhatsApp.",
+            });
+        }
+        return;
+    }
+
+    if (telefono.startsWith("0")) {
+        telefono = "58" + telefono.substring(1);
+    } else if (telefono.length === 10 && (telefono.startsWith("412") || telefono.startsWith("414") || telefono.startsWith("424") || telefono.startsWith("416") || telefono.startsWith("426"))) {
+        telefono = "58" + telefono;
+    }
+
+    const mensaje = `Hola, estimado(a) *${prov.proveedor_nombre}*. Nos comunicamos para coordinar los pagos correspondientes a nuestras facturas de compra pendientes por un total de *$${formatearNumero(prov.total_deuda_usd)}* (equivalente a *Bs. ${formatearNumero(prov.total_deuda_bs)}* a tasa oficial). ¡Saludos cordiales!`;
+
+    const urlWa = `https://api.whatsapp.com/send?phone=${telefono}&text=${encodeURIComponent(mensaje)}`;
+    window.open(urlWa, "_blank");
+};
+
+const abrirVentanaTicket = function (url) {
     const w = 420;
     const h = 600;
-    const left = (screen.width / 2) - (w / 2);
-    const top = (screen.height / 2) - (h / 2);
-    window.open(url, 'TicketAbonoCXP', `width=${w},height=${h},top=${top},left=${left},scrollbars=yes,status=no`);
-}
+    const left = screen.width / 2 - w / 2;
+    const top = screen.height / 2 - h / 2;
+    window.open(url, "TicketAbonoCXP", `width=${w},height=${h},top=${top},left=${left},scrollbars=yes,status=no`);
+};
 
-/**
- * Utilidades numéricas
- */
-function formatearNumero(valor, decimales = 2) {
+const formatearNumero = function (valor, decimales = 2) {
     const num = parseFloat(valor) || 0;
-    return num.toLocaleString('es-VE', {
+    return num.toLocaleString("es-VE", {
         minimumFractionDigits: decimales,
         maximumFractionDigits: decimales,
     });
-}
+};
 
-function round(valor, decimales) {
-    return Number(Math.round(valor + 'e' + decimales) + 'e-' + decimales);
-}
+const roundNum = function (valor, decimales) {
+    return Number(Math.round(valor + "e" + decimales) + "e-" + decimales);
+};

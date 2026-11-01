@@ -14,6 +14,8 @@ class CuentaPorCobrarAbono extends Model
 
     protected $fillable = [
         'cuenta_por_cobrar_id',
+        'caja_id',
+        'caja_turno_id',
         'user_id',
         'metodo_pago_id',
         'fecha_abono',
@@ -44,5 +46,15 @@ class CuentaPorCobrarAbono extends Model
     public function metodoPago(): BelongsTo
     {
         return $this->belongsTo(MetodoPago::class, 'metodo_pago_id');
+    }
+
+    public function caja(): BelongsTo
+    {
+        return $this->belongsTo(Caja::class, 'caja_id');
+    }
+
+    public function cajaTurno(): BelongsTo
+    {
+        return $this->belongsTo(CajaTurno::class, 'caja_turno_id');
     }
 }

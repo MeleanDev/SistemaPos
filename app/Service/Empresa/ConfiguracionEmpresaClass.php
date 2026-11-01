@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 class ConfiguracionEmpresaClass
 {
     /**
-     * Monedas predeterminadas sugeridas por el sistema
+     * Monedas secundarias operativas admitidas por el sistema bimonetario
      */
     private array $monedasPredeterminadas = [
         [
@@ -21,22 +21,6 @@ class ConfiguracionEmpresaClass
             'tasa_cambio' => 1.0000,
             'es_principal' => false,
             'estado' => true,
-        ],
-        [
-            'codigo' => 'EUR',
-            'nombre' => 'Euro Europeo',
-            'simbolo' => '€',
-            'tasa_cambio' => 1.0000,
-            'es_principal' => false,
-            'estado' => false,
-        ],
-        [
-            'codigo' => 'COP',
-            'nombre' => 'Peso Colombiano',
-            'simbolo' => 'COP$',
-            'tasa_cambio' => 0.0100,
-            'es_principal' => false,
-            'estado' => false,
         ],
     ];
 
@@ -51,7 +35,7 @@ class ConfiguracionEmpresaClass
         $this->asegurarMonedasInicializadas($empresaId);
 
         $monedas = EmpresaMoneda::where('empresa_id', $empresaId)
-            ->orderBy('es_principal', 'desc')
+            ->where('codigo', '!=', 'VES')
             ->orderBy('id', 'asc')
             ->get();
 
@@ -105,7 +89,7 @@ class ConfiguracionEmpresaClass
 
             foreach ($monedas as $item) {
                 $codigo = $item['codigo'] ?? null;
-                if (! $codigo) {
+                if (! $codigo || $codigo === 'VES') {
                     continue;
                 }
 
@@ -116,13 +100,17 @@ class ConfiguracionEmpresaClass
                 if ($moneda) {
                     $moneda->update([
                         'tasa_cambio' => $item['tasa_cambio'] ?? $moneda->tasa_cambio,
+                        'es_principal' => false,
                         'estado' => filter_var($item['estado'] ?? true, FILTER_VALIDATE_BOOLEAN),
                         'ultima_actualizacion_tasa' => $ahora,
                     ]);
                 }
             }
 
-            return EmpresaMoneda::where('empresa_id', $empresaId)->get()->toArray();
+            return EmpresaMoneda::where('empresa_id', $empresaId)
+                ->where('codigo', '!=', 'VES')
+                ->get()
+                ->toArray();
         });
     }
 
@@ -131,17 +119,41 @@ class ConfiguracionEmpresaClass
      */
     private function asegurarMonedasInicializadas(int $empresaId): void
     {
-        $conteo = EmpresaMoneda::where('empresa_id', $empresaId)->count();
+        $monedaVes = EmpresaMoneda::where('empresa_id', $empresaId)->where('codigo', 'VES')->first();
+        $monedaUsd = EmpresaMoneda::where('empresa_id', $empresaId)->where('codigo', 'USD')->first();
 
-        if ($conteo === 0) {
-            foreach ($this->monedasPredeterminadas as $m) {
+        if ($monedaVes) {
+            if ($monedaUsd && (float) $monedaUsd->tasa_cambio <= 1.0000 && (float) $monedaVes->tasa_cambio > 1.0000) {
+                $monedaUsd->update([
+                    'tasa_cambio' => $monedaVes->tasa_cambio,
+                    'es_principal' => false,
+                    'ultima_actualizacion_tasa' => $monedaVes->ultima_actualizacion_tasa ?? now(),
+                ]);
+            }
+            $monedaVes->delete();
+        }
+
+        if ($monedaUsd && $monedaUsd->es_principal) {
+            $monedaUsd->update(['es_principal' => false]);
+        }
+
+        EmpresaMoneda::where('empresa_id', $empresaId)
+            ->whereIn('codigo', ['EUR', 'COP'])
+            ->delete();
+
+        foreach ($this->monedasPredeterminadas as $m) {
+            $existe = EmpresaMoneda::where('empresa_id', $empresaId)
+                ->where('codigo', $m['codigo'])
+                ->exists();
+
+            if (! $existe) {
                 EmpresaMoneda::create([
                     'empresa_id' => $empresaId,
                     'codigo' => $m['codigo'],
                     'nombre' => $m['nombre'],
                     'simbolo' => $m['simbolo'],
                     'tasa_cambio' => $m['tasa_cambio'],
-                    'es_principal' => $m['es_principal'],
+                    'es_principal' => false,
                     'estado' => $m['estado'],
                     'ultima_actualizacion_tasa' => now(),
                 ]);

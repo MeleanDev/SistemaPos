@@ -36,7 +36,7 @@
 
 @section('contenido')
     <!-- Banner de Turno Activo del Usuario -->
-    <div id="contenedorTurnoActivo" class="mb-4" style="{{ $turnoActivo ? '' : 'display: none;' }}">
+    <div id="contenedorTurnoActivo" class="mb-4" style="display: none;">
         <div class="card bg-white border rounded-4 shadow-xs p-4">
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
                 <div class="d-flex align-items-center gap-3">
@@ -49,26 +49,28 @@
                                 <i class="fas fa-circle fa-beat me-1"></i> TURNO EN CURSO
                             </span>
                             <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1 fw-semibold">
-                                Turno #<span id="bannerTurnoId">{{ $turnoActivo?->id }}</span>
+                                Turno #<span id="bannerTurnoId"></span>
                             </span>
                         </div>
-                        <h4 class="fw-bold mb-0 text-dark mt-1">Caja: <span id="bannerCajaNombre" class="text-primary">{{ $turnoActivo?->caja?->nombre }}</span></h4>
+                        <h4 class="fw-bold mb-0 text-dark mt-1">Caja: <span id="bannerCajaNombre" class="text-primary"></span></h4>
                         <p class="text-muted mb-0 small mt-1">
-                            Aperturado el <span id="bannerFechaApertura" class="fw-semibold text-dark">{{ $turnoActivo ? \Carbon\Carbon::parse($turnoActivo->fecha_apertura)->format('d/m/Y') : '' }} {{ $turnoActivo?->hora_apertura }}</span> por <strong class="text-dark">{{ Auth::user()->name }}</strong>
+                            Aperturado el <span id="bannerFechaApertura" class="fw-semibold text-dark"></span> por <strong class="text-dark" id="bannerUsuarioNombre"></strong>
                         </p>
                     </div>
                 </div>
 
                 <div class="d-flex flex-wrap gap-2">
-                    <button type="button" class="btn btn-warning rounded-pill px-3 py-2 fw-semibold shadow-xs text-dark" onclick="verCorteX({{ $turnoActivo?->id ?? 'null' }})">
+                    <button type="button" class="btn btn-warning rounded-pill px-3 py-2 fw-semibold shadow-xs text-dark" id="btnBannerCorteX">
                         <i class="fas fa-file-invoice-dollar me-1"></i> Ver Corte X
                     </button>
-                    <button type="button" class="btn btn-danger rounded-pill px-3 py-2 fw-semibold shadow-xs" onclick="abrirModalCierre({{ $turnoActivo?->id ?? 'null' }})">
+                    <button type="button" class="btn btn-danger rounded-pill px-3 py-2 fw-semibold shadow-xs" id="btnBannerCerrarZ">
                         <i class="fas fa-lock me-1"></i> Cerrar Turno (Z)
                     </button>
-                    <a href="{{ route('pos') }}" class="btn btn-primary rounded-pill px-3 py-2 fw-semibold shadow-xs">
-                        <i class="fas fa-shopping-cart me-1"></i> Ir al POS
-                    </a>
+                    @can('pos.acceso')
+                        <a href="{{ route('pos') }}" class="btn btn-primary rounded-pill px-3 py-2 fw-semibold shadow-xs">
+                            <i class="fas fa-shopping-cart me-1"></i> Ir al POS
+                        </a>
+                    @endcan
                 </div>
             </div>
         </div>
@@ -148,9 +150,6 @@
 
                 <x-select name="almacen_id" id="caja_almacen_id" label="Almacén Asociado" icon="fas fa-warehouse" col="col-md-6" optionalText="Opcional">
                     <option value="">-- Sin almacén fijo / Global --</option>
-                    @foreach($almacenes as $alm)
-                        <option value="{{ $alm->id }}">{{ $alm->nombre }} ({{ $alm->codigo }})</option>
-                    @endforeach
                 </x-select>
 
                 <x-input name="descripcion" id="caja_descripcion" label="Descripción / Ubicación" icon="fas fa-info-circle" placeholder="Ej. Mostrador principal, área de repuestos"
@@ -168,7 +167,7 @@
             @csrf
             <div class="row g-3">
                 <div class="col-12">
-                    <div class="alert alert-info rounded-3 py-2 px-3 small mb-0 border-0">
+                    <div class="alert bg-primary-subtle border border-primary-subtle text-primary rounded-4 py-2.5 px-3 small mb-0">
                         <i class="fas fa-info-circle me-1"></i> Selecciona la caja donde operarás e introduce el efectivo con el que inicias para dar cambio.
                     </div>
                 </div>
@@ -179,11 +178,6 @@
 
                 <x-select name="user_id" id="apertura_user_id" label="Cajero Asignado (Usuario)" icon="fas fa-user-tie" required col="col-md-6">
                     <option value="">-- Seleccionar Cajero --</option>
-                    @foreach($cajeros as $caj)
-                        <option value="{{ $caj->id }}" {{ $caj->id === Auth::id() ? 'selected' : '' }}>
-                            {{ $caj->name }} ({{ $caj->nombre_completo ?: $caj->email }})
-                        </option>
-                    @endforeach
                 </x-select>
 
                 <x-input name="monto_apertura_usd" id="monto_apertura_usd" type="number" step="0.01" min="0" label="Fondo Inicial en USD ($)" icon="fas fa-dollar-sign" addonText="$" required col="col-md-6" value="0.00" />
@@ -272,11 +266,5 @@
 
 @section('scripts')
     @include('Sistema.components.datatable')
-    <script>
-        window.usuarioActualId = {{ Auth::id() }};
-        window.turnoActivoInicial = @json($turnoActivo);
-    </script>
-    <script
-        src="{{ asset('estilos/jsPropios/caja.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/caja.js')) ?: time() }}">
-    </script>
+    <script src="{{ asset('estilos/jsPropios/caja.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/caja.js')) ?: time() }}"></script>
 @endsection

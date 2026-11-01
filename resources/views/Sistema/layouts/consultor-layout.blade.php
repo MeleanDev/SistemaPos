@@ -1,3 +1,6 @@
+@php
+    $empresa = $empresa ?? auth()->user()?->empresaActiva();
+@endphp
 <!DOCTYPE html>
 <html dir="ltr" lang="es">
 
@@ -470,6 +473,7 @@
         <script src="{{ asset('estilos/assets/libs/jquery/dist/jquery.min.js') }}"></script>
         <script src="{{ asset('estilos/assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js') }}"></script>
         <script src="{{ asset('estilos/assets/libs/sweetalert2/dist/sweetalert2.all.min.js') }}"></script>
+        @include('Sistema.components.js-components')
 
         <script>
             function aplicarTemaKiosco(tema) {

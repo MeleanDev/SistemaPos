@@ -191,14 +191,37 @@ const inicializarTablaFacturas = function () {
                 }
             },
             {
+                data: "vendedor",
+                name: "vendedor.nombre",
+                render: function (data, type, row) {
+                    if (!data) {
+                        return '<span class="text-muted small fst-italic"><i class="fas fa-minus me-1 opacity-50"></i>Sin asignar</span>';
+                    }
+                    const comisionStr = parseFloat(row.comision_monto_usd || 0) > 0 ? ` <small class="text-success fw-bold">($${parseFloat(row.comision_monto_usd).toFixed(2)})</small>` : '';
+                    return `
+                        <div>
+                            <strong class="text-dark font-monospace d-block" style="font-size: 0.85rem;"><i class="fas fa-user-tie text-primary me-1"></i>${data.nombre}</strong>
+                            <small class="text-muted font-monospace">${data.tipo_documento ? `${data.tipo_documento}-${data.documento || ''}` : (data.documento || '')}${comisionStr}</small>
+                        </div>
+                    `;
+                }
+            },
+            {
                 data: "almacen.nombre",
                 name: "almacen.nombre",
-                render: function (data) {
-                    const nombre = data || "General";
+                render: function (data, type, row) {
+                    const nombreAlm = data || "General";
+                    const cajaNom = row.caja ? row.caja.nombre : "Caja Principal";
                     return `
-                        <div class="d-inline-flex align-items-center gap-1.5 text-nowrap">
-                            <i class="fas fa-warehouse text-primary" style="font-size: 0.82rem;"></i>
-                            <span class="font-monospace fw-semibold text-dark" style="font-size: 0.84rem;">${nombre}</span>
+                        <div class="d-flex flex-column text-nowrap" style="gap: 2px;">
+                            <div class="d-inline-flex align-items-center gap-1.5">
+                                <i class="fas fa-warehouse text-primary" style="font-size: 0.8rem;"></i>
+                                <span class="font-monospace fw-semibold text-dark" style="font-size: 0.83rem;">${nombreAlm}</span>
+                            </div>
+                            <div class="d-inline-flex align-items-center gap-1 text-muted" style="font-size: 0.74rem;">
+                                <i class="fas fa-cash-register text-secondary" style="font-size: 0.72rem;"></i>
+                                <span class="font-monospace">${cajaNom}</span>
+                            </div>
                         </div>
                     `;
                 }
@@ -251,9 +274,9 @@ const inicializarTablaFacturas = function () {
                         case "devuelta_total":
                             return '<span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1 font-monospace"><i class="fas fa-ban me-1"></i>Devuelta Total</span>';
                         case "anulada":
-                            return '<span class="badge rounded-pill bg-dark-subtle text-dark border px-2.5 py-1 font-monospace"><i class="fas fa-times-circle me-1"></i>Anulada</span>';
+                            return '<span class="badge rounded-pill bg-secondary-subtle text-secondary px-2.5 py-1 font-monospace"><i class="fas fa-times-circle me-1"></i>Anulada</span>';
                         default:
-                            return `<span class="badge rounded-pill bg-light text-dark border px-2.5 py-1 font-monospace">${data}</span>`;
+                            return `<span class="badge rounded-pill bg-primary-subtle text-primary px-2.5 py-1 font-monospace">${data}</span>`;
                     }
                 }
             },
@@ -266,13 +289,13 @@ const inicializarTablaFacturas = function () {
                 render: function (data, type, row) {
                     return `
                         <div class="d-flex justify-content-end gap-1">
-                            <button type="button" class="btn btn-outline-info btn-sm rounded-pill px-2.5 py-1" onclick="verDetalleFactura(${data})" title="Ver Detalle 360°">
+                            <button type="button" class="btn btn-outline-info btn-sm rounded-pill px-2.5 py-1 shadow-xs" onclick="verDetalleFactura(${data})" title="Ver Detalle 360°">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-2.5 py-1" onclick="imprimirCartaFactura(${data})" title="Factura Carta (Hoja Blanca)">
+                            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-2.5 py-1 shadow-xs" onclick="imprimirCartaFactura(${data})" title="Factura Carta (Hoja Blanca)">
                                 <i class="fas fa-file-invoice"></i>
                             </button>
-                            <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-2.5 py-1" onclick="imprimirTicketFactura(${data})" title="Ticket Térmico (Tiquera)">
+                            <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-2.5 py-1 shadow-xs" onclick="imprimirTicketFactura(${data})" title="Ticket Térmico (Tiquera)">
                                 <i class="fas fa-receipt"></i>
                             </button>
                         </div>
@@ -285,38 +308,42 @@ const inicializarTablaFacturas = function () {
 
 const cargarKpisFacturas = async function () {
     try {
-        const res = await $.ajax({
+        const res = await peticionAjax({
             url: urlFacturasKpis,
-            type: "GET",
-            dataType: "json"
+            method: "GET"
         });
 
-        if (res.success && res.data) {
+        if (res && res.success && res.data) {
             const d = res.data;
-            $("#kpiTotalUsd").text(`$ ${d.total_usd.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
-            $("#kpiTotalBs").text(`Bs. ${d.total_bs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`);
-            $("#kpiTotalHoyUsd").text(`$ ${d.total_hoy_usd.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
-            $("#kpiTotalHoyBs").text(`Bs. ${d.total_hoy_bs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`);
-            $("#kpiTotalCreditoUsd").text(`$ ${d.total_credito_usd.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
-            $("#kpiTotalCreditoBs").text(`Bs. ${d.total_credito_bs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`);
-            $("#kpiConteoTotal").text(d.conteo_total);
-            $("#kpiConteoHoy").text(d.conteo_hoy);
-            $("#kpiConteoCredito").text(d.conteo_credito);
-            $("#kpiConteoDevueltas").text(d.conteo_devueltas);
+            $("#kpiTotalUsd").text(`$ ${parseFloat(d.total_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+            $("#kpiTotalBs").text(`Bs. ${parseFloat(d.total_bs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+            $("#kpiTotalHoyUsd").text(`$ ${parseFloat(d.total_hoy_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+            $("#kpiTotalHoyBs").text(`Bs. ${parseFloat(d.total_hoy_bs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+            $("#kpiTotalCreditoUsd").text(`$ ${parseFloat(d.total_credito_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+            $("#kpiTotalCreditoBs").text(`Bs. ${parseFloat(d.total_credito_bs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+            $("#kpiConteoTotal").text(d.conteo_total || 0);
+            $("#kpiConteoHoy").text(d.conteo_hoy || 0);
+            $("#kpiConteoCredito").text(d.conteo_credito || 0);
+            $("#kpiConteoDevueltas").text(d.conteo_devueltas || 0);
         }
     } catch (e) {
-        console.error("Error al cargar KPIs de facturas:", e);
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "error",
+                title: "Error",
+                text: "No se pudieron cargar los indicadores de facturación."
+            });
+        }
     }
 };
 
 const recargarTablaFacturas = function () {
     validarFiltroFechas();
     if (datatableFacturas) {
-        datatableFacturas.ajax.reload();
+        datatableFacturas.ajax.reload(null, false);
     }
     cargarKpisFacturas();
 };
-window.recargarTablaFacturas = recargarTablaFacturas;
 
 const limpiarFiltrosFacturas = function () {
     const hoy = obtenerFechaHoy();
@@ -326,22 +353,18 @@ const limpiarFiltrosFacturas = function () {
     $("#filtroEstado").val("");
     recargarTablaFacturas();
 };
-window.limpiarFiltrosFacturas = limpiarFiltrosFacturas;
 
 const verDetalleFactura = async function (id) {
     try {
-        const res = await $.ajax({
-            url: `${urlFacturasDetalle}/${id}`,
-            type: "GET",
-            dataType: "json"
-        });
+        const res = await consultarRegistro(urlFacturasDetalle, id);
 
-        if (res.success && res.data) {
+        if (res && res.success && res.data) {
             const v = res.data;
             $("#modalDetalleFacturaSubtitulo").text(`Comprobante #${v.codigo}`);
             $("#modalDetalleFacturaTitulo").text(`Detalle de Factura #${v.codigo}`);
             $("#btnImprimirCartaModalDetalle").attr("onclick", `imprimirCartaFactura(${v.id})`);
             $("#btnReimprimirModalDetalle").attr("onclick", `imprimirTicketFactura(${v.id})`);
+            $("#btnImprimirGarantiaModalDetalle").attr("onclick", `imprimirGarantiaFactura(${v.id})`);
 
             const cliNombre = v.cliente ? `${v.cliente.nombre} ${v.cliente.apellido || ''}`.trim() : "Consumidor Final";
             const cliCedula = v.cliente ? v.cliente.cedula : "V-00000000";
@@ -447,8 +470,16 @@ const verDetalleFactura = async function (id) {
                                     <span class="d-inline-flex align-items-center gap-1.5 font-monospace fw-semibold text-dark"><i class="fas fa-warehouse text-primary"></i> ${v.almacen?.nombre || 'General'}</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-1.5">
+                                    <span class="text-secondary fw-medium">Caja Registradora:</span>
+                                    <span class="d-inline-flex align-items-center gap-1.5 font-monospace fw-semibold text-dark"><i class="fas fa-cash-register text-secondary"></i> ${v.caja?.nombre || 'Caja Principal'}${v.caja_turno_id ? ` (Turno #${v.caja_turno_id})` : ''}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1.5">
                                     <span class="text-secondary fw-medium">Condición de Pago:</span>
                                     <span class="badge rounded-pill ${v.condicion_pago === 'credito' ? 'bg-warning-subtle text-warning-emphasis' : 'bg-success-subtle text-success'} font-monospace px-2.5 py-0.5">${v.condicion_pago === 'credito' ? 'Crédito' : 'Contado'} (${v.tipo_venta === 'mayor' ? 'Mayor' : 'Detal'})</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1.5">
+                                    <span class="text-secondary fw-medium">Asesor / Vendedor:</span>
+                                    <span class="d-inline-flex align-items-center gap-1.5 font-monospace fw-semibold text-dark"><i class="fas fa-user-tie text-primary"></i> ${v.vendedor ? v.vendedor.nombre : 'Sin asignar'}${v.vendedor && parseFloat(v.comision_monto_usd || 0) > 0 ? ` <span class="badge bg-success-subtle text-success ms-1">+$${parseFloat(v.comision_monto_usd).toFixed(2)}</span>` : ''}</span>
                                 </div>
                                 <div class="d-flex justify-content-between">
                                     <span class="text-secondary fw-medium">Operador de Caja:</span>
@@ -561,14 +592,15 @@ const verDetalleFactura = async function (id) {
         }
     }
 };
-window.verDetalleFactura = verDetalleFactura;
 
 const imprimirTicketFactura = function (id) {
     window.open(`${urlPosImprimirTicket}/${id}`, "_blank", "width=400,height=600");
 };
-window.imprimirTicketFactura = imprimirTicketFactura;
 
 const imprimirCartaFactura = function (id) {
     window.open(`${urlPosImprimirCarta}/${id}`, "_blank");
 };
-window.imprimirCartaFactura = imprimirCartaFactura;
+
+const imprimirGarantiaFactura = function (id) {
+    window.open(`${urlPosImprimirGarantia}/${id}`, "_blank");
+};

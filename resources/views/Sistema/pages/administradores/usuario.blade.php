@@ -1,8 +1,7 @@
 @extends('Sistema.layouts.app')
 
 @section('titulo', '👥 Usuarios y Roles')
-@section('subtitulo', 'Directorio ejecutivo de usuarios, credenciales de acceso, asignación de roles y sedes
-    autorizadas')
+@section('subtitulo', 'Directorio ejecutivo de usuarios, credenciales de acceso, asignación de roles y sedes autorizadas')
 
 @section('rutas')
     <a href="{{ route('dashboard') }}">Sistema</a>
@@ -17,7 +16,6 @@
 @endsection
 
 @section('contenido')
-    <!-- BARRA EJECUTIVA DE CONTROL, BÚSQUEDA Y FILTROS USANDO COMPONENTE OFICIAL TOTALMENTE RESPONSIVE -->
     <x-search-filter inputId="buscadorUsuarios" counterId="contadorUsuarios"
         placeholder="Buscar por cédula, nombre, correo, rol o sede..." loadingText="Cargando usuarios..."
         counterIcon="fas fa-users">
@@ -79,11 +77,9 @@
         </x-slot:bottom>
     </x-search-filter>
 
-    <!-- CONTENEDOR 1: GRID DE TARJETAS EJECUTIVAS -->
     <div class="row g-4 mb-4" id="contenedorUsuariosGrid">
     </div>
 
-    <!-- CONTENEDOR 2: VISTA TABLA EJECUTIVA CON COMPONENTE OFICIAL DEL SISTEMA -->
     <div class="d-none mb-4" id="contenedorUsuariosTabla">
         <x-datatable
             id="datatable_usuarios"
@@ -99,34 +95,27 @@
         />
     </div>
 
-    <!-- MODAL PRINCIPAL: CREACIÓN / EDICIÓN DE USUARIO -->
     <x-modal id="modalUsuario" title="Nuevo Usuario" subtitle="Completa los datos de acceso, rol y sedes del usuario"
         icon="fas fa-user-shield text-warning fs-5" size="modal-lg" headerColor="bg-dark text-white"
         formId="formularioUsuario" submitText="Guardar">
         <form id="formularioUsuario">
             @csrf
             <div class="row g-3">
-                <!-- Cédula de Identidad (Login) -->
                 <x-input-documento selectName="tipo_cedula" inputName="cedula_numero"
                     label="Identificación / Cédula (Login)" defaultType="V-" required col="col-md-6" />
 
-                <!-- Correo Electrónico -->
                 <x-input name="email" id="email" type="email" label="Correo Electrónico" icon="fas fa-envelope"
                     placeholder="usuario@ejemplo.com" required maxlength="150" col="col-md-6" />
 
-                <!-- Nombre -->
                 <x-input name="nombre" label="Nombre" icon="fas fa-user" placeholder="Ej. Carlos" required maxlength="100"
                     col="col-md-6" />
 
-                <!-- Apellido -->
                 <x-input name="apellido" label="Apellido" icon="fas fa-user" placeholder="Ej. Pérez" required
                     maxlength="100" col="col-md-6" />
 
-                <!-- Contraseña -->
                 <x-input name="password" id="password" type="password" label="Contraseña de Acceso" icon="fas fa-lock"
                     placeholder="Mínimo 6 caracteres" required maxlength="100" col="col-md-6" />
 
-                <!-- Rol en el Sistema -->
                 <div class="col-md-6">
                     <label class="form-label-executive" for="rol">
                         <i class="fas fa-shield-alt"></i> Rol en el Sistema <span class="text-danger">*</span>
@@ -140,7 +129,6 @@
                     </select>
                 </div>
 
-                <!-- SECCIÓN: EMPRESAS AUTORIZADAS (EXECUTIVE SELECTABLE CARDS) -->
                 <div class="col-12" id="contenedorSeccionEmpresas">
                     <div class="card bg-white shadow-xs border rounded-4 p-3 mt-1">
                         <div
@@ -206,7 +194,6 @@
         </form>
     </x-modal>
 
-    <!-- MODAL DEDICADO: PERMISOS GRANULARES DEL OPERADOR -->
     <x-modal id="modalPermisosUsuario" title="Permisos del Operador"
         subtitle="Concede o revoca facultades de acceso por módulo para este operador"
         icon="fas fa-user-lock text-warning fs-5" size="modal-xl" headerColor="bg-dark text-white"
@@ -215,7 +202,6 @@
             @csrf
             <input type="hidden" id="permisos_usuario_id" name="usuario_id">
 
-            <!-- BANNER DEL OPERADOR -->
             <div class="card bg-white border rounded-4 shadow-xs p-3 mb-4 d-flex flex-row align-items-center justify-content-between flex-wrap gap-3"
                 style="border-color: #e2e8f0 !important;">
                 <div class="d-flex align-items-center gap-3">
@@ -254,13 +240,11 @@
                 </div>
             </div>
 
-            <!-- GRID DE MÓDULOS ACTIVOS -->
             <div class="row g-4">
                 @if (!empty($catalogos['permisos_modulos']))
                     @foreach ($catalogos['permisos_modulos'] as $moduloInfo)
                         <div class="col-12 col-md-6 col-xl-4">
                             <div class="card h-100 border rounded-4 bg-white shadow-sm card-modulo-permiso">
-                                <!-- HEADER DEL MÓDULO CON ICONO LIMPIO SIN BORDES FEOS -->
                                 <div class="card-header bg-white border-bottom px-3 py-2.5 d-flex align-items-center justify-content-between gap-2"
                                     style="border-color: #f1f5f9 !important;">
                                     <div class="d-flex align-items-center gap-2.5 overflow-hidden">
@@ -283,7 +267,6 @@
                                     </button>
                                 </div>
 
-                                <!-- CUERPO: LISTA ELEGANTE DE PERMISOS -->
                                 <div class="card-body p-2 d-flex flex-column gap-1">
                                     @foreach ($moduloInfo['permisos'] as $permiso)
                                         @php

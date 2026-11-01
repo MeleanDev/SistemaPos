@@ -30,11 +30,10 @@
         pdo_mysql \
         bcmath \
         zip \
-        gd \
-        redis
+        gd
 
     # Configuración de PHP optimizada para reportes grandes y subida de archivos
-    RUN echo "memory_limit = -1" > /usr/local/etc/php/conf.d/custom.ini \
+    RUN echo "memory_limit = 1G" > /usr/local/etc/php/conf.d/custom.ini \
         && echo "upload_max_filesize = 100M" >> /usr/local/etc/php/conf.d/custom.ini \
         && echo "post_max_size = 100M" >> /usr/local/etc/php/conf.d/custom.ini \
         && echo "max_execution_time = 300" >> /usr/local/etc/php/conf.d/custom.ini

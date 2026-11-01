@@ -684,7 +684,12 @@ class VentaClass
             }
 
             if (! $cajaTurno && $esAdmin) {
-                $cajaTurno = CajaTurno::where('empresa_id', $empresaId)->where('estado', 'abierta')->first();
+                $turnosAbiertosEmpresa = CajaTurno::where('empresa_id', $empresaId)->where('estado', 'abierta')->get();
+                if ($turnosAbiertosEmpresa->count() === 1) {
+                    $cajaTurno = $turnosAbiertosEmpresa->first();
+                } elseif ($turnosAbiertosEmpresa->count() > 1) {
+                    throw new Exception('Hay múltiples cajas abiertas. Por favor selecciona en la barra superior en qué caja estás cobrando.');
+                }
             }
 
             if (! $cajaTurno && ! $esAdmin) {
@@ -831,6 +836,13 @@ class VentaClass
                 ]);
             }
 
+            // Si proviene de una venta/preventa en espera, eliminarla de forma segura dentro de la transacción
+            if (! empty($datos['venta_en_espera_id'])) {
+                VentaEnEspera::where('id', (int) $datos['venta_en_espera_id'])
+                    ->where('empresa_id', $empresaId)
+                    ->delete();
+            }
+
             return $venta->load(['cliente', 'almacen', 'detalles.producto', 'detalles.moto', 'detalles.servicio', 'pagos.metodoPago']);
         });
     }
@@ -890,7 +902,7 @@ class VentaClass
     }
 
     /**
-     * Recuperar y eliminar venta en espera
+     * Recuperar venta en espera sin eliminarla prematuramente
      */
     public function recuperarEnEspera(int $id, ?int $empresaId = null): array
     {
@@ -900,7 +912,7 @@ class VentaClass
             ->firstOrFail();
 
         $datos = $espera->datos_json;
-        $espera->delete();
+        $datos['venta_en_espera_id'] = $espera->id;
 
         return $datos;
     }
@@ -1081,14 +1093,25 @@ class VentaClass
                 }
             }
 
-            // 3. Actualizar estado de la venta
+            // 3. Actualizar estado de la venta y recalcular comisión del vendedor
             $totalCantidadOriginal = $venta->detalles->sum('cantidad');
             $totalCantidadDevuelta = DevolucionVentaDetalle::whereIn('venta_detalle_id', $venta->detalles->pluck('id'))->sum('cantidad');
 
             if ($totalCantidadDevuelta >= $totalCantidadOriginal) {
                 $venta->estado = 'devuelta_total';
+                if ($venta->vendedor_id) {
+                    $venta->comision_monto_usd = 0;
+                    $venta->comision_monto_bs = 0;
+                }
             } else {
                 $venta->estado = 'devuelta_parcial';
+                if ($venta->vendedor_id && (float) $venta->comision_porcentaje > 0 && $totalCantidadOriginal > 0) {
+                    $proporcionRestante = max(0, ($totalCantidadOriginal - $totalCantidadDevuelta) / $totalCantidadOriginal);
+                    $nuevoSubtotalNetoUsd = round((float) $venta->subtotal_neto_usd * $proporcionRestante, 2);
+                    $nuevaComisionUsd = round($nuevoSubtotalNetoUsd * ((float) $venta->comision_porcentaje / 100), 2);
+                    $venta->comision_monto_usd = $nuevaComisionUsd;
+                    $venta->comision_monto_bs = round($nuevaComisionUsd * (float) $venta->tasa_cambio, 2);
+                }
             }
             $venta->save();
 
@@ -1115,7 +1138,7 @@ class VentaClass
     {
         $empresaId = $this->empresaId($empresaId);
 
-        return Venta::with(['empresa', 'cliente', 'almacen', 'usuario', 'detalles.producto', 'detalles.moto', 'detalles.servicio', 'pagos.metodoPago'])
+        return Venta::with(['empresa', 'cliente', 'almacen', 'usuario', 'vendedor', 'detalles.producto', 'detalles.moto', 'detalles.servicio', 'pagos.metodoPago'])
             ->where('empresa_id', $empresaId)
             ->where(function ($q) use ($idOcodigo) {
                 $q->where('id', $idOcodigo)

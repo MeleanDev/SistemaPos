@@ -7,17 +7,21 @@ use App\Http\Requests\Pos\ClienteRapidoRequest;
 use App\Http\Requests\Pos\GuardarEnEsperaRequest;
 use App\Http\Requests\Pos\GuardarVentaRequest;
 use App\Http\Requests\Pos\ProcesarDevolucionRequest;
+use App\Service\Empresa\DocumentoImpresionClass;
 use App\Service\Ventas\VentaClass;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class PosController extends Controller
 {
     public function __construct(
-        protected VentaClass $ventaService
+        protected VentaClass $ventaService,
+        protected DocumentoImpresionClass $documentoImpresionClass
     ) {}
 
     public function index(): View
@@ -219,9 +223,56 @@ class PosController extends Controller
 
     public function imprimirCarta(string $id): View
     {
-        $venta = $this->ventaService->obtenerVentaParaImpresion($id, $this->obtenerEmpresaId());
+        $empresaId = $this->obtenerEmpresaId();
+        $venta = $this->ventaService->obtenerVentaParaImpresion($id, $empresaId);
+        $config = $this->documentoImpresionClass->obtenerConfiguracion($empresaId);
+        $vista = $this->documentoImpresionClass->resolverVistaFactura($empresaId);
+        $datos = $this->documentoImpresionClass->datosParaFactura($venta, $config);
 
-        return view('Sistema.pages.empresa.factura-carta', compact('venta'));
+        return view($vista, $datos);
+    }
+
+    public function imprimirGarantia(string $id): View
+    {
+        $empresaId = $this->obtenerEmpresaId();
+        $venta = $this->ventaService->obtenerVentaParaImpresion($id, $empresaId);
+        $config = $this->documentoImpresionClass->obtenerConfiguracion($empresaId);
+        $vista = $this->documentoImpresionClass->resolverVistaGarantia($empresaId);
+        $datos = $this->documentoImpresionClass->datosParaGarantia($venta, $config);
+
+        return view($vista, $datos);
+    }
+
+    public function descargarPdf(string $id): Response
+    {
+        $empresaId = $this->obtenerEmpresaId();
+        $venta = $this->ventaService->obtenerVentaParaImpresion($id, $empresaId);
+        $config = $this->documentoImpresionClass->obtenerConfiguracion($empresaId);
+        $vista = $this->documentoImpresionClass->resolverVistaFactura($empresaId);
+        $datos = $this->documentoImpresionClass->datosParaFactura($venta, $config, esPdf: true);
+
+        $tamano = match ($config->tamano_papel ?? 'letter') {
+            'half_letter' => [0, 0, 396, 612],
+            'a4' => 'a4',
+            default => 'letter',
+        };
+
+        $pdf = Pdf::loadView($vista, $datos)->setPaper($tamano, 'portrait');
+
+        return $pdf->download("Factura-{$venta->codigo}.pdf");
+    }
+
+    public function descargarGarantiaPdf(string $id): Response
+    {
+        $empresaId = $this->obtenerEmpresaId();
+        $venta = $this->ventaService->obtenerVentaParaImpresion($id, $empresaId);
+        $config = $this->documentoImpresionClass->obtenerConfiguracion($empresaId);
+        $vista = $this->documentoImpresionClass->resolverVistaGarantia($empresaId);
+        $datos = $this->documentoImpresionClass->datosParaGarantia($venta, $config, esPdf: true);
+
+        $pdf = Pdf::loadView($vista, $datos)->setPaper('letter', 'portrait');
+
+        return $pdf->download("Garantia-{$venta->codigo}.pdf");
     }
 
     public function imprimirTicket(string $id): View

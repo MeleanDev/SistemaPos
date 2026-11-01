@@ -588,3 +588,71 @@ test('un producto con variantes y seriales unicos registra, consulta y permite e
         'variante_color' => 'Negro',
     ]);
 });
+
+test('vista index, catalogos, lista y eliminacion logica de productos funcionan con permisos y multi-empresa', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-10000009-9',
+        'nombre' => 'Empresa Full Test',
+        'razon_social' => 'Empresa Full Test C.A.',
+        'direccion' => 'Calle Comercial',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'CAT-FULL',
+        'nombre' => 'Herramientas',
+        'estado' => true,
+    ]);
+
+    $user = User::factory()->create(['estado' => true]);
+    $user->syncRoles('SuperAdmin');
+    $user->empresas()->attach($empresa->id, ['es_predeterminada' => true, 'estado' => true]);
+
+    // 1. Index
+    $resIndex = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get(route('producto'));
+    $resIndex->assertStatus(200)->assertViewIs('Sistema.pages.empresa.producto');
+
+    // 2. Catalogos
+    $resCat = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/productos/catalogos');
+    $resCat->assertStatus(200)
+        ->assertJson(['success' => true])
+        ->assertJsonStructure(['data' => ['categorias', 'proveedores', 'almacenes']]);
+
+    // 3. Crear Producto
+    $resCrear = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson(route('producto'), [
+            'tipo' => 'producto',
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Taladro Percutor 1/2',
+            'unidad_medida' => 'UND',
+            'aplica_iva' => true,
+            'iva_porcentaje' => 16.00,
+            'aplica_igtf' => false,
+            'precio_costo_usd' => 50.00,
+            'precio_detal_usd' => 75.00,
+        ]);
+    $resCrear->assertStatus(200)->assertJson(['success' => true]);
+    $productoId = $resCrear->json('data.id');
+
+    // 4. Lista DataTables
+    $resLista = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/productos/lista');
+    $resLista->assertStatus(200)->assertJsonStructure(['data']);
+
+    // 5. Eliminar (Borrado lógico)
+    $resEliminar = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->deleteJson("/productos/{$productoId}");
+    $resEliminar->assertStatus(200)->assertJson(['success' => true]);
+
+    $producto = Producto::where('empresa_id', $empresa->id)->find($productoId);
+    expect($producto->estado)->toBeFalse();
+});

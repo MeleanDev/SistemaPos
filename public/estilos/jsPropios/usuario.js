@@ -13,6 +13,23 @@ let vistaActual = localStorage.getItem("pos_usuarios_vista") || "grid";
 let filtroRolActual = "";
 let filtroEmpresaActual = "";
 
+const resetearFormularioUsuario = function () {
+    const form = $("#formularioUsuario");
+    if (form.length) {
+        form[0].reset();
+        form.find(".is-invalid").removeClass("is-invalid");
+    }
+    $("#tipo_cedula").val("V-");
+    $("#cedula_numero").prop("readonly", false).val("");
+    $("#password").prop("required", true).attr("placeholder", "Mínimo 6 caracteres");
+    $("#rol").val("Operador");
+
+    $(".card-empresa-select").each(function () {
+        actualizarEstiloCardEmpresa($(this), false);
+    });
+    ajustarVisibilidadPorRol("Operador");
+};
+
 const mostrarSkeletonLoading = function () {
     const contenedorGrid = $("#contenedorUsuariosGrid");
     contenedorGrid.empty();
@@ -53,12 +70,10 @@ const obtenerUsuariosFiltrados = function () {
     const busqueda = ($("#buscadorUsuarios").val() || "").toLowerCase().trim();
 
     return listaUsuarios.filter((usuario) => {
-        // Filtro por Rol
         if (filtroRolActual && usuario.rol !== filtroRolActual) {
             return false;
         }
 
-        // Filtro por Sede / Empresa
         if (filtroEmpresaActual) {
             if (usuario.rol !== "SuperAdmin") {
                 const tieneEmpresa = (usuario.empresas || []).some(
@@ -68,7 +83,6 @@ const obtenerUsuariosFiltrados = function () {
             }
         }
 
-        // Búsqueda textual
         if (busqueda) {
             const cedula = (usuario.name || "").toLowerCase();
             const nombre = (usuario.nombre || "").toLowerCase();
@@ -285,7 +299,6 @@ const renderizarUsuarios = function () {
             permisosColumnaTabla = `<span class="badge bg-white text-primary border border-primary-subtle shadow-xs rounded-pill px-2 py-0.5 font-monospace" style="font-size: 0.72rem;">Gestor de Sede</span>`;
         }
 
-        // RENDER VISTA GRID (TARJETA EJECUTIVA BLANCA ELEVADA)
         const card = `
             <div class="col-12 col-md-6 col-xl-4">
                 <div class="card card-executive h-100 border rounded-4 shadow-sm bg-white overflow-hidden position-relative" style="border-color: #edf2f7 !important;">
@@ -347,7 +360,6 @@ const renderizarUsuarios = function () {
             </div>
         `;
         contenedorGrid.append(card);
-
     });
 };
 
@@ -638,13 +650,11 @@ const abrirModalPermisos = async function (id) {
     }
 
     try {
-        const res = await peticionAjax({
-            url: `${urlDetalles}${id}`,
-            type: "GET",
-        });
+        const res = await consultarRegistro(urlDetalles, id);
+        const datos = res && res.data ? res.data : res;
 
-        if (res && res.permisos && Array.isArray(res.permisos)) {
-            res.permisos.forEach(permisoName => {
+        if (datos && datos.permisos && Array.isArray(datos.permisos)) {
+            datos.permisos.forEach(permisoName => {
                 $(`.modal-permiso-chk[value="${permisoName}"]`).prop("checked", true);
             });
         }
@@ -680,16 +690,7 @@ const crear = function () {
     urlAccion = urlGuardar;
     idUsuarioActual = null;
 
-    $("#formularioUsuario")[0].reset();
-    $("#tipo_cedula").val("V-");
-    $("#cedula_numero").prop("readonly", false).val("");
-    $("#password").prop("required", true).attr("placeholder", "Mínimo 6 caracteres");
-    $("#rol").val("Operador");
-
-    $(".card-empresa-select").each(function () {
-        actualizarEstiloCardEmpresa($(this), false);
-    });
-    ajustarVisibilidadPorRol("Operador");
+    resetearFormularioUsuario();
 
     $("#modalUsuarioTitulo").text("Nuevo Usuario");
     $("#modalUsuarioSubtitulo").text("Completa los datos de acceso, rol y sedes del usuario");
@@ -705,16 +706,11 @@ const editar = async function (id) {
     urlAccion = `${urlEditar}${id}`;
     idUsuarioActual = id;
 
-    $("#formularioUsuario")[0].reset();
-    $(".card-empresa-select").each(function () {
-        actualizarEstiloCardEmpresa($(this), false);
-    });
+    resetearFormularioUsuario();
 
     try {
-        const datos = await peticionAjax({
-            url: `${urlDetalles}${id}`,
-            type: "GET",
-        });
+        const res = await consultarRegistro(urlDetalles, id);
+        const datos = res && res.data ? res.data : res;
 
         if (datos.name) {
             if (typeof window.desglosarCedula === "function") {
@@ -788,7 +784,6 @@ $(document).ready(function () {
     cambiarVista(vistaActual);
     cargarUsuarios();
 
-    // Eventos de Filtro y Búsqueda
     $("#buscadorUsuarios").on("input", function () {
         const val = $(this).val().trim();
         $("#btnLimpiarBuscador").toggleClass("d-none", !val);
@@ -826,7 +821,6 @@ $(document).ready(function () {
         }
     });
 
-    // Toggle de Vista
     $(".btn-toggle-vista").on("click", function () {
         const vista = $(this).data("vista");
         cambiarVista(vista);
@@ -899,6 +893,10 @@ $(document).ready(function () {
                 cargarUsuarios();
             },
         });
+    });
+
+    $("#modalUsuario").on("hidden.bs.modal", function () {
+        resetearFormularioUsuario();
     });
 
     if (typeof aplicarRestriccionesInput === "function") {

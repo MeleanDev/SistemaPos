@@ -7,6 +7,7 @@ use App\Http\Requests\Caja\ActualizarRequest;
 use App\Http\Requests\Caja\AperturarTurnoRequest;
 use App\Http\Requests\Caja\CerrarTurnoRequest;
 use App\Http\Requests\Caja\CrearRequest;
+use App\Http\Requests\Caja\MovimientoCajaRequest;
 use App\Models\Almacen;
 use App\Service\Empresa\CajaClass;
 use Illuminate\Http\JsonResponse;
@@ -19,12 +20,26 @@ class CajaController extends Controller
 
     public function index(): View
     {
+        return view('Sistema.pages.empresa.caja');
+    }
+
+    public function catalogos(): JsonResponse
+    {
         $empresaId = $this->obtenerEmpresaId();
-        $almacenes = Almacen::where('empresa_id', $empresaId)->where('estado', true)->orderBy('nombre')->get();
+        $almacenes = Almacen::where('empresa_id', $empresaId)->where('estado', true)->orderBy('nombre')->get(['id', 'nombre', 'codigo']);
         $turnoActivo = $this->cajaClass->obtenerTurnoActivoUsuario(Auth::id(), $empresaId);
         $cajeros = $this->cajaClass->cajerosDisponibles($empresaId);
 
-        return view('Sistema.pages.empresa.caja', compact('almacenes', 'turnoActivo', 'cajeros'));
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'almacenes' => $almacenes,
+                'turno_activo' => $turnoActivo ? $turnoActivo->load('caja') : null,
+                'cajeros' => $cajeros,
+                'usuario_actual_id' => Auth::id(),
+                'usuario_actual_nombre' => Auth::user()?->name,
+            ],
+        ]);
     }
 
     public function lista(): JsonResponse
@@ -241,5 +256,24 @@ class CajaController extends Controller
         $reporte = $this->cajaClass->calcularReporteTurno($id, $empresaId);
 
         return view('Sistema.pages.empresa.reporte-cierre-z-ticket', compact('reporte'));
+    }
+
+    public function registrarMovimiento(MovimientoCajaRequest $request): JsonResponse
+    {
+        try {
+            $empresaId = $this->obtenerEmpresaId();
+            $movimiento = $this->cajaClass->registrarMovimiento($request->validated(), $empresaId, Auth::id());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Movimiento de caja registrado exitosamente.',
+                'data' => $movimiento,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 }

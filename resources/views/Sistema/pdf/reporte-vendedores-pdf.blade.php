@@ -35,9 +35,9 @@
     <table class="header-table">
         <tr>
             <td style="width: 55%;">
-                <div class="empresa-title">{{ $empresa->nombre_comercial }}</div>
+                <div class="empresa-title">{{ $empresa->nombre_comercial ?? $empresa->nombre }}</div>
                 <div class="empresa-info">
-                    <strong>Razón Social:</strong> {{ $empresa->razon_social }} | <strong>RIF:</strong> {{ $empresa->rif }}<br>
+                    <strong>Razón Social:</strong> {{ $empresa->razon_social ?? $empresa->nombre }} | <strong>RIF:</strong> {{ $empresa->rif }}<br>
                     <strong>Dirección:</strong> {{ $empresa->direccion }}
                 </div>
             </td>
@@ -110,7 +110,7 @@
     </table>
 
     <div class="footer-note">
-        Documento generado automáticamente por el Sistema POS • {{ $empresa->nombre_comercial }} • Página 1
+        Documento generado automáticamente por el Sistema POS • {{ $empresa->nombre_comercial ?? $empresa->nombre }} • Página 1
     </div>
 
 </body>

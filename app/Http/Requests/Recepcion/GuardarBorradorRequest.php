@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Recepcion;
 
 use App\Http\Requests\BaseRequest;
+use Illuminate\Validation\Rule;
 
 class GuardarBorradorRequest extends BaseRequest
 {
@@ -14,7 +15,11 @@ class GuardarBorradorRequest extends BaseRequest
         return [
             'borrador_id' => ['nullable', 'integer'],
             'referencia' => ['nullable', 'string', 'max:100'],
-            'proveedor_id' => ['nullable', 'integer'],
+            'proveedor_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('proveedores', 'id')->where(fn ($q) => $q->where('empresa_id', $this->empresaId())->where('estado', true)),
+            ],
             'numero_documento' => ['nullable', 'string', 'max:100'],
             'total_unidades' => ['nullable', 'integer', 'min:0'],
             'datos_json' => ['required', 'array'],

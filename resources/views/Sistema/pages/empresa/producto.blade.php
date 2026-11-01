@@ -238,7 +238,7 @@
                                             <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 font-monospace fw-bold" style="font-size: 0.78rem;">
                                                 <i class="fas fa-check me-1"></i> <span id="contadorSerialesDisponibles">0</span> Disponibles
                                             </span>
-                                            <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary border px-2.5 py-1 font-monospace fw-bold" style="font-size: 0.78rem;">
+                                            <span class="badge rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1 font-monospace fw-bold" style="font-size: 0.78rem;">
                                                 <i class="fas fa-receipt me-1"></i> <span id="contadorSerialesVendidos">0</span> Vendidos
                                             </span>
                                         </div>
@@ -256,7 +256,7 @@
                                     <!-- TABLA DINÁMICA DE SERIALES REGISTRADOS -->
                                     <div class="table-responsive rounded-3 border shadow-xs bg-white" style="max-height: 320px; overflow-y: auto;">
                                         <table class="table table-sm table-hover align-middle mb-0" id="tablaSerialesProducto">
-                                            <thead class="table-light sticky-top" style="z-index: 2;">
+                                            <thead class="bg-white border-bottom sticky-top" style="z-index: 2;">
                                                 <tr class="text-uppercase small text-muted" style="font-size: 0.72rem; letter-spacing: 0.04em;">
                                                     <th class="ps-3 py-2" style="width: 5%;">#</th>
                                                     <th class="py-2" style="width: 32%;">Número de Serial Único</th>

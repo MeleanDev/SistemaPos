@@ -32,6 +32,7 @@ Route::middleware('auth')->group(function () {
 
     Route::controller(PanelPrincipalController::class)->group(function () {
         Route::get('/panel-principal', 'index')->name('dashboard');
+        Route::get('/panel-principal/datos', 'datos')->name('dashboard.datos');
     });
 
     Route::post('/cambiar-empresa', [UsuarioController::class, 'cambiarEmpresa'])->name('cambiar_empresa');
@@ -57,6 +58,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/pos/imprimir/{id}', 'imprimir')->name('pos.imprimir');
         Route::get('/pos/imprimir-carta/{id}', 'imprimirCarta')->name('pos.imprimir_carta');
         Route::get('/pos/imprimir-ticket/{id}', 'imprimirTicket')->name('pos.imprimir_ticket');
+        Route::get('/pos/garantia/{id}', 'imprimirGarantia')->name('pos.imprimir_garantia');
+        Route::get('/pos/descargar-pdf/{id}', 'descargarPdf')->name('pos.descargar_pdf');
+        Route::get('/pos/garantia-pdf/{id}', 'descargarGarantiaPdf')->name('pos.descargar_garantia_pdf');
     });
 
     Route::middleware('permission:ventas.ver')->controller(FacturaController::class)->group(function () {
@@ -102,18 +106,18 @@ Route::middleware('auth')->group(function () {
         Route::delete('/modelos-motos/{id}', 'eliminar')->middleware('permission:motos.eliminar');
     });
 
-    Route::middleware('permission:compras.recepcion')->controller(RecepcionController::class)->group(function () {
-        Route::get('/recepciones', 'index')->name('recepcion');
-        Route::get('/recepciones/lista', 'lista');
-        Route::get('/recepciones/catalogos', 'catalogos');
-        Route::get('/recepciones/borradores', 'listarBorradores');
-        Route::get('/recepciones/borradores/{id}', 'recuperarBorrador');
-        Route::post('/recepciones/borradores', 'guardarBorrador');
-        Route::delete('/recepciones/borradores/{id}', 'eliminarBorrador');
-        Route::get('/recepciones/{id}', 'detalle');
-        Route::get('/recepciones/{id}/imprimir', 'imprimir')->name('recepcion.imprimir');
-        Route::post('/recepciones', 'guardar');
-        Route::post('/recepciones/{id}/anular', 'anular');
+    Route::controller(RecepcionController::class)->group(function () {
+        Route::get('/recepciones', 'index')->middleware('permission:compras.recepcion')->name('recepcion');
+        Route::get('/recepciones/lista', 'lista')->middleware('permission:compras.recepcion');
+        Route::get('/recepciones/catalogos', 'catalogos')->middleware('permission:compras.recepcion');
+        Route::get('/recepciones/borradores', 'listarBorradores')->middleware('permission:compras.recepcion');
+        Route::get('/recepciones/borradores/{id}', 'recuperarBorrador')->middleware('permission:compras.recepcion');
+        Route::post('/recepciones/borradores', 'guardarBorrador')->middleware('permission:compras.recepcion');
+        Route::delete('/recepciones/borradores/{id}', 'eliminarBorrador')->middleware('permission:compras.recepcion');
+        Route::get('/recepciones/{id}', 'detalle')->middleware('permission:compras.recepcion');
+        Route::get('/recepciones/{id}/imprimir', 'imprimir')->middleware('permission:compras.recepcion')->name('recepcion.imprimir');
+        Route::post('/recepciones', 'guardar')->middleware('permission:compras.recepcion');
+        Route::post('/recepciones/{id}/anular', 'anular')->middleware('permission:compras.recepcion');
     });
 
     Route::middleware('permission:motos.recepcion')->controller(RecepcionMotoController::class)->group(function () {
@@ -249,6 +253,7 @@ Route::middleware('auth')->group(function () {
 
     Route::controller(CajaController::class)->group(function () {
         Route::get('/cajas', 'index')->name('caja')->middleware('permission:cajas.ver');
+        Route::get('/cajas/catalogos', 'catalogos')->middleware('permission:cajas.ver');
         Route::get('/cajas/lista', 'lista')->middleware('permission:cajas.ver');
         Route::get('/cajas/turnos/lista', 'listaTurnos')->middleware('permission:cajas.ver');
         Route::get('/cajas/disponibles', 'cajasDisponibles')->middleware('permission:cajas.ver');
@@ -263,6 +268,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/cajas/{id}', 'eliminar')->middleware('permission:cajas.eliminar');
         Route::post('/cajas/turnos/aperturar', 'aperturarTurno')->middleware('permission:cajas.aperturar');
         Route::match(['post', 'put'], '/cajas/turnos/{id}/cerrar', 'cerrarTurno')->middleware('permission:cajas.cerrar');
+        Route::post('/cajas/movimientos', 'registrarMovimiento')->middleware('permission:cajas.movimientos');
     });
 
     Route::middleware('permission:reportes.ver')->controller(ReporteController::class)->group(function () {
@@ -283,20 +289,20 @@ Route::middleware('auth')->group(function () {
         Route::get('/reportes/rentabilidad/pdf', 'pdfRentabilidad')->name('reportes.rentabilidad.pdf');
         Route::get('/reportes/rentabilidad/excel', 'excelRentabilidad')->name('reportes.rentabilidad.excel');
 
-        Route::get('/reportes/vendedores/json', 'vendedores')->name('reportes.vendedores.json');
-        Route::get('/reportes/vendedores/pdf', 'pdfVendedores')->name('reportes.vendedores.pdf');
-        Route::get('/reportes/vendedores/excel', 'excelVendedores')->name('reportes.vendedores.excel');
-
         Route::get('/reportes/stock-almacenes', 'stockAlmacenes')->name('reportes.stock_almacenes');
         Route::get('/reportes/stock-almacenes/pdf', 'pdfStockAlmacenes')->name('reportes.stock_almacenes.pdf');
         Route::get('/reportes/stock-almacenes/excel', 'excelStockAlmacenes')->name('reportes.stock_almacenes.excel');
     });
 
-    Route::middleware('permission:reportes.vendedores')->controller(ReporteVendedorController::class)->group(function () {
-        Route::get('/reportes/vendedores', 'index')->name('reportes.vendedores');
-        Route::get('/reportes/vendedores/kpis', 'kpis');
-        Route::get('/reportes/vendedores/lista', 'lista');
-        Route::get('/reportes/vendedores/resumen', 'resumenVendedores');
+    Route::prefix('reportes/vendedores')->group(function () {
+        Route::get('/', [ReporteVendedorController::class, 'index'])->name('reportes.vendedores')->middleware('permission:reportes.vendedores');
+        Route::get('/catalogos', [ReporteVendedorController::class, 'catalogos'])->middleware('permission:reportes.vendedores');
+        Route::get('/kpis', [ReporteVendedorController::class, 'kpis'])->middleware('permission:reportes.vendedores');
+        Route::get('/lista', [ReporteVendedorController::class, 'lista'])->middleware('permission:reportes.vendedores');
+        Route::get('/resumen', [ReporteVendedorController::class, 'resumenVendedores'])->middleware('permission:reportes.vendedores');
+        Route::get('/json', [ReporteController::class, 'vendedores'])->name('reportes.vendedores.json')->middleware('permission:reportes.vendedores|reportes.ver');
+        Route::get('/pdf', [ReporteController::class, 'pdfVendedores'])->name('reportes.vendedores.pdf')->middleware('permission:reportes.vendedores|reportes.ver');
+        Route::get('/excel', [ReporteController::class, 'excelVendedores'])->name('reportes.vendedores.excel')->middleware('permission:reportes.vendedores|reportes.ver');
     });
 
     Route::controller(ProfileController::class)->group(function () {

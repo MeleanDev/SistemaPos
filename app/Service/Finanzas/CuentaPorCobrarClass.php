@@ -7,6 +7,7 @@ use App\Models\CuentaPorCobrar;
 use App\Models\CuentaPorCobrarAbono;
 use App\Models\Empresa;
 use App\Models\MetodoPago;
+use App\Models\User;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -245,9 +246,14 @@ class CuentaPorCobrarClass
 
             $nuevoEstado = $nuevoSaldoUsd <= 0.001 ? 'pagada' : 'parcial';
 
+            $userObj = User::find($userId);
+            $cajaTurno = $userObj?->cajaTurnoActivo($empresaId);
+
             // Crear el registro de abono
             $abono = CuentaPorCobrarAbono::create([
                 'cuenta_por_cobrar_id' => $cuenta->id,
+                'caja_id' => $cajaTurno?->caja_id,
+                'caja_turno_id' => $cajaTurno?->id,
                 'user_id' => $userId,
                 'metodo_pago_id' => $datos['metodo_pago_id'],
                 'fecha_abono' => $datos['fecha_abono'] ?? Carbon::now()->toDateString(),
@@ -331,6 +337,9 @@ class CuentaPorCobrarClass
             $referenciaGlobal = trim($datos['referencia'] ?? '') ?: null;
             $observacionesGlobal = trim($datos['observaciones'] ?? '') ?: null;
 
+            $userObj = User::find($userId);
+            $cajaTurno = $userObj?->cajaTurnoActivo($empresaId);
+
             foreach ($cuentasPendientes as $cuenta) {
                 if ($montoRestanteUsd <= 0.001) {
                     break;
@@ -349,6 +358,8 @@ class CuentaPorCobrarClass
                 // Registrar abono específico para este renglón
                 $abono = CuentaPorCobrarAbono::create([
                     'cuenta_por_cobrar_id' => $cuenta->id,
+                    'caja_id' => $cajaTurno?->caja_id,
+                    'caja_turno_id' => $cajaTurno?->id,
                     'user_id' => $userId,
                     'metodo_pago_id' => $datos['metodo_pago_id'],
                     'fecha_abono' => $fechaAbono,

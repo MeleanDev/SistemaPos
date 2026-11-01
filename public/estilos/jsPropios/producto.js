@@ -386,15 +386,6 @@ const filtrarSerialesEnModal = function () {
     });
 };
 
-window.toggleVariantesProducto = toggleVariantesProducto;
-window.agregarOpcionVariante = agregarOpcionVariante;
-window.eliminarOpcionVariante = eliminarOpcionVariante;
-window.limpiarOpcionesVariantes = limpiarOpcionesVariantes;
-window.toggleSerialesProducto = toggleSerialesProducto;
-window.agregarFilaSerial = agregarFilaSerial;
-window.eliminarFilaSerial = eliminarFilaSerial;
-window.filtrarSerialesEnModal = filtrarSerialesEnModal;
-
 $(document).ready(function () {
     crearSelect2({
         selector: "#categoria_id",
@@ -710,7 +701,6 @@ const abrirModalRapidoProveedor = function () {
     );
     modal.show();
 };
-window.abrirModalRapidoProveedor = abrirModalRapidoProveedor;
 
 $("#formularioRapidoProveedor").on("submit", async function (e) {
     e.preventDefault();
@@ -1240,7 +1230,7 @@ const verFicha = async function (id) {
                             : `<span class="badge rounded-pill bg-secondary text-white px-2 py-0.5 text-uppercase">${s.estado}</span>`;
                         return `
                             <div class="col-md-4 col-sm-6">
-                                <div class="p-2 border rounded-3 bg-light d-flex align-items-center justify-content-between">
+                                <div class="p-2 border rounded-3 bg-white shadow-xs d-flex align-items-center justify-content-between">
                                     <span class="font-monospace fw-bold text-dark small"><i class="fas fa-barcode text-success me-1"></i>${s.numero_serial}</span>
                                     ${badgeEst}
                                 </div>
@@ -1338,7 +1328,7 @@ const verFicha = async function (id) {
                         <h6 class="fw-bold text-dark mb-3"><i class="fas fa-warehouse text-primary me-2"></i> Existencias por Almacén</h6>
                         <div class="table-responsive">
                             <table class="table table-sm table-hover align-middle mb-0">
-                                <thead class="table-light">
+                                <thead class="bg-white border-bottom">
                                     <tr>
                                         <th>Almacén</th>
                                         <th class="text-center">Ubicación</th>
@@ -1375,11 +1365,11 @@ const verFicha = async function (id) {
                     <div class="card border rounded-4 p-3 shadow-sm">
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <h6 class="fw-bold text-dark mb-0"><i class="fas fa-history text-primary me-2"></i> Histórico Reciente de Movimientos (Kardex)</h6>
-                            <span class="badge rounded-pill bg-light text-dark border font-monospace px-3 py-1">Últimos 30 movimientos</span>
+                            <span class="badge rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle font-monospace px-3 py-1">Últimos 30 movimientos</span>
                         </div>
                         <div class="table-responsive">
                             <table class="table table-sm table-hover align-middle mb-0">
-                                <thead class="table-light font-monospace small">
+                                <thead class="bg-white border-bottom font-monospace small">
                                     <tr>
                                         <th>Fecha & Hora</th>
                                         <th>Almacén</th>

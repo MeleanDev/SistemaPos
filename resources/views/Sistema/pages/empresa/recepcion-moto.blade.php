@@ -306,16 +306,14 @@
                                             style="background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;">
                                             <i class="fas fa-dollar-sign me-1"></i> Factura en $ USD
                                         </span>
-                                        <span class="badge rounded-pill px-3 py-2 fw-semibold" id="badgeDocFase2"
-                                            style="background-color: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1;">
+                                        <span class="badge rounded-pill px-3 py-2 fw-semibold bg-white text-dark border shadow-xs" id="badgeDocFase2">
                                             <i class="fas fa-file-invoice text-primary me-1"></i> Doc: --
                                         </span>
                                         <span class="badge rounded-pill px-3 py-2 fw-semibold" id="badgeProvFase2"
                                             style="background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">
                                             <i class="fas fa-truck text-primary me-1"></i> Prov: --
                                         </span>
-                                        <span class="badge rounded-pill px-3 py-2 fw-semibold" id="badgeAlmFase2"
-                                            style="background-color: #f8fafc; color: #475569; border: 1px solid #cbd5e1;">
+                                        <span class="badge rounded-pill px-3 py-2 fw-semibold bg-white text-dark border shadow-xs" id="badgeAlmFase2">
                                             <i class="fas fa-warehouse text-secondary me-1"></i> Almacén: --
                                         </span>
                                         <span class="badge rounded-pill px-3 py-2 fw-semibold"
@@ -422,8 +420,8 @@
                                 </div>
 
                                 <!-- PREVIEW EJECUTIVO DE CARACTERÍSTICAS DEL MODELO -->
-                                <div class="card border rounded-3 p-3 mb-3 shadow-xs" id="contenedorPreviewModelo"
-                                    style="background-color: #f8fafc; display: none;">
+                                <div class="card border rounded-4 p-3 mb-3 shadow-xs bg-white" id="contenedorPreviewModelo"
+                                    style="display: none;">
                                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                                         <div class="d-flex flex-wrap align-items-center gap-2">
                                             <span class="badge rounded-pill px-3 py-1.5 fw-bold font-monospace shadow-xs" id="chipModeloRef"
@@ -539,9 +537,9 @@
                                                 <small class="text-muted fw-semibold"><i
                                                         class="fas fa-info-circle text-primary me-1"></i>Precio Sin
                                                     IVA:</small>
-                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold"
+                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold bg-white text-dark border shadow-xs"
                                                     id="lote_detal_sin_iva"
-                                                    style="background-color: #f1f5f9; color: #1e293b; font-size: 0.84rem;">
+                                                    style="font-size: 0.84rem;">
                                                     $ 0.00 | Bs. 0.00
                                                 </span>
                                             </div>
@@ -579,9 +577,9 @@
                                                 <small class="text-muted fw-semibold"
                                                     style="color: #7e22ce !important;"><i
                                                         class="fas fa-info-circle me-1"></i>Mayor Sin IVA:</small>
-                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold"
+                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold bg-white text-dark border shadow-xs"
                                                     id="lote_mayorista_sin_iva"
-                                                    style="background-color: #f1f5f9; color: #1e293b; font-size: 0.84rem;">
+                                                    style="font-size: 0.84rem;">
                                                     $ 0.00 | Bs. 0.00
                                                 </span>
                                             </div>
@@ -730,9 +728,9 @@
                                                 <small class="text-muted fw-semibold"><i
                                                         class="fas fa-info-circle text-success me-1"></i>Precio Sin
                                                     IVA:</small>
-                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold"
+                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold bg-white text-dark border shadow-xs"
                                                     id="prod_detal_sin_iva"
-                                                    style="background-color: #f1f5f9; color: #1e293b; font-size: 0.84rem;">
+                                                    style="font-size: 0.84rem;">
                                                     $ 0.00 | Bs. 0.00
                                                 </span>
                                             </div>
@@ -770,9 +768,9 @@
                                                 <small class="text-muted fw-semibold"
                                                     style="color: #7e22ce !important;"><i
                                                         class="fas fa-info-circle me-1"></i>Mayor Sin IVA:</small>
-                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold"
+                                                <span class="badge rounded-pill px-3 py-1 font-monospace fw-bold bg-white text-dark border shadow-xs"
                                                     id="prod_mayorista_sin_iva"
-                                                    style="background-color: #f1f5f9; color: #1e293b; font-size: 0.84rem;">
+                                                    style="font-size: 0.84rem;">
                                                     $ 0.00 | Bs. 0.00
                                                 </span>
                                             </div>
@@ -1155,7 +1153,7 @@
                                 </div>
                             </div>
 
-                            <div class="mt-2 p-2.5 rounded-3 bg-light border">
+                            <div class="mt-2 p-2.5 rounded-3 bg-white border shadow-xs">
                                 <small class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 0.68rem; letter-spacing: 0.05em;">
                                     <i class="fas fa-check-double text-primary me-1"></i> Opciones / Colores Disponibles:
                                 </small>

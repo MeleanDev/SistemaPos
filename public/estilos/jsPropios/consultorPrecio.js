@@ -1,6 +1,6 @@
-const urlBaseConsultor = window.location.origin + (window.location.pathname.includes("/consultor-precios") ? window.location.pathname.replace(/\/$/, "") : "/consultor-precios");
-const urlDatosConsultor = urlBaseConsultor + "/datos";
-const urlBuscarConsultor = urlBaseConsultor + "/buscar";
+const urlBaseConsultor = window.location.origin + (window.location.pathname.includes('/consultor-precios') ? window.location.pathname.replace(/\/$/, '') : '/consultor-precios');
+const urlDatosConsultor = `${urlBaseConsultor}/datos`;
+const urlBuscarConsultor = `${urlBaseConsultor}/buscar`;
 
 let tasaCambioActiva = 1.0;
 let debounceTimerConsultor = null;
@@ -12,7 +12,7 @@ let coincidenciasActuales = [];
 $(document).ready(function () {
     inicializarConsultor();
 
-    $("#inputBuscarProductoConsultor").on("input", function () {
+    $('#inputBuscarProductoConsultor').on('input', function () {
         const val = $(this).val().trim();
         if (debounceTimerConsultor) {
             clearTimeout(debounceTimerConsultor);
@@ -28,8 +28,8 @@ $(document).ready(function () {
         }, 220);
     });
 
-    $("#inputBuscarProductoConsultor").on("keydown", function (e) {
-        if (e.key === "Enter" || e.keyCode === 13) {
+    $('#inputBuscarProductoConsultor').on('keydown', function (e) {
+        if (e.key === 'Enter' || e.keyCode === 13) {
             e.preventDefault();
             const val = $(this).val().trim();
             if (debounceTimerConsultor) {
@@ -40,9 +40,9 @@ $(document).ready(function () {
         }
     });
 
-    $("#formularioConsultorPrecios").on("submit", function (e) {
+    $('#formularioConsultorPrecios').on('submit', function (e) {
         e.preventDefault();
-        const val = $("#inputBuscarProductoConsultor").val().trim();
+        const val = $('#inputBuscarProductoConsultor').val().trim();
         if (debounceTimerConsultor) {
             clearTimeout(debounceTimerConsultor);
             debounceTimerConsultor = null;
@@ -50,16 +50,16 @@ $(document).ready(function () {
         ejecutarBusqueda(val, true);
     });
 
-    $(document).on("click", function (e) {
-        if (!$(e.target).closest("button, a, input, select, textarea, .kiosk-interactive").length) {
+    $(document).on('click', function (e) {
+        if (!$(e.target).closest('button, a, input, select, textarea, .kiosk-interactive').length) {
             asegurarFocoInput();
         }
     });
 
-    $(document).on("keydown", function (e) {
-        if (e.key === "Escape") {
+    $(document).on('keydown', function (e) {
+        if (e.key === 'Escape') {
             limpiarBusqueda();
-        } else if (e.key === "F2" || e.key === "F3" || e.key === "F4") {
+        } else if (e.key === 'F2' || e.key === 'F3' || e.key === 'F4') {
             e.preventDefault();
             asegurarFocoInput();
         }
@@ -72,23 +72,21 @@ function inicializarConsultor() {
 }
 
 function asegurarFocoInput() {
-    const $input = $("#inputBuscarProductoConsultor");
-    if ($input.length && !$input.is(":focus")) {
+    const $input = $('#inputBuscarProductoConsultor');
+    if ($input.length && !$input.is(':focus')) {
         $input.focus();
     }
 }
 
 async function cargarDatosIniciales() {
     try {
-        const res = await $.ajax({
+        const res = await peticionAjax({
             url: urlDatosConsultor,
-            type: "GET",
-            dataType: "json",
         });
 
-        if (res.success && res.data) {
+        if (res && res.success && res.data) {
             tasaCambioActiva = parseFloat(res.data.tasa_usd) || 1.0;
-            $("#badgeTasaConsultor").text(tasaCambioActiva.toFixed(2));
+            $('#badgeTasaConsultor').text(tasaCambioActiva.toFixed(2));
         }
     } catch (e) {
         tasaCambioActiva = 1.0;
@@ -96,7 +94,7 @@ async function cargarDatosIniciales() {
 }
 
 async function ejecutarBusqueda(termino, esEnter = false) {
-    const term = (termino || "").trim();
+    const term = (termino || '').trim();
 
     if (!term) {
         cancelarTemporizadorReset();
@@ -104,20 +102,18 @@ async function ejecutarBusqueda(termino, esEnter = false) {
         return;
     }
 
-    $("#spinnerCargandoConsultor").show();
-    $("#btnLimpiarBusqueda").show();
+    $('#spinnerCargandoConsultor').show();
+    $('#btnLimpiarBusqueda').show();
 
     try {
-        const res = await $.ajax({
+        const res = await peticionAjax({
             url: urlBuscarConsultor,
-            type: "GET",
-            dataType: "json",
             data: { termino: term },
         });
 
-        $("#spinnerCargandoConsultor").hide();
+        $('#spinnerCargandoConsultor').hide();
 
-        if (res.success && Array.isArray(res.data)) {
+        if (res && res.success && Array.isArray(res.data)) {
             if (res.data.length === 0) {
                 reproducirSonidoError();
                 mostrarSinResultados(term);
@@ -137,7 +133,7 @@ async function ejecutarBusqueda(termino, esEnter = false) {
             iniciarAutoReset(5);
         }
     } catch (err) {
-        $("#spinnerCargandoConsultor").hide();
+        $('#spinnerCargandoConsultor').hide();
         reproducirSonidoError();
         mostrarSinResultados(term);
         iniciarAutoReset(5);
@@ -151,42 +147,42 @@ function renderizarHeroProducto(p) {
     }
     cancelarTemporizadorReset();
 
-    const usd = parseFloat(p.precio_usd_con_iva || 0).toLocaleString("en-US", {
+    const usd = parseFloat(p.precio_usd_con_iva || 0).toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });
-    const bs = parseFloat(p.precio_bs_con_iva || 0).toLocaleString("es-VE", {
+    const bs = parseFloat(p.precio_bs_con_iva || 0).toLocaleString('es-VE', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });
 
-    let fontSizeBs = "clamp(1.5rem, 2.6vw, 2.8rem)";
-    let fontSizeBsSimbolo = "clamp(1rem, 1.6vw, 1.6rem)";
+    let fontSizeBs = 'clamp(1.5rem, 2.6vw, 2.8rem)';
+    let fontSizeBsSimbolo = 'clamp(1rem, 1.6vw, 1.6rem)';
     if (bs.length > 12) {
-        fontSizeBs = "clamp(1.15rem, 1.8vw, 1.9rem)";
-        fontSizeBsSimbolo = "clamp(0.85rem, 1.2vw, 1.2rem)";
+        fontSizeBs = 'clamp(1.15rem, 1.8vw, 1.9rem)';
+        fontSizeBsSimbolo = 'clamp(0.85rem, 1.2vw, 1.2rem)';
     } else if (bs.length > 8) {
-        fontSizeBs = "clamp(1.35rem, 2.1vw, 2.3rem)";
-        fontSizeBsSimbolo = "clamp(0.95rem, 1.4vw, 1.4rem)";
+        fontSizeBs = 'clamp(1.35rem, 2.1vw, 2.3rem)';
+        fontSizeBsSimbolo = 'clamp(0.95rem, 1.4vw, 1.4rem)';
     }
 
-    let fontSizeUsd = "clamp(1.6rem, 3vw, 3.1rem)";
-    let fontSizeUsdSimbolo = "clamp(1.2rem, 2vw, 2rem)";
+    let fontSizeUsd = 'clamp(1.6rem, 3vw, 3.1rem)';
+    let fontSizeUsdSimbolo = 'clamp(1.2rem, 2vw, 2rem)';
     if (usd.length > 10) {
-        fontSizeUsd = "clamp(1.35rem, 2.1vw, 2.3rem)";
-        fontSizeUsdSimbolo = "clamp(0.95rem, 1.4vw, 1.4rem)";
+        fontSizeUsd = 'clamp(1.35rem, 2.1vw, 2.3rem)';
+        fontSizeUsdSimbolo = 'clamp(0.95rem, 1.4vw, 1.4rem)';
     }
 
-    const sku = p.codigo_interno ? `#${p.codigo_interno}` : "N/A";
-    const categoria = p.categoria || "General";
-    let barcodesHtml = "";
+    const sku = p.codigo_interno ? `#${p.codigo_interno}` : 'N/A';
+    const categoria = p.categoria || 'General';
+    let barcodesHtml = '';
     if (p.codigos_barra && p.codigos_barra.length > 0) {
         barcodesHtml = p.codigos_barra
             .map(
                 (c) =>
                     `<span class="badge rounded-pill px-2.5 px-sm-3 py-1 font-mono-num" style="background: var(--kiosk-toggle-bg); color: var(--kiosk-text-main); font-size: clamp(0.72rem, 1vw, 0.85rem); border: 1px solid var(--kiosk-card-border);"><i class="fas fa-barcode text-primary me-1"></i>${c}</span>`
             )
-            .join(" ");
+            .join(' ');
     }
 
     const html = `
@@ -204,7 +200,7 @@ function renderizarHeroProducto(p) {
                         <i class="fas fa-layer-group me-1" style="color: #60a5fa;"></i>${categoria}
                     </span>
                 </div>
-                ${barcodesHtml ? `<div class="d-flex flex-wrap gap-1">${barcodesHtml}</div>` : ""}
+                ${barcodesHtml ? `<div class="d-flex flex-wrap gap-1">${barcodesHtml}</div>` : ''}
             </div>
 
             <div class="mb-3 mb-md-4 text-center text-md-start">
@@ -272,10 +268,10 @@ function renderizarHeroProducto(p) {
         </div>
     `;
 
-    $("#contenedorResultadoConsultor").html(html).show();
-    $("#contenedorEstadoInicial").hide();
-    $("#inputBuscarProductoConsultor").val("");
-    $("#btnLimpiarBusqueda").hide();
+    $('#contenedorResultadoConsultor').html(html).show();
+    $('#contenedorEstadoInicial').hide();
+    $('#inputBuscarProductoConsultor').val('');
+    $('#btnLimpiarBusqueda').hide();
     asegurarFocoInput();
 }
 
@@ -287,17 +283,17 @@ function renderizarListaCoincidencias(lista) {
     cancelarTemporizadorReset();
     coincidenciasActuales = lista;
 
-    let itemsHtml = "";
+    let itemsHtml = '';
     lista.forEach((p, index) => {
-        const usd = parseFloat(p.precio_usd_con_iva || 0).toLocaleString("en-US", {
+        const usd = parseFloat(p.precio_usd_con_iva || 0).toLocaleString('en-US', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         });
-        const bs = parseFloat(p.precio_bs_con_iva || 0).toLocaleString("es-VE", {
+        const bs = parseFloat(p.precio_bs_con_iva || 0).toLocaleString('es-VE', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         });
-        const sku = p.codigo_interno ? `#${p.codigo_interno}` : "N/A";
+        const sku = p.codigo_interno ? `#${p.codigo_interno}` : 'N/A';
 
         itemsHtml += `
             <div class="col-12 col-sm-6 col-lg-4">
@@ -310,7 +306,7 @@ function renderizarListaCoincidencias(lista) {
                                 <i class="fas fa-hashtag me-1" style="color: #93c5fd;"></i>${sku}
                             </span>
                             <span class="badge rounded-pill px-2.5 px-sm-3 py-1 fw-semibold small text-truncate" style="background: var(--kiosk-toggle-bg); color: var(--kiosk-text-main); max-width: 140px; font-size: clamp(0.72rem, 0.9vw, 0.82rem); border: 1px solid var(--kiosk-card-border);">
-                                <i class="fas fa-layer-group me-1" style="color: #60a5fa;"></i>${p.categoria || "General"}
+                                <i class="fas fa-layer-group me-1" style="color: #60a5fa;"></i>${p.categoria || 'General'}
                             </span>
                         </div>
                         <h5 class="fw-bold kiosk-text-heading mb-3" style="line-height: 1.35; font-size: clamp(0.98rem, 1.2vw, 1.15rem); min-height: 2.6rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
@@ -362,8 +358,8 @@ function renderizarListaCoincidencias(lista) {
         </div>
     `;
 
-    $("#contenedorResultadoConsultor").html(html).show();
-    $("#contenedorEstadoInicial").hide();
+    $('#contenedorResultadoConsultor').html(html).show();
+    $('#contenedorEstadoInicial').hide();
     asegurarFocoInput();
 }
 
@@ -420,10 +416,10 @@ function mostrarSinResultados(termino) {
         </div>
     `;
 
-    $("#contenedorResultadoConsultor").html(html).show();
-    $("#contenedorEstadoInicial").hide();
-    $("#inputBuscarProductoConsultor").val("");
-    $("#btnLimpiarBusqueda").hide();
+    $('#contenedorResultadoConsultor').html(html).show();
+    $('#contenedorEstadoInicial').hide();
+    $('#inputBuscarProductoConsultor').val('');
+    $('#btnLimpiarBusqueda').hide();
     asegurarFocoInput();
 }
 
@@ -433,9 +429,9 @@ function mostrarEstadoInicial() {
         debounceTimerConsultor = null;
     }
     cancelarTemporizadorReset();
-    $("#contenedorResultadoConsultor").empty().hide();
-    $("#contenedorEstadoInicial").show();
-    $("#btnLimpiarBusqueda").hide();
+    $('#contenedorResultadoConsultor').empty().hide();
+    $('#contenedorEstadoInicial').show();
+    $('#btnLimpiarBusqueda').hide();
     asegurarFocoInput();
 }
 
@@ -445,7 +441,7 @@ function limpiarBusqueda() {
         debounceTimerConsultor = null;
     }
     cancelarTemporizadorReset();
-    $("#inputBuscarProductoConsultor").val("");
+    $('#inputBuscarProductoConsultor').val('');
     mostrarEstadoInicial();
 }
 
@@ -457,16 +453,16 @@ function iniciarAutoReset(segundos) {
     const pasoMs = 100;
     let transcurridoMs = 0;
 
-    $("#contadorSegundosKiosco").text(restante);
-    $("#barraProgresoKiosco").css("width", "100%");
+    $('#contadorSegundosKiosco').text(restante);
+    $('#barraProgresoKiosco').css('width', '100%');
 
     intervaloProgresoReset = setInterval(function () {
         transcurridoMs += pasoMs;
         const porcentaje = Math.max(0, 100 - (transcurridoMs / duracionMs) * 100);
-        $("#barraProgresoKiosco").css("width", porcentaje + "%");
+        $('#barraProgresoKiosco').css('width', `${porcentaje}%`);
 
         const segundosRestantes = Math.ceil((duracionMs - transcurridoMs) / 1000);
-        $("#contadorSegundosKiosco").text(segundosRestantes);
+        $('#contadorSegundosKiosco').text(segundosRestantes);
 
         if (transcurridoMs >= duracionMs) {
             cancelarTemporizadorReset();
@@ -494,13 +490,13 @@ function reproducirSonidoScan() {
                 audioContextConsultor = new AudioContextClass();
             }
         }
-        if (audioContextConsultor && audioContextConsultor.state === "suspended") {
+        if (audioContextConsultor && audioContextConsultor.state === 'suspended') {
             audioContextConsultor.resume();
         }
         if (audioContextConsultor) {
             const osc = audioContextConsultor.createOscillator();
             const gain = audioContextConsultor.createGain();
-            osc.type = "sine";
+            osc.type = 'sine';
             osc.frequency.setValueAtTime(1450, audioContextConsultor.currentTime);
             gain.gain.setValueAtTime(0.08, audioContextConsultor.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, audioContextConsultor.currentTime + 0.12);
@@ -520,13 +516,13 @@ function reproducirSonidoError() {
                 audioContextConsultor = new AudioContextClass();
             }
         }
-        if (audioContextConsultor && audioContextConsultor.state === "suspended") {
+        if (audioContextConsultor && audioContextConsultor.state === 'suspended') {
             audioContextConsultor.resume();
         }
         if (audioContextConsultor) {
             const osc = audioContextConsultor.createOscillator();
             const gain = audioContextConsultor.createGain();
-            osc.type = "sawtooth";
+            osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(220, audioContextConsultor.currentTime);
             gain.gain.setValueAtTime(0.1, audioContextConsultor.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, audioContextConsultor.currentTime + 0.3);
@@ -537,9 +533,3 @@ function reproducirSonidoError() {
         }
     } catch (e) {}
 }
-
-window.limpiarBusqueda = limpiarBusqueda;
-window.seleccionarProductoPorIndice = seleccionarProductoPorIndice;
-window.seleccionarProductoCoincidencia = seleccionarProductoCoincidencia;
-window.ejecutarBusqueda = ejecutarBusqueda;
-window.cargarDatosIniciales = cargarDatosIniciales;

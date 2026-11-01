@@ -1,3 +1,19 @@
+# Proyecto SistemaPos — Léeme primero
+
+Sistema POS multi-empresa en Laravel + Blade + Bootstrap 5 + jQuery (no Tailwind, no Vite en las vistas `Sistema/**`).
+
+**Antes de tocar cualquier vista, JS, controlador, request, servicio o ruta, activa la skill `pos-architecture`** (`.agents/skills/pos-architecture/SKILL.md`) y lee solo la referencia que corresponda a tu tarea. Es la fuente de verdad de los estándares del proyecto.
+
+Orden de prioridad cuando hay conflicto:
+1. Lo que pide el usuario.
+2. Este archivo + la skill `pos-architecture`.
+3. `laravel-best-practices` y `testing-best-practices` (apoyo para PHP y tests).
+4. Las skills de diseño (`design-taste-frontend`, `impeccable`, `high-end-visual-design`) son **solo para landing pages públicas**; no se usan en `resources/views/Sistema/**`. `tailwindcss-development` tampoco aplica a `Sistema/**`.
+
+Reglas críticas (detalle en la skill): multi-empresa con `empresa_id` en toda consulta · `FormRequest` para validar · `index()` solo devuelve la vista · permisos por ruta con `permission:modulo.accion` y `@can` en botones · componentes `<x-*>` y helpers JS existentes (nunca `$.ajax` ni modales a mano) · JS de módulo sin comentarios ni `window.x =` · sin fondos grises ni bordes en cédulas/entidades · **nunca** `migrate:fresh` sin permiso explícito.
+
+Las guías de abajo (entre `<laravel-boost-guidelines>`) las genera Laravel Boost y se reescriben con `php artisan boost:update`: no las edites; agrega reglas del proyecto en este bloque o en la skill.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

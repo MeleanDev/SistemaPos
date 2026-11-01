@@ -30,7 +30,7 @@
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <span class="text-muted small fw-bold text-uppercase">Total por Cobrar</span>
-                        <div class="avatar-executive-sm bg-light-primary text-primary" style="width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background-color: #eef2ff; color: #4f46e5;">
+                        <div class="avatar-executive-sm rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
                             <i class="fas fa-hand-holding-usd fs-6"></i>
                         </div>
                     </div>

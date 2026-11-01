@@ -1516,7 +1516,7 @@
                         </div>
                         <div>
                             <h6 class="fw-bold text-dark mb-0 font-monospace" id="posVarianteModalProdNombre">Nombre del Producto</h6>
-                            <span class="badge bg-light text-secondary border font-monospace mt-0.5" id="posVarianteModalProdCodigo">#0000</span>
+                            <span class="badge bg-secondary-subtle text-secondary border font-monospace mt-0.5" id="posVarianteModalProdCodigo">#0000</span>
                         </div>
                     </div>
                 </div>
@@ -1571,7 +1571,7 @@
                             </div>
                             <div>
                                 <h6 class="fw-bold text-dark mb-0 font-monospace" id="posSerialModalProdNombre">Nombre del Producto</h6>
-                                <span class="badge bg-light text-secondary border font-monospace mt-0.5" id="posSerialModalProdCodigo">#0000</span>
+                                <span class="badge bg-secondary-subtle text-secondary border font-monospace mt-0.5" id="posSerialModalProdCodigo">#0000</span>
                             </div>
                         </div>
                         <div>
@@ -2031,7 +2031,7 @@
             </div>
             <form id="formCierreZPos">
                 <div class="modal-body p-4 bg-white">
-                    <div class="card bg-light border-0 rounded-4 p-3 mb-3">
+                    <div class="card bg-white border rounded-4 shadow-xs p-3 mb-3">
                         <div class="row g-2 text-center">
                             <div class="col-6 col-md-3">
                                 <span class="text-muted small">Fondo Apertura</span>
@@ -2058,7 +2058,7 @@
                                 <i class="fas fa-dollar-sign text-success me-1"></i> Conteo Físico en USD ($) <span class="text-danger">*</span>
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 rounded-start-3">$</span>
+                                <span class="input-group-text bg-white border-end-0 rounded-start-3 font-monospace">$</span>
                                 <input type="number" step="0.01" min="0" name="monto_cierre_usd" id="posCierreMontoUsd" class="form-control form-control-executive font-monospace fw-bold fs-5" value="0.00" required>
                             </div>
                             <div id="posCierreAlertaUsd" class="small mt-1 fw-semibold text-muted font-monospace">Diferencia: $0.00</div>
@@ -2068,7 +2068,7 @@
                                 <i class="fas fa-coins text-warning me-1"></i> Conteo Físico en Bs. (Bs.) <span class="text-danger">*</span>
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 rounded-start-3">Bs.</span>
+                                <span class="input-group-text bg-white border-end-0 rounded-start-3 font-monospace">Bs.</span>
                                 <input type="number" step="0.01" min="0" name="monto_cierre_bs" id="posCierreMontoBs" class="form-control form-control-executive font-monospace fw-bold fs-5" value="0.00" required>
                             </div>
                             <div id="posCierreAlertaBs" class="small mt-1 fw-semibold text-muted font-monospace">Diferencia: Bs. 0.00</div>
@@ -2081,7 +2081,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-top py-3 px-4 d-flex justify-content-between">
+                <div class="modal-footer bg-white border-top py-3 px-4 d-flex justify-content-between">
                     <button type="button" class="btn btn-pos-cancel" data-bs-dismiss="modal">
                         <i class="fas fa-times me-1"></i> Cancelar
                     </button>
@@ -2111,6 +2111,7 @@
     const urlPosImprimir = "{{ url('/pos/imprimir') }}";
     const urlPosImprimirCarta = "{{ url('/pos/imprimir-carta') }}";
     const urlPosImprimirTicket = "{{ url('/pos/imprimir-ticket') }}";
+    const urlPosImprimirGarantia = "{{ url('/pos/garantia') }}";
     const urlCajasBase = "{{ url('/cajas') }}";
     const urlCajasDisponibles = "{{ url('/cajas/disponibles') }}";
     const urlCajasAperturar = "{{ url('/cajas/turnos/aperturar') }}";

@@ -1,4 +1,5 @@
-const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
+const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, '');
+const urlCatalogos = `${urlBase}/catalogos`;
 const urlListaCajas = `${urlBase}/lista`;
 const urlListaTurnos = `${urlBase}/turnos/lista`;
 const urlCajasDisponibles = `${urlBase}/disponibles`;
@@ -14,15 +15,17 @@ let esperadoUsdActual = 0;
 let esperadoBsActual = 0;
 
 $(document).ready(function () {
+    cargarCatalogos();
+
     crearDataTable({
-        selector: "#datatable_cajas",
+        selector: '#datatable_cajas',
         url: urlListaCajas,
-        searchPlaceholder: "Nombre, código, almacén...",
+        searchPlaceholder: 'Nombre, código, almacén...',
         columns: [
             {
-                data: "nombre",
-                name: "nombre",
-                className: "text-start align-middle",
+                data: 'nombre',
+                name: 'nombre',
+                className: 'text-start align-middle',
                 render: function (data, type, row) {
                     const codigo = row.codigo ? `<span class="badge bg-white text-secondary border px-2 py-0.5 rounded-pill shadow-xs me-1 fw-bold">${row.codigo}</span>` : '';
                     return `
@@ -39,9 +42,9 @@ $(document).ready(function () {
                 },
             },
             {
-                data: "almacen.nombre",
-                name: "almacen.nombre",
-                className: "text-center align-middle",
+                data: 'almacen.nombre',
+                name: 'almacen.nombre',
+                className: 'text-center align-middle',
                 render: function (data, type, row) {
                     if (row.almacen) {
                         return `<span class="badge bg-white text-dark border px-2.5 py-1 rounded-pill shadow-xs"><i class="fas fa-warehouse text-primary me-1"></i>${row.almacen.nombre}</span>`;
@@ -50,9 +53,9 @@ $(document).ready(function () {
                 },
             },
             {
-                data: "turno_activo",
-                name: "turno_activo",
-                className: "text-center align-middle",
+                data: 'turno_activo',
+                name: 'turno_activo',
+                className: 'text-center align-middle',
                 render: function (data, type, row) {
                     if (row.turno_activo) {
                         const cajero = row.turno_activo.usuario ? (row.turno_activo.usuario.name || row.turno_activo.usuario.nombre || 'Cajero') : 'Cajero';
@@ -69,9 +72,9 @@ $(document).ready(function () {
                 },
             },
             {
-                data: "estado",
-                name: "estado",
-                className: "text-center align-middle",
+                data: 'estado',
+                name: 'estado',
+                className: 'text-center align-middle',
                 render: function (data) {
                     if (data) {
                         return '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill"><i class="fas fa-check-circle me-1"></i>Activa</span>';
@@ -81,11 +84,11 @@ $(document).ready(function () {
             },
             {
                 data: null,
-                width: "140px",
-                className: "text-center align-middle",
+                width: '140px',
+                className: 'text-center align-middle',
                 orderable: false,
                 render: function (data, type, row) {
-                    const nombreEscapado = (row.nombre || "").trim().replace(/'/g, "\\'");
+                    const nombreEscapado = (row.nombre || '').trim().replace(/'/g, "\\'");
                     let btnsTurno = '';
 
                     if (row.turno_activo) {
@@ -121,22 +124,22 @@ $(document).ready(function () {
     });
 
     crearDataTable({
-        selector: "#datatable_turnos",
+        selector: '#datatable_turnos',
         url: urlListaTurnos,
-        searchPlaceholder: "Caja, cajero, fecha, estado...",
+        searchPlaceholder: 'Caja, cajero, fecha, estado...',
         columns: [
             {
-                data: "id",
-                name: "id",
-                className: "text-center align-middle",
+                data: 'id',
+                name: 'id',
+                className: 'text-center align-middle',
                 render: function (data) {
                     return `<span class="fw-bold text-dark">#${String(data).padStart(5, '0')}</span>`;
                 },
             },
             {
-                data: "caja.nombre",
-                name: "caja.nombre",
-                className: "text-start align-middle",
+                data: 'caja.nombre',
+                name: 'caja.nombre',
+                className: 'text-start align-middle',
                 render: function (data, type, row) {
                     const cajaNom = row.caja ? row.caja.nombre : 'Caja';
                     const cajaCod = row.caja && row.caja.codigo ? `<span class="badge bg-white text-secondary border px-2 py-0.5 rounded-pill shadow-xs me-1 fw-bold">${row.caja.codigo}</span>` : '';
@@ -152,9 +155,9 @@ $(document).ready(function () {
                 },
             },
             {
-                data: "usuario.name",
-                name: "usuario.name",
-                className: "text-start align-middle",
+                data: 'usuario.name',
+                name: 'usuario.name',
+                className: 'text-start align-middle',
                 render: function (data, type, row) {
                     const userNom = row.usuario ? (row.usuario.name || row.usuario.nombre || 'Cajero') : 'Cajero';
                     return `
@@ -166,9 +169,9 @@ $(document).ready(function () {
                 },
             },
             {
-                data: "fecha_apertura",
-                name: "fecha_apertura",
-                className: "text-center align-middle",
+                data: 'fecha_apertura',
+                name: 'fecha_apertura',
+                className: 'text-center align-middle',
                 render: function (data, type, row) {
                     return `
                         <div class="d-flex flex-column">
@@ -179,9 +182,9 @@ $(document).ready(function () {
                 },
             },
             {
-                data: "fecha_cierre",
-                name: "fecha_cierre",
-                className: "text-center align-middle",
+                data: 'fecha_cierre',
+                name: 'fecha_cierre',
+                className: 'text-center align-middle',
                 render: function (data, type, row) {
                     if (!data) {
                         return '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill"><i class="fas fa-clock me-1"></i>En curso</span>';
@@ -195,9 +198,9 @@ $(document).ready(function () {
                 },
             },
             {
-                data: "monto_apertura_usd",
-                name: "monto_apertura_usd",
-                className: "text-end align-middle",
+                data: 'monto_apertura_usd',
+                name: 'monto_apertura_usd',
+                className: 'text-end align-middle',
                 render: function (data, type, row) {
                     return `
                         <div class="d-flex flex-column text-end">
@@ -208,9 +211,9 @@ $(document).ready(function () {
                 },
             },
             {
-                data: "monto_cierre_usd",
-                name: "monto_cierre_usd",
-                className: "text-end align-middle",
+                data: 'monto_cierre_usd',
+                name: 'monto_cierre_usd',
+                className: 'text-end align-middle',
                 render: function (data, type, row) {
                     if (row.estado === 'abierta') {
                         return '<span class="text-muted fst-italic small">Sin cierre</span>';
@@ -224,9 +227,9 @@ $(document).ready(function () {
                 },
             },
             {
-                data: "diferencia_usd",
-                name: "diferencia_usd",
-                className: "text-end align-middle",
+                data: 'diferencia_usd',
+                name: 'diferencia_usd',
+                className: 'text-end align-middle',
                 render: function (data, type, row) {
                     if (row.estado === 'abierta') {
                         return '<span class="text-muted small">--</span>';
@@ -250,9 +253,9 @@ $(document).ready(function () {
                 },
             },
             {
-                data: "estado",
-                name: "estado",
-                className: "text-center align-middle",
+                data: 'estado',
+                name: 'estado',
+                className: 'text-center align-middle',
                 render: function (data) {
                     if (data === 'abierta') {
                         return '<span class="badge bg-success rounded-pill px-2.5 py-1 fw-bold"><i class="fas fa-circle fa-beat me-1"></i>Abierta</span>';
@@ -262,8 +265,8 @@ $(document).ready(function () {
             },
             {
                 data: null,
-                width: "100px",
-                className: "text-center align-middle",
+                width: '100px',
+                className: 'text-center align-middle',
                 orderable: false,
                 render: function (data, type, row) {
                     let btnCierre = '';
@@ -293,48 +296,97 @@ $(document).ready(function () {
         ],
     });
 
-    $("#monto_cierre_usd, #monto_cierre_bs").on("input", function () {
+    $('#monto_cierre_usd, #monto_cierre_bs').on('input', function () {
         calcularDiferenciasCierre();
     });
 
-    $('button[data-bs-toggle="pill"]').on("shown.bs.tab", function (e) {
-        const targetId = $(e.target).attr("data-bs-target");
-        if (targetId === "#pills-turnos") {
-            if ($("#datatable_turnos").length && $.fn.DataTable.isDataTable("#datatable_turnos")) {
-                $("#datatable_turnos").DataTable().columns.adjust().responsive.recalc();
+    $('button[data-bs-toggle="pill"]').on('shown.bs.tab', function (e) {
+        const targetId = $(e.target).attr('data-bs-target');
+        if (targetId === '#pills-turnos') {
+            if ($('#datatable_turnos').length && $.fn.DataTable.isDataTable('#datatable_turnos')) {
+                $('#datatable_turnos').DataTable().columns.adjust().responsive.recalc();
             }
-        } else if (targetId === "#pills-cajas") {
-            if ($("#datatable_cajas").length && $.fn.DataTable.isDataTable("#datatable_cajas")) {
-                $("#datatable_cajas").DataTable().columns.adjust().responsive.recalc();
+        } else if (targetId === '#pills-cajas') {
+            if ($('#datatable_cajas').length && $.fn.DataTable.isDataTable('#datatable_cajas')) {
+                $('#datatable_cajas').DataTable().columns.adjust().responsive.recalc();
             }
         }
     });
 });
 
-const resetearFormularioCaja = function () {
-    const $form = $("#formularioCaja");
-    $form[0].reset();
-    $form.find(".is-invalid").removeClass("is-invalid");
-    $form.find(".invalid-feedback").remove();
-};
+async function cargarCatalogos() {
+    try {
+        const res = await peticionAjax({ url: urlCatalogos });
+        if (!res || !res.success || !res.data) return;
 
-const crearCaja = function () {
+        const data = res.data;
+
+        const $selectAlmacen = $('#caja_almacen_id');
+        $selectAlmacen.find('option:not(:first)').remove();
+        if (Array.isArray(data.almacenes)) {
+            data.almacenes.forEach(a => {
+                const cod = a.codigo ? ` (${a.codigo})` : '';
+                $selectAlmacen.append(`<option value="${a.id}">${a.nombre}${cod}</option>`);
+            });
+        }
+
+        const $selectCajeros = $('#apertura_user_id');
+        $selectCajeros.find('option:not(:first)').remove();
+        if (Array.isArray(data.cajeros)) {
+            data.cajeros.forEach(c => {
+                const extra = c.nombre_completo || c.email || '';
+                const selected = data.usuario_actual_id && parseInt(c.id) === parseInt(data.usuario_actual_id) ? 'selected' : '';
+                $selectCajeros.append(`<option value="${c.id}" ${selected}>${c.name} (${extra})</option>`);
+            });
+        }
+
+        if (data.turno_activo) {
+            const t = data.turno_activo;
+            $('#bannerTurnoId').text(t.id);
+            $('#bannerCajaNombre').text(t.caja ? t.caja.nombre : 'Caja');
+            const fechaStr = t.fecha_apertura || '';
+            const horaStr = t.hora_apertura ? ` ${t.hora_apertura}` : '';
+            $('#bannerFechaApertura').text(`${fechaStr}${horaStr}`);
+            $('#bannerUsuarioNombre').text(data.usuario_actual_nombre || 'Usuario');
+            $('#btnBannerCorteX').off('click').on('click', function () {
+                verCorteX(t.id);
+            });
+            $('#btnBannerCerrarZ').off('click').on('click', function () {
+                abrirModalCierre(t.id);
+            });
+            $('#contenedorTurnoActivo').show();
+        } else {
+            $('#contenedorTurnoActivo').hide();
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function resetearFormularioCaja() {
+    const $form = $('#formularioCaja');
+    $form[0].reset();
+    $form.find('.is-invalid').removeClass('is-invalid');
+    $form.find('.invalid-feedback').remove();
+}
+
+function crearCaja() {
     isEditarCaja = false;
     idCajaActual = null;
     resetearFormularioCaja();
 
-    $("#modalCajaTitulo").text("Nueva Caja Registradora");
-    $("#modalCajaSubtitulo").text("Configura los detalles de la caja");
-    $("#modalCajaIcono").attr("class", "fas fa-cash-register text-primary fs-5");
+    $('#modalCajaTitulo').text('Nueva Caja Registradora');
+    $('#modalCajaSubtitulo').text('Configura los detalles de la caja');
+    $('#modalCajaIcono').attr('class', 'fas fa-cash-register text-primary fs-5');
 
-    $("#modalCajaBtnGuardar").prop("hidden", false).prop("disabled", false);
-    $("#modalCajaTextoGuardar").text("Guardar Caja");
+    $('#modalCajaBtnGuardar').prop('hidden', false).prop('disabled', false);
+    $('#modalCajaTextoGuardar').text('Guardar Caja');
 
-    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalCaja"));
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCaja'));
     modal.show();
-};
+}
 
-const editarCaja = async function (id) {
+async function editarCaja(id) {
     try {
         isEditarCaja = true;
         idCajaActual = id;
@@ -343,44 +395,47 @@ const editarCaja = async function (id) {
         if (!caja) return;
 
         resetearFormularioCaja();
-        $("#caja_nombre").val(caja.nombre || "");
-        $("#caja_codigo").val(caja.codigo || "");
-        $("#caja_almacen_id").val(caja.almacen_id || "");
-        $("#caja_descripcion").val(caja.descripcion || "");
+        $('#caja_nombre').val(caja.nombre || '');
+        $('#caja_codigo').val(caja.codigo || '');
+        $('#caja_almacen_id').val(caja.almacen_id || '');
+        $('#caja_descripcion').val(caja.descripcion || '');
 
-        $("#modalCajaTitulo").text(`Editar Caja: ${caja.nombre}`);
-        $("#modalCajaSubtitulo").text("Modifica la configuración de la caja");
-        $("#modalCajaIcono").attr("class", "fas fa-edit text-primary fs-5");
+        $('#modalCajaTitulo').text(`Editar Caja: ${caja.nombre}`);
+        $('#modalCajaSubtitulo').text('Modifica la configuración de la caja');
+        $('#modalCajaIcono').attr('class', 'fas fa-edit text-primary fs-5');
 
-        $("#modalCajaBtnGuardar").prop("hidden", false).prop("disabled", false);
-        $("#modalCajaTextoGuardar").text("Actualizar Cambios");
+        $('#modalCajaBtnGuardar').prop('hidden', false).prop('disabled', false);
+        $('#modalCajaTextoGuardar').text('Actualizar Cambios');
 
-        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalCaja"));
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCaja'));
         modal.show();
     } catch (error) {
         if (window.notificacion) {
             window.notificacion.fire({
-                icon: "error",
-                title: "Error",
-                text: "No se pudo cargar la información de la caja.",
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo cargar la información de la caja.',
             });
         }
     }
-};
+}
 
-const eliminarCaja = function (id, nombreCaja) {
+function eliminarCaja(id, nombreCaja) {
     cambiarEstadoRegistro({
         url: urlEliminarCaja,
         id: id,
         nombre: nombreCaja,
-        tablaSelector: "#datatable_cajas",
-        titulo: "¿Cambiar Estado de la Caja?",
+        tablaSelector: '#datatable_cajas',
+        titulo: '¿Cambiar Estado de la Caja?',
         mensaje: `Se alternará el estado de "${nombreCaja}".`,
         confirmButtonText: '<i class="fas fa-sync-alt me-1"></i> Sí, cambiar estado',
+        onSuccess: function () {
+            cargarCatalogos();
+        },
     });
-};
+}
 
-$("#formularioCaja").on("submit", function (e) {
+$('#formularioCaja').on('submit', function (e) {
     e.preventDefault();
     const url = isEditarCaja ? `${urlEditarCaja}${idCajaActual}` : urlGuardarCaja;
 
@@ -388,83 +443,84 @@ $("#formularioCaja").on("submit", function (e) {
         form: this,
         url: url,
         isEditar: isEditarCaja,
-        modalSelector: "#modalCaja",
-        tablaSelector: "#datatable_cajas",
-        btnSubmit: "#modalCajaBtnGuardar",
-        textoGuardarOriginal: $("#modalCajaTextoGuardar").text(),
+        modalSelector: '#modalCaja',
+        tablaSelector: '#datatable_cajas',
+        btnSubmit: '#modalCajaBtnGuardar',
+        textoGuardarOriginal: $('#modalCajaTextoGuardar').text(),
+        onSuccess: function () {
+            cargarCatalogos();
+        },
     });
 });
 
-const abrirModalApertura = async function (cajaIdPreseleccionada = null) {
+async function abrirModalApertura(cajaIdPreseleccionada = null) {
     try {
-        const $form = $("#formularioApertura");
+        const $form = $('#formularioApertura');
         $form[0].reset();
-        $form.find(".is-invalid").removeClass("is-invalid");
-        $form.find(".invalid-feedback").remove();
-        $("#monto_apertura_usd").val("0.00");
-        $("#monto_apertura_bs").val("0.00");
+        $form.find('.is-invalid').removeClass('is-invalid');
+        $form.find('.invalid-feedback').remove();
+        $('#monto_apertura_usd').val('0.00');
+        $('#monto_apertura_bs').val('0.00');
 
-        const res = await $.get(urlCajasDisponibles);
+        const res = await peticionAjax({ url: urlCajasDisponibles });
         const cajas = res && res.data ? res.data : [];
 
-        const $select = $("#apertura_caja_id");
+        const $select = $('#apertura_caja_id');
         $select.empty();
 
         if (cajas.length === 0) {
             $select.append('<option value="">-- No hay cajas disponibles para aperturar --</option>');
-            $("#modalAperturaTurnoBtnGuardar").prop("disabled", true);
+            $('#modalAperturaTurnoBtnGuardar').prop('disabled', true);
         } else {
             $select.append('<option value="">-- Selecciona una caja disponible --</option>');
             cajas.forEach(c => {
                 const selected = cajaIdPreseleccionada && parseInt(cajaIdPreseleccionada) === parseInt(c.id) ? 'selected' : '';
                 $select.append(`<option value="${c.id}" ${selected}>${c.nombre} ${c.codigo ? `(${c.codigo})` : ''}</option>`);
             });
-            $("#modalAperturaTurnoBtnGuardar").prop("disabled", false);
+            $('#modalAperturaTurnoBtnGuardar').prop('disabled', false);
         }
 
-        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalAperturaTurno"));
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAperturaTurno'));
         modal.show();
     } catch (e) {
         if (window.notificacion) {
             window.notificacion.fire({
-                icon: "error",
-                title: "Error",
-                text: "No se pudieron obtener las cajas disponibles.",
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudieron obtener las cajas disponibles.',
             });
         }
     }
-};
+}
 
-$("#formularioApertura").on("submit", function (e) {
+$('#formularioApertura').on('submit', function (e) {
     e.preventDefault();
 
     enviarFormulario({
         form: this,
         url: urlAperturarTurno,
         isEditar: false,
-        modalSelector: "#modalAperturaTurno",
-        tablaSelector: "#datatable_cajas",
-        btnSubmit: "#modalAperturaTurnoBtnGuardar",
-        textoGuardarOriginal: "Aperturar Turno",
-        despuesDeGuardar: function () {
-            if ($("#datatable_turnos").length) {
-                $("#datatable_turnos").DataTable().ajax.reload(null, false);
+        modalSelector: '#modalAperturaTurno',
+        tablaSelector: '#datatable_cajas',
+        btnSubmit: '#modalAperturaTurnoBtnGuardar',
+        textoGuardarOriginal: 'Aperturar Turno',
+        onSuccess: function () {
+            if ($('#datatable_turnos').length && $.fn.DataTable.isDataTable('#datatable_turnos')) {
+                $('#datatable_turnos').DataTable().ajax.reload(null, false);
             }
-            setTimeout(() => {
-                window.location.reload();
-            }, 800);
+            cargarCatalogos();
         },
     });
 });
 
-const verCorteX = async function (turnoId) {
+async function verCorteX(turnoId) {
     if (!turnoId) return;
 
-    $("#btnImprimirCorteX").attr("href", `${urlBase}/turnos/${turnoId}/imprimir-x`);
-    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalCorteX"));
+    $('#btnImprimirCorteX').attr('href', `${urlBase}/turnos/${turnoId}/imprimir-x`);
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCorteX'));
     modal.show();
 
-    $("#contenidoCorteX").html(`
+    $('#contenidoCorteX').html(`
         <div class="text-center py-4">
             <div class="spinner-border text-primary" role="status"></div>
             <p class="text-muted mt-2">Cargando desglose del turno...</p>
@@ -472,10 +528,10 @@ const verCorteX = async function (turnoId) {
     `);
 
     try {
-        const res = await $.get(`${urlBase}/turnos/${turnoId}/reporte-x`);
+        const res = await peticionAjax({ url: `${urlBase}/turnos/${turnoId}/reporte-x` });
         const rep = res && res.data ? res.data : null;
         if (!rep) {
-            $("#contenidoCorteX").html('<div class="alert alert-danger">No se pudo cargar el reporte del turno.</div>');
+            $('#contenidoCorteX').html('<div class="alert bg-danger-subtle border border-danger-subtle text-danger rounded-4 py-2 px-3">No se pudo cargar el reporte del turno.</div>');
             return;
         }
 
@@ -539,9 +595,9 @@ const verCorteX = async function (turnoId) {
             </div>
 
             <h6 class="fw-bold text-dark mb-2"><i class="fas fa-wallet text-muted me-1"></i> Desglose por Método de Pago</h6>
-            <div class="table-responsive rounded-3 border mb-3">
+            <div class="table-responsive rounded-4 border mb-3">
                 <table class="table table-sm table-hover mb-0">
-                    <thead class="table-light text-dark border-bottom">
+                    <thead class="bg-white text-dark border-bottom">
                         <tr>
                             <th>Método</th>
                             <th class="text-center">Moneda</th>
@@ -554,61 +610,61 @@ const verCorteX = async function (turnoId) {
             </div>
         `;
 
-        $("#contenidoCorteX").html(html);
+        $('#contenidoCorteX').html(html);
     } catch (e) {
-        $("#contenidoCorteX").html('<div class="alert alert-danger">Error al consultar datos del turno.</div>');
+        $('#contenidoCorteX').html('<div class="alert bg-danger-subtle border border-danger-subtle text-danger rounded-4 py-2 px-3">Error al consultar datos del turno.</div>');
     }
-};
+}
 
-const abrirModalCierre = async function (turnoId) {
+async function abrirModalCierre(turnoId) {
     if (!turnoId) return;
 
     try {
         turnoActivoCierre = turnoId;
-        $("#cierre_turno_id").val(turnoId);
-        $("#monto_cierre_usd").val("0.00");
-        $("#monto_cierre_bs").val("0.00");
-        $("#cierre_observaciones").val("");
+        $('#cierre_turno_id').val(turnoId);
+        $('#monto_cierre_usd').val('0.00');
+        $('#monto_cierre_bs').val('0.00');
+        $('#cierre_observaciones').val('');
 
-        const res = await $.get(`${urlBase}/turnos/${turnoId}/reporte-x`);
+        const res = await peticionAjax({ url: `${urlBase}/turnos/${turnoId}/reporte-x` });
         const rep = res && res.data ? res.data : null;
         if (!rep) return;
 
         esperadoUsdActual = parseFloat(rep.efectivo_esperado_usd || 0);
         esperadoBsActual = parseFloat(rep.efectivo_esperado_bs || 0);
 
-        $("#resumenAperturaUsd").text(`$${parseFloat(rep.monto_apertura_usd).toFixed(2)}`);
-        $("#resumenVentasUsd").text(`$${parseFloat(rep.total_ventas_usd).toFixed(2)}`);
-        $("#resumenEsperadoUsd").text(`$${esperadoUsdActual.toFixed(2)}`);
-        $("#resumenEsperadoBs").text(`Bs. ${esperadoBsActual.toFixed(2)}`);
+        $('#resumenAperturaUsd').text(`$${parseFloat(rep.monto_apertura_usd).toFixed(2)}`);
+        $('#resumenVentasUsd').text(`$${parseFloat(rep.total_ventas_usd).toFixed(2)}`);
+        $('#resumenEsperadoUsd').text(`$${esperadoUsdActual.toFixed(2)}`);
+        $('#resumenEsperadoBs').text(`Bs. ${esperadoBsActual.toFixed(2)}`);
 
-        $("#monto_cierre_usd").val(esperadoUsdActual.toFixed(2));
-        $("#monto_cierre_bs").val(esperadoBsActual.toFixed(2));
+        $('#monto_cierre_usd').val(esperadoUsdActual.toFixed(2));
+        $('#monto_cierre_bs').val(esperadoBsActual.toFixed(2));
 
         calcularDiferenciasCierre();
 
-        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalCierreZ"));
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCierreZ'));
         modal.show();
     } catch (e) {
         if (window.notificacion) {
             window.notificacion.fire({
-                icon: "error",
-                title: "Error",
-                text: "No se pudo cargar los totales para el arqueo de cierre.",
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo cargar los totales para el arqueo de cierre.',
             });
         }
     }
-};
+}
 
-const calcularDiferenciasCierre = function () {
-    const contadoUsd = parseFloat($("#monto_cierre_usd").val() || 0);
-    const contadoBs = parseFloat($("#monto_cierre_bs").val() || 0);
+function calcularDiferenciasCierre() {
+    const contadoUsd = parseFloat($('#monto_cierre_usd').val() || 0);
+    const contadoBs = parseFloat($('#monto_cierre_bs').val() || 0);
 
     const difUsd = contadoUsd - esperadoUsdActual;
     const difBs = contadoBs - esperadoBsActual;
 
-    const $alertaUsd = $("#alertaDiferenciaUsd");
-    const $alertaBs = $("#alertaDiferenciaBs");
+    const $alertaUsd = $('#alertaDiferenciaUsd');
+    const $alertaBs = $('#alertaDiferenciaBs');
 
     if (Math.abs(difUsd) < 0.001) {
         $alertaUsd.html('<span class="text-success"><i class="fas fa-check-circle me-1"></i>Cuadre Exacto en USD ($0.00)</span>');
@@ -625,9 +681,9 @@ const calcularDiferenciasCierre = function () {
     } else {
         $alertaBs.html(`<span class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>Faltante: -Bs. ${Math.abs(difBs).toFixed(2)}</span>`);
     }
-};
+}
 
-$("#formularioCierreZ").on("submit", function (e) {
+$('#formularioCierreZ').on('submit', function (e) {
     e.preventDefault();
     if (!turnoActivoCierre) return;
 
@@ -637,14 +693,15 @@ $("#formularioCierreZ").on("submit", function (e) {
         form: this,
         url: url,
         isEditar: false,
-        modalSelector: "#modalCierreZ",
-        tablaSelector: "#datatable_cajas",
-        btnSubmit: "#modalCierreZBtnGuardar",
-        textoGuardarOriginal: "Confirmar y Cerrar Turno",
-        despuesDeGuardar: function () {
-            if ($("#datatable_turnos").length) {
-                $("#datatable_turnos").DataTable().ajax.reload(null, false);
+        modalSelector: '#modalCierreZ',
+        tablaSelector: '#datatable_cajas',
+        btnSubmit: '#modalCierreZBtnGuardar',
+        textoGuardarOriginal: 'Confirmar y Cerrar Turno',
+        onSuccess: function () {
+            if ($('#datatable_turnos').length && $.fn.DataTable.isDataTable('#datatable_turnos')) {
+                $('#datatable_turnos').DataTable().ajax.reload(null, false);
             }
+            cargarCatalogos();
             if (window.Swal) {
                 Swal.fire({
                     icon: 'success',
@@ -658,10 +715,7 @@ $("#formularioCierreZ").on("submit", function (e) {
                     if (result.isConfirmed) {
                         window.open(`${urlBase}/turnos/${turnoActivoCierre}/imprimir-z`, '_blank');
                     }
-                    window.location.reload();
                 });
-            } else {
-                window.location.reload();
             }
         },
     });

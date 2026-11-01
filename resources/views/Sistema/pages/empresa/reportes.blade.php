@@ -20,7 +20,6 @@
 @section('contenido')
 <div class="container-fluid px-0">
 
-    <!-- BANNER EJECUTIVO CORPORATIVO -->
     <div class="card border-0 rounded-4 shadow-sm text-white mb-4 overflow-hidden" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
         <div class="card-body p-4">
             <div class="row align-items-center g-3">
@@ -43,7 +42,6 @@
     </div>
 
     <style>
-        /* Modern Select2 Multi-Select Styles */
         .select2-modern-wrapper .select2-container {
             width: 100% !important;
             display: block !important;
@@ -53,7 +51,7 @@
             border: 1px solid #cbd5e1 !important;
             border-radius: 12px !important;
             padding: 4px 10px !important;
-            background-color: #f8fafc !important;
+            background-color: #ffffff !important;
             display: flex !important;
             flex-wrap: wrap !important;
             align-items: center !important;
@@ -140,16 +138,14 @@
             color: #ffffff !important;
         }
         .select2-results__option[aria-selected="true"] {
-            background-color: #f1f5f9 !important;
-            color: #64748b !important;
+            background-color: #eef2ff !important;
+            color: #4338ca !important;
             font-weight: 600 !important;
         }
     </style>
 
-    <!-- GRILLA DE REPORTES EJECUTIVOS RESPONSIVE -->
     <div class="row g-4">
 
-        <!-- 1. REPORTE DE INGRESOS Y CAJA -->
         <div class="col-12 col-xl-6">
             <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
                 <div class="p-4 border-bottom bg-white">
@@ -223,7 +219,6 @@
             </div>
         </div>
 
-        <!-- 2. REPORTE DE CARTERA (CXC / CXP) -->
         <div class="col-12 col-xl-6">
             <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
                 <div class="p-4 border-bottom bg-white">
@@ -273,7 +268,6 @@
             </div>
         </div>
 
-        <!-- 3. REPORTE DE INVENTARIO Y VALORIZACION -->
         <div class="col-12 col-xl-6">
             <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
                 <div class="p-4 border-bottom bg-white">
@@ -337,7 +331,6 @@
             </div>
         </div>
 
-        <!-- 4. REPORTE DE RENTABILIDAD & MARGEN BRUTO -->
         <div class="col-12 col-xl-6">
             <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
                 <div class="p-4 border-bottom bg-white">
@@ -399,7 +392,6 @@
             </div>
         </div>
 
-        <!-- 5. REPORTE DE VENDEDORES & COMISIONES -->
         <div class="col-12 col-xl-6">
             <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
                 <div class="p-4 border-bottom bg-white">
@@ -461,7 +453,6 @@
             </div>
         </div>
 
-        <!-- 6. REPORTE DE EXISTENCIAS POR ALMACÉN (MATRIZ MULTIALMACÉN) -->
         <div class="col-12 col-xl-6">
             <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
                 <div class="p-4 border-bottom bg-white">
@@ -481,14 +472,13 @@
 
                 <div class="p-4 bg-white flex-grow-1">
                     <div class="row g-3">
-                        <!-- BUSCADOR / SELECTOR MÚLTIPLE DE PRODUCTOS -->
                         <div class="col-12">
                             <div class="d-flex align-items-center justify-content-between mb-1.5">
                                 <label for="stock_producto_ids" class="form-label small fw-bold text-uppercase text-muted mb-0">
                                     <i class="fas fa-box text-primary me-1"></i> Filtrar Productos Seleccionados
                                 </label>
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="badge rounded-pill bg-light text-muted border px-2 py-0.5" id="badgeContadorProductos" style="font-size: 0.72rem;">Todos</span>
+                                    <span class="badge rounded-pill bg-white text-muted border shadow-xs px-2 py-0.5" id="badgeContadorProductos" style="font-size: 0.72rem;">Todos</span>
                                     <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-danger fw-semibold" style="font-size: 0.72rem;" onclick="limpiarSelectorModerno('#stock_producto_ids')">
                                         <i class="fas fa-times-circle me-0.5"></i>Limpiar
                                     </button>
@@ -506,14 +496,13 @@
                             </small>
                         </div>
 
-                        <!-- BUSCADOR / SELECTOR MÚLTIPLE DE CATEGORÍAS -->
                         <div class="col-12 col-md-7">
                             <div class="d-flex align-items-center justify-content-between mb-1.5">
                                 <label for="stock_categoria_ids" class="form-label small fw-bold text-uppercase text-muted mb-0">
                                     <i class="fas fa-tags text-primary me-1"></i> Categorías
                                 </label>
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="badge rounded-pill bg-light text-muted border px-2 py-0.5" id="badgeContadorCategorias" style="font-size: 0.72rem;">Todas</span>
+                                    <span class="badge rounded-pill bg-white text-muted border shadow-xs px-2 py-0.5" id="badgeContadorCategorias" style="font-size: 0.72rem;">Todas</span>
                                     <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-danger fw-semibold" style="font-size: 0.72rem;" onclick="limpiarSelectorModerno('#stock_categoria_ids')">
                                         <i class="fas fa-times-circle me-0.5"></i>Limpiar
                                     </button>
@@ -528,9 +517,8 @@
                             </div>
                         </div>
 
-                        <!-- TOGGLE SOLO CON STOCK -->
                         <div class="col-12 col-md-5 d-flex align-items-center">
-                            <div class="form-check form-switch p-2.5 rounded-3 bg-light border w-100 mt-md-4">
+                            <div class="form-check form-switch p-2.5 rounded-4 bg-white border shadow-xs w-100 mt-md-4">
                                 <input class="form-check-input ms-0 me-2" type="checkbox" id="stock_solo_con_stock" value="1" style="cursor: pointer;">
                                 <label class="form-check-label small fw-semibold text-dark" for="stock_solo_con_stock" style="cursor: pointer;">
                                     Solo con existencia (> 0)
@@ -552,7 +540,6 @@
     </div>
 </div>
 
-<!-- MODAL: VISTA PREVIA RÁPIDA EN PANTALLA -->
 <x-modal
     id="modalVistaPrevia"
     title="Vista Previa del Reporte"
@@ -562,7 +549,6 @@
     headerColor="bg-dark text-white"
     :submitButton="false"
 >
-    <!-- BARRA SUPERIOR DE ACCIONES DIRECTAS EN EL MODAL -->
     <div class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 p-3 bg-white border rounded-4 shadow-xs mb-4">
         <div class="d-flex align-items-center flex-wrap gap-2 flex-grow-1">
             <span class="badge rounded-pill px-3 py-2 fw-bold text-white text-uppercase font-monospace shadow-xs text-nowrap" id="previaBadgeModulo" style="background-color: #0f172a; font-size: 0.74rem; letter-spacing: 0.5px;">
@@ -580,19 +566,15 @@
         </div>
     </div>
 
-    <!-- CONTENEDOR DINÁMICO DE KPIS -->
     <div class="row g-3 mb-4" id="contenedorKpisPrevia">
-        <!-- Inyección dinámica de KPIs -->
     </div>
 
-    <!-- CONTENEDOR DE TABLA DE DETALLE -->
     <div class="card border rounded-4 overflow-hidden bg-white shadow-xs">
         <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
             <span class="fw-bold text-dark fs-6" id="previaTituloTabla"><i class="fas fa-table-list text-primary me-2"></i>Detalle de Registros</span>
             <span class="badge bg-white text-dark border rounded-pill px-3 py-1.5 font-monospace fw-semibold" id="previaConteoRegistros">0 registros</span>
         </div>
         <div class="table-responsive" style="max-height: 440px;" id="contenedorTablaPrevia">
-            <!-- Inyección dinámica de filas -->
         </div>
     </div>
 

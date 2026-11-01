@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class FacturaController extends Controller
@@ -71,10 +72,17 @@ class FacturaController extends Controller
     public function lista(Request $request): JsonResponse
     {
         $empresaId = $this->obtenerEmpresaId();
+        $user = Auth::user();
+        $esAdmin = $user && ($user->hasRole(['SuperAdmin', 'Admin']) || $user->can('ventas.ver_todas'));
+        $vendedorPropio = $user?->vendedor()->where('empresa_id', $empresaId)->first();
 
-        $query = Venta::with(['cliente', 'almacen', 'usuario', 'detalles'])
+        $query = Venta::with(['cliente', 'almacen', 'usuario', 'detalles', 'vendedor', 'caja'])
             ->where('empresa_id', $empresaId)
             ->orderBy('id', 'desc');
+
+        if (! $esAdmin && $vendedorPropio) {
+            $query->where('vendedor_id', $vendedorPropio->id);
+        }
 
         $hoy = Carbon::now()->toDateString();
         $fechaInicio = $request->input('fecha_inicio');
@@ -148,6 +156,9 @@ class FacturaController extends Controller
                 'cliente',
                 'almacen',
                 'usuario',
+                'vendedor',
+                'caja',
+                'cajaTurno',
                 'detalles.producto',
                 'detalles.moto',
                 'detalles.servicio',

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factura Carta (Forma Libre) {{ $venta->codigo }}</title>
+    <style>
+        @page {
+            size: letter portrait;
+            margin: 47mm 11mm 20mm 11mm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        body {
+            background-color: #f1f5f9;
+            color: #0f172a;
+            font-size: 10px;
+            line-height: 1.3;
+        }
+
+        .no-print {
+            max-width: 200mm;
+            margin: 15px auto 8px auto;
+            display: flex;
+            gap: 12px;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-print { background-color: #1e40af; color: #ffffff; }
+        .btn-print:hover { background-color: #1d4ed8; }
+        .btn-ticket { background-color: #059669; color: #ffffff; }
+        .btn-ticket:hover { background-color: #047857; }
+        .btn-close { background-color: #64748b; color: #ffffff; }
+        .btn-close:hover { background-color: #475569; }
+
+        /* CONTENEDOR EN PANTALLA VS IMPRESIÓN */
+        .page-container {
+            max-width: 195mm;
+            margin: 10px auto;
+            background: #ffffff;
+            padding: 10px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .text-center { text-align: center; }
+        .text-end { text-align: right; }
+        .text-start { text-align: left; }
+        .fw-bold { font-weight: bold; }
+        .text-uppercase { text-transform: uppercase; }
+        .font-mono { font-family: 'Courier New', Courier, monospace; }
+        .text-muted { color: #475569; }
+
+        /* SECCIÓN 1: DATOS DEL CLIENTE Y DOCUMENTO */
+        .meta-section {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 6px 10px;
+            margin-bottom: 8px;
+            background-color: transparent;
+        }
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3px;
+            font-size: 10px;
+        }
+        .meta-row:last-child {
+            margin-bottom: 0;
+        }
+        .meta-label {
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .meta-val {
+            color: #0f172a;
+        }
+
+        /* SECCIÓN 2: TABLA DE DETALLES */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+        }
+        .items-table th {
+            border-top: 1.5px solid #0f172a;
+            border-bottom: 1.5px solid #0f172a;
+            padding: 5px 6px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #0f172a;
+        }
+        .items-table td {
+            padding: 4px 6px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+            font-size: 10px;
+        }
+        .item-spec-box {
+            font-size: 9px;
+            color: #1e293b;
+            margin-top: 2px;
+            line-height: 1.25;
+            background: #ffffff;
+            padding: 2px 6px;
+            border-left: 2px solid #2563eb;
+            border-radius: 2px;
+        }
+
+        /* SECCIÓN 3: DESGLOSE DE TOTALES EN BS */
+        .breakdown-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 12px;
+        }
+        .breakdown-column {
+            width: 48%;
+            border: 1.5px solid #0f172a;
+            border-radius: 6px;
+            padding: 6px 14px;
+            background-color: #ffffff;
+        }
+        .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 1.5px 0;
+            font-size: 10px;
+        }
+        .breakdown-row.highlight {
+            font-weight: 800;
+            font-size: 10.5px;
+            border-top: 1px solid #94a3b8;
+            margin-top: 2px;
+            padding-top: 2px;
+        }
+        .breakdown-row.total-final {
+            font-weight: 900;
+            font-size: 11.5px;
+            color: #0f172a;
+            border-top: 1.5px solid #0f172a;
+            margin-top: 3px;
+            padding-top: 3px;
+        }
+
+        /* SECCIÓN 5: FIRMAS */
+        .signatures-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 24px;
+            margin-bottom: 8px;
+            padding-top: 6px;
+        }
+        .sign-box {
+            width: 38%;
+            text-align: center;
+            border-top: 1px solid #000000;
+            padding-top: 3px;
+            font-size: 9.5px;
+            font-weight: 700;
+        }
+
+        /* SECCIÓN 6: LEYENDA LEGAL SENIAT */
+        .bottom-tax-legend {
+            font-size: 8px;
+            color: #475569;
+            line-height: 1.25;
+            text-align: center;
+            border-top: 1px dashed #e2e8f0;
+            padding-top: 4px;
+        }
+
+        @media print {
+            body {
+                background: #ffffff;
+                padding: 0;
+            }
+            .page-container {
+                max-width: 100%;
+                margin: 0;
+                padding: 0;
+                border: none;
+                box-shadow: none;
+                border-radius: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+@php
+    $montoExentoBs = 0;
+    $baseImponibleBs = 0;
+
+    foreach ($venta->detalles as $det) {
+        $aplicaIva = (bool) $det->aplica_iva;
+        $ivaPct = (float) $det->iva_porcentaje;
+
+        if ($aplicaIva && $ivaPct > 0) {
+            $baseImponibleBs += (float) $det->subtotal_bs;
+        } else {
+            $montoExentoBs += (float) $det->subtotal_bs;
+        }
+    }
+
+    $subtotalBs = (float) $venta->subtotal_neto_bs;
+    $ivaBs = (float) $venta->iva_monto_bs;
+    $totalNetoBs = $subtotalBs + $ivaBs;
+
+    $baseIgtfBs = (float) ($venta->igtf_monto_bs > 0 ? ($venta->igtf_monto_bs / 0.03) : 0);
+    $igtfBs = (float) ($venta->igtf_monto_bs ?? 0);
+    $totalPagarBs = (float) $venta->total_bs;
+
+    $diasCredito = $venta->condicion_pago === 'credito' ? 15 : 0;
+    $fechaEmision = \Carbon\Carbon::parse($venta->fecha_emision);
+    $fechaVencimiento = $fechaEmision->copy()->addDays($diasCredito);
+@endphp
+
+    <!-- BARRA DE ACCIONES SUPERIOR (SOLO PANTALLA) -->
+    <div class="no-print">
+        <div>
+            <span class="fw-bold" style="font-size: 14px; color: #1e293b;">📄 Impresión: Factura Carta (Forma Libre Preimpresa)</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn-action btn-print" onclick="window.print()">
+                🖨️ Imprimir en Forma Libre
+            </button>
+            <a href="{{ route('pos.imprimir_ticket', $venta->id) }}" class="btn-action btn-ticket">
+                🧾 Ver Formato Ticket
+            </a>
+            <button type="button" class="btn-action btn-close" onclick="window.close()">
+                ✖️ Cerrar
+            </button>
+        </div>
+    </div>
+
+    <!-- DOCUMENTO FACTURA CARTA AJUSTADO A LA FORMA LIBRE -->
+    <div class="page-container">
+
+        <!-- 1. DATOS DEL CLIENTE Y CONDICIONES -->
+        <div class="meta-section">
+            <div class="meta-row">
+                <div>
+                    <span class="meta-label">Condición de Pago:</span>
+                    <span class="meta-val fw-bold text-uppercase">{{ $venta->condicion_pago === 'credito' ? 'CRÉDITO' : 'CONTADO' }}</span>
+                </div>
+                <div>
+                    <span class="meta-label">Emisión:</span>
+                    <span class="meta-val font-mono fw-bold">{{ $fechaEmision->format('d-m-Y') }} {{ $venta->hora_emision }}</span>
+                </div>
+                <div>
+                    <span class="meta-label">Vencimiento:</span>
+                    <span class="meta-val font-mono fw-bold">{{ $fechaVencimiento->format('d-m-Y') }}</span>
+                </div>
+            </div>
+
+            <div class="meta-row" style="border-top: 1px dashed #cbd5e1; padding-top: 3px; margin-top: 3px;">
+                <div style="width: 70%;">
+                    <span class="meta-label">Nombre(s) y Apellido(s) o Razón Social:</span>
+                    <span class="meta-val fw-bold text-uppercase">{{ $venta->cliente->nombre_completo }}</span>
+                </div>
+                <div style="width: 30%; text-align: right;">
+                    <span class="meta-label">CI / RIF:</span>
+                    <span class="meta-val font-mono fw-bold">{{ $venta->cliente->cedula ?? '--' }}</span>
+                </div>
+            </div>
+
+            <div class="meta-row">
+                <div style="width: 100%;">
+                    <span class="meta-label">Domicilio Fiscal:</span>
+                    <span class="meta-val">{{ $venta->cliente->direccion ?? 'Ciudad' }}</span>
+                </div>
+            </div>
+
+            <div class="meta-row" style="border-top: 1px dashed #cbd5e1; padding-top: 3px; margin-top: 3px;">
+                <div>
+                    <span class="meta-label">Teléfonos:</span>
+                    <span class="meta-val font-mono">{{ $venta->cliente->telefono ?? '0000-0000000' }}</span>
+                </div>
+                <div>
+                    <span class="meta-label">Correo Electrónico:</span>
+                    <span class="meta-val">{{ $venta->cliente->correo ?? 'cliente@pos.com' }}</span>
+                </div>
+                <div>
+                    <span class="meta-label">ASESOR:</span>
+                    <span class="meta-val fw-bold text-uppercase">{{ $venta->usuario?->name ?? 'CAJERO PRINCIPAL' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. TABLA DE RENGLONES -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 14%;" class="text-start">CÓDIGO</th>
+                    <th style="width: 48%;" class="text-start">DESCRIPCIÓN</th>
+                    <th style="width: 10%;" class="text-center">CANT.</th>
+                    <th style="width: 14%;" class="text-end">P. UNITARIO (BS)</th>
+                    <th style="width: 14%;" class="text-end">TOTAL (BS)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($venta->detalles as $idx => $det)
+                    @php
+                        $nombreItem = $det->nombre_item ?? $det->producto?->nombre ?? ($det->moto ? "{$det->moto->marca} {$det->moto->modelo}" : null) ?? $det->servicio?->nombre ?? 'Artículo';
+                        $codigoItem = $det->serial_identificador ?? $det->producto?->codigo_interno ?? $det->moto?->numero_niv ?? $det->servicio?->codigo ?? str_pad($idx + 1, 2, '0', STR_PAD_LEFT);
+                        $cant = (float) $det->cantidad;
+                        $precioUnitBs = (float) $det->precio_unitario_bs;
+                        $totalRenglonBs = (float) $det->subtotal_bs;
+                    @endphp
+                    <tr>
+                        <td class="font-mono">{{ $codigoItem }}</td>
+                        <td>
+                            <strong class="text-uppercase">{{ $nombreItem }}</strong>
+                            @if($det->tipo_item !== 'moto')
+                                @if(!$det->aplica_iva || (float)$det->iva_porcentaje == 0)
+                                    <span style="font-size: 8.5px; color: #475569; font-weight: bold;">(EXENTO)</span>
+                                @endif
+                            @endif
+
+                            @if($det->tipo_item === 'moto' && $det->moto)
+                                <div class="item-spec-box font-mono">
+                                    Marca: <strong>{{ $det->moto->marca }}</strong> • Modelo: <strong>{{ $det->moto->modelo }}</strong>
+                                    @if($det->moto->placa) • Placa: <strong>{{ $det->moto->placa }}</strong> @endif
+                                    • Serial N.I.V.: <strong>{{ $det->serial_identificador ?? $det->moto->numero_niv }}</strong>
+                                    <br>
+                                    @if($det->moto->numero_motor) Motor: <strong>{{ $det->moto->numero_motor }}</strong> • @endif
+                                    @if($det->moto->numero_chasis) Chasis: <strong>{{ $det->moto->numero_chasis }}</strong> • @endif
+                                    Tipo: <strong>MOTOCICLETA</strong>
+                                    <br>
+                                    @if($det->moto->anio) Año: <strong>{{ $det->moto->anio }}</strong> • @endif
+                                    @if($det->moto->color) Color: <strong>{{ $det->moto->color }}</strong> • @endif
+                                    @if($det->moto->cilindrada) Cilindrada: <strong>{{ $det->moto->cilindrada }} cc</strong> • @endif
+                                    @if($det->moto->certificado_origen) Cert. Origen: <strong>{{ $det->moto->certificado_origen }}</strong> @endif
+                                </div>
+                            @elseif($det->variante_texto || $det->producto_serial_id || $det->productoSerial)
+                                <div class="item-spec-box font-mono" style="border-left-color: #6366f1;">
+                                    @if($det->variante_texto)
+                                        Variante / Color: <strong>{{ $det->variante_texto }}</strong>
+                                    @endif
+                                    @if($det->producto_serial_id || $det->productoSerial)
+                                        @if($det->variante_texto) • @endif
+                                        Serial: <strong>{{ $det->productoSerial?->numero_serial ?? $det->serial_identificador }}</strong>
+                                    @endif
+                                </div>
+                            @endif
+                        </td>
+                        <td class="text-center font-mono fw-bold">{{ number_format($cant, 2, ',', '.') }}</td>
+                        <td class="text-end font-mono">{{ number_format($precioUnitBs, 2, ',', '.') }}</td>
+                        <td class="text-end font-mono fw-bold">{{ number_format($totalRenglonBs, 2, ',', '.') }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+        <!-- 3. DESGLOSE DE TOTALES EN BS -->
+        <div class="breakdown-container">
+            <div class="breakdown-column font-mono">
+                <div class="breakdown-row">
+                    <span>Subtotal BS:</span>
+                    <span>{{ number_format($subtotalBs, 2, ',', '.') }}</span>
+                </div>
+                <div class="breakdown-row">
+                    <span>Monto Exento BS:</span>
+                    <span>{{ number_format($montoExentoBs, 2, ',', '.') }}</span>
+                </div>
+                <div class="breakdown-row">
+                    <span>Base Imponible IVA (16,00%) BS:</span>
+                    <span>{{ number_format($baseImponibleBs, 2, ',', '.') }}</span>
+                </div>
+                <div class="breakdown-row">
+                    <span>IVA 16,00% BS:</span>
+                    <span>{{ number_format($ivaBs, 2, ',', '.') }}</span>
+                </div>
+
+                <div class="breakdown-row highlight">
+                    <span>Total Neto Factura BS:</span>
+                    <span>{{ number_format($totalNetoBs, 2, ',', '.') }}</span>
+                </div>
+
+                <div class="breakdown-row">
+                    <span>Base Imponible IGTF (3%) BS:</span>
+                    <span>{{ number_format($baseIgtfBs, 2, ',', '.') }}</span>
+                </div>
+                <div class="breakdown-row">
+                    <span>IGTF 3% BS:</span>
+                    <span>{{ number_format($igtfBs, 2, ',', '.') }}</span>
+                </div>
+
+                <div class="breakdown-row total-final">
+                    <span>Monto Total a Pagar BS:</span>
+                    <span>Bs. {{ number_format($totalPagarBs, 2, ',', '.') }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. FIRMAS -->
+        <div class="signatures-container">
+            <div class="sign-box">
+                Por la Empresa
+            </div>
+            <div class="sign-box">
+                Cliente
+            </div>
+        </div>
+
+        <!-- 6. BASE LEGAL SENIAT -->
+        <div class="bottom-tax-legend">
+            A los efectos previstos en el art.13 de la PA-0071 Nro. SNAT\2011\0071 se expresan los montos de la factura en Bs. Considerando el tipo de cambio establecido por el BCV de Bs/US$ segun Res.#19-05-01 (GAC.OFIC.NRO.41.624 02-05-2019)
+        </div>
+
+    </div>
+
+</body>
+</html>

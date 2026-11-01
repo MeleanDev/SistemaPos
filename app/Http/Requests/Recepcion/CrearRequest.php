@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Recepcion;
 
 use App\Http\Requests\BaseRequest;
+use Illuminate\Validation\Rule;
 
 class CrearRequest extends BaseRequest
 {
@@ -12,8 +13,16 @@ class CrearRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'almacen_id' => ['required', 'integer', 'exists:almacenes,id'],
-            'proveedor_id' => ['required', 'integer', 'exists:proveedores,id'],
+            'almacen_id' => [
+                'required',
+                'integer',
+                Rule::exists('almacenes', 'id')->where(fn ($q) => $q->where('empresa_id', $this->empresaId())->where('estado', true)),
+            ],
+            'proveedor_id' => [
+                'required',
+                'integer',
+                Rule::exists('proveedores', 'id')->where(fn ($q) => $q->where('empresa_id', $this->empresaId())->where('estado', true)),
+            ],
             'tipo_documento' => ['required', 'string', 'in:factura,nota_entrega,guia_despacho,orden_compra'],
             'numero_documento' => ['required', 'string', 'max:100'],
             'numero_control' => ['nullable', 'string', 'max:100'],
@@ -29,8 +38,16 @@ class CrearRequest extends BaseRequest
             'descuento_global_porcentaje' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'observaciones' => ['nullable', 'string', 'max:1000'],
             'detalles' => ['required', 'array', 'min:1'],
-            'detalles.*.producto_id' => ['required', 'integer', 'exists:productos,id'],
-            'detalles.*.almacen_id' => ['nullable', 'integer', 'exists:almacenes,id'],
+            'detalles.*.producto_id' => [
+                'required',
+                'integer',
+                Rule::exists('productos', 'id')->where(fn ($q) => $q->where('empresa_id', $this->empresaId())->where('estado', true)),
+            ],
+            'detalles.*.almacen_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('almacenes', 'id')->where(fn ($q) => $q->where('empresa_id', $this->empresaId())->where('estado', true)),
+            ],
             'detalles.*.cantidad' => ['required', 'numeric', 'min:0.001'],
             'detalles.*.bultos' => ['nullable', 'numeric', 'min:0'],
             'detalles.*.unidades_por_bulto' => ['nullable', 'numeric', 'min:0'],

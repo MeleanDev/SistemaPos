@@ -290,3 +290,26 @@ test('usuarios lista with draw parameter returns datatables structure', function
         ->and($response->json('recordsTotal'))->toBeGreaterThanOrEqual(1)
         ->and($response->json('data'))->toBeArray();
 });
+
+test('index view requires usuarios.ver permission and renders correctly', function () {
+    $response = $this->actingAs($this->superAdmin)->get('/usuarios');
+
+    $response->assertOk();
+    $response->assertViewIs('Sistema.pages.administradores.usuario');
+});
+
+test('operator without usuarios.ver cannot access index view', function () {
+    $operador = User::create([
+        'name' => 'V-99990001',
+        'nombre' => 'Operador',
+        'apellido' => 'SinVer',
+        'email' => 'sinver@empresa.com',
+        'password' => bcrypt('password123'),
+        'estado' => true,
+    ]);
+    $operador->assignRole('Operador');
+
+    $response = $this->actingAs($operador)->get('/usuarios');
+
+    $response->assertForbidden();
+});

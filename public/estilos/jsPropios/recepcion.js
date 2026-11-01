@@ -1,11 +1,11 @@
 const urlBase = window.location.origin + window.location.pathname.replace(/\/$/, "");
-const urlLista = urlBase + "/lista";
-const urlCatalogos = urlBase + "/catalogos";
-const urlBorradores = urlBase + "/borradores";
-const urlDetalles = urlBase + "/";
+const urlLista = `${urlBase}/lista`;
+const urlCatalogos = `${urlBase}/catalogos`;
+const urlBorradores = `${urlBase}/borradores`;
+const urlDetalles = `${urlBase}/`;
 const urlGuardar = urlBase;
-const urlGuardarProveedor = window.location.origin + "/proveedores";
-const urlGuardarProducto = window.location.origin + "/productos";
+const urlGuardarProveedor = `${window.location.origin}/proveedores`;
+const urlGuardarProducto = `${window.location.origin}/productos`;
 
 let tasaUsdActual = 1.0000;
 let tasaCompraActual = 1.0000;
@@ -31,15 +31,15 @@ let productoSeleccionadoActual = null;
 let indiceEdicionActual = null;
 let serialesRenglonActual = [];
 
-function formatearMonto(monto, decimales = 2) {
+const formatearMonto = function (monto, decimales = 2) {
     const num = parseFloat(monto) || 0;
     return num.toLocaleString("es-VE", {
         minimumFractionDigits: decimales,
         maximumFractionDigits: decimales,
     });
-}
+};
 
-function normalizarNumero(val) {
+const normalizarNumero = function (val) {
     if (typeof val === "number") return val;
     if (!val) return 0;
     const str = String(val).trim().replace(/\s/g, "");
@@ -50,9 +50,9 @@ function normalizarNumero(val) {
         return parseFloat(str.replace(",", ".")) || 0;
     }
     return parseFloat(str) || 0;
-}
+};
 
-function formatearFecha(fechaStr) {
+const formatearFecha = function (fechaStr) {
     if (!fechaStr) return "";
     try {
         const str = String(fechaStr).trim();
@@ -72,7 +72,7 @@ function formatearFecha(fechaStr) {
     } catch (e) {
         return String(fechaStr);
     }
-}
+};
 
 $(document).ready(function () {
     crearSelect2({
@@ -275,7 +275,7 @@ $(document).ready(function () {
     });
 });
 
-function agregarSerialIndividual(serialDirecto = null) {
+const agregarSerialIndividual = function (serialDirecto = null) {
     const $input = $("#input_serial_individual");
     let serial = serialDirecto !== null ? String(serialDirecto).trim() : $input.val().trim();
     if (!serial) return;
@@ -310,22 +310,22 @@ function agregarSerialIndividual(serialDirecto = null) {
     if (serialDirecto === null) {
         $input.val("").focus();
     }
-}
+};
 
-function eliminarSerialIndividual(idx) {
+const eliminarSerialIndividual = function (idx) {
     if (idx >= 0 && idx < serialesRenglonActual.length) {
         serialesRenglonActual.splice(idx, 1);
         actualizarVistaSerialesRenglon();
     }
-}
+};
 
-function limpiarSerialesRenglon() {
+const limpiarSerialesRenglon = function () {
     serialesRenglonActual = [];
     actualizarVistaSerialesRenglon();
     $("#input_serial_individual").val("");
-}
+};
 
-function autoGenerarSerialesRenglon() {
+const autoGenerarSerialesRenglon = function () {
     const cantidadRequerida = normalizarNumero($("#form_renglon_cantidad").val()) || 1;
     const faltantes = cantidadRequerida - serialesRenglonActual.length;
     if (faltantes <= 0) {
@@ -349,9 +349,9 @@ function autoGenerarSerialesRenglon() {
     }
 
     actualizarVistaSerialesRenglon();
-}
+};
 
-function actualizarVistaSerialesRenglon() {
+const actualizarVistaSerialesRenglon = function () {
     const $contenedor = $("#contenedorChipsSeriales");
     const $placeholder = $("#placeholderSinSeriales");
     const $contador = $("#contadorSerialesIngresados");
@@ -386,21 +386,15 @@ function actualizarVistaSerialesRenglon() {
 
     const faltantes = Math.max(0, cantidadRequerida - totalActual);
     if (cantidadRequerida > 0 && totalActual === cantidadRequerida) {
-        $badgeProgreso.removeClass("bg-light text-dark bg-warning-subtle text-warning-emphasis").addClass("bg-success-subtle text-success border-success-subtle").text("✓ Completo");
+        $badgeProgreso.removeClass("bg-white text-dark bg-warning-subtle text-warning-emphasis").addClass("bg-success-subtle text-success border-success-subtle").text("✓ Completo");
     } else if (faltantes > 0) {
-        $badgeProgreso.removeClass("bg-light text-dark bg-success-subtle text-success").addClass("bg-warning-subtle text-warning-emphasis border-warning-subtle").text(`Faltan: ${faltantes}`);
+        $badgeProgreso.removeClass("bg-white text-dark bg-success-subtle text-success").addClass("bg-warning-subtle text-warning-emphasis border-warning-subtle").text(`Faltan: ${faltantes}`);
     } else {
-        $badgeProgreso.removeClass("bg-success-subtle text-success bg-warning-subtle text-warning-emphasis").addClass("bg-light text-dark").text(`Pendientes: 0`);
+        $badgeProgreso.removeClass("bg-success-subtle text-success bg-warning-subtle text-warning-emphasis").addClass("bg-white text-dark border shadow-xs").text(`Pendientes: 0`);
     }
-}
+};
 
-window.agregarSerialIndividual = agregarSerialIndividual;
-window.eliminarSerialIndividual = eliminarSerialIndividual;
-window.limpiarSerialesRenglon = limpiarSerialesRenglon;
-window.autoGenerarSerialesRenglon = autoGenerarSerialesRenglon;
-window.actualizarVistaSerialesRenglon = actualizarVistaSerialesRenglon;
-
-async function cargarCatalogos() {
+const cargarCatalogos = async function () {
     try {
         const res = await peticionAjax({
             url: urlCatalogos,
@@ -430,7 +424,7 @@ async function cargarCatalogos() {
     }
 }
 
-function actualizarTasasDesdeInput() {
+const actualizarTasasDesdeInput = function () {
     const tCompra = normalizarNumero($("#tasa_compra").val());
     const tVenta = normalizarNumero($("#tasa_venta").val());
 
@@ -450,18 +444,18 @@ function actualizarTasasDesdeInput() {
     renderizarTablaDetalles();
     recalcularTotalesGenerales();
     dispararAutoGuardado();
-}
+};
 
-function restablecerTasaOficial(tipo) {
+const restablecerTasaOficial = function (tipo) {
     if (tipo === "compra") {
         $("#tasa_compra").val(tasaUsdActual.toFixed(4));
     } else if (tipo === "venta") {
         $("#tasa_venta").val(tasaUsdActual.toFixed(4));
     }
     actualizarTasasDesdeInput();
-}
+};
 
-function poblarSelectProveedores() {
+const poblarSelectProveedores = function () {
     const $select = $("#proveedor_id");
     const valorSeleccionado = $select.val();
     $select.empty().append('<option value="">Seleccione un proveedor...</option>');
@@ -477,9 +471,9 @@ function poblarSelectProveedores() {
     } else {
         $select.trigger("change.select2");
     }
-}
+};
 
-function poblarSelectAlmacenes() {
+const poblarSelectAlmacenes = function () {
     const $select = $("#almacen_id");
     $select.empty().append('<option value="">Seleccione almacén...</option>');
 
@@ -488,9 +482,9 @@ function poblarSelectAlmacenes() {
             $select.append(`<option value="${a.id}">[${a.codigo}] ${a.nombre}</option>`);
         });
     }
-}
+};
 
-function poblarSelectCategoriasRapido() {
+const poblarSelectCategoriasRapido = function () {
     const $select = $("#rapido_prod_categoria_id");
     $select.empty().append('<option value="">Seleccione categoría...</option>');
 
@@ -499,9 +493,9 @@ function poblarSelectCategoriasRapido() {
             $select.append(`<option value="${c.id}">${c.nombre}</option>`);
         });
     }
-}
+};
 
-function cambiarAlmacenPredeterminado() {
+const cambiarAlmacenPredeterminado = function () {
     const almacenGlobalId = $("#almacen_id").val();
     if (almacenGlobalId) {
         $(".select-almacen-fila").each(function () {
@@ -510,9 +504,9 @@ function cambiarAlmacenPredeterminado() {
             }
         });
     }
-}
+};
 
-function seleccionarMonedaDocumento(moneda) {
+const seleccionarMonedaDocumento = function (moneda) {
     const totalFilas = $("#contenedorFilasRecepcion tr.fila-producto-recepcion").length;
     if (totalFilas > 0 && moneda !== monedaDocumentoActual) {
         if (window.Swal) {
@@ -542,9 +536,9 @@ function seleccionarMonedaDocumento(moneda) {
     }
 
     aplicarCambioMoneda(moneda);
-}
+};
 
-function aplicarCambioMoneda(moneda) {
+const aplicarCambioMoneda = function (moneda) {
     monedaDocumentoActual = moneda;
     $("#moneda_documento").val(moneda);
 
@@ -562,9 +556,9 @@ function aplicarCambioMoneda(moneda) {
 
     recalcularTotalesGenerales();
     dispararAutoGuardado();
-}
+};
 
-function avanzarAFase2() {
+const avanzarAFase2 = function () {
     let errores = [];
 
     const numDoc = ($("#numero_documento").val() || "").trim();
@@ -650,9 +644,9 @@ function avanzarAFase2() {
     }, 200);
 
     return true;
-}
+};
 
-function volverAFase1() {
+const volverAFase1 = function () {
     $("#seccionFase2").hide();
     $("#seccionFase1").fadeIn(200);
 
@@ -662,9 +656,9 @@ function volverAFase1() {
     $("#btnAvanzarFase2Footer").show();
     $("#btnVolverFase1Footer").hide();
     $("#btnGuardarRecepcion").hide();
-}
+};
 
-function toggleCondicionPago() {
+const toggleCondicionPago = function () {
     const condicion = $("#condicion_pago").val();
     if (condicion === "credito") {
         $("#contenedorDiasCredito").slideDown(150);
@@ -672,16 +666,16 @@ function toggleCondicionPago() {
     } else {
         $("#contenedorDiasCredito").slideUp(150);
     }
-}
+};
 
-function calcularFechaVencimiento() {
+const calcularFechaVencimiento = function () {
     const fechaEmision = $("#fecha_emision").val();
     const dias = parseInt($("#dias_credito").val()) || 0;
     const res = window.CalculosCompra.calcularFechaVencimientoCredito(fechaEmision, dias);
     $("#labelFechaVencimiento").text(`Vence: ${res.fechaFormateada}`);
-}
+};
 
-function configurarBuscadorProductos() {
+const configurarBuscadorProductos = function () {
     const $input = $("#inputEscaneoProducto");
     const $resultados = $("#resultadosBusqueda");
 
@@ -787,7 +781,7 @@ function configurarBuscadorProductos() {
     });
 }
 
-function renderizarResultadosBusqueda(productos, query = "") {
+const renderizarResultadosBusqueda = function (productos, query = "") {
     const $resultados = $("#resultadosBusqueda");
     $resultados.empty();
 
@@ -823,7 +817,7 @@ function renderizarResultadosBusqueda(productos, query = "") {
                     <div>
                         <div class="d-flex align-items-center gap-2 mb-1">
                             <span class="fw-bold text-dark" style="font-size: 0.92rem;">${p.nombre}</span>
-                            <span class="badge rounded-pill bg-light text-secondary border font-monospace px-2 py-0" style="font-size: 0.72rem;">#${p.codigo_interno || ''}</span>
+                            <span class="font-monospace text-secondary" style="font-size: 0.75rem;">#${p.codigo_interno || ''}</span>
                         </div>
                         <div class="d-flex flex-wrap align-items-center gap-2 small font-monospace">
                             <span class="badge rounded-pill px-2 py-1 fw-semibold" style="background-color: #f8fafc; color: #334155; border: 1px solid #e2e8f0;">
@@ -859,7 +853,7 @@ function renderizarResultadosBusqueda(productos, query = "") {
     $resultados.show();
 }
 
-function seleccionarProductoParaCarga(prod, datosPrecargados = null) {
+const seleccionarProductoParaCarga = function (prod, datosPrecargados = null) {
     productoSeleccionadoActual = prod;
     if (datosPrecargados === null) {
         indiceEdicionActual = null;
@@ -1004,7 +998,7 @@ function seleccionarProductoParaCarga(prod, datosPrecargados = null) {
     }, 200);
 }
 
-function actualizarStockAlmacenFormulario() {
+const actualizarStockAlmacenFormulario = function () {
     if (!productoSeleccionadoActual) return;
     const almSelId = parseInt($("#form_renglon_almacen_id").val()) || 0;
 
@@ -1017,9 +1011,9 @@ function actualizarStockAlmacenFormulario() {
     }
 
     $("#form_renglon_stock_actual").text(`${formatearMonto(stockEncontrado, 0)} ${productoSeleccionadoActual.unidad_medida || 'und'}`);
-}
+};
 
-function calcularCantidadDesdeBultos() {
+const calcularCantidadDesdeBultos = function () {
     const bultos = normalizarNumero($("#form_renglon_bultos").val());
     const unidPorBulto = normalizarNumero($("#form_renglon_unid_bulto").val()) || 1;
     const cantidadTotal = bultos * unidPorBulto;
@@ -1036,9 +1030,9 @@ function calcularCantidadDesdeBultos() {
     calcularPrecioDetalDesdeMargen();
     calcularPrecioMayoristaDesdeMargen();
     recalcularFormularioRenglon();
-}
+};
 
-function calcularCostoDesdeBulto() {
+const calcularCostoDesdeBulto = function () {
     const costoTotal = normalizarNumero($("#form_renglon_costo_bulto").val());
     const bultos = normalizarNumero($("#form_renglon_bultos").val());
     const unidPorBulto = normalizarNumero($("#form_renglon_unid_bulto").val()) || 1;
@@ -1057,15 +1051,15 @@ function calcularCostoDesdeBulto() {
     calcularPrecioDetalDesdeMargen();
     calcularPrecioMayoristaDesdeMargen();
     recalcularFormularioRenglon();
-}
+};
 
-function actualizarCostoUnitarioManual() {
+const actualizarCostoUnitarioManual = function () {
     calcularPrecioDetalDesdeMargen();
     calcularPrecioMayoristaDesdeMargen();
     recalcularFormularioRenglon();
-}
+};
 
-function calcularPrecioDetalDesdeMargen() {
+const calcularPrecioDetalDesdeMargen = function () {
     const ivaPorcentaje = normalizarNumero($("#form_renglon_iva").val());
     const res = window.CalculosCompra.calcularPreciosDesdeMargen({
         costo: $("#form_renglon_costo_unitario").val(),
@@ -1094,7 +1088,7 @@ function calcularPrecioDetalDesdeMargen() {
     }
 }
 
-function calcularMargenDetalDesdePrecio() {
+const calcularMargenDetalDesdePrecio = function () {
     const ivaPorcentaje = normalizarNumero($("#form_renglon_iva").val());
     const res = window.CalculosCompra.calcularMargenDesdePrecio({
         costo: $("#form_renglon_costo_unitario").val(),
@@ -1117,9 +1111,9 @@ function calcularMargenDetalDesdePrecio() {
         $("#form_renglon_detal_sin_iva").text("$ 0,00 | Bs. 0,00");
     }
     recalcularFormularioRenglon();
-}
+};
 
-function calcularPrecioMayoristaDesdeMargen() {
+const calcularPrecioMayoristaDesdeMargen = function () {
     const ivaPorcentaje = normalizarNumero($("#form_renglon_iva").val());
     const res = window.CalculosCompra.calcularPreciosDesdeMargen({
         costo: $("#form_renglon_costo_unitario").val(),
@@ -1146,9 +1140,9 @@ function calcularPrecioMayoristaDesdeMargen() {
         $("#form_renglon_mayorista_con_iva_badge").text("$ 0,00 | Bs. 0,00");
         $("#form_renglon_mayorista_sin_iva").text("$ 0,00 | Bs. 0,00");
     }
-}
+};
 
-function calcularMargenMayoristaDesdePrecio() {
+const calcularMargenMayoristaDesdePrecio = function () {
     const ivaPorcentaje = normalizarNumero($("#form_renglon_iva").val());
     const res = window.CalculosCompra.calcularMargenDesdePrecio({
         costo: $("#form_renglon_costo_unitario").val(),
@@ -1171,9 +1165,9 @@ function calcularMargenMayoristaDesdePrecio() {
         $("#form_renglon_mayorista_sin_iva").text("$ 0,00 | Bs. 0,00");
     }
     recalcularFormularioRenglon();
-}
+};
 
-function recalcularFormularioRenglon() {
+const recalcularFormularioRenglon = function () {
     const esVes = monedaDocumentoActual === "VES";
     const cantidad = normalizarNumero($("#form_renglon_cantidad").val());
     const costoInput = normalizarNumero($("#form_renglon_costo_unitario").val());
@@ -1225,9 +1219,9 @@ function recalcularFormularioRenglon() {
         $("#form_renglon_subtotal_usd").text(`Bs. ${formatearMonto(subtotalNetoBs, 4)}`);
         $("#form_renglon_subtotal_bs").text(`$ ${formatearMonto(subtotalNetoUsd, 4)}`);
     }
-}
+};
 
-function agregarOActualizarRenglon() {
+const agregarOActualizarRenglon = function () {
     if (!productoSeleccionadoActual) {
         if (window.notificacion) {
             window.notificacion.fire({
@@ -1509,7 +1503,7 @@ function agregarOActualizarRenglon() {
     $("#inputEscaneoProducto").focus();
 }
 
-function editarRenglon(indice) {
+const editarRenglon = function (indice) {
     if (indice < 0 || indice >= listaProductosCargados.length) return;
     const item = listaProductosCargados[indice];
 
@@ -1526,9 +1520,9 @@ function editarRenglon(indice) {
         },
         200
     );
-}
+};
 
-function eliminarRenglon(indice) {
+const eliminarRenglon = function (indice) {
     if (indice < 0 || indice >= listaProductosCargados.length) return;
     listaProductosCargados.splice(indice, 1);
 
@@ -1539,9 +1533,9 @@ function eliminarRenglon(indice) {
     renderizarTablaDetalles();
     recalcularTotalesGenerales();
     dispararAutoGuardado();
-}
+};
 
-function cancelarEdicionRenglon() {
+const cancelarEdicionRenglon = function () {
     productoSeleccionadoActual = null;
     indiceEdicionActual = null;
     serialesRenglonActual = [];
@@ -1559,17 +1553,17 @@ function cancelarEdicionRenglon() {
     $("#form_renglon_mayorista_con_iva_badge").text("$ 0,00 | Bs. 0,00");
     $("#form_renglon_mayorista_sin_iva").text("$ 0,00 | Bs. 0,00");
     $("#inputEscaneoProducto").val("").focus();
-}
+};
 
-function limpiarTablaProductos() {
+const limpiarTablaProductos = function () {
     listaProductosCargados = [];
     cancelarEdicionRenglon();
     renderizarTablaDetalles();
     recalcularTotalesGenerales();
     dispararAutoGuardado();
-}
+};
 
-function renderizarTablaDetalles() {
+const renderizarTablaDetalles = function () {
     const $tbody = $("#contenedorFilasRecepcion");
     const $hiddenContainer = $("#contenedorInputsHiddenDetalles");
     const esVes = monedaDocumentoActual === "VES";
@@ -1627,7 +1621,7 @@ function renderizarTablaDetalles() {
                 <td>
                     <strong class="text-dark d-block text-capitalize" style="font-size: 0.88rem;">${prod.nombre}</strong>
                     <div class="d-flex align-items-center gap-1 small text-muted font-monospace" style="font-size: 0.72rem;">
-                        <span class="badge rounded-pill bg-light text-secondary border px-1 py-0">#${prod.codigo_interno || ''}</span>
+                        <span class="font-monospace text-secondary" style="font-size: 0.72rem;">#${prod.codigo_interno || ''}</span>
                         <span>•</span>
                         <span>${prod.unidad_medida || 'UND'}</span>
                     </div>
@@ -1655,7 +1649,7 @@ function renderizarTablaDetalles() {
                     ${item.descuento_porcentaje > 0 ? `<span class="badge rounded-pill bg-danger-subtle text-danger px-2 py-1 fw-bold">-${formatearMonto(item.descuento_porcentaje, 0)}%</span>` : '<span class="text-muted">0%</span>'}
                 </td>
                 <td class="text-center font-monospace small">
-                    <span class="badge rounded-pill bg-light text-secondary border px-2 py-1 fw-semibold">
+                    <span class="badge rounded-pill bg-secondary-subtle text-secondary border-0 px-2 py-1 fw-semibold">
                         ${item.iva_porcentaje > 0 ? `IVA ${formatearMonto(item.iva_porcentaje, 0)}%` : 'Exento'}
                     </span>
                 </td>
@@ -1719,9 +1713,9 @@ function renderizarTablaDetalles() {
         `;
         $hiddenContainer.append(hiddenHtml);
     });
-}
+};
 
-function recalcularTotalesGenerales() {
+const recalcularTotalesGenerales = function () {
     let totalUnidades = 0;
     let baseImponibleUsd = 0;
     let exentoUsd = 0;
@@ -1775,9 +1769,9 @@ function recalcularTotalesGenerales() {
     $("#resumenIvaUsd").text(`$ ${formatearMonto(totalIvaUsd, 2)} | Bs. ${formatearMonto(ivaBs, 2)}`);
     $("#resumenTotalGeneralUsd").text(`$ ${formatearMonto(totalGeneralUsd, 2)}`);
     $("#resumenTotalGeneralBs").text(`Bs. ${formatearMonto(totalGeneralBs, 2)}`);
-}
+};
 
-function crear(verificarBorrador = true) {
+const resetearFormularioRecepcion = function () {
     borradorActualId = null;
     $("#borrador_id").val("");
     $("#formularioRecepcion")[0].reset();
@@ -1805,6 +1799,10 @@ function crear(verificarBorrador = true) {
     $("#badgeTasaCompraFase2").text(formatearMonto(tasaCompraActual, 4));
     $("#badgeTasaVentaFase2").text(formatearMonto(tasaVentaActual, 4));
     $("#badgeCodigoRecepcion").html(`<i class="fas fa-hashtag me-1"></i>${catalogosSistema.proximo_codigo || "REC-00001"}`);
+};
+
+const crear = function (verificarBorrador = true) {
+    resetearFormularioRecepcion();
 
     if (verificarBorrador) {
         verificarBorradorPendiente();
@@ -1818,9 +1816,9 @@ function crear(verificarBorrador = true) {
     setTimeout(() => {
         $("#numero_documento").focus();
     }, 400);
-}
+};
 
-async function guardarRecepcion() {
+const guardarRecepcion = async function () {
     const $form = $("#formularioRecepcion");
     const $btn = $("#btnGuardarRecepcion");
     const textoOriginal = $btn.html();
@@ -1851,11 +1849,10 @@ async function guardarRecepcion() {
     $form.find(".invalid-feedback").remove();
 
     try {
-        const res = await $.ajax({
+        const res = await peticionAjax({
             url: urlGuardar,
-            type: "POST",
+            method: "POST",
             data: $form.serialize(),
-            dataType: "json",
         });
 
         if (res.success) {
@@ -1877,11 +1874,7 @@ async function guardarRecepcion() {
             if (modal) modal.hide();
 
             cargarCatalogos();
-            if (window.LaravelDataTables && window.LaravelDataTables["datatable_recepciones"]) {
-                window.LaravelDataTables["datatable_recepciones"].ajax.reload(null, false);
-            } else if ($.fn.DataTable.isDataTable("#datatable_recepciones")) {
-                $("#datatable_recepciones").DataTable().ajax.reload(null, false);
-            }
+            recargarDataTable("#datatable_recepciones", false);
 
             if (window.notificacion) {
                 window.notificacion.fire({
@@ -1924,7 +1917,7 @@ async function guardarRecepcion() {
     }
 }
 
-function dispararAutoGuardado() {
+const dispararAutoGuardado = function () {
     clearTimeout(autoSaveTimeout);
     autoSaveTimeout = setTimeout(() => {
         const estado = obtenerEstadoActualFormulario();
@@ -1932,9 +1925,9 @@ function dispararAutoGuardado() {
             localStorage.setItem("draft_recepcion_producto", JSON.stringify(estado));
         }
     }, 500);
-}
+};
 
-function obtenerEstadoActualFormulario() {
+const obtenerEstadoActualFormulario = function () {
     const provId = $("#proveedor_id").val();
     const numDoc = ($("#numero_documento").val() || "").trim();
     const almId = $("#almacen_id").val();
@@ -2000,7 +1993,7 @@ function obtenerEstadoActualFormulario() {
     };
 }
 
-function restaurarEstado(datos) {
+const restaurarEstado = function (datos) {
     if (!datos) return;
 
     $("#borrador_id").val(datos.borrador_id || "");
@@ -2087,7 +2080,7 @@ function restaurarEstado(datos) {
     }
 }
 
-async function guardarBorradorEnServidor() {
+const guardarBorradorEnServidor = async function () {
     const estado = obtenerEstadoActualFormulario();
     if (!estado) {
         if (window.notificacion) {
@@ -2161,7 +2154,7 @@ async function guardarBorradorEnServidor() {
     }
 }
 
-async function abrirModalBorradores() {
+const abrirModalBorradores = async function () {
     bootstrap.Modal.getOrCreateInstance(
         document.getElementById("modalBorradoresRecepcion")
     ).show();
@@ -2241,7 +2234,7 @@ async function abrirModalBorradores() {
     }
 }
 
-async function cargarBorradorServidor(id) {
+const cargarBorradorServidor = async function (id) {
     try {
         Swal.fire({
             title: "Cargando borrador...",
@@ -2278,7 +2271,7 @@ async function cargarBorradorServidor(id) {
     }
 }
 
-async function eliminarBorradorServidor(id) {
+const eliminarBorradorServidor = async function (id) {
     const confirm = await Swal.fire({
         title: "¿Eliminar Borrador?",
         text: "Esta acción descartará el borrador guardado en el servidor permanentemente.",
@@ -2317,7 +2310,7 @@ async function eliminarBorradorServidor(id) {
     }
 }
 
-async function actualizarContadorBorradores() {
+const actualizarContadorBorradores = async function () {
     try {
         const res = await peticionAjax({
             url: urlBorradores,
@@ -2327,18 +2320,18 @@ async function actualizarContadorBorradores() {
             actualizarBadgeContador(res.data.length);
         }
     } catch (e) {}
-}
+};
 
-function actualizarBadgeContador(conteo) {
+const actualizarBadgeContador = function (conteo) {
     $("#badgeConteoBorradores").text(conteo);
     if (conteo > 0) {
         $("#btnAbrirBorradores").removeClass("btn-outline-primary").addClass("btn-primary text-white");
     } else {
         $("#btnAbrirBorradores").removeClass("btn-primary text-white").addClass("btn-outline-primary");
     }
-}
+};
 
-function verificarBorradorPendiente() {
+const verificarBorradorPendiente = function () {
     const raw = localStorage.getItem("draft_recepcion_producto");
     if (!raw) {
         $("#alertaBorradorDetectado").hide();
@@ -2357,9 +2350,9 @@ function verificarBorradorPendiente() {
     } catch (e) {
         $("#alertaBorradorDetectado").hide();
     }
-}
+};
 
-function restaurarBorradorDetectado() {
+const restaurarBorradorDetectado = function () {
     const raw = localStorage.getItem("draft_recepcion_producto");
     if (raw) {
         try {
@@ -2375,9 +2368,9 @@ function restaurarBorradorDetectado() {
             }
         } catch (e) {}
     }
-}
+};
 
-function descartarBorradorDetectado() {
+const descartarBorradorDetectado = function () {
     localStorage.removeItem("draft_recepcion_producto");
     $("#alertaBorradorDetectado").slideUp(150);
     if (window.notificacion) {
@@ -2387,9 +2380,9 @@ function descartarBorradorDetectado() {
             text: "El progreso anterior ha sido descartado.",
         });
     }
-}
+};
 
-async function verFicha(id) {
+const verFicha = async function (id) {
     try {
         const res = await consultarRegistro(urlDetalles, id);
         if (!res || !res.data) return;
@@ -2413,7 +2406,7 @@ async function verFicha(id) {
                     <tr>
                         <td>
                             <strong class="text-dark d-block">${prod.nombre || 'N/A'}</strong>
-                            <span class="badge rounded-pill bg-white text-secondary border font-monospace px-1.5 py-0.5" style="font-size: 0.68rem; border-color: #cbd5e1 !important;">#${prod.codigo_interno || ''}</span>
+                            <span class="font-monospace text-secondary" style="font-size: 0.72rem;">#${prod.codigo_interno || ''}</span>
                         </td>
                         <td>
                             <span class="badge rounded-pill px-2 py-1 fw-semibold" style="font-size: 0.72rem; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; white-space: nowrap;">
@@ -2541,13 +2534,13 @@ async function verFicha(id) {
     }
 }
 
-function imprimirRecepcion(id) {
+const imprimirRecepcion = function (id) {
     if (!id) return;
     const printUrl = `${urlBase}/${id}/imprimir`;
     window.open(printUrl, "_blank");
-}
+};
 
-function anularRecepcion(id, codigo) {
+const anularRecepcion = function (id, codigo) {
     if (!window.Swal) return;
 
     Swal.fire({
@@ -2564,14 +2557,13 @@ function anularRecepcion(id, codigo) {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const res = await $.ajax({
+                const res = await peticionAjax({
                     url: `${urlBase}/${id}/anular`,
-                    type: "POST",
+                    method: "POST",
                     data: {
                         _token: $('meta[name="csrf-token"]').attr("content"),
                         motivo: result.value || "Anulación administrativa",
                     },
-                    dataType: "json",
                 });
 
                 if (res.success) {
@@ -2583,11 +2575,7 @@ function anularRecepcion(id, codigo) {
                         });
                     }
 
-                    if (window.LaravelDataTables && window.LaravelDataTables["datatable_recepciones"]) {
-                        window.LaravelDataTables["datatable_recepciones"].ajax.reload(null, false);
-                    } else if ($.fn.DataTable.isDataTable("#datatable_recepciones")) {
-                        $("#datatable_recepciones").DataTable().ajax.reload(null, false);
-                    }
+                    recargarDataTable("#datatable_recepciones", false);
                 }
             } catch (xhr) {
                 if (window.notificacion) {
@@ -2602,14 +2590,14 @@ function anularRecepcion(id, codigo) {
     });
 }
 
-function abrirModalRapidoProveedor() {
+const abrirModalRapidoProveedor = function () {
     $("#formularioRapidoProveedor")[0].reset();
     $("#formularioRapidoProveedor .is-invalid").removeClass("is-invalid");
     $("#formularioRapidoProveedor .invalid-feedback").remove();
 
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRapidoProveedor"));
     modal.show();
-}
+};
 
 $("#formularioRapidoProveedor").on("submit", async function (e) {
     e.preventDefault();
@@ -2623,11 +2611,10 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
     $form.find(".invalid-feedback").remove();
 
     try {
-        const res = await $.ajax({
+        const res = await peticionAjax({
             url: urlGuardarProveedor,
-            type: "POST",
+            method: "POST",
             data: $form.serialize(),
-            dataType: "json",
         });
 
         if (res.success && res.data) {
@@ -2675,16 +2662,16 @@ $("#formularioRapidoProveedor").on("submit", async function (e) {
     }
 });
 
-function toggleIvaRapidoProducto() {
+const toggleIvaRapidoProducto = function () {
     const aplicaIva = $("#rapido_prod_aplica_iva").is(":checked");
     if (aplicaIva) {
         $("#contenedorIvaPorcentajeRapido").slideDown(150);
     } else {
         $("#contenedorIvaPorcentajeRapido").slideUp(150);
     }
-}
+};
 
-function toggleVariantesRapidoProducto() {
+const toggleVariantesRapidoProducto = function () {
     const check = $("#rapido_prod_maneja_variantes").is(":checked");
     if (check) {
         $("#rapido_seccion_variantes").slideDown(150);
@@ -2692,9 +2679,9 @@ function toggleVariantesRapidoProducto() {
     } else {
         $("#rapido_seccion_variantes").slideUp(150);
     }
-}
+};
 
-function agregarOpcionVarianteRapido(opcionDirecta = null) {
+const agregarOpcionVarianteRapido = function (opcionDirecta = null) {
     const $input = $("#rapido_prod_opcion_input");
     let opcion = opcionDirecta !== null ? String(opcionDirecta).trim() : $input.val().trim();
     if (!opcion) return;
@@ -2736,27 +2723,22 @@ function agregarOpcionVarianteRapido(opcionDirecta = null) {
     if (opcionDirecta === null) {
         $input.val("").focus();
     }
-}
+};
 
-function eliminarOpcionVarianteRapido(btn) {
+const eliminarOpcionVarianteRapido = function (btn) {
     $(btn).closest(".chip-rapido-variante-item").remove();
     if ($("#rapido_contenedor_chips_variantes .chip-rapido-variante-item").length === 0) {
         $("#rapido_placeholder_sin_variantes").show();
     }
-}
+};
 
-function limpiarOpcionesVariantesRapido() {
+const limpiarOpcionesVariantesRapido = function () {
     $("#rapido_contenedor_chips_variantes .chip-rapido-variante-item").remove();
     $("#rapido_placeholder_sin_variantes").show();
     $("#rapido_prod_opcion_input").val("");
-}
+};
 
-window.toggleVariantesRapidoProducto = toggleVariantesRapidoProducto;
-window.agregarOpcionVarianteRapido = agregarOpcionVarianteRapido;
-window.eliminarOpcionVarianteRapido = eliminarOpcionVarianteRapido;
-window.limpiarOpcionesVariantesRapido = limpiarOpcionesVariantesRapido;
-
-function abrirModalRapidoProducto(query = "") {
+const abrirModalRapidoProducto = function (query = "") {
     $("#formularioRapidoProducto")[0].reset();
     $("#formularioRapidoProducto .is-invalid").removeClass("is-invalid");
     $("#formularioRapidoProducto .invalid-feedback").remove();
@@ -2860,11 +2842,10 @@ $("#formularioRapidoProducto").on("submit", async function (e) {
     }
 
     try {
-        const res = await $.ajax({
+        const res = await peticionAjax({
             url: urlGuardarProducto,
-            type: "POST",
+            method: "POST",
             data: payload,
-            dataType: "json",
         });
 
         if (res.success && res.data) {
@@ -2941,8 +2922,8 @@ $("#formularioRapidoProducto").on("submit", async function (e) {
     }
 });
 
-function configurarNavegacionTeclado() {
-    function enfocarCampo(selector) {
+const configurarNavegacionTeclado = function () {
+    const enfocarCampo = function (selector) {
         const $el = $(selector);
         if ($el.length && $el.is(":visible")) {
             $el.focus();
@@ -3224,7 +3205,7 @@ function configurarNavegacionTeclado() {
     });
 }
 
-function aplicarRestriccionesInput() {
+const aplicarRestriccionesInput = function () {
     $(document).on("focus", "#panelFormularioRenglon input, #seccionFase1 input, #modalRapidoProducto input, #modalRapidoProveedor input", function () {
         $(this).select();
     });

@@ -1741,7 +1741,7 @@ const verSerialesLote = function (index) {
     let html = `
         <div class="table-responsive">
             <table class="table table-sm table-bordered bg-white align-middle mb-0 font-monospace" style="font-size: 0.8rem;">
-                <thead class="table-light">
+                <thead class="bg-white border-bottom">
                     <tr>
                         <th class="text-center" style="width: 35px;">#</th>
                         <th>N.I.V.</th>
@@ -2260,7 +2260,7 @@ const procesarRecepcionMoto = async function () {
                 <div class="text-start p-2">
                     <p class="mb-2 text-danger fw-bold"><i class="fas fa-ban me-1"></i> No se puede procesar la recepción porque la factura está descuadrada.</p>
                     <p class="mb-2 small">El total liquidado de los renglones debe ser exactamente igual al monto de la factura ingresada:</p>
-                    <ul class="list-unstyled font-monospace small bg-light p-3 rounded-3 border mb-3">
+                    <ul class="list-unstyled font-monospace small bg-white p-3 rounded-4 border shadow-xs mb-3">
                         <li class="d-flex justify-content-between mb-1">
                             <span class="text-muted">Monto Factura Registrado:</span>
                             <strong>${simbolo} ${montoIngresadoMostrar.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
@@ -3348,53 +3348,4 @@ const limpiarOpcionesVariantesRapido = function () {
     $("#rapido_placeholder_sin_variantes").show();
     $("#rapido_prod_opcion_input").val("");
 };
-
-window.crear = crear;
-window.abrirModalBorradores = abrirModalBorradores;
-window.seleccionarMonedaDocumento = seleccionarMonedaDocumento;
-window.actualizarTasasDesdeInput = actualizarTasasDesdeInput;
-window.restablecerTasaOficial = restablecerTasaOficial;
-window.toggleCondicionPago = toggleCondicionPago;
-window.calcularFechaVencimiento = calcularFechaVencimiento;
-window.avanzarAFase2 = avanzarAFase2;
-window.volverAFase1 = volverAFase1;
-window.guardarBorradorEnServidor = guardarBorradorEnServidor;
-window.procesarRecepcionMoto = procesarRecepcionMoto;
-window.cambiarModoItem = cambiarModoItem;
-window.abrirModalRapidoModelo = abrirModalRapidoModelo;
-window.guardarRapidoModelo = guardarRapidoModelo;
-window.abrirModalRapidoProveedor = abrirModalRapidoProveedor;
-window.guardarRapidoProveedor = guardarRapidoProveedor;
-window.abrirModalRapidoProducto = abrirModalRapidoProducto;
-window.guardarRapidoProducto = guardarRapidoProducto;
-window.toggleIvaRapidoProducto = toggleIvaRapidoProducto;
-window.toggleVariantesRapidoProducto = toggleVariantesRapidoProducto;
-window.agregarOpcionVarianteRapido = agregarOpcionVarianteRapido;
-window.eliminarOpcionVarianteRapido = eliminarOpcionVarianteRapido;
-window.limpiarOpcionesVariantesRapido = limpiarOpcionesVariantesRapido;
-window.recalcularPreciosLote = recalcularPreciosLote;
-window.calcularPrecioDetalLote = calcularPrecioDetalLote;
-window.calcularMargenDetalLote = calcularMargenDetalLote;
-window.calcularPrecioMayoristaLote = calcularPrecioMayoristaLote;
-window.calcularMargenMayoristaLote = calcularMargenMayoristaLote;
-window.generarMatrizSeriales = generarMatrizSeriales;
-window.agregarLoteAFactura = agregarLoteAFactura;
-window.cancelarEdicionLote = cancelarEdicionLote;
-window.recalcularPreciosProducto = recalcularPreciosProducto;
-window.calcularPrecioDetalProducto = calcularPrecioDetalProducto;
-window.calcularMargenDetalProducto = calcularMargenDetalProducto;
-window.calcularPrecioMayoristaProducto = calcularPrecioMayoristaProducto;
-window.calcularMargenMayoristaProducto = calcularMargenMayoristaProducto;
-window.agregarProductoAFactura = agregarProductoAFactura;
-window.cancelarEdicionProducto = cancelarEdicionProducto;
-window.recalcularTotalesGenerales = recalcularTotalesGenerales;
-window.verDetalle = verDetalle;
-window.anularRecepcion = anularRecepcion;
-window.verSerialesLote = verSerialesLote;
-window.editarLote = editarLote;
-window.eliminarLote = eliminarLote;
-window.restaurarBorradorDetectado = restaurarBorradorDetectado;
-window.descartarBorradorDetectado = descartarBorradorDetectado;
-window.cargarBorradorServidor = cargarBorradorServidor;
-window.eliminarBorradorServidor = eliminarBorradorServidor;
 

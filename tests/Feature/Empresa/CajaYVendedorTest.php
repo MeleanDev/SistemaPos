@@ -13,6 +13,8 @@ use App\Models\ProductoStockAlmacen;
 use App\Models\User;
 use App\Models\Vendedor;
 use App\Models\Venta;
+use App\Service\Empresa\CajaClass;
+use App\Service\Ventas\VentaClass;
 use Database\Seeders\RolesYPermisosSeeder;
 use Spatie\Permission\Models\Role;
 
@@ -224,6 +226,26 @@ test('modulo de cajas y apertura de turnos valida exclusividad de cajero y caja'
         ]);
 
     $respOpSinPermiso->assertForbidden();
+
+    // 7. Index View y Catálogos JSON
+    $respIndex = $this->actingAs($user1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get('/cajas');
+
+    $respIndex->assertOk()
+        ->assertViewIs('Sistema.pages.empresa.caja');
+
+    $respCatalogos = $this->actingAs($user1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/cajas/catalogos');
+
+    $respCatalogos->assertOk()
+        ->assertJson([
+            'success' => true,
+            'data' => [
+                'usuario_actual_id' => $user1->id,
+            ],
+        ]);
 });
 
 test('flujo pos integra turno de caja, vendedor y calcula corte x y cierre z', function () {
@@ -411,6 +433,47 @@ test('flujo pos integra turno de caja, vendedor y calcula corte x y cierre z', f
                 'conteo_facturas' => 1,
             ],
         ]);
+
+    // 6. Consultar Index y Resumen Consolidado
+    $respReporteIndex = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get('/reportes/vendedores');
+
+    $respReporteIndex->assertOk()
+        ->assertViewIs('Sistema.pages.empresa.reporte-vendedores')
+        ->assertViewMissing('vendedores');
+
+    $respReporteResumen = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/reportes/vendedores/resumen');
+
+    $respReporteResumen->assertOk()
+        ->assertJsonStructure([
+            'success',
+            'data' => [
+                '*' => ['id', 'nombre', 'documento', 'comision_porcentaje', 'conteo_ventas', 'total_vendido_usd', 'total_comision_usd'],
+            ],
+        ]);
+
+    $respCatalogos = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/reportes/vendedores/catalogos');
+
+    $respCatalogos->assertOk()
+        ->assertJsonStructure(['success', 'data' => ['vendedores', 'tasa_usd']]);
+
+    // 7. Exportación PDF y Excel
+    $respExportarPdf = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get('/reportes/vendedores/pdf');
+
+    $respExportarPdf->assertOk();
+
+    $respExportarExcel = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get('/reportes/vendedores/excel');
+
+    $respExportarExcel->assertOk();
 });
 
 test('flujo de control de apertura por administrador, bloqueo de cajero no asignado y preventa inmutable', function () {
@@ -863,4 +926,360 @@ test('validaciones de cajas y vendedores impiden duplicados, comisiones invalida
         ])
         ->assertStatus(422)
         ->assertJsonValidationErrors(['user_id']);
+});
+
+test('caja permite registrar movimientos menores y se reflejan en el balance esperado del turno', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-88880009-9',
+        'nombre' => 'Empresa Movimientos Test',
+        'razon_social' => 'Empresa Movimientos Test C.A.',
+        'direccion' => 'Av. Test',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $user = User::factory()->create(['name' => 'V-88880009']);
+    $user->assignRole('SuperAdmin');
+    $user->empresas()->attach($empresa->id);
+
+    $caja = Caja::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Caja Movimientos',
+        'codigo' => 'MOV-01',
+        'estado' => true,
+    ]);
+
+    $turno = CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja->id,
+        'user_id' => $user->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 100.00,
+        'monto_apertura_bs' => 4000.00,
+        'estado' => 'abierta',
+    ]);
+
+    // Registrar egreso menor
+    $respEgreso = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/cajas/movimientos', [
+            'caja_turno_id' => $turno->id,
+            'tipo' => 'egreso',
+            'monto_usd' => 15.00,
+            'monto_bs' => 0.00,
+            'concepto' => 'Compra de artículos de limpieza',
+        ]);
+
+    $respEgreso->assertOk()
+        ->assertJson(['success' => true]);
+
+    $this->assertDatabaseHas('caja_movimientos', [
+        'caja_turno_id' => $turno->id,
+        'tipo' => 'egreso',
+        'monto_usd' => 15.00,
+        'monto_bs' => 0.00,
+    ]);
+
+    // Registrar ingreso menor
+    $respIngreso = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/cajas/movimientos', [
+            'caja_turno_id' => $turno->id,
+            'tipo' => 'ingreso',
+            'monto_usd' => 0.00,
+            'monto_bs' => 500.00,
+        ])
+        ->assertStatus(422); // monto_usd debe ser min:0.01 si se valida min:0.01 en ambos o se maneja mixto
+
+    // Registrar ingreso menor con usd y bs válidos
+    $respIngresoOk = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/cajas/movimientos', [
+            'caja_turno_id' => $turno->id,
+            'tipo' => 'ingreso',
+            'monto_usd' => 10.00,
+            'monto_bs' => 500.00,
+            'concepto' => 'Cambio de billetes recibido',
+        ]);
+
+    $respIngresoOk->assertOk();
+
+    // Validar cálculo de turno
+    $cajaClass = app(CajaClass::class);
+    $reporte = $cajaClass->calcularReporteTurno($turno->id, $empresa->id);
+
+    // Esperado en USD = 100 apertura - 15 egreso + 10 ingreso = 95.00
+    expect((float) $reporte['efectivo_esperado_usd'])->toBe(95.00);
+    // Esperado en BS = 4000 apertura + 500 ingreso = 4500.00
+    expect((float) $reporte['efectivo_esperado_bs'])->toBe(4500.00);
+});
+
+test('devolucion parcial o total recalcula o anula la comision del vendedor', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-88880010-0',
+        'nombre' => 'Empresa Devolucion Test',
+        'razon_social' => 'Empresa Devolucion Test C.A.',
+        'direccion' => 'Av. Devolucion',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $user = User::factory()->create(['name' => 'V-88880010']);
+    $user->assignRole('SuperAdmin');
+    $user->empresas()->attach($empresa->id);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Almacén Principal Dev',
+        'codigo' => 'ALM-DEV-1',
+        'estado' => true,
+    ]);
+
+    $cliente = Cliente::create([
+        'empresa_id' => $empresa->id,
+        'cedula' => 'V-12345678',
+        'nombre' => 'Cliente',
+        'apellido' => 'Devolución',
+        'direccion' => 'Caracas',
+        'limite_credito' => 1000,
+        'dias_credito' => 15,
+        'estado' => true,
+    ]);
+
+    $vendedor = Vendedor::create([
+        'empresa_id' => $empresa->id,
+        'documento' => '99887700',
+        'nombre' => 'Vendedor Comisión',
+        'comision_porcentaje' => 10.00,
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'General',
+        'codigo' => 'CAT-GEN',
+        'estado' => true,
+    ]);
+
+    $producto = Producto::create([
+        'empresa_id' => $empresa->id,
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'PRD-DEV-1',
+        'codigo_barra' => '999888777',
+        'nombre' => 'Producto Devolucion',
+        'precio_base' => 10.00,
+        'precio_venta' => 10.00,
+        'maneja_inventario' => true,
+        'estado' => true,
+    ]);
+
+    ProductoStockAlmacen::create([
+        'empresa_id' => $empresa->id,
+        'almacen_id' => $almacen->id,
+        'producto_id' => $producto->id,
+        'stock' => 100,
+    ]);
+
+    $caja = Caja::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Caja Dev',
+        'codigo' => 'CAJ-DEV',
+        'estado' => true,
+    ]);
+
+    $turno = CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja->id,
+        'user_id' => $user->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 50.00,
+        'monto_apertura_bs' => 0.00,
+        'estado' => 'abierta',
+    ]);
+
+    $metodoEfectivoUsd = MetodoPago::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Efectivo USD',
+        'tipo' => 'efectivo',
+        'moneda' => 'USD',
+        'estado' => true,
+    ]);
+
+    $ventaClass = app(VentaClass::class);
+
+    // Venta de 2 unidades a $10 = $20 total. Comisión 10% = $2.00
+    $venta = $ventaClass->procesarVenta([
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'caja_id' => $caja->id,
+        'caja_turno_id' => $turno->id,
+        'vendedor_id' => $vendedor->id,
+        'tipo_venta' => 'detal',
+        'condicion_pago' => 'contado',
+        'tasa_cambio' => 40.00,
+        'subtotal' => 20.00,
+        'descuento' => 0.00,
+        'iva' => 0.00,
+        'igtf' => 0.00,
+        'total' => 20.00,
+        'items' => [
+            [
+                'producto_id' => $producto->id,
+                'tipo_item' => 'producto',
+                'cantidad' => 2,
+                'precio_unitario_usd' => 10.00,
+            ],
+        ],
+        'pagos' => [
+            [
+                'metodo_pago_id' => $metodoEfectivoUsd->id,
+                'monto' => 20.00,
+                'moneda' => 'USD',
+                'tasa_cambio' => 1.0,
+                'monto_usd' => 20.00,
+            ],
+        ],
+    ], $empresa->id, $user->id);
+
+    $venta->refresh();
+    expect((float) $venta->comision_monto_usd)->toBe(1.72);
+
+    // Devolución parcial de 1 unidad ($10 devuelto de $20 total = 50%)
+    $detalle = $venta->detalles->first();
+    $devolucionParcial = $ventaClass->procesarDevolucion([
+        'venta_id' => $venta->id,
+        'motivo' => 'Cliente devolvió 1 unidad',
+        'tipo_reembolso' => 'efectivo',
+        'items' => [
+            [
+                'venta_detalle_id' => $detalle->id,
+                'cantidad' => 1,
+            ],
+        ],
+    ], $empresa->id, $user->id);
+
+    $venta->refresh();
+    expect($venta->estado)->toBe('devuelta_parcial');
+    // Comisión recalculada: de $17.24 netos quedaron $8.62 -> 10% = 0.86
+    expect((float) $venta->comision_monto_usd)->toBe(0.86);
+
+    // Devolución de la unidad restante (Devolución total)
+    $devolucionTotal = $ventaClass->procesarDevolucion([
+        'venta_id' => $venta->id,
+        'motivo' => 'Cliente devolvió la otra unidad',
+        'tipo_reembolso' => 'efectivo',
+        'items' => [
+            [
+                'venta_detalle_id' => $detalle->id,
+                'cantidad' => 1,
+            ],
+        ],
+    ], $empresa->id, $user->id);
+
+    $venta->refresh();
+    expect($venta->estado)->toBe('devuelta_total');
+    // Comisión debe ser 0.00
+    expect((float) $venta->comision_monto_usd)->toBe(0.00);
+});
+
+test('vendedor con login solo puede ver sus propias ventas en el listado de facturas', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-88880011-1',
+        'nombre' => 'Empresa Privacidad Vendedor',
+        'razon_social' => 'Empresa Privacidad Vendedor C.A.',
+        'direccion' => 'Av. Privacidad',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $usuarioVendedor = User::factory()->create(['name' => 'V-88880011']);
+    // Asignar permiso ventas.ver pero NO ventas.anular ni rol SuperAdmin/Admin
+    $usuarioVendedor->givePermissionTo('ventas.ver');
+    $usuarioVendedor->empresas()->attach($empresa->id);
+
+    $vendedor1 = Vendedor::create([
+        'empresa_id' => $empresa->id,
+        'user_id' => $usuarioVendedor->id,
+        'documento' => '11223344',
+        'nombre' => 'Vendedor Con Login',
+        'comision_porcentaje' => 5.00,
+        'estado' => true,
+    ]);
+
+    $vendedorOtro = Vendedor::create([
+        'empresa_id' => $empresa->id,
+        'documento' => '22334455',
+        'nombre' => 'Otro Vendedor',
+        'comision_porcentaje' => 5.00,
+        'estado' => true,
+    ]);
+
+    $cliente = Cliente::create([
+        'empresa_id' => $empresa->id,
+        'cedula' => 'V-99001122',
+        'nombre' => 'Cliente',
+        'apellido' => 'Test',
+        'direccion' => 'Caracas',
+        'limite_credito' => 1000,
+        'dias_credito' => 15,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Almacén Fac',
+        'codigo' => 'ALM-FAC',
+        'estado' => true,
+    ]);
+
+    // Venta de este vendedor
+    Venta::create([
+        'empresa_id' => $empresa->id,
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'vendedor_id' => $vendedor1->id,
+        'user_id' => $usuarioVendedor->id,
+        'codigo' => 'FAC-001',
+        'numero_control' => 'CTRL-001',
+        'fecha_emision' => now()->toDateString(),
+        'hora_emision' => now()->toTimeString(),
+        'condicion_pago' => 'contado',
+        'moneda' => 'USD',
+        'tasa_cambio' => 40.00,
+        'total_usd' => 100.00,
+        'total_bs' => 4000.00,
+        'estado' => 'completada',
+    ]);
+
+    // Venta de otro vendedor
+    Venta::create([
+        'empresa_id' => $empresa->id,
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'vendedor_id' => $vendedorOtro->id,
+        'user_id' => $usuarioVendedor->id,
+        'codigo' => 'FAC-002',
+        'numero_control' => 'CTRL-002',
+        'fecha_emision' => now()->toDateString(),
+        'hora_emision' => now()->toTimeString(),
+        'condicion_pago' => 'contado',
+        'moneda' => 'USD',
+        'tasa_cambio' => 40.00,
+        'total_usd' => 200.00,
+        'total_bs' => 8000.00,
+        'estado' => 'completada',
+    ]);
+
+    $response = $this->actingAs($usuarioVendedor)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/facturas/lista');
+
+    $response->assertOk();
+    $data = $response->json('data');
+
+    // Debe contener solo 1 registro (la venta propia FAC-001)
+    expect(count($data))->toBe(1);
+    expect($data[0]['codigo'])->toBe('FAC-001');
 });

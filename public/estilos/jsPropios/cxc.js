@@ -167,14 +167,14 @@ const renderizarClientesEnTabla = function () {
             <tr>
                 <td>
                     <div class="d-flex align-items-center gap-2 py-1">
-                        <div class="avatar-executive-sm me-1 bg-light-primary text-primary shadow-xs" style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background-color: #eef2ff; color: #4f46e5;">
+                        <div class="avatar-executive-sm me-1 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; min-width: 36px;">
                             <i class="fas fa-user-tag" style="font-size: 0.90rem;"></i>
                         </div>
                         <div class="d-flex flex-column">
                             <span class="fw-bold text-dark text-capitalize" style="font-size: 0.92rem;">${c.cliente_nombre}</span>
-                            <div class="d-flex align-items-center gap-1">
-                                <span class="badge bg-white text-secondary border rounded-pill px-2 py-0 small">${c.cliente_cedula}</span>
-                                <span class="badge bg-info bg-opacity-10 text-info rounded-pill px-2 py-0 small text-uppercase">${c.cliente_tipo}</span>
+                            <div class="d-flex align-items-center gap-1.5 mt-0.5">
+                                <span class="d-inline-flex align-items-center font-monospace text-secondary" style="font-size: 0.78rem;"><i class="fas fa-id-card me-1 text-primary"></i>${c.cliente_cedula}</span>
+                                <span class="badge bg-info-subtle text-info rounded-pill px-2 py-0.5 small text-uppercase font-monospace">${c.cliente_tipo}</span>
                             </div>
                         </div>
                     </div>

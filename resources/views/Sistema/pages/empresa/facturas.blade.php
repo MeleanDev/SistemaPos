@@ -113,7 +113,8 @@
             'Comprobante',
             'Fecha & Hora',
             'Cliente',
-            'Almacén',
+            'Asesor / Vendedor',
+            'Almacén / Caja',
             'Tipo / Condición',
             'Total Factura',
             'Pagado / Saldo',
@@ -142,8 +143,9 @@
         <button type="button" class="btn btn-executive-cancel" data-bs-dismiss="modal">
             <i class="fas fa-times me-1"></i> Cerrar
         </button>
-        <div class="d-flex gap-2">
-            <x-button variant="primary" id="btnImprimirCartaModalDetalle" icon="fas fa-file-invoice" text="Factura Carta (Hoja Blanca)" />
+        <div class="d-flex flex-wrap gap-2">
+            <x-button variant="warning" id="btnImprimirGarantiaModalDetalle" icon="fas fa-shield-alt" text="Hoja de Garantía" />
+            <x-button variant="primary" id="btnImprimirCartaModalDetalle" icon="fas fa-file-invoice" text="Factura Carta" />
             <x-button variant="success" id="btnReimprimirModalDetalle" icon="fas fa-receipt" text="Ticket Térmico" />
         </div>
     </x-slot:footer>
@@ -158,6 +160,7 @@
         const urlFacturasDetalle = "{{ url('/facturas') }}";
         const urlPosImprimirTicket = "{{ url('/pos/imprimir-ticket') }}";
         const urlPosImprimirCarta = "{{ url('/pos/imprimir-carta') }}";
+        const urlPosImprimirGarantia = "{{ url('/pos/garantia') }}";
     </script>
     <script src="{{ asset('estilos/jsPropios/facturas.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/facturas.js')) ?: time() }}"></script>
 @endsection

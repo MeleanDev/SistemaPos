@@ -3,7 +3,9 @@
 namespace App\Service\Empresa;
 
 use App\Models\Caja;
+use App\Models\CajaMovimiento;
 use App\Models\CajaTurno;
+use App\Models\CuentaPorCobrarAbono;
 use App\Models\DevolucionVenta;
 use App\Models\User;
 use App\Models\Venta;
@@ -276,12 +278,41 @@ class CajaClass
             }
         }
 
-        // Efectivo esperado en caja (Fondo inicial + Ventas efectivo - Devoluciones efectivo)
+        // Abonos de Cuentas por Cobrar (CXC) asociados al turno
+        $abonosCxc = CuentaPorCobrarAbono::with('metodoPago')
+            ->where('caja_turno_id', $cajaTurnoId)
+            ->get();
+
+        $totalAbonosCxcUsd = (float) $abonosCxc->sum('monto_usd');
+        $totalAbonosCxcBs = (float) $abonosCxc->sum('monto_bs');
+        $totalAbonosCxcEfectivoUsd = 0.0;
+        $totalAbonosCxcEfectivoBs = 0.0;
+
+        foreach ($abonosCxc as $ab) {
+            $metodoNombre = $ab->metodoPago?->nombre ?? 'Abono CXC';
+            $nombreLower = strtolower($metodoNombre);
+            if (str_contains($nombreLower, 'efectivo') || str_contains($nombreLower, 'cash')) {
+                $totalAbonosCxcEfectivoUsd += (float) $ab->monto_usd;
+                $totalAbonosCxcEfectivoBs += (float) $ab->monto_bs;
+            }
+        }
+
+        // Movimientos menores de caja (ingresos y egresos)
+        $movimientos = CajaMovimiento::where('caja_turno_id', $cajaTurnoId)
+            ->where('empresa_id', $empresaId)
+            ->get();
+
+        $totalIngresosCajaUsd = (float) $movimientos->where('tipo', 'ingreso')->sum('monto_usd');
+        $totalIngresosCajaBs = (float) $movimientos->where('tipo', 'ingreso')->sum('monto_bs');
+        $totalEgresosCajaUsd = (float) $movimientos->where('tipo', 'egreso')->sum('monto_usd');
+        $totalEgresosCajaBs = (float) $movimientos->where('tipo', 'egreso')->sum('monto_bs');
+
+        // Efectivo esperado en caja (Fondo inicial + Ventas efectivo + Abonos CXC efectivo + Ingresos caja - Egresos caja - Devoluciones efectivo)
         $montoAperturaUsd = (float) $turno->monto_apertura_usd;
         $montoAperturaBs = (float) $turno->monto_apertura_bs;
 
-        $efectivoEsperadoUsd = max(0, $montoAperturaUsd + $totalEfectivoVentasUsd - $totalDevolucionesEfectivoUsd);
-        $efectivoEsperadoBs = max(0, $montoAperturaBs + $totalEfectivoVentasBs - $totalDevolucionesEfectivoBs);
+        $efectivoEsperadoUsd = max(0, $montoAperturaUsd + $totalEfectivoVentasUsd + $totalAbonosCxcEfectivoUsd + $totalIngresosCajaUsd - $totalDevolucionesEfectivoUsd - $totalEgresosCajaUsd);
+        $efectivoEsperadoBs = max(0, $montoAperturaBs + $totalEfectivoVentasBs + $totalAbonosCxcEfectivoBs + $totalIngresosCajaBs - $totalDevolucionesEfectivoBs - $totalEgresosCajaBs);
 
         return [
             'turno' => $turno,
@@ -297,6 +328,14 @@ class CajaClass
             'cantidad_devoluciones' => $cantidadDevoluciones,
             'total_devoluciones_usd' => $totalDevolucionesUsd,
             'total_devoluciones_bs' => $totalDevolucionesBs,
+            'total_abonos_cxc_usd' => $totalAbonosCxcUsd,
+            'total_abonos_cxc_bs' => $totalAbonosCxcBs,
+            'total_abonos_cxc_efectivo_usd' => $totalAbonosCxcEfectivoUsd,
+            'total_abonos_cxc_efectivo_bs' => $totalAbonosCxcEfectivoBs,
+            'total_ingresos_caja_usd' => $totalIngresosCajaUsd,
+            'total_ingresos_caja_bs' => $totalIngresosCajaBs,
+            'total_egresos_caja_usd' => $totalEgresosCajaUsd,
+            'total_egresos_caja_bs' => $totalEgresosCajaBs,
             'pagos_por_metodo' => array_values($pagosPorMetodo),
             'total_efectivo_ventas_usd' => $totalEfectivoVentasUsd,
             'total_efectivo_ventas_bs' => $totalEfectivoVentasBs,
@@ -304,6 +343,14 @@ class CajaClass
             'total_devoluciones_efectivo_bs' => $totalDevolucionesEfectivoBs,
             'efectivo_esperado_usd' => $efectivoEsperadoUsd,
             'efectivo_esperado_bs' => $efectivoEsperadoBs,
+            'movimientos_listado' => $movimientos->map(fn ($m) => [
+                'id' => $m->id,
+                'tipo' => $m->tipo,
+                'concepto' => $m->concepto,
+                'monto_usd' => (float) $m->monto_usd,
+                'monto_bs' => (float) $m->monto_bs,
+                'hora' => $m->created_at?->format('h:i A') ?? '--',
+            ])->toArray(),
             'ventas_listado' => $ventas->map(fn ($v) => [
                 'id' => $v->id,
                 'codigo' => $v->codigo,
@@ -315,6 +362,31 @@ class CajaClass
                 'hora' => $v->hora_emision,
             ])->toArray(),
         ];
+    }
+
+    /**
+     * Registrar movimiento menor de caja (ingreso o egreso)
+     */
+    public function registrarMovimiento(array $datos, int $empresaId, int $userId): CajaMovimiento
+    {
+        $cajaTurnoId = (int) $datos['caja_turno_id'];
+        $turno = $this->obtenerTurnoPorId($cajaTurnoId, $empresaId);
+
+        if ($turno->estado !== 'abierta') {
+            throw new Exception('No se pueden registrar movimientos en un turno de caja que ya está cerrado.');
+        }
+
+        return CajaMovimiento::create([
+            'empresa_id' => $empresaId,
+            'caja_turno_id' => $cajaTurnoId,
+            'user_id' => $userId,
+            'tipo' => $datos['tipo'] ?? 'egreso',
+            'monto_usd' => (float) ($datos['monto_usd'] ?? 0),
+            'monto_bs' => (float) ($datos['monto_bs'] ?? 0),
+            'concepto' => trim($datos['concepto']),
+            'comprobante_referencia' => trim($datos['comprobante_referencia'] ?? '') ?: null,
+            'observaciones' => trim($datos['observaciones'] ?? '') ?: null,
+        ]);
     }
 
     /**

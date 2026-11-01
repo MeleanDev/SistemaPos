@@ -1,6 +1,6 @@
 let moduloActivoPrevia = 'ingresos';
 
-function generarReporte(modulo, accion) {
+const generarReporte = function (modulo, accion) {
     moduloActivoPrevia = modulo;
     let params = {};
     let urlPdf = '';
@@ -76,13 +76,13 @@ function generarReporte(modulo, accion) {
     } else if (accion === 'excel') {
         window.location.href = `${urlExcel}?${queryString}`;
     }
-}
+};
 
-function exportarDesdePrevia(accion) {
+const exportarDesdePrevia = function (accion) {
     generarReporte(moduloActivoPrevia, accion);
-}
+};
 
-function cargarVistaPrevia(modulo, urlJson, params) {
+const cargarVistaPrevia = async function (modulo, urlJson, params) {
     if (window.Swal) {
         Swal.fire({
             title: 'Consultando Informe...',
@@ -95,50 +95,46 @@ function cargarVistaPrevia(modulo, urlJson, params) {
         });
     }
 
-    $.ajax({
-        url: urlJson,
-        type: 'GET',
-        data: params,
-        dataType: 'json',
-        success: function (res) {
-            if (window.Swal) {
-                Swal.close();
+    try {
+        const res = await peticionAjax({
+            url: urlJson,
+            method: 'GET',
+            data: params
+        });
+
+        if (window.Swal) {
+            Swal.close();
+        }
+
+        if (res && res.success && res.data) {
+            renderizarVistaPrevia(modulo, res.data);
+            const modalEl = document.getElementById('modalVistaPrevia');
+            if (modalEl) {
+                const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modalInstance.show();
             }
-            if (res && res.success && res.data) {
-                renderizarVistaPrevia(modulo, res.data);
-                const modalEl = document.getElementById('modalVistaPrevia');
-                if (modalEl) {
-                    if (window.bootstrap && window.bootstrap.Modal) {
-                        const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
-                        modalInstance.show();
-                    } else {
-                        $('#modalVistaPrevia').modal('show');
-                    }
-                }
-            } else {
-                if (window.Swal) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Sin datos',
-                        text: 'No se encontraron registros para los filtros seleccionados.'
-                    });
-                }
-            }
-        },
-        error: function () {
+        } else {
             if (window.Swal) {
-                Swal.close();
                 Swal.fire({
-                    icon: 'error',
-                    title: 'Error de Consulta',
-                    text: 'Ocurrió un error al obtener la vista previa del reporte.'
+                    icon: 'warning',
+                    title: 'Sin datos',
+                    text: 'No se encontraron registros para los filtros seleccionados.'
                 });
             }
         }
-    });
-}
+    } catch (error) {
+        if (window.Swal) {
+            Swal.close();
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de Consulta',
+                text: 'Ocurrió un error al obtener la vista previa del reporte.'
+            });
+        }
+    }
+};
 
-function renderizarVistaPrevia(modulo, data) {
+const renderizarVistaPrevia = function (modulo, data) {
     const kpisEl = $('#contenedorKpisPrevia');
     const tablaEl = $('#contenedorTablaPrevia');
     const badgeModuloEl = $('#previaBadgeModulo');
@@ -734,7 +730,7 @@ function renderizarVistaPrevia(modulo, data) {
             });
 
             htmlTabla += `
-                <tr class="fw-bold" style="background-color: #f1f5f9;">
+                <tr class="fw-bold bg-white border-top border-2">
                     <td colspan="4" class="ps-3 py-2.5 text-uppercase text-dark">TOTALES CONSOLIDADOS:</td>
             `;
 
@@ -763,22 +759,22 @@ function renderizarVistaPrevia(modulo, data) {
         htmlTabla += '</tbody></table>';
         tablaEl.html(htmlTabla);
     }
-}
+};
 
-function formatearNumero(val, dec = 2) {
+const formatearNumero = function (val, dec = 2) {
     const num = parseFloat(val) || 0;
     return num.toLocaleString('es-VE', {
         minimumFractionDigits: dec,
         maximumFractionDigits: dec
     });
-}
+};
 
-function limpiarSelectorModerno(selector) {
+const limpiarSelectorModerno = function (selector) {
     const el = $(selector);
     if (el.length) {
         el.val(null).trigger('change');
     }
-}
+};
 
 $(document).ready(function () {
     if ($.fn.select2) {
@@ -803,5 +799,3 @@ $(document).ready(function () {
         });
     }
 });
-
-

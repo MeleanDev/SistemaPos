@@ -41,6 +41,7 @@ class GuardarVentaRequest extends BaseRequest
                 'integer',
                 Rule::exists('vendedores', 'id')->where(fn ($q) => $q->where('empresa_id', $empresaId)->where('estado', true)),
             ],
+            'venta_en_espera_id' => ['nullable', 'integer'],
             'caja_turno_id' => [
                 'nullable',
                 'integer',

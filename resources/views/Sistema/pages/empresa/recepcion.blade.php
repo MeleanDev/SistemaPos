@@ -265,7 +265,7 @@
                                         <label class="form-label-executive"><i class="fas fa-clock text-warning"></i> Días de Crédito</label>
                                         <div class="input-group">
                                             <input type="number" name="dias_credito" id="dias_credito" class="form-control form-control-executive font-monospace" value="15" min="1" max="365" oninput="calcularFechaVencimiento()">
-                                            <span class="input-group-text bg-light text-muted small font-monospace" id="labelFechaVencimiento">Vence: --</span>
+                                            <span class="input-group-text bg-white text-muted small font-monospace" id="labelFechaVencimiento">Vence: --</span>
                                         </div>
                                     </div>
 
@@ -353,7 +353,7 @@
                                 </div>
 
                                 <!-- 2. FICHA INFORMATIVA DEL PRODUCTO SELECCIONADO (CAMPOS VISUALES READ-ONLY) -->
-                                <div id="panelInfoProductoSeleccionado" class="p-3 rounded-4 mb-3" style="background-color: #f8fafc; border: 1px solid #e2e8f0; display: none;">
+                                <div id="panelInfoProductoSeleccionado" class="p-3 rounded-4 mb-3 bg-white border shadow-xs" style="display: none;">
                                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom pb-2 mb-2">
                                         <div class="d-flex align-items-center gap-2">
                                             <div class="avatar-executive-sm rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
@@ -416,7 +416,7 @@
                                         
                                         <!-- Variante / Color Selector si aplica -->
                                         <div class="col-md-12" id="seccionVarianteRenglon" style="display: none;">
-                                            <div class="p-2.5 rounded-3 bg-light border border-primary-subtle d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                            <div class="p-2.5 rounded-3 bg-white border border-primary-subtle d-flex flex-wrap align-items-center justify-content-between gap-2 shadow-xs">
                                                 <div class="d-flex align-items-center gap-2">
                                                     <span class="badge rounded-pill bg-purple-subtle text-purple-emphasis p-2" style="background-color: #f3e8ff; color: #7e22ce;"><i class="fas fa-layer-group"></i></span>
                                                     <div>
@@ -604,19 +604,19 @@
                                                         </div>
                                                     </div>
                                                     <div class="col-md-3">
-                                                        <span class="badge rounded-pill bg-light text-dark border font-monospace px-3 py-2 w-100 text-center" id="badgeEstadoProgresoSeriales">
+                                                        <span class="badge rounded-pill bg-white text-dark border font-monospace px-3 py-2 w-100 text-center shadow-xs" id="badgeEstadoProgresoSeriales">
                                                             Pendientes: 0
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div id="contenedorChipsSeriales" class="d-flex flex-wrap gap-1.5 p-2.5 rounded-3 bg-light border" style="min-height: 48px; max-height: 140px; overflow-y: auto;">
+                                                <div id="contenedorChipsSeriales" class="d-flex flex-wrap gap-1.5 p-2.5 rounded-3 bg-white border shadow-xs" style="min-height: 48px; max-height: 140px; overflow-y: auto;">
                                                     <span class="text-muted fst-italic small" id="placeholderSinSeriales">No hay seriales agregados aún. Ingrese los seriales para las unidades.</span>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <!-- Subtotal Renglón & Botón de Inserción -->
-                                        <div class="col-md-12 d-flex flex-wrap align-items-center justify-content-between p-3 bg-light rounded-3 border">
+                                        <div class="col-md-12 d-flex flex-wrap align-items-center justify-content-between p-3 bg-white rounded-3 border shadow-xs">
                                             <div class="d-flex align-items-center gap-4">
                                                 <div>
                                                     <span class="text-muted small d-block">Subtotal Renglón Neto:</span>
@@ -981,7 +981,7 @@
                                 </div>
                             </div>
 
-                            <div class="mt-2 p-2.5 rounded-3 bg-light border">
+                            <div class="mt-2 p-2.5 rounded-3 bg-white border shadow-xs">
                                 <small class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 0.68rem; letter-spacing: 0.05em;">
                                     <i class="fas fa-check-double text-primary me-1"></i> Opciones / Colores Disponibles:
                                 </small>

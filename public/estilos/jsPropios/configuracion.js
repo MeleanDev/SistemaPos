@@ -11,7 +11,6 @@ $(document).ready(function () {
     inicializarEventosLogo();
     inicializarEventosCalculadora();
 
-    // Restricciones de entrada numéricas para RIF y teléfono
     $("#rif_numero").on("input", function () {
         this.value = this.value.replace(/[^0-9kK\-]/g, "");
         actualizarRifCompleto();
@@ -34,18 +33,16 @@ $(document).ready(function () {
         actualizarTicketPreview();
     });
 
-    // Restricción a máximo 2 decimales en tiempo real en los inputs de tasa
     $(document).on("input", ".input-tasa-cambio", function () {
         const val = this.value;
         if (val.includes(".")) {
             const partes = val.split(".");
-            if (partes[1] && partes[1].length > 2) {
-                this.value = `${partes[0]}.${partes[1].substring(0, 2)}`;
+            if (partes[1] && partes[1].length > 4) {
+                this.value = `${partes[0]}.${partes[1].substring(0, 4)}`;
             }
         }
     });
 
-    // Eventos del formulario Empresa
     $("#formEmpresa").on("submit", function (e) {
         e.preventDefault();
         actualizarRifCompleto();
@@ -71,7 +68,6 @@ $(document).ready(function () {
         });
     });
 
-    // Eventos del formulario de Tasas de Moneda
     $("#formTasasMonedas").on("submit", function (e) {
         e.preventDefault();
 
@@ -84,7 +80,9 @@ $(document).ready(function () {
                 $(".fila-moneda").each(function (index) {
                     const codigo = $(this).data("codigo");
                     const tasa = $(this).find(".input-tasa-cambio").val();
-                    const estado = $(this).find(".switch-estado-moneda").is(":checked") ? 1 : 0;
+                    const estado = $(this).find(".switch-estado-moneda").length
+                        ? ($(this).find(".switch-estado-moneda").is(":checked") ? 1 : 0)
+                        : 1;
 
                     formData.append(`monedas[${index}][codigo]`, codigo);
                     formData.append(`monedas[${index}][tasa_cambio]`, parseFloat(tasa) || 1);
@@ -120,7 +118,6 @@ const inicializarEventosLogo = function () {
                 $("#placeholderLogo").addClass("d-none");
                 $("#btnQuitarLogo").removeClass("d-none");
 
-                // Actualizar en el preview del ticket
                 $("#ticketPreviewLogo").attr("src", e.target.result);
                 $("#ticketPreviewLogoContainer").removeClass("d-none");
             };
@@ -187,6 +184,12 @@ const ejecutarCalculoPrueba = function () {
         const valInput = parseFloat($fila.find(".input-tasa-cambio").val());
         tasa = !isNaN(valInput) && valInput > 0 ? valInput : 1;
         simbolo = $fila.data("simbolo") || "$";
+    } else {
+        const $opt = $(`#calcMoneda option[value="${codigoMoneda}"]`);
+        if ($opt.length) {
+            tasa = parseFloat($opt.data("tasa")) || 1;
+            simbolo = $opt.data("simbolo") || "$";
+        }
     }
 
     const resultadoBs = monto * tasa;
@@ -195,9 +198,14 @@ const ejecutarCalculoPrueba = function () {
         maximumFractionDigits: 2,
     }).format(resultadoBs);
 
+    const tasaTexto = tasa.toLocaleString("es-VE", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
+    });
+
     $("#calcResultado").text(`${formateadoBs} Bs.`);
     $("#calcDetalleTasa").text(
-        `Calculado: ${monto.toFixed(2)} ${simbolo} × ${tasa.toFixed(2)} Bs. = ${formateadoBs} Bs.`
+        `Calculado: ${monto.toFixed(2)} ${simbolo} × ${tasaTexto} Bs. = ${formateadoBs} Bs.`
     );
 };
 
@@ -210,9 +218,8 @@ const cargarConfiguracion = async function () {
             const monedas = res.data.monedas || [];
 
             if (emp) {
-                // Desglosar RIF si existe helper
-                if (typeof window.desglosarCedula === "function" && emp.rif) {
-                    const r = window.desglosarCedula(emp.rif);
+                if (typeof desglosarCedula === "function" && emp.rif) {
+                    const r = desglosarCedula(emp.rif);
                     $("#rif_prefijo").val(r.tipo || r.prefijo || "J-");
                     $("#rif_numero").val(r.numero || "");
                 } else if (emp.rif) {
@@ -227,9 +234,8 @@ const cargarConfiguracion = async function () {
                 }
                 actualizarRifCompleto();
 
-                // Desglosar Teléfono si existe helper
-                if (typeof window.desglosarTelefono === "function" && emp.telefono) {
-                    const tel = window.desglosarTelefono(emp.telefono);
+                if (typeof desglosarTelefono === "function" && emp.telefono) {
+                    const tel = desglosarTelefono(emp.telefono);
                     $("#telefono_prefijo").val(tel.codigo || tel.prefijo || "+58");
                     $("#telefono_numero").val(tel.numero || "");
                 } else if (emp.telefono) {
@@ -277,10 +283,11 @@ const renderizarMonedas = function (monedas) {
     const $cont = $("#contenedorMonedas");
     $cont.empty();
 
-    const secundarias = monedas.filter((m) => !m.es_principal);
+    const secundarias = (monedas || []).filter((m) => m.codigo !== "VES");
 
     if (secundarias.length === 0) {
         $cont.html('<div class="text-center py-4 text-muted">No hay monedas secundarias configuradas.</div>');
+        poblarSelectMonedas([]);
         return;
     }
 
@@ -306,7 +313,8 @@ const renderizarMonedas = function (monedas) {
         }
 
         const checkedAttr = m.estado ? "checked" : "";
-        const tasaFormateada = parseFloat(m.tasa_cambio || 1).toFixed(2);
+        const tasaNum = parseFloat(m.tasa_cambio || 1);
+        const tasaFormateada = (tasaNum % 1 === 0) ? tasaNum.toFixed(2) : (tasaNum.toString().split(".")[1]?.length > 2 ? tasaNum.toString() : tasaNum.toFixed(2));
 
         const badgeActualizacion = esDesactualizada
             ? `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill font-monospace px-2.5 py-1 text-wrap text-start text-sm-end" title="Tasa con más de 24 horas sin actualizar" style="font-size: 0.70rem; line-height: 1.3;">
@@ -315,6 +323,15 @@ const renderizarMonedas = function (monedas) {
             : `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace px-2.5 py-1 text-wrap text-start text-sm-end" style="font-size: 0.70rem; line-height: 1.3;">
                 <i class="fas fa-check-double me-1"></i> Al día <span class="d-block d-sm-inline">(${fechaActualizacion})</span>
                </span>`;
+
+        const switchHtml = m.codigo === "USD"
+            ? `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace px-2.5 py-1">
+                <i class="fas fa-check me-1"></i> Referencia Activa
+               </span>`
+            : `<div class="form-check form-switch mb-0 ms-auto">
+                <input class="form-check-input switch-estado-moneda cursor-pointer" type="checkbox" role="switch" id="switch_${m.codigo}" ${checkedAttr}>
+                <label class="form-check-label small fw-semibold text-muted cursor-pointer ms-1" for="switch_${m.codigo}">Operativa</label>
+               </div>`;
 
         const cardHtml = `
             <div class="card border rounded-4 p-3 bg-white shadow-xs fila-moneda" data-codigo="${m.codigo}" data-simbolo="${m.simbolo}">
@@ -325,10 +342,7 @@ const renderizarMonedas = function (monedas) {
                         </span>
                         <span class="fw-bold text-dark text-break" style="font-size: 0.92rem;">${m.nombre}</span>
                     </div>
-                    <div class="form-check form-switch mb-0 ms-auto">
-                        <input class="form-check-input switch-estado-moneda cursor-pointer" type="checkbox" role="switch" id="switch_${m.codigo}" ${checkedAttr}>
-                        <label class="form-check-label small fw-semibold text-muted cursor-pointer ms-1" for="switch_${m.codigo}">Operativa</label>
-                    </div>
+                    ${switchHtml}
                 </div>
 
                 <div class="row g-3 align-items-end">
@@ -337,7 +351,7 @@ const renderizarMonedas = function (monedas) {
                             Tasa de Cambio Oficial (1 ${m.simbolo} =)
                         </label>
                         <div class="input-group input-group-executive">
-                            <input type="number" step="0.01" min="0.01" id="input_tasa_${m.codigo}" class="form-control form-control-executive text-end fw-bold font-monospace input-tasa-cambio" value="${tasaFormateada}" placeholder="0.00" required>
+                            <input type="number" step="any" min="0.0001" id="input_tasa_${m.codigo}" class="form-control form-control-executive text-end fw-bold font-monospace input-tasa-cambio" value="${tasaFormateada}" placeholder="0.00" required>
                             <span class="input-group-text fw-bold bg-white text-dark font-monospace">Bs.</span>
                         </div>
                     </div>
@@ -351,4 +365,31 @@ const renderizarMonedas = function (monedas) {
 
         $cont.append(cardHtml);
     });
+
+    poblarSelectMonedas(secundarias);
+};
+
+const poblarSelectMonedas = function (monedas) {
+    const $sel = $("#calcMoneda");
+    const valorActual = $sel.val();
+    $sel.empty();
+
+    const disponibles = (monedas || []).filter((m) => m.codigo !== "VES" && m.estado);
+
+    if (disponibles.length === 0) {
+        $sel.append('<option value="" disabled selected>Sin monedas habilitadas</option>');
+        return;
+    }
+
+    disponibles.forEach((m) => {
+        $sel.append(
+            `<option value="${m.codigo}" data-simbolo="${m.simbolo}" data-tasa="${m.tasa_cambio}">${m.codigo} (${m.simbolo})</option>`
+        );
+    });
+
+    if (valorActual && disponibles.some((m) => m.codigo === valorActual)) {
+        $sel.val(valorActual);
+    } else {
+        $sel.val(disponibles[0].codigo);
+    }
 };

@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Configuracion\ActualizarEmpresaRequest;
 use App\Http\Requests\Configuracion\ActualizarTasasRequest;
 use App\Service\Empresa\ConfiguracionEmpresaClass;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
 class ConfiguracionController extends Controller
 {
-    public function __construct(private ConfiguracionEmpresaClass $configuracionClass) {}
+    public function __construct(
+        private ConfiguracionEmpresaClass $configuracionClass
+    ) {}
 
     public function index(): View
     {
@@ -27,7 +30,7 @@ class ConfiguracionController extends Controller
                 'success' => true,
                 'data' => $config,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al cargar la configuración: '.$e->getMessage(),
@@ -49,7 +52,7 @@ class ConfiguracionController extends Controller
                 'message' => 'Datos de la empresa actualizados exitosamente.',
                 'data' => $empresa,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar empresa: '.$e->getMessage(),
@@ -70,7 +73,7 @@ class ConfiguracionController extends Controller
                 'message' => 'Tasas de cambio y monedas actualizadas exitosamente.',
                 'data' => $monedas,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar tasas de cambio: '.$e->getMessage(),
