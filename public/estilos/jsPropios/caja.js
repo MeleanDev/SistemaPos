@@ -173,10 +173,12 @@ $(document).ready(function () {
                 name: 'fecha_apertura',
                 className: 'text-center align-middle',
                 render: function (data, type, row) {
+                    const fecha = formatearFecha(data);
+                    const hora = formatearHora(row.hora_apertura);
                     return `
                         <div class="d-flex flex-column">
-                            <span class="fw-bold text-dark">${data || ''}</span>
-                            <span class="text-muted small">${row.hora_apertura || ''}</span>
+                            <span class="fw-bold text-dark">${fecha}</span>
+                            <span class="text-muted small">${hora}</span>
                         </div>
                     `;
                 },
@@ -189,10 +191,12 @@ $(document).ready(function () {
                     if (!data) {
                         return '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill"><i class="fas fa-clock me-1"></i>En curso</span>';
                     }
+                    const fecha = formatearFecha(data);
+                    const hora = formatearHora(row.hora_cierre);
                     return `
                         <div class="d-flex flex-column">
-                            <span class="fw-semibold text-dark">${data}</span>
-                            <span class="text-muted small">${row.hora_cierre || ''}</span>
+                            <span class="fw-semibold text-dark">${fecha}</span>
+                            <span class="text-muted small">${hora}</span>
                         </div>
                     `;
                 },
@@ -344,8 +348,8 @@ async function cargarCatalogos() {
             const t = data.turno_activo;
             $('#bannerTurnoId').text(t.id);
             $('#bannerCajaNombre').text(t.caja ? t.caja.nombre : 'Caja');
-            const fechaStr = t.fecha_apertura || '';
-            const horaStr = t.hora_apertura ? ` ${t.hora_apertura}` : '';
+            const fechaStr = formatearFecha(t.fecha_apertura);
+            const horaStr = t.hora_apertura ? ` ${formatearHora(t.hora_apertura)}` : '';
             $('#bannerFechaApertura').text(`${fechaStr}${horaStr}`);
             $('#bannerUsuarioNombre').text(data.usuario_actual_nombre || 'Usuario');
             $('#btnBannerCorteX').off('click').on('click', function () {

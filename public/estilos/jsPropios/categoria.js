@@ -60,8 +60,8 @@ $(document).ready(function () {
                 className: "text-center align-middle",
                 render: function (data) {
                     if (!data) return '<span class="text-muted small">-</span>';
-                    const fecha = new Date(data);
-                    return `<span class="small text-muted"><i class="far fa-calendar-alt me-1"></i>${fecha.toLocaleDateString()}</span>`;
+                    const fecha = formatearFecha(data);
+                    return `<span class="small text-muted"><i class="far fa-calendar-alt me-1"></i>${fecha}</span>`;
                 },
             },
             {

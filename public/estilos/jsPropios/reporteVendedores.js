@@ -374,7 +374,9 @@ const inicializarTablaFacturas = function () {
                 name: "fecha_emision",
                 className: "text-center align-middle",
                 render: function (data, type, row) {
-                    return `<span class="small font-monospace text-secondary">${data} ${row.hora_emision || ''}</span>`;
+                    const fecha = formatearFecha(data);
+                    const hora = row.hora_emision ? ` ${formatearHora(row.hora_emision)}` : '';
+                    return `<span class="small font-monospace text-secondary">${fecha}${hora}</span>`;
                 },
             },
             {

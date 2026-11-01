@@ -3,6 +3,7 @@
     window.CONFIG_POS = {
         CODIGOS_PAIS: @json(config('pos.codigos_pais')),
         PREFIJOS_CEDULA: @json(array_values(config('pos.prefijos_cedula'))),
+        FORMATOS: @json(config('pos.formatos')),
         DATATABLE_LENGUAJE_ES: {
             sSearch: "Buscar:",
             searchPlaceholder: "Buscar en la tabla...",

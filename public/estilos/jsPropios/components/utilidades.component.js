@@ -74,3 +74,168 @@ window.aplicarRestriccionesInput = function () {
         }
     });
 };
+
+/**
+ * Formatea una fecha a estándar visual del sistema (DD/MM/YYYY).
+ * Maneja cadenas ISO (ej. 2026-10-25T00:00:00Z), YYYY-MM-DD, objetos Date o timestamps.
+ * 
+ * @param {string|Date|number|null} fechaStr
+ * @param {string} [placeholder="--"]
+ * @returns {string}
+ */
+window.formatearFecha = function (fechaStr, placeholder = "--") {
+    if (!fechaStr || fechaStr === "--" || fechaStr === "N/A") {
+        return placeholder;
+    }
+
+    if (fechaStr instanceof Date) {
+        if (isNaN(fechaStr.getTime())) return placeholder;
+        const dia = String(fechaStr.getDate()).padStart(2, "0");
+        const mes = String(fechaStr.getMonth() + 1).padStart(2, "0");
+        const anio = fechaStr.getFullYear();
+        return `${dia}/${mes}/${anio}`;
+    }
+
+    const str = String(fechaStr).trim();
+
+    const matchIso = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (matchIso) {
+        const [, anio, mes, dia] = matchIso;
+        return `${dia}/${mes}/${anio}`;
+    }
+
+    const matchLatam = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+    if (matchLatam) {
+        const dia = String(matchLatam[1]).padStart(2, "0");
+        const mes = String(matchLatam[2]).padStart(2, "0");
+        const anio = matchLatam[3];
+        return `${dia}/${mes}/${anio}`;
+    }
+
+    const d = new Date(fechaStr);
+    if (!isNaN(d.getTime())) {
+        const dia = String(d.getDate()).padStart(2, "0");
+        const mes = String(d.getMonth() + 1).padStart(2, "0");
+        const anio = d.getFullYear();
+        return `${dia}/${mes}/${anio}`;
+    }
+
+    return str;
+};
+
+/**
+ * Formatea una hora a estándar visual del sistema (12 horas: hh:mm AM/PM).
+ * 
+ * @param {string|Date|null} horaStr
+ * @param {string} [placeholder="--:--"]
+ * @returns {string}
+ */
+window.formatearHora = function (horaStr, placeholder = "--:--") {
+    if (!horaStr || horaStr === "--" || horaStr === "--:--") {
+        return placeholder;
+    }
+
+    if (horaStr instanceof Date) {
+        if (isNaN(horaStr.getTime())) return placeholder;
+        let horas = horaStr.getHours();
+        const minutos = String(horaStr.getMinutes()).padStart(2, "0");
+        const ampm = horas >= 12 ? "PM" : "AM";
+        horas = horas % 12 || 12;
+        return `${String(horas).padStart(2, "0")}:${minutos} ${ampm}`;
+    }
+
+    const str = String(horaStr).trim();
+
+    if (str.includes("T")) {
+        const partes = str.split("T");
+        if (partes[1]) {
+            return window.formatearHora(partes[1].replace("Z", ""), placeholder);
+        }
+    }
+
+    const matchAmPm = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM|am|pm)$/i);
+    if (matchAmPm) {
+        const horas = String(matchAmPm[1]).padStart(2, "0");
+        const minutos = matchAmPm[2];
+        const ampm = matchAmPm[3].toUpperCase();
+        return `${horas}:${minutos} ${ampm}`;
+    }
+
+    const match24 = str.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (match24) {
+        let horas = parseInt(match24[1], 10);
+        const minutos = match24[2];
+        const ampm = horas >= 12 ? "PM" : "AM";
+        horas = horas % 12 || 12;
+        return `${String(horas).padStart(2, "0")}:${minutos} ${ampm}`;
+    }
+
+    return str;
+};
+
+/**
+ * Formatea fecha y hora combinadas a estándar visual del sistema (DD/MM/YYYY hh:mm AM/PM).
+ * 
+ * @param {string|Date|null} fechaHoraStr
+ * @param {string} [placeholder="--"]
+ * @returns {string}
+ */
+window.formatearFechaHora = function (fechaHoraStr, placeholder = "--") {
+    if (!fechaHoraStr || fechaHoraStr === "--") {
+        return placeholder;
+    }
+
+    const fecha = window.formatearFecha(fechaHoraStr, "");
+    if (!fecha) {
+        return placeholder;
+    }
+
+    let hora = "";
+    if (fechaHoraStr instanceof Date) {
+        hora = window.formatearHora(fechaHoraStr, "");
+    } else {
+        const str = String(fechaHoraStr).trim();
+        if (str.includes("T")) {
+            hora = window.formatearHora(str.split("T")[1], "");
+        } else if (str.includes(" ")) {
+            hora = window.formatearHora(str.split(" ")[1], "");
+        }
+    }
+
+    return hora ? `${fecha} ${hora}` : fecha;
+};
+
+/**
+ * Formatea una fecha para asignación en inputs HTML5 (<input type="date">: YYYY-MM-DD).
+ * 
+ * @param {string|Date|null} fechaStr
+ * @returns {string}
+ */
+window.formatearFechaParaInput = function (fechaStr) {
+    if (!fechaStr) return "";
+
+    if (fechaStr instanceof Date) {
+        if (isNaN(fechaStr.getTime())) return "";
+        const anio = fechaStr.getFullYear();
+        const mes = String(fechaStr.getMonth() + 1).padStart(2, "0");
+        const dia = String(fechaStr.getDate()).padStart(2, "0");
+        return `${anio}-${mes}-${dia}`;
+    }
+
+    const str = String(fechaStr).trim();
+
+    const matchIso = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (matchIso) {
+        return `${matchIso[1]}-${matchIso[2]}-${matchIso[3]}`;
+    }
+
+    const matchLatam = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+    if (matchLatam) {
+        const dia = String(matchLatam[1]).padStart(2, "0");
+        const mes = String(matchLatam[2]).padStart(2, "0");
+        const anio = matchLatam[3];
+        return `${anio}-${mes}-${dia}`;
+    }
+
+    return "";
+};
