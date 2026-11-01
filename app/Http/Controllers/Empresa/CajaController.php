@@ -10,6 +10,7 @@ use App\Http\Requests\Caja\CrearRequest;
 use App\Http\Requests\Caja\MovimientoCajaRequest;
 use App\Models\Almacen;
 use App\Service\Empresa\CajaClass;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -17,6 +18,13 @@ use Illuminate\View\View;
 class CajaController extends Controller
 {
     public function __construct(private CajaClass $cajaClass) {}
+
+    private function usuarioActualEsAdmin(): bool
+    {
+        $user = Auth::user();
+
+        return $user ? $user->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) : false;
+    }
 
     public function index(): View
     {
@@ -29,6 +37,7 @@ class CajaController extends Controller
         $almacenes = Almacen::where('empresa_id', $empresaId)->where('estado', true)->orderBy('nombre')->get(['id', 'nombre', 'codigo']);
         $turnoActivo = $this->cajaClass->obtenerTurnoActivoUsuario(Auth::id(), $empresaId);
         $cajeros = $this->cajaClass->cajerosDisponibles($empresaId);
+        $esAdmin = $this->usuarioActualEsAdmin();
 
         return response()->json([
             'success' => true,
@@ -38,6 +47,7 @@ class CajaController extends Controller
                 'cajeros' => $cajeros,
                 'usuario_actual_id' => Auth::id(),
                 'usuario_actual_nombre' => Auth::user()?->name,
+                'es_admin' => $esAdmin,
             ],
         ]);
     }
@@ -209,7 +219,20 @@ class CajaController extends Controller
     {
         try {
             $empresaId = $this->obtenerEmpresaId();
+            $esAdmin = $this->usuarioActualEsAdmin();
             $reporte = $this->cajaClass->calcularReporteTurno($id, $empresaId);
+
+            if (! $esAdmin && (int) $reporte['turno']->user_id !== (int) Auth::id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes permiso para consultar el arqueo de otro cajero.',
+                ], 403);
+            }
+
+            $reporte['cierre_ciego'] = ! $esAdmin;
+            if (! $esAdmin) {
+                unset($reporte['efectivo_esperado_usd'], $reporte['efectivo_esperado_bs']);
+            }
 
             return response()->json([
                 'success' => true,
@@ -227,13 +250,18 @@ class CajaController extends Controller
     {
         try {
             $empresaId = $this->obtenerEmpresaId();
-            $turno = $this->cajaClass->cerrarTurno($id, $request->validated(), $empresaId, Auth::id());
+            $turno = $this->cajaClass->cerrarTurno($id, $request->validated(), $empresaId, (int) Auth::id());
 
             return response()->json([
                 'success' => true,
                 'message' => 'Turno de caja cerrado exitosamente. Arqueo completado.',
                 'data' => $turno,
             ]);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -245,7 +273,12 @@ class CajaController extends Controller
     public function imprimirReporteX(int $id): View
     {
         $empresaId = $this->obtenerEmpresaId();
+        $esAdmin = $this->usuarioActualEsAdmin();
         $reporte = $this->cajaClass->calcularReporteTurno($id, $empresaId);
+
+        if (! $esAdmin && (int) $reporte['turno']->user_id !== (int) Auth::id()) {
+            abort(403, 'No tienes permiso para consultar el corte de otro cajero.');
+        }
 
         return view('Sistema.pages.empresa.reporte-corte-x-ticket', compact('reporte'));
     }
@@ -253,7 +286,12 @@ class CajaController extends Controller
     public function imprimirReporteZ(int $id): View
     {
         $empresaId = $this->obtenerEmpresaId();
+        $esAdmin = $this->usuarioActualEsAdmin();
         $reporte = $this->cajaClass->calcularReporteTurno($id, $empresaId);
+
+        if (! $esAdmin && (int) $reporte['turno']->user_id !== (int) Auth::id()) {
+            abort(403, 'No tienes permiso para consultar el cierre de otro cajero.');
+        }
 
         return view('Sistema.pages.empresa.reporte-cierre-z-ticket', compact('reporte'));
     }

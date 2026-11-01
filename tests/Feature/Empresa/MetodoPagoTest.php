@@ -3,13 +3,18 @@
 use App\Models\Empresa;
 use App\Models\MetodoPago;
 use App\Models\User;
-use Database\Seeders\RolesYPermisosSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 uses(DatabaseTransactions::class);
 
 beforeEach(function () {
-    $this->seed(RolesYPermisosSeeder::class);
+    Role::firstOrCreate(['name' => 'SuperAdmin', 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
+    foreach (['metodos_pago.ver', 'metodos_pago.crear', 'metodos_pago.editar', 'metodos_pago.eliminar'] as $perm) {
+        Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
+    }
 
     $this->empresa = Empresa::create([
         'rif' => 'J-123456789',
@@ -123,4 +128,34 @@ test('inactive payment method is reactivated on save', function () {
 
     expect($inactivo->estado)->toBeTrue()
         ->and($inactivo->descripcion)->toBe('Pago vía correo Zelle Reactivado');
+});
+
+test('payment method stores and updates es_efectivo flag', function () {
+    $response = $this->actingAs($this->user)
+        ->withSession(['empresa_activa_id' => $this->empresa->id])
+        ->postJson('/metodos-pago', [
+            'nombre' => 'Billetes Verdes Gaveta',
+            'descripcion' => 'Billetes físicos',
+            'es_efectivo' => true,
+        ]);
+
+    $response->assertOk()
+        ->assertJsonPath('success', true);
+
+    $metodo = MetodoPago::where('nombre', 'Billetes Verdes Gaveta')->first();
+    expect($metodo)->not->toBeNull()
+        ->and($metodo->es_efectivo)->toBeTrue();
+
+    $resUpdate = $this->actingAs($this->user)
+        ->withSession(['empresa_activa_id' => $this->empresa->id])
+        ->putJson("/metodos-pago/actualizar/{$metodo->id}", [
+            'nombre' => 'Billetes Verdes Gaveta',
+            'descripcion' => 'Cambiado a digital',
+            'es_efectivo' => false,
+        ]);
+
+    $resUpdate->assertOk()
+        ->assertJsonPath('success', true);
+
+    expect($metodo->fresh()->es_efectivo)->toBeFalse();
 });

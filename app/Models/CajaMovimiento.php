@@ -17,11 +17,15 @@ class CajaMovimiento extends Model
         'caja_turno_id',
         'user_id',
         'tipo',
+        'metodo_pago_id',
+        'moneda',
         'monto_usd',
         'monto_bs',
         'concepto',
         'comprobante_referencia',
         'observaciones',
+        'documento_tipo',
+        'documento_id',
     ];
 
     protected function casts(): array
@@ -30,6 +34,11 @@ class CajaMovimiento extends Model
             'monto_usd' => 'decimal:2',
             'monto_bs' => 'decimal:2',
         ];
+    }
+
+    public function metodoPago(): BelongsTo
+    {
+        return $this->belongsTo(MetodoPago::class, 'metodo_pago_id');
     }
 
     public function empresa(): BelongsTo

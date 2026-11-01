@@ -14,11 +14,26 @@ use Illuminate\Support\Facades\DB;
 
 class CuentaPorCobrarClass
 {
+    protected function validarEmpresa(int $empresaId): void
+    {
+        if ($empresaId <= 0) {
+            throw new Exception('No se pudo determinar la empresa activa para realizar la operación.');
+        }
+    }
+
+    protected function validarUsuario(int $userId): void
+    {
+        if ($userId <= 0) {
+            throw new Exception('No se pudo determinar el usuario autenticado para realizar la operación.');
+        }
+    }
+
     /**
      * Resumen general y listado agrupado de deudores (Clientes)
      */
     public function resumenClientes(int $empresaId): array
     {
+        $this->validarEmpresa($empresaId);
         $empresa = Empresa::findOrFail($empresaId);
         $tasaCambio = (float) ($empresa->tasa_usd > 0 ? $empresa->tasa_usd : 1);
         $hoy = Carbon::now()->startOfDay();
@@ -208,6 +223,9 @@ class CuentaPorCobrarClass
      */
     public function abonarFacturaEspecifica(int $cxcId, array $datos, int $userId, int $empresaId): array
     {
+        $this->validarEmpresa($empresaId);
+        $this->validarUsuario($userId);
+
         return DB::transaction(function () use ($cxcId, $datos, $userId, $empresaId) {
             $cuenta = CuentaPorCobrar::where('empresa_id', $empresaId)
                 ->whereIn('estado', ['pendiente', 'parcial'])
@@ -292,6 +310,9 @@ class CuentaPorCobrarClass
      */
     public function abonarGeneralDeuda(int $clienteId, array $datos, int $userId, int $empresaId): array
     {
+        $this->validarEmpresa($empresaId);
+        $this->validarUsuario($userId);
+
         return DB::transaction(function () use ($clienteId, $datos, $userId, $empresaId) {
             $cliente = Cliente::findOrFail($clienteId);
             $empresa = Empresa::findOrFail($empresaId);

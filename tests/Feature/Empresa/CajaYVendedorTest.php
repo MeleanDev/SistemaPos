@@ -2,9 +2,13 @@
 
 use App\Models\Almacen;
 use App\Models\Caja;
+use App\Models\CajaMovimiento;
 use App\Models\CajaTurno;
 use App\Models\Categoria;
 use App\Models\Cliente;
+use App\Models\CuentaPorCobrar;
+use App\Models\CuentaPorCobrarAbono;
+use App\Models\DevolucionVenta;
 use App\Models\Empresa;
 use App\Models\EmpresaMoneda;
 use App\Models\MetodoPago;
@@ -14,12 +18,25 @@ use App\Models\User;
 use App\Models\Vendedor;
 use App\Models\Venta;
 use App\Service\Empresa\CajaClass;
+use App\Service\Finanzas\CuentaPorCobrarClass;
+use App\Service\Inventario\KardexClass;
 use App\Service\Ventas\VentaClass;
-use Database\Seeders\RolesYPermisosSeeder;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
-    $this->seed(RolesYPermisosSeeder::class);
+    foreach (['SuperAdmin', 'Admin', 'Operador', 'Vendedor'] as $rol) {
+        Role::firstOrCreate(['name' => $rol, 'guard_name' => 'web']);
+    }
+    foreach ([
+        'pos.acceso', 'ventas.crear', 'ventas.ver', 'ventas.anular',
+        'cajas.ver', 'cajas.crear', 'cajas.editar', 'cajas.eliminar',
+        'cajas.aperturar', 'cajas.cerrar', 'cajas.movimientos', 'cajas.arqueo',
+        'vendedores.ver', 'vendedores.crear', 'vendedores.editar', 'vendedores.eliminar',
+        'reportes.ver', 'reportes.vendedores',
+    ] as $perm) {
+        Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
+    }
 });
 
 test('modulo de vendedores permite registrar, listar y actualizar asesores con comision', function () {
@@ -981,16 +998,30 @@ test('caja permite registrar movimientos menores y se reflejan en el balance esp
         'monto_bs' => 0.00,
     ]);
 
-    // Registrar ingreso menor
-    $respIngreso = $this->actingAs($user)
+    // Rechazar movimiento sin concepto o con ambos montos en cero
+    $this->actingAs($user)
         ->withSession(['empresa_activa_id' => $empresa->id])
         ->postJson('/cajas/movimientos', [
             'caja_turno_id' => $turno->id,
-            'tipo' => 'ingreso',
+            'tipo' => 'egreso',
             'monto_usd' => 0.00,
-            'monto_bs' => 500.00,
+            'monto_bs' => 0.00,
+            'concepto' => 'Monto cero inválido',
         ])
-        ->assertStatus(422); // monto_usd debe ser min:0.01 si se valida min:0.01 en ambos o se maneja mixto
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['monto_usd']);
+
+    // Registrar movimiento válido solo en Bolívares
+    $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/cajas/movimientos', [
+            'caja_turno_id' => $turno->id,
+            'tipo' => 'egreso',
+            'monto_usd' => 0.00,
+            'monto_bs' => 200.00,
+            'concepto' => 'Pago de flete en Bs',
+        ])
+        ->assertOk();
 
     // Registrar ingreso menor con usd y bs válidos
     $respIngresoOk = $this->actingAs($user)
@@ -1011,8 +1042,25 @@ test('caja permite registrar movimientos menores y se reflejan en el balance esp
 
     // Esperado en USD = 100 apertura - 15 egreso + 10 ingreso = 95.00
     expect((float) $reporte['efectivo_esperado_usd'])->toBe(95.00);
-    // Esperado en BS = 4000 apertura + 500 ingreso = 4500.00
-    expect((float) $reporte['efectivo_esperado_bs'])->toBe(4500.00);
+    // Esperado en BS = 4000 apertura - 200 egreso + 500 ingreso = 4300.00
+    expect((float) $reporte['efectivo_esperado_bs'])->toBe(4300.00);
+
+    // Verificar que los tickets térmicos X y Z muestren la sección y el desglose de movimientos
+    $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get("/cajas/turnos/{$turno->id}/imprimir-x")
+        ->assertOk()
+        ->assertSee('4. MOVIMIENTOS DE CAJA (ENTRADAS / SALIDAS)')
+        ->assertSee('Compra de artículos de limpieza')
+        ->assertSee('Pago de flete en Bs');
+
+    $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get("/cajas/turnos/{$turno->id}/imprimir-z")
+        ->assertOk()
+        ->assertSee('4. MOVIMIENTOS DE CAJA (ENTRADAS / SALIDAS)')
+        ->assertSee('Compra de artículos de limpieza')
+        ->assertSee('Pago de flete en Bs');
 });
 
 test('devolucion parcial o total recalcula o anula la comision del vendedor', function () {
@@ -1282,4 +1330,968 @@ test('vendedor con login solo puede ver sus propias ventas en el listado de fact
     // Debe contener solo 1 registro (la venta propia FAC-001)
     expect(count($data))->toBe(1);
     expect($data[0]['codigo'])->toBe('FAC-001');
+});
+
+test('arqueo usa es_efectivo de metodos_pago y venta con vuelto registra egreso en caja_movimientos', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-88880012-2',
+        'nombre' => 'Empresa Vuelto y Efectivo Test',
+        'razon_social' => 'Empresa Vuelto y Efectivo Test C.A.',
+        'direccion' => 'Av. Principal',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    EmpresaMoneda::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Dólares Americanos',
+        'codigo' => 'USD',
+        'simbolo' => '$',
+        'tasa_cambio' => 50.0000,
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Almacén Vuelto',
+        'codigo' => 'ALM-VLT',
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'General',
+        'codigo' => 'CAT-VLT',
+        'estado' => true,
+    ]);
+
+    $producto = Producto::create([
+        'empresa_id' => $empresa->id,
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'PRD-VLT-15',
+        'nombre' => 'Producto de 15 USD',
+        'tipo_item' => 'producto',
+        'unidad_medida' => 'UND',
+        'precio_costo_usd' => 8.00,
+        'precio_detal_usd' => 15.00,
+        'precio_mayorista_usd' => 14.00,
+        'aplica_iva' => false,
+        'iva_porcentaje' => 0,
+        'estado' => true,
+    ]);
+
+    ProductoStockAlmacen::create([
+        'producto_id' => $producto->id,
+        'almacen_id' => $almacen->id,
+        'cantidad_actual' => 30,
+    ]);
+
+    $cliente = Cliente::create([
+        'cedula' => 'V-55443322',
+        'nombre' => 'Luis',
+        'apellido' => 'Rojas',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    $metodoBilletesGaveta = MetodoPago::create([
+        'nombre' => 'Divisas en Gaveta Física',
+        'descripcion' => 'Sin la palabra efectivo en el nombre pero con es_efectivo=true',
+        'es_efectivo' => true,
+        'estado' => true,
+    ]);
+
+    $metodoFalsoEfectivo = MetodoPago::create([
+        'nombre' => 'Transferencia Efectivo Digital',
+        'descripcion' => 'Con la palabra efectivo en el nombre pero es_efectivo=false',
+        'es_efectivo' => false,
+        'estado' => true,
+    ]);
+
+    $caja = Caja::create([
+        'empresa_id' => $empresa->id,
+        'almacen_id' => $almacen->id,
+        'nombre' => 'Caja Vuelto 01',
+        'estado' => true,
+    ]);
+
+    $user = User::factory()->create(['name' => 'V-88880012']);
+    $user->assignRole('SuperAdmin');
+    $user->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $turno = CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja->id,
+        'user_id' => $user->id,
+        'aperturado_por_id' => $user->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 10.00,
+        'monto_apertura_bs' => 0.00,
+        'estado' => 'abierta',
+    ]);
+
+    // Venta 1: Producto de 15 USD pagado con billete de 20 USD (método con es_efectivo = true)
+    // Vuelto entregado = 5 USD -> efectivo neto que queda en gaveta por la venta = +15 USD
+    $respVenta1 = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', [
+            'cliente_id' => $cliente->id,
+            'almacen_id' => $almacen->id,
+            'caja_turno_id' => $turno->id,
+            'tipo_venta' => 'detal',
+            'tasa_cambio' => 50.0000,
+            'condicion_pago' => 'contado',
+            'items' => [
+                [
+                    'producto_id' => $producto->id,
+                    'tipo_item' => 'producto',
+                    'cantidad' => 1,
+                    'precio_unitario_usd' => 15.00,
+                    'almacen_id' => $almacen->id,
+                ],
+            ],
+            'pagos' => [
+                [
+                    'metodo_pago_id' => $metodoBilletesGaveta->id,
+                    'monto' => 20.00,
+                    'moneda' => 'USD',
+                    'tasa_cambio' => 50.0000,
+                ],
+            ],
+        ]);
+
+    $respVenta1->assertOk()->assertJsonPath('success', true);
+    $venta1Id = $respVenta1->json('data.id');
+
+    $movVuelto = CajaMovimiento::where('caja_turno_id', $turno->id)
+        ->where('documento_tipo', 'venta')
+        ->where('documento_id', $venta1Id)
+        ->first();
+
+    expect($movVuelto)->not->toBeNull()
+        ->and($movVuelto->tipo)->toBe('egreso')
+        ->and($movVuelto->metodo_pago_id)->toBe($metodoBilletesGaveta->id)
+        ->and($movVuelto->moneda)->toBe('USD')
+        ->and((float) $movVuelto->monto_usd)->toBe(5.00)
+        ->and((float) $movVuelto->monto_bs)->toBe(250.00);
+
+    // Venta 2: Producto de 15 USD pagado con método que tiene "Efectivo" en el nombre pero es_efectivo = false
+    // No debe sumar al efectivo esperado del turno
+    $respVenta2 = $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', [
+            'cliente_id' => $cliente->id,
+            'almacen_id' => $almacen->id,
+            'caja_turno_id' => $turno->id,
+            'tipo_venta' => 'detal',
+            'tasa_cambio' => 50.0000,
+            'condicion_pago' => 'contado',
+            'items' => [
+                [
+                    'producto_id' => $producto->id,
+                    'tipo_item' => 'producto',
+                    'cantidad' => 1,
+                    'precio_unitario_usd' => 15.00,
+                    'almacen_id' => $almacen->id,
+                ],
+            ],
+            'pagos' => [
+                [
+                    'metodo_pago_id' => $metodoFalsoEfectivo->id,
+                    'monto' => 15.00,
+                    'moneda' => 'USD',
+                    'tasa_cambio' => 50.0000,
+                ],
+            ],
+        ]);
+
+    $respVenta2->assertOk()->assertJsonPath('success', true);
+
+    // Registrar además un egreso manual de 2 USD en el mismo turno
+    $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/cajas/movimientos', [
+            'caja_turno_id' => $turno->id,
+            'tipo' => 'egreso',
+            'monto_usd' => 2.00,
+            'monto_bs' => 0.00,
+            'concepto' => 'Compra menor de papelería',
+        ])
+        ->assertOk();
+
+    $reporte = app(CajaClass::class)->calcularReporteTurno($turno->id, $empresa->id);
+
+    // El vuelto (5 USD) se separa en total_vuelto_usd y NO se mezcla ni resta dos veces en total_egresos_caja_usd (2 USD)
+    // Esperado = Apertura (10) + Pago efectivo recibido (20) - Vuelto (5) - Egreso manual (2) = 23.00 USD (es decir: apertura + 15 - 2)
+    expect((float) $reporte['total_efectivo_ventas_usd'])->toBe(20.00)
+        ->and((float) $reporte['total_vuelto_usd'])->toBe(5.00)
+        ->and((float) $reporte['total_egresos_caja_usd'])->toBe(2.00)
+        ->and((float) $reporte['efectivo_esperado_usd'])->toBe(23.00)
+        ->and((float) $reporte['efectivo_esperado_bs'])->toBe(0.00);
+
+    $movVueltoItem = collect($reporte['movimientos_listado'])->firstWhere('id', $movVuelto->id);
+    expect($movVueltoItem)->not->toBeNull()
+        ->and($movVueltoItem['es_vuelto'])->toBeTrue()
+        ->and($movVueltoItem['etiqueta_tipo'])->toBe('Vuelto entregado');
+
+    $this->actingAs($user)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get("/cajas/turnos/{$turno->id}/imprimir-x")
+        ->assertOk()
+        ->assertSee('Vuelto Entregado')
+        ->assertSee('Vuelto entregado:');
+});
+
+test('calcularReporteTurno cuadra al centavo por moneda y permite efectivo esperado negativo sin max(0)', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-88880013-3',
+        'nombre' => 'Empresa Formula B03 Test',
+        'razon_social' => 'Empresa Formula B03 Test C.A.',
+        'direccion' => 'Av. Principal',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    EmpresaMoneda::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Dólares Americanos',
+        'codigo' => 'USD',
+        'simbolo' => '$',
+        'tasa_cambio' => 40.0000,
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Almacén B03',
+        'codigo' => 'ALM-B03',
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'General B03',
+        'codigo' => 'CAT-B03',
+        'estado' => true,
+    ]);
+
+    $producto = Producto::create([
+        'empresa_id' => $empresa->id,
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'PRD-B03',
+        'nombre' => 'Producto B03',
+        'tipo_item' => 'producto',
+        'unidad_medida' => 'UND',
+        'precio_costo_usd' => 5.00,
+        'precio_detal_usd' => 15.00,
+        'precio_mayorista_usd' => 12.00,
+        'aplica_iva' => false,
+        'iva_porcentaje' => 0,
+        'estado' => true,
+    ]);
+
+    ProductoStockAlmacen::create([
+        'producto_id' => $producto->id,
+        'almacen_id' => $almacen->id,
+        'cantidad_actual' => 50,
+    ]);
+
+    $cliente = Cliente::create([
+        'cedula' => 'V-66554433',
+        'nombre' => 'Ana',
+        'apellido' => 'Silva',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    $metodoEfectivoUsd = MetodoPago::create([
+        'nombre' => 'Efectivo Gaveta USD',
+        'es_efectivo' => true,
+        'estado' => true,
+    ]);
+
+    $metodoEfectivoBs = MetodoPago::create([
+        'nombre' => 'Efectivo Gaveta Bs',
+        'es_efectivo' => true,
+        'estado' => true,
+    ]);
+
+    $metodoDigital = MetodoPago::create([
+        'nombre' => 'Zelle Digital',
+        'es_efectivo' => false,
+        'estado' => true,
+    ]);
+
+    $caja = Caja::create([
+        'empresa_id' => $empresa->id,
+        'almacen_id' => $almacen->id,
+        'nombre' => 'Caja B03',
+        'estado' => true,
+    ]);
+
+    $admin = User::factory()->create(['name' => 'V-88880013']);
+    $admin->assignRole('SuperAdmin');
+    $admin->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $turno = CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja->id,
+        'user_id' => $admin->id,
+        'aperturado_por_id' => $admin->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 50.00,
+        'monto_apertura_bs' => 1000.00,
+        'estado' => 'abierta',
+    ]);
+
+    // 1. Venta de 15 USD pagada con 20 USD en efectivo -> +20 USD pago efectivo, -5 USD vuelto
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', [
+            'cliente_id' => $cliente->id,
+            'almacen_id' => $almacen->id,
+            'caja_turno_id' => $turno->id,
+            'tipo_venta' => 'detal',
+            'tasa_cambio' => 40.0000,
+            'condicion_pago' => 'contado',
+            'items' => [
+                [
+                    'producto_id' => $producto->id,
+                    'tipo_item' => 'producto',
+                    'cantidad' => 1,
+                    'precio_unitario_usd' => 15.00,
+                    'almacen_id' => $almacen->id,
+                ],
+            ],
+            'pagos' => [
+                [
+                    'metodo_pago_id' => $metodoEfectivoUsd->id,
+                    'monto' => 20.00,
+                    'moneda' => 'USD',
+                    'tasa_cambio' => 40.0000,
+                ],
+            ],
+        ])
+        ->assertOk();
+
+    // 2. Abono CXC en efectivo USD (+12.50 USD) y en efectivo Bs (+300.00 Bs)
+    $cxc = CuentaPorCobrar::create([
+        'empresa_id' => $empresa->id,
+        'cliente_id' => $cliente->id,
+        'numero_factura' => 'FAC-CXC-01',
+        'fecha_emision' => now()->toDateString(),
+        'fecha_vencimiento' => now()->addDays(15)->toDateString(),
+        'monto_total_usd' => 100.00,
+        'monto_total_bs' => 4000.00,
+        'monto_pagado_usd' => 0.00,
+        'monto_pagado_bs' => 0.00,
+        'saldo_pendiente_usd' => 100.00,
+        'saldo_pendiente_bs' => 4000.00,
+        'estado' => 'pendiente',
+    ]);
+
+    CuentaPorCobrarAbono::create([
+        'cuenta_por_cobrar_id' => $cxc->id,
+        'caja_id' => $caja->id,
+        'caja_turno_id' => $turno->id,
+        'user_id' => $admin->id,
+        'metodo_pago_id' => $metodoEfectivoUsd->id,
+        'fecha_abono' => now()->toDateString(),
+        'monto_usd' => 12.50,
+        'monto_bs' => 500.00,
+        'tasa_cambio' => 40.0000,
+    ]);
+
+    CuentaPorCobrarAbono::create([
+        'cuenta_por_cobrar_id' => $cxc->id,
+        'caja_id' => $caja->id,
+        'caja_turno_id' => $turno->id,
+        'user_id' => $admin->id,
+        'metodo_pago_id' => $metodoEfectivoBs->id,
+        'fecha_abono' => now()->toDateString(),
+        'monto_usd' => 7.50,
+        'monto_bs' => 300.00,
+        'tasa_cambio' => 40.0000,
+    ]);
+
+    // 3. Devolución en efectivo USD (-4.25 USD)
+    $ventaExistente = Venta::where('caja_turno_id', $turno->id)->first();
+    DevolucionVenta::create([
+        'empresa_id' => $empresa->id,
+        'venta_id' => $ventaExistente->id,
+        'caja_turno_id' => $turno->id,
+        'user_id' => $admin->id,
+        'codigo' => 'DEV-B03-01',
+        'motivo' => 'Devolución parcial en efectivo',
+        'total_devuelto_usd' => 4.25,
+        'total_devuelto_bs' => 0.00,
+        'tipo_reembolso' => 'efectivo',
+    ]);
+
+    // 4. Movimiento manual de ingreso (+3.10 USD) y egreso (-6.35 USD, -150.00 Bs) sin método (cuenta como efectivo)
+    CajaMovimiento::create([
+        'empresa_id' => $empresa->id,
+        'caja_turno_id' => $turno->id,
+        'user_id' => $admin->id,
+        'tipo' => 'ingreso',
+        'metodo_pago_id' => null,
+        'moneda' => 'USD',
+        'monto_usd' => 3.10,
+        'monto_bs' => 0.00,
+        'concepto' => 'Ingreso sencillo USD',
+    ]);
+
+    CajaMovimiento::create([
+        'empresa_id' => $empresa->id,
+        'caja_turno_id' => $turno->id,
+        'user_id' => $admin->id,
+        'tipo' => 'egreso',
+        'metodo_pago_id' => null,
+        'moneda' => 'MIXTA',
+        'monto_usd' => 6.35,
+        'monto_bs' => 150.00,
+        'concepto' => 'Egreso manual mixto',
+    ]);
+
+    // 5. Movimiento con método NO efectivo (no debe alterar el efectivo esperado)
+    CajaMovimiento::create([
+        'empresa_id' => $empresa->id,
+        'caja_turno_id' => $turno->id,
+        'user_id' => $admin->id,
+        'tipo' => 'egreso',
+        'metodo_pago_id' => $metodoDigital->id,
+        'moneda' => 'USD',
+        'monto_usd' => 99.00,
+        'monto_bs' => 0.00,
+        'concepto' => 'Comisión bancaria digital',
+    ]);
+
+    $cajaClass = app(CajaClass::class);
+    $reporte = $cajaClass->calcularReporteTurno($turno->id, $empresa->id);
+
+    // USD esperado = 50.00 (apertura) + 20.00 (venta ef) + 12.50 (abono ef) + 3.10 (ingreso) - 5.00 (vuelto) - 4.25 (devolucion) - 6.35 (egreso) = 70.00
+    // Bs esperado = 1000.00 (apertura) + 0 (venta ef) + 300.00 (abono ef) + 0 (ingreso) - 0 (vuelto) - 0 (devolucion) - 150.00 (egreso) = 1150.00
+    expect((float) $reporte['efectivo_esperado_usd'])->toBe(70.00)
+        ->and((float) $reporte['efectivo_esperado_bs'])->toBe(1150.00);
+
+    // 6. Si hay un egreso mayor al disponible, el esperado puede ser negativo y debe mostrarse sin max(0, ...)
+    CajaMovimiento::create([
+        'empresa_id' => $empresa->id,
+        'caja_turno_id' => $turno->id,
+        'user_id' => $admin->id,
+        'tipo' => 'egreso',
+        'metodo_pago_id' => null,
+        'moneda' => 'USD',
+        'monto_usd' => 85.50,
+        'monto_bs' => 0.00,
+        'concepto' => 'Retiro extraordinario que deja saldo negativo',
+    ]);
+
+    $reporteNegativo = $cajaClass->calcularReporteTurno($turno->id, $empresa->id);
+    expect((float) $reporteNegativo['efectivo_esperado_usd'])->toBe(-15.50);
+});
+
+test('cierre Z permite al cajero cerrar solo su turno a ciegas y rechaza turno ajeno con 403', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-88880014-4',
+        'nombre' => 'Empresa Cierre Ciego B04',
+        'razon_social' => 'Empresa Cierre Ciego B04 C.A.',
+        'direccion' => 'Av. Principal',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $admin = User::factory()->create(['name' => 'Admin B04']);
+    $admin->assignRole('Admin');
+    $admin->givePermissionTo(['cajas.ver', 'cajas.arqueo', 'cajas.cerrar', 'cajas.aperturar']);
+    $admin->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $cajero1 = User::factory()->create(['name' => 'Cajero 1 B04']);
+    $cajero1->assignRole('Operador');
+    $cajero1->givePermissionTo(['cajas.ver', 'cajas.arqueo', 'cajas.cerrar']);
+    $cajero1->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $cajero2 = User::factory()->create(['name' => 'Cajero 2 B04']);
+    $cajero2->assignRole('Operador');
+    $cajero2->givePermissionTo(['cajas.ver', 'cajas.arqueo', 'cajas.cerrar']);
+    $cajero2->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $caja1 = Caja::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Caja Cajero 1',
+        'estado' => true,
+    ]);
+
+    $caja2 = Caja::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Caja Cajero 2',
+        'estado' => true,
+    ]);
+
+    $turnoCajero1 = CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja1->id,
+        'user_id' => $cajero1->id,
+        'aperturado_por_id' => $admin->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 45.00,
+        'monto_apertura_bs' => 800.00,
+        'estado' => 'abierta',
+    ]);
+
+    $turnoCajero2 = CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja2->id,
+        'user_id' => $cajero2->id,
+        'aperturado_por_id' => $admin->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 30.00,
+        'monto_apertura_bs' => 500.00,
+        'estado' => 'abierta',
+    ]);
+
+    // 1. Cajero 1 intenta cerrar el turno de Cajero 2 -> 403 Forbidden
+    $this->actingAs($cajero1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson("/cajas/turnos/{$turnoCajero2->id}/cerrar", [
+            'monto_cierre_usd' => 30.00,
+            'monto_cierre_bs' => 500.00,
+        ])
+        ->assertForbidden();
+
+    expect($turnoCajero2->fresh()->estado)->toBe('abierta');
+
+    // 2. Respuesta previa al conteo (reporte-x) para Cajero 1 NO incluye efectivo_esperado_usd ni efectivo_esperado_bs
+    $respPreConteoCajero = $this->actingAs($cajero1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson("/cajas/turnos/{$turnoCajero1->id}/reporte-x");
+
+    $respPreConteoCajero->assertOk()
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('data.cierre_ciego', true);
+
+    $dataCajero = $respPreConteoCajero->json('data');
+    expect($dataCajero)->not->toHaveKey('efectivo_esperado_usd')
+        ->and($dataCajero)->not->toHaveKey('efectivo_esperado_bs');
+
+    // 3. Admin sí ve efectivo_esperado_usd y efectivo_esperado_bs en la respuesta previa
+    $respPreConteoAdmin = $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson("/cajas/turnos/{$turnoCajero1->id}/reporte-x");
+
+    $respPreConteoAdmin->assertOk()
+        ->assertJsonPath('data.cierre_ciego', false)
+        ->assertJsonPath('data.efectivo_esperado_usd', 45)
+        ->assertJsonPath('data.efectivo_esperado_bs', 800);
+
+    // 4. Cajero 1 cierra su propio turno a ciegas ingresando 40 USD (faltante -5 USD) y 850 Bs (sobrante +50 Bs)
+    $respCierrePropio = $this->actingAs($cajero1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson("/cajas/turnos/{$turnoCajero1->id}/cerrar", [
+            'monto_cierre_usd' => 40.00,
+            'monto_cierre_bs' => 850.00,
+            'observaciones' => 'Cierre a ciegas por cajero',
+        ]);
+
+    $respCierrePropio->assertOk()
+        ->assertJsonPath('success', true);
+
+    $turno1Cerrado = $turnoCajero1->fresh();
+    expect($turno1Cerrado->estado)->toBe('cerrada')
+        ->and((float) $turno1Cerrado->diferencia_usd)->toBe(-5.00)
+        ->and((float) $turno1Cerrado->diferencia_bs)->toBe(50.00);
+
+    // 5. Admin puede cerrar el turno de cualquier cajero (turnoCajero2)
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson("/cajas/turnos/{$turnoCajero2->id}/cerrar", [
+            'monto_cierre_usd' => 30.00,
+            'monto_cierre_bs' => 500.00,
+            'observaciones' => 'Cerrado por administrador',
+        ])
+        ->assertOk()
+        ->assertJsonPath('success', true);
+
+    expect($turnoCajero2->fresh()->estado)->toBe('cerrada')
+        ->and((int) $turnoCajero2->fresh()->cerrado_por_id)->toBe($admin->id);
+});
+
+test('facturacion exige caja_id y caja_turno_id no nulos para admin con 0, 1 y 2 cajas abiertas y para cajero', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-88880015-5',
+        'nombre' => 'Empresa B05 Turnos Obligatorios',
+        'razon_social' => 'Empresa B05 Turnos Obligatorios C.A.',
+        'direccion' => 'Av. Principal',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $otraEmpresa = Empresa::create([
+        'rif' => 'J-88880016-6',
+        'nombre' => 'Empresa Externa B05',
+        'razon_social' => 'Empresa Externa B05 C.A.',
+        'direccion' => 'Av. Externa',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    EmpresaMoneda::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Dólares Americanos',
+        'codigo' => 'USD',
+        'simbolo' => '$',
+        'tasa_cambio' => 40.0000,
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Almacén B05',
+        'codigo' => 'ALM-B05',
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'General B05',
+        'codigo' => 'CAT-B05',
+        'estado' => true,
+    ]);
+
+    $producto = Producto::create([
+        'empresa_id' => $empresa->id,
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'PRD-B05',
+        'nombre' => 'Producto B05',
+        'tipo_item' => 'producto',
+        'unidad_medida' => 'UND',
+        'precio_costo_usd' => 5.00,
+        'precio_detal_usd' => 10.00,
+        'precio_mayorista_usd' => 9.00,
+        'aplica_iva' => false,
+        'iva_porcentaje' => 0,
+        'estado' => true,
+    ]);
+
+    ProductoStockAlmacen::create([
+        'producto_id' => $producto->id,
+        'almacen_id' => $almacen->id,
+        'cantidad_actual' => 100,
+    ]);
+
+    $cliente = Cliente::create([
+        'cedula' => 'V-44556677',
+        'nombre' => 'Roberto',
+        'apellido' => 'Díaz',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    $metodoEfectivo = MetodoPago::create([
+        'nombre' => 'Efectivo B05',
+        'es_efectivo' => true,
+        'estado' => true,
+    ]);
+
+    $admin = User::factory()->create(['name' => 'Admin B05']);
+    $admin->assignRole('Admin');
+    $admin->givePermissionTo(['pos.acceso', 'ventas.crear', 'cajas.ver', 'cajas.aperturar', 'cajas.cerrar']);
+    $admin->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $cajero1 = User::factory()->create(['name' => 'Cajero 1 B05']);
+    $cajero1->assignRole('Operador');
+    $cajero1->givePermissionTo(['pos.acceso', 'ventas.crear']);
+    $cajero1->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $cajero2 = User::factory()->create(['name' => 'Cajero 2 B05']);
+    $cajero2->assignRole('Operador');
+    $cajero2->givePermissionTo(['pos.acceso', 'ventas.crear']);
+    $cajero2->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $caja1 = Caja::create([
+        'empresa_id' => $empresa->id,
+        'almacen_id' => $almacen->id,
+        'nombre' => 'Caja B05 - 1',
+        'estado' => true,
+    ]);
+
+    $caja2 = Caja::create([
+        'empresa_id' => $empresa->id,
+        'almacen_id' => $almacen->id,
+        'nombre' => 'Caja B05 - 2',
+        'estado' => true,
+    ]);
+
+    $payloadBase = [
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'tipo_venta' => 'detal',
+        'tasa_cambio' => 40.0000,
+        'condicion_pago' => 'contado',
+        'items' => [
+            [
+                'producto_id' => $producto->id,
+                'tipo_item' => 'producto',
+                'cantidad' => 1,
+                'precio_unitario_usd' => 10.00,
+                'almacen_id' => $almacen->id,
+            ],
+        ],
+        'pagos' => [
+            [
+                'metodo_pago_id' => $metodoEfectivo->id,
+                'monto' => 10.00,
+                'moneda' => 'USD',
+                'tasa_cambio' => 40.0000,
+            ],
+        ],
+    ];
+
+    // 1. Admin con 0 cajas abiertas -> turno_activo = null y facturación rechazada con "No hay cajas abiertas"
+    $datosAdmin0 = $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/pos/datos')
+        ->assertOk()
+        ->json('data');
+
+    expect($datosAdmin0['puede_operar'])->toBeFalse()
+        ->and($datosAdmin0['turno_activo'])->toBeNull()
+        ->and($datosAdmin0['turnos_activos'])->toBeEmpty();
+
+    $respAdminSinCaja = $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', $payloadBase);
+
+    $respAdminSinCaja->assertStatus(422)
+        ->assertJsonValidationErrors(['caja_turno_id']);
+    expect($respAdminSinCaja->json('errors.caja_turno_id.0'))->toContain('No hay cajas abiertas');
+
+    expect(fn () => app(VentaClass::class)->procesarVenta($payloadBase, $empresa->id, $admin->id))
+        ->toThrow(Exception::class, 'No hay cajas abiertas');
+
+    // 2. Cajero sin turno abierto -> rechazado con error claro
+    $respCajeroSinTurno = $this->actingAs($cajero1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', $payloadBase);
+
+    $respCajeroSinTurno->assertStatus(422)
+        ->assertJsonValidationErrors(['caja_turno_id']);
+    expect($respCajeroSinTurno->json('errors.caja_turno_id.0'))->toContain('No tienes una caja registradora aperturada');
+
+    expect(fn () => app(VentaClass::class)->procesarVenta($payloadBase, $empresa->id, $cajero1->id))
+        ->toThrow(Exception::class, 'No tienes una caja registradora aperturada');
+
+    // 3. Admin con 1 caja abierta -> /pos/datos preselecciona esa única caja en la UI, pero el backend exige enviar caja_turno_id explícito
+    $turno1 = CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja1->id,
+        'user_id' => $cajero1->id,
+        'aperturado_por_id' => $admin->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 25.00,
+        'monto_apertura_bs' => 0.00,
+        'estado' => 'abierta',
+    ]);
+
+    $datosAdmin1 = $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/pos/datos')
+        ->assertOk()
+        ->json('data');
+
+    expect($datosAdmin1['puede_operar'])->toBeTrue()
+        ->and(count($datosAdmin1['turnos_activos']))->toBe(1)
+        ->and($datosAdmin1['turno_activo']['id'])->toBe($turno1->id);
+
+    // Si el admin NO envía caja_turno_id, el backend no elige automáticamente: lo rechaza
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', $payloadBase)
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['caja_turno_id']);
+
+    expect(fn () => app(VentaClass::class)->procesarVenta($payloadBase, $empresa->id, $admin->id))
+        ->toThrow(Exception::class, 'Debes seleccionar una caja con turno abierto');
+
+    // Si el admin envía el caja_turno_id seleccionado, se procesa con caja_id y caja_turno_id no nulos
+    $respVentaAdmin1 = $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', array_merge($payloadBase, ['caja_turno_id' => $turno1->id]));
+
+    $respVentaAdmin1->assertOk()->assertJsonPath('success', true);
+    $venta1 = Venta::findOrFail($respVentaAdmin1->json('data.id'));
+    expect($venta1->caja_id)->toBe($caja1->id)
+        ->and($venta1->caja_turno_id)->toBe($turno1->id);
+
+    // 4. Admin con 2 cajas abiertas -> /pos/datos devuelve turno_activo = null para obligar a elegir en el selector
+    $turno2 = CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja2->id,
+        'user_id' => $cajero2->id,
+        'aperturado_por_id' => $admin->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 30.00,
+        'monto_apertura_bs' => 0.00,
+        'estado' => 'abierta',
+    ]);
+
+    $datosAdmin2 = $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/pos/datos')
+        ->assertOk()
+        ->json('data');
+
+    expect($datosAdmin2['puede_operar'])->toBeTrue()
+        ->and(count($datosAdmin2['turnos_activos']))->toBe(2)
+        ->and($datosAdmin2['turno_activo'])->toBeNull();
+
+    // Validar que GuardarVentaRequest rechace un turno cerrado o de otra empresa
+    $cajaExterna = Caja::create([
+        'empresa_id' => $otraEmpresa->id,
+        'nombre' => 'Caja Externa',
+        'estado' => true,
+    ]);
+
+    $turnoExterno = CajaTurno::create([
+        'empresa_id' => $otraEmpresa->id,
+        'caja_id' => $cajaExterna->id,
+        'user_id' => $admin->id,
+        'aperturado_por_id' => $admin->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 10.00,
+        'monto_apertura_bs' => 0.00,
+        'estado' => 'abierta',
+    ]);
+
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', array_merge($payloadBase, ['caja_turno_id' => $turnoExterno->id]))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['caja_turno_id']);
+
+    // Admin elige explícitamente turno2 -> venta queda en caja2 / turno2
+    $respVentaAdmin2 = $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', array_merge($payloadBase, ['caja_turno_id' => $turno2->id]));
+
+    $respVentaAdmin2->assertOk()->assertJsonPath('success', true);
+    $venta2 = Venta::findOrFail($respVentaAdmin2->json('data.id'));
+    expect($venta2->caja_id)->toBe($caja2->id)
+        ->and($venta2->caja_turno_id)->toBe($turno2->id);
+
+    // 5. Cajero 1 intenta facturar enviando el turno de Cajero 2 -> 422
+    $this->actingAs($cajero1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', array_merge($payloadBase, ['caja_turno_id' => $turno2->id]))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['caja_turno_id']);
+
+    // Cajero 1 factura con su propio turno -> éxito y caja_id/caja_turno_id no nulos
+    $respVentaCajero1 = $this->actingAs($cajero1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', $payloadBase);
+
+    $respVentaCajero1->assertOk()->assertJsonPath('success', true);
+    $venta3 = Venta::findOrFail($respVentaCajero1->json('data.id'));
+    expect($venta3->caja_id)->toBe($caja1->id)
+        ->and($venta3->caja_turno_id)->toBe($turno1->id);
+
+    // Ninguna venta de la empresa queda con caja_id o caja_turno_id null
+    $ventasSinCaja = Venta::where('empresa_id', $empresa->id)
+        ->where(fn ($q) => $q->whereNull('caja_id')->orWhereNull('caja_turno_id'))
+        ->count();
+    expect($ventasSinCaja)->toBe(0);
+});
+
+test('servicios rechazan operaciones sin contexto de empresa, usuario o almacen sin caer en fallback 1', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-88880017-7',
+        'nombre' => 'Empresa B06 Sin Fallbacks',
+        'razon_social' => 'Empresa B06 Sin Fallbacks C.A.',
+        'direccion' => 'Av. Principal',
+        'maneja_motos' => false,
+        'estado' => true,
+    ]);
+
+    $user = User::factory()->create(['name' => 'Admin B06']);
+    $user->assignRole('SuperAdmin');
+
+    $cliente = Cliente::create([
+        'cedula' => 'V-33221100',
+        'nombre' => 'Cliente',
+        'apellido' => 'B06',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    auth()->logout();
+    session()->forget('empresa_activa_id');
+
+    $ventaClass = app(VentaClass::class);
+    $kardexClass = app(KardexClass::class);
+    $cajaClass = app(CajaClass::class);
+    $cxcClass = app(CuentaPorCobrarClass::class);
+
+    // 1. VentaClass sin empresa activa ni sesión -> excepción clara (no fallback a 1)
+    expect(fn () => $ventaClass->datosInicialesPos(null))
+        ->toThrow(Exception::class, 'No se pudo determinar la empresa activa');
+
+    expect(fn () => $ventaClass->procesarVenta(['cliente_id' => $cliente->id], null, $user->id))
+        ->toThrow(Exception::class, 'No se pudo determinar la empresa activa');
+
+    // 2. VentaClass sin usuario autenticado -> excepción clara (no fallback a 1)
+    expect(fn () => $ventaClass->procesarVenta(['cliente_id' => $cliente->id], $empresa->id, null))
+        ->toThrow(Exception::class, 'No se pudo determinar el usuario autenticado');
+
+    // 3. VentaClass sin almacen_id -> excepción clara (no fallback a 1)
+    expect(fn () => $ventaClass->procesarVenta(['cliente_id' => $cliente->id], $empresa->id, $user->id))
+        ->toThrow(Exception::class, 'El almacén de despacho es obligatorio');
+
+    // 4. KardexClass sin empresa_id, sin almacen_id o sin user_id -> excepción clara
+    expect(fn () => $kardexClass->registrarMovimiento([
+        'almacen_id' => 1,
+        'producto_id' => 1,
+        'user_id' => $user->id,
+        'tipo_movimiento' => 'entrada_recepcion',
+        'documento_tipo' => 'ajuste',
+        'documento_id' => 1,
+        'cantidad' => 1,
+    ]))->toThrow(Exception::class, 'No se pudo determinar la empresa activa');
+
+    expect(fn () => $kardexClass->registrarMovimiento([
+        'empresa_id' => $empresa->id,
+        'producto_id' => 1,
+        'user_id' => $user->id,
+        'tipo_movimiento' => 'entrada_recepcion',
+        'documento_tipo' => 'ajuste',
+        'documento_id' => 1,
+        'cantidad' => 1,
+    ]))->toThrow(Exception::class, 'El almacén es obligatorio');
+
+    expect(fn () => $kardexClass->registrarMovimiento([
+        'empresa_id' => $empresa->id,
+        'almacen_id' => 1,
+        'producto_id' => 1,
+        'tipo_movimiento' => 'entrada_recepcion',
+        'documento_tipo' => 'ajuste',
+        'documento_id' => 1,
+        'cantidad' => 1,
+    ]))->toThrow(Exception::class, 'No se pudo determinar el usuario autenticado');
+
+    // 5. CajaClass y CuentaPorCobrarClass sin contexto válido (0) -> excepción clara
+    expect(fn () => $cajaClass->aperturarTurno(['caja_id' => 1], 0, $user->id))
+        ->toThrow(Exception::class, 'No se pudo determinar la empresa activa');
+
+    expect(fn () => $cxcClass->abonarFacturaEspecifica(1, ['monto' => 10], 0, $empresa->id))
+        ->toThrow(Exception::class, 'No se pudo determinar el usuario autenticado');
 });

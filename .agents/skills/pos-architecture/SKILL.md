@@ -16,6 +16,8 @@ Esta skill es corta a propósito. Lee las reglas de abajo y **carga solo la refe
 | Escribir controlador, request, servicio o ruta | `references/backend.md` y `references/permisos.md` |
 | Entender el negocio (POS, kardex, cajas, recepciones, comisiones) | `references/dominio-modulos.md` |
 | Refactorizar o auditar un módulo / ver su estado | `references/protocolo-refactor.md` |
+| Saber **qué debe hacer** el negocio (factura, anulación, caja, vendedores, roles, reportes) | skill `pos-flujos` (gana sobre `dominio-modulos.md` si difieren) |
+| Decidir **en qué pantalla vive** una acción / mover o quitar botones, modales o entradas de menú | skill `pos-pantallas` |
 
 ## 2. Precedencia entre skills (resuelve conflictos)
 

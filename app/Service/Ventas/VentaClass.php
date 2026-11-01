@@ -4,6 +4,7 @@ namespace App\Service\Ventas;
 
 use App\Models\Almacen;
 use App\Models\Caja;
+use App\Models\CajaMovimiento;
 use App\Models\CajaTurno;
 use App\Models\Cliente;
 use App\Models\CuentaPorCobrar;
@@ -36,7 +37,24 @@ class VentaClass
 
     protected function empresaId(?int $empresaId = null): int
     {
-        return $empresaId ?? (int) (Auth::user()?->empresaActiva()?->id ?? session('empresa_activa_id') ?? 1);
+        $id = (int) ($empresaId ?: (Auth::user()?->empresaActiva()?->id ?? session('empresa_activa_id') ?? 0));
+
+        if ($id <= 0) {
+            throw new Exception('No se pudo determinar la empresa activa para realizar la operación.');
+        }
+
+        return $id;
+    }
+
+    protected function userId(?int $userId = null): int
+    {
+        $id = (int) ($userId ?: (Auth::id() ?? 0));
+
+        if ($id <= 0) {
+            throw new Exception('No se pudo determinar el usuario autenticado para realizar la operación.');
+        }
+
+        return $id;
     }
 
     /**
@@ -69,7 +87,7 @@ class VentaClass
         // 3. Métodos de Pago
         $metodosPago = MetodoPago::where('estado', true)
             ->orderBy('id', 'asc')
-            ->get(['id', 'nombre', 'descripcion']);
+            ->get(['id', 'nombre', 'descripcion', 'es_efectivo']);
 
         // 4. Moneda y Tasa de Cambio Activa
         $monedaUsd = EmpresaMoneda::where('empresa_id', $empresaId)->where('codigo', 'USD')->first();
@@ -271,11 +289,16 @@ class VentaClass
             ->get();
 
         $cajaTurnoAsignada = $user ? $user->cajaTurnoActivo($empresaId)?->load(['caja', 'aperturadoPor']) : null;
-        $turnoActivo = $cajaTurnoAsignada ?? ($esAdmin ? $turnosActivos->first() : null);
+        $turnoActivo = null;
+        if ($esAdmin) {
+            $turnoActivo = $turnosActivos->count() === 1 ? $turnosActivos->first() : null;
+        } elseif ($esCajero) {
+            $turnoActivo = $cajaTurnoAsignada;
+        }
 
         $puedeOperar = false;
         if ($esAdmin) {
-            $puedeOperar = true;
+            $puedeOperar = $turnosActivos->isNotEmpty();
         } elseif ($esVendedor) {
             $puedeOperar = true;
         } elseif ($esCajero) {
@@ -445,7 +468,7 @@ class VentaClass
     {
         return DB::transaction(function () use ($datos, $empresaId, $userId) {
             $empresaId = $this->empresaId($empresaId);
-            $userId = $userId ?? Auth::id() ?? 1;
+            $userId = $this->userId($userId);
 
             $monedaUsd = EmpresaMoneda::where('empresa_id', $empresaId)->where('codigo', 'USD')->first();
             $tasaOficial = $monedaUsd ? (float) $monedaUsd->tasa_cambio : 1.0000;
@@ -457,7 +480,19 @@ class VentaClass
             $clienteId = (int) ($datos['cliente_id'] ?? 0);
             $cliente = Cliente::findOrFail($clienteId);
 
-            $almacenIdGlobal = (int) ($datos['almacen_id'] ?? 1);
+            $almacenIdGlobal = (int) ($datos['almacen_id'] ?? 0);
+            if ($almacenIdGlobal <= 0) {
+                throw new Exception('El almacén de despacho es obligatorio para procesar la venta.');
+            }
+
+            $almacenValido = Almacen::where('empresa_id', $empresaId)
+                ->where('id', $almacenIdGlobal)
+                ->where('estado', true)
+                ->exists();
+
+            if (! $almacenValido) {
+                throw new Exception('El almacén seleccionado no pertenece a la empresa o no se encuentra disponible.');
+            }
             $tipoVenta = $datos['tipo_venta'] ?? 'detal';
             $condicionPago = $datos['condicion_pago'] ?? 'contado';
             $diasCredito = (int) ($datos['dias_credito'] ?? 0);
@@ -668,32 +703,48 @@ class VentaClass
             $comisionMontoBs = round($comisionMontoUsd * $tasaCambio, 2);
 
             // Turno de Caja
-            $cajaTurno = null;
             $userCobro = User::find($userId);
-            $esAdmin = $userCobro ? ($userCobro->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) || $userCobro->can('cajas.administrar_todas')) : false;
+            if (! $userCobro) {
+                throw new Exception('No se pudo determinar el usuario que procesa la venta.');
+            }
 
-            if ($esAdmin && ! empty($datos['caja_turno_id'])) {
+            $esAdmin = $userCobro->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) || $userCobro->can('cajas.administrar_todas');
+            $cajaTurno = null;
+
+            if ($esAdmin) {
+                $hayTurnosAbiertos = CajaTurno::where('empresa_id', $empresaId)
+                    ->where('estado', 'abierta')
+                    ->exists();
+
+                if (! $hayTurnosAbiertos) {
+                    throw new Exception('No hay cajas abiertas para procesar la venta.');
+                }
+
+                $cajaTurnoId = (int) ($datos['caja_turno_id'] ?? 0);
+                if ($cajaTurnoId <= 0) {
+                    throw new Exception('Debes seleccionar una caja con turno abierto para procesar la venta.');
+                }
+
                 $cajaTurno = CajaTurno::where('empresa_id', $empresaId)
-                    ->where('id', $datos['caja_turno_id'])
+                    ->where('id', $cajaTurnoId)
                     ->where('estado', 'abierta')
                     ->first();
-            }
 
-            if (! $cajaTurno) {
-                $cajaTurno = $userCobro?->cajaTurnoActivo($empresaId);
-            }
-
-            if (! $cajaTurno && $esAdmin) {
-                $turnosAbiertosEmpresa = CajaTurno::where('empresa_id', $empresaId)->where('estado', 'abierta')->get();
-                if ($turnosAbiertosEmpresa->count() === 1) {
-                    $cajaTurno = $turnosAbiertosEmpresa->first();
-                } elseif ($turnosAbiertosEmpresa->count() > 1) {
-                    throw new Exception('Hay múltiples cajas abiertas. Por favor selecciona en la barra superior en qué caja estás cobrando.');
+                if (! $cajaTurno) {
+                    throw new Exception('El turno de caja seleccionado no pertenece a la empresa o no se encuentra abierto.');
                 }
-            }
+            } else {
+                $turnoPropio = $userCobro->cajaTurnoActivo($empresaId);
 
-            if (! $cajaTurno && ! $esAdmin) {
-                throw new Exception('No tienes una caja registradora aperturada asignada para procesar cobros.');
+                if (! $turnoPropio) {
+                    throw new Exception('No tienes una caja registradora aperturada asignada para procesar cobros.');
+                }
+
+                if (! empty($datos['caja_turno_id']) && (int) $datos['caja_turno_id'] !== (int) $turnoPropio->id) {
+                    throw new Exception('Solo puedes facturar utilizando tu propio turno de caja abierto.');
+                }
+
+                $cajaTurno = $turnoPropio;
             }
 
             // 1. Guardar Cabecera Venta
@@ -701,8 +752,8 @@ class VentaClass
                 'empresa_id' => $empresaId,
                 'cliente_id' => $clienteId,
                 'almacen_id' => $almacenIdGlobal,
-                'caja_id' => $cajaTurno?->caja_id,
-                'caja_turno_id' => $cajaTurno?->id,
+                'caja_id' => $cajaTurno->caja_id,
+                'caja_turno_id' => $cajaTurno->id,
                 'vendedor_id' => $vendedor?->id,
                 'comision_porcentaje' => $comisionPorcentaje,
                 'comision_monto_usd' => $comisionMontoUsd,
@@ -814,6 +865,43 @@ class VentaClass
                 ]);
             }
 
+            // 3b. Si hubo vuelto y hay turno activo, registrarlo como egreso en caja_movimientos
+            if (($vueltoUsd > 0 || $vueltoBs > 0) && $cajaTurno) {
+                $metodosIds = array_values(array_unique(array_column($pagosParaInsertar, 'metodo_pago_id')));
+                $metodosMap = MetodoPago::whereIn('id', $metodosIds)->get()->keyBy('id');
+
+                $pagoEfectivo = null;
+                foreach ($pagosParaInsertar as $p) {
+                    $m = $metodosMap->get($p['metodo_pago_id']);
+                    if ($m && $m->es_efectivo) {
+                        $pagoEfectivo = $p;
+                        break;
+                    }
+                }
+
+                $pagoRef = $pagoEfectivo
+                    ?? ($pagosParaInsertar[0] ?? null);
+
+                $metodoVueltoId = $pagoRef['metodo_pago_id']
+                    ?? MetodoPago::where('estado', true)->where('es_efectivo', true)->value('id');
+                $monedaVuelto = $pagoRef['moneda'] ?? 'USD';
+
+                CajaMovimiento::create([
+                    'empresa_id' => $empresaId,
+                    'caja_turno_id' => $cajaTurno->id,
+                    'user_id' => $userId,
+                    'tipo' => 'egreso',
+                    'metodo_pago_id' => $metodoVueltoId,
+                    'moneda' => $monedaVuelto,
+                    'monto_usd' => $vueltoUsd,
+                    'monto_bs' => $vueltoBs,
+                    'concepto' => "Vuelto de venta #{$venta->codigo}",
+                    'comprobante_referencia' => $venta->codigo,
+                    'documento_tipo' => 'venta',
+                    'documento_id' => $venta->id,
+                ]);
+            }
+
             // 4. Si hay saldo a crédito, registrar Cuenta por Cobrar
             if ($saldoPendienteUsd > 0) {
                 $fechaVencimiento = Carbon::parse($venta->fecha_emision)->addDays(max(1, $diasCredito))->toDateString();
@@ -853,7 +941,7 @@ class VentaClass
     public function guardarEnEspera(array $datos, ?int $empresaId = null, ?int $userId = null): VentaEnEspera
     {
         $empresaId = $this->empresaId($empresaId);
-        $userId = $userId ?? Auth::id() ?? 1;
+        $userId = $this->userId($userId);
         $user = User::find($userId);
         $vendedorAsociado = $user ? $user->vendedor()->where('empresa_id', $empresaId)->where('estado', true)->first() : null;
 
@@ -965,7 +1053,7 @@ class VentaClass
     {
         return DB::transaction(function () use ($datos, $empresaId, $userId) {
             $empresaId = $this->empresaId($empresaId);
-            $userId = $userId ?? Auth::id() ?? 1;
+            $userId = $this->userId($userId);
 
             $ventaId = (int) ($datos['venta_id'] ?? 0);
             $venta = Venta::with(['detalles'])->where('id', $ventaId)->where('empresa_id', $empresaId)->firstOrFail();

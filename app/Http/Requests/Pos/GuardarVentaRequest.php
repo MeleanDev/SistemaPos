@@ -3,8 +3,10 @@
 namespace App\Http\Requests\Pos;
 
 use App\Http\Requests\BaseRequest;
+use App\Models\CajaTurno;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class GuardarVentaRequest extends BaseRequest
 {
@@ -14,6 +16,27 @@ class GuardarVentaRequest extends BaseRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $user = $this->user();
+        $empresaId = $this->empresaId();
+
+        if (! $user || $empresaId <= 0) {
+            return;
+        }
+
+        $esAdmin = $user->hasAnyRole(['SuperAdmin', 'Admin']);
+
+        if (! $esAdmin && ! $this->filled('caja_turno_id')) {
+            $turnoPropio = $user->cajaTurnoActivo($empresaId);
+            if ($turnoPropio) {
+                $this->merge([
+                    'caja_turno_id' => $turnoPropio->id,
+                ]);
+            }
+        }
     }
 
     /**
@@ -43,7 +66,7 @@ class GuardarVentaRequest extends BaseRequest
             ],
             'venta_en_espera_id' => ['nullable', 'integer'],
             'caja_turno_id' => [
-                'nullable',
+                'required',
                 'integer',
                 Rule::exists('caja_turnos', 'id')->where(fn ($q) => $q->where('empresa_id', $empresaId)->where('estado', 'abierta')),
             ],
@@ -71,6 +94,29 @@ class GuardarVentaRequest extends BaseRequest
         ];
     }
 
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $user = $this->user();
+            $empresaId = $this->empresaId();
+
+            if (! $user || $empresaId <= 0) {
+                return;
+            }
+
+            $esAdmin = $user->hasAnyRole(['SuperAdmin', 'Admin']);
+
+            if (! $esAdmin && $this->filled('caja_turno_id')) {
+                $turnoPropio = $user->cajaTurnoActivo($empresaId);
+                if (! $turnoPropio) {
+                    $validator->errors()->add('caja_turno_id', 'No tienes una caja registradora aperturada asignada para procesar cobros.');
+                } elseif ((int) $this->input('caja_turno_id') !== (int) $turnoPropio->id) {
+                    $validator->errors()->add('caja_turno_id', 'Solo puedes facturar utilizando tu propio turno de caja abierto.');
+                }
+            }
+        });
+    }
+
     /**
      * Get the error messages for the defined validation rules.
      *
@@ -78,11 +124,25 @@ class GuardarVentaRequest extends BaseRequest
      */
     public function messages(): array
     {
+        $empresaId = $this->empresaId();
+        $user = $this->user();
+        $esAdmin = $user ? $user->hasAnyRole(['SuperAdmin', 'Admin']) : false;
+
+        $mensajeCajaTurnoRequired = 'No tienes una caja registradora aperturada asignada para procesar cobros.';
+        if ($esAdmin) {
+            $hayAbiertas = $empresaId > 0 && CajaTurno::where('empresa_id', $empresaId)->where('estado', 'abierta')->exists();
+            $mensajeCajaTurnoRequired = $hayAbiertas
+                ? 'Debes seleccionar una caja con turno abierto para procesar la venta.'
+                : 'No hay cajas abiertas para procesar la venta.';
+        }
+
         return [
             'cliente_id.required' => 'El cliente es obligatorio.',
             'cliente_id.exists' => 'El cliente seleccionado no es válido o está inactivo.',
             'almacen_id.required' => 'El almacén de despacho es obligatorio.',
             'almacen_id.exists' => 'El almacén seleccionado no pertenece a la empresa o no está disponible.',
+            'caja_turno_id.required' => $mensajeCajaTurnoRequired,
+            'caja_turno_id.exists' => 'El turno de caja seleccionado no pertenece a la empresa o no se encuentra abierto.',
             'tipo_venta.required' => 'El tipo de venta es obligatorio.',
             'tasa_cambio.required' => 'La tasa de cambio es obligatoria.',
             'tasa_cambio.min' => 'La tasa de cambio debe ser mayor a 0.',

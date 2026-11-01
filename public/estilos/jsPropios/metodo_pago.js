@@ -45,6 +45,18 @@ $(document).ready(function () {
                 },
             },
             {
+                data: "es_efectivo",
+                name: "es_efectivo",
+                className: "text-center align-middle",
+                render: function (data) {
+                    const esEfectivo = data === true || data === 1 || data === "1";
+                    if (esEfectivo) {
+                        return '<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 fw-semibold"><i class="fas fa-money-bill-wave me-1"></i>Efectivo</span>';
+                    }
+                    return '<span class="badge bg-secondary-subtle text-secondary border rounded-pill px-2.5 py-1"><i class="fas fa-university me-1"></i>Digital / Otro</span>';
+                },
+            },
+            {
                 data: "created_at",
                 name: "created_at",
                 className: "text-center align-middle",
@@ -84,6 +96,7 @@ $(document).ready(function () {
 const resetearFormularioMetodoPago = function () {
     const $form = $("#formularioMetodoPago");
     $form[0].reset();
+    $("#es_efectivo").prop("checked", false);
     $("#modalMetodoPago .is-invalid").removeClass("is-invalid");
     $("#modalMetodoPago .invalid-feedback").remove();
     $form.find("input, select, textarea").prop("disabled", false);
@@ -109,6 +122,8 @@ const crear = function () {
 const llenarFormularioMetodoPago = function (data) {
     $("#nombre").val(data.nombre || "");
     $("#descripcion").val(data.descripcion || "");
+    const esEfectivo = data.es_efectivo === true || data.es_efectivo === 1 || data.es_efectivo === "1";
+    $("#es_efectivo").prop("checked", esEfectivo);
 };
 
 const ver = async function (id) {

@@ -4,6 +4,10 @@ Sistema POS multi-empresa en Laravel + Blade + Bootstrap 5 + jQuery (no Tailwind
 
 **Antes de tocar cualquier vista, JS, controlador, request, servicio o ruta, activa la skill `pos-architecture`** (`.agents/skills/pos-architecture/SKILL.md`) y lee solo la referencia que corresponda a tu tarea. Es la fuente de verdad de los estándares del proyecto.
 
+**Si la tarea toca ventas, POS, facturas, anulaciones/devoluciones, cajas/turnos, vendedores/comisiones, CXC, roles de operación o reportes, activa también la skill `pos-flujos`** (`.agents/skills/pos-flujos/SKILL.md`): define *qué debe hacer* el negocio (decisiones cerradas, flujos, matriz de permisos) y contiene el backlog de correcciones. `pos-architecture` define *cómo se codifica*.
+
+**Si la tarea mueve, agrega o quita botones, modales, acciones de fila, entradas de menú o decide "en qué pantalla va" una funcionalidad, activa también la skill `pos-pantallas`** (`.agents/skills/pos-pantallas/SKILL.md`): un solo hogar por acción, atajos permitidos y backlog de rediseño de pantallas.
+
 Orden de prioridad cuando hay conflicto:
 1. Lo que pide el usuario.
 2. Este archivo + la skill `pos-architecture`.

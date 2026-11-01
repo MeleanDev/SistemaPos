@@ -972,6 +972,16 @@
                 <span class="badge bg-secondary font-monospace" style="font-size: 0.65rem;">F7</span>
             </button>
 
+            @can('cajas.movimientos')
+                <button type="button" class="pos-offcanvas-action-btn" onclick="bootstrap.Offcanvas.getInstance('#posOffcanvasMenu')?.hide(); abrirModalMovimientoPos();">
+                    <i class="fas fa-exchange-alt text-info fs-5"></i>
+                    <div class="flex-grow-1">
+                        <span class="d-block lh-1 text-white">Movimiento de Caja</span>
+                        <small class="text-white-50 font-monospace" style="font-size: 0.68rem;">Entrada o retiro de efectivo</small>
+                    </div>
+                </button>
+            @endcan
+
             <button type="button" class="pos-offcanvas-action-btn" onclick="bootstrap.Offcanvas.getInstance('#posOffcanvasMenu')?.hide(); verCorteXPos();">
                 <i class="fas fa-file-invoice-dollar text-warning fs-5"></i>
                 <div class="flex-grow-1">
@@ -1175,6 +1185,13 @@
                                 <input type="number" min="1" max="365" id="cobroDiasCredito" class="form-control form-control-executive font-monospace" value="15" oninput="calcularVencimientoCobro()">
                                 <span class="input-group-text bg-white text-muted small font-monospace border" id="cobroFechaVenceBadge">Vence: --</span>
                             </div>
+                        </div>
+
+                        <div class="col-12 col-md-4" id="contenedorCajaTurnoCobro" style="display: none;">
+                            <label class="form-label-executive mb-1"><i class="fas fa-cash-register text-primary me-1"></i> Caja con Turno Abierto <span class="text-danger">*</span></label>
+                            <select id="cobroSelectCajaTurno" class="form-select form-select-executive font-monospace" onchange="cambiarCajaTurnoCobro(this.value)">
+                                <option value="">-- Selecciona una caja abierta --</option>
+                            </select>
                         </div>
 
                         <div class="col-12 col-md-4" id="contenedorVendedorCobro">
@@ -2031,22 +2048,36 @@
             </div>
             <form id="formCierreZPos">
                 <div class="modal-body p-4 bg-white">
-                    <div class="card bg-white border rounded-4 shadow-xs p-3 mb-3">
+                    <div id="posContenedorAvisoCierreCiego" class="alert bg-warning-subtle border border-warning-subtle text-warning-emphasis rounded-4 py-2.5 px-3 small mb-3" style="display: none;">
+                        <i class="fas fa-eye-slash me-1"></i> <strong>Cierre a ciegas:</strong> Ingresa el efectivo físico contado en gaveta para cada moneda. La diferencia se mostrará al confirmar el cierre.
+                    </div>
+
+                    <div class="card bg-white border rounded-4 shadow-xs p-3 mb-3" id="posContenedorResumenCierreZ">
                         <div class="row g-2 text-center">
-                            <div class="col-6 col-md-3">
-                                <span class="text-muted small">Fondo Apertura</span>
+                            <div class="col-6 col-md-2">
+                                <span class="text-muted small d-block">Fondo Apertura</span>
                                 <h6 class="fw-bold mb-0" id="posCierreResumenApertura">$0.00</h6>
                             </div>
-                            <div class="col-6 col-md-3">
-                                <span class="text-muted small">Ventas Totales</span>
+                            <div class="col-6 col-md-2">
+                                <span class="text-muted small d-block">Ventas Totales</span>
                                 <h6 class="fw-bold text-success mb-0" id="posCierreResumenVentas">$0.00</h6>
                             </div>
-                            <div class="col-6 col-md-3">
-                                <span class="text-muted small">Efectivo Teórico USD</span>
+                            <div class="col-6 col-md-2">
+                                <span class="text-muted small d-block">Ingresos Caja</span>
+                                <h6 class="fw-bold text-success mb-0" id="posCierreResumenIngresosUsd">+$0.00</h6>
+                                <small class="text-muted font-monospace" style="font-size: 0.7rem;" id="posCierreResumenIngresosBs">+Bs. 0.00</small>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <span class="text-muted small d-block">Retiros / Egresos</span>
+                                <h6 class="fw-bold text-danger mb-0" id="posCierreResumenEgresosUsd">-$0.00</h6>
+                                <small class="text-muted font-monospace" style="font-size: 0.7rem;" id="posCierreResumenEgresosBs">-Bs. 0.00</small>
+                            </div>
+                            <div class="col-6 col-md-2" id="posColResumenEsperadoUsd">
+                                <span class="text-muted small d-block">Esperado USD</span>
                                 <h6 class="fw-bold text-primary mb-0" id="posCierreResumenEsperadoUsd">$0.00</h6>
                             </div>
-                            <div class="col-6 col-md-3">
-                                <span class="text-muted small">Efectivo Teórico Bs.</span>
+                            <div class="col-6 col-md-2" id="posColResumenEsperadoBs">
+                                <span class="text-muted small d-block">Esperado Bs.</span>
                                 <h6 class="fw-bold text-primary mb-0" id="posCierreResumenEsperadoBs">Bs. 0.00</h6>
                             </div>
                         </div>
@@ -2093,6 +2124,41 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Movimiento de Caja en POS (Ingreso / Retiro) -->
+<x-modal id="modalMovimientoCajaPos" title="Movimiento de Caja (Entrada / Salida)" subtitle="Registra un retiro o ingreso de efectivo menor en el turno actual"
+    icon="fas fa-exchange-alt text-warning fs-5" size="modal-lg" headerColor="bg-dark text-white" formId="formMovimientoCajaPos"
+    submitText="Registrar Movimiento">
+
+    <form id="formMovimientoCajaPos">
+        @csrf
+        <input type="hidden" id="posMovimientoTurnoId" name="caja_turno_id">
+
+        <div class="row g-3">
+            <div class="col-12">
+                <div class="alert bg-primary-subtle border border-primary-subtle text-primary rounded-4 py-2.5 px-3 small mb-0 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <span><i class="fas fa-info-circle me-1"></i> El monto registrado ajustará automáticamente el efectivo esperado en el arqueo y cierre Z.</span>
+                    <span class="badge bg-white text-primary border border-primary-subtle rounded-pill px-2.5 py-1 fw-bold" id="posMovimientoEtiquetaTurno">Turno Activo</span>
+                </div>
+            </div>
+
+            <x-select name="tipo" id="posMovimientoTipo" label="Tipo de Movimiento" icon="fas fa-arrows-alt-v" required col="col-md-6">
+                <option value="egreso">Salida / Retiro de Efectivo (-)</option>
+                <option value="ingreso">Entrada / Ingreso de Efectivo (+)</option>
+            </x-select>
+
+            <x-input name="comprobante_referencia" id="posMovimientoReferencia" label="Nro. Vale / Recibo / Referencia" icon="fas fa-hashtag" placeholder="Ej. VALE-001" maxlength="100" col="col-md-6" optionalText="Opcional" />
+
+            <x-input name="monto_usd" id="posMovimientoMontoUsd" type="number" step="0.01" min="0" label="Efectivo en USD ($)" icon="fas fa-dollar-sign" addonText="$" required col="col-md-6" value="0.00" />
+
+            <x-input name="monto_bs" id="posMovimientoMontoBs" type="number" step="0.01" min="0" label="Efectivo en Bolívares (Bs.)" icon="fas fa-coins" addonText="Bs." required col="col-md-6" value="0.00" />
+
+            <x-input name="concepto" id="posMovimientoConcepto" label="Concepto o Motivo del Movimiento" icon="fas fa-tag" placeholder="Ej. Retiro de $10 para compra de bolsas / gasto menor..." required maxlength="255" col="col-12" />
+
+            <x-input name="observaciones" id="posMovimientoObservaciones" label="Observaciones Adicionales" icon="fas fa-comment" placeholder="Detalle opcional..." maxlength="500" col="col-12" optionalText="Opcional" />
+        </div>
+    </form>
+</x-modal>
 @endsection
 
 @section('scripts')
@@ -2116,6 +2182,7 @@
     const urlCajasDisponibles = "{{ url('/cajas/disponibles') }}";
     const urlCajasAperturar = "{{ url('/cajas/turnos/aperturar') }}";
     const urlCajasTurnoActivo = "{{ url('/cajas/turno-activo') }}";
+    const urlCajasMovimientos = "{{ url('/cajas/movimientos') }}";
 </script>
 <script src="{{ asset('estilos/jsPropios/pos.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/pos.js')) ?: time() }}"></script>
 @endsection

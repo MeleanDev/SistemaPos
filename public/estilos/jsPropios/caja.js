@@ -7,12 +7,16 @@ const urlGuardarCaja = urlBase;
 const urlEditarCaja = `${urlBase}/actualizar/`;
 const urlEliminarCaja = `${urlBase}/`;
 const urlAperturarTurno = `${urlBase}/turnos/aperturar`;
+const urlRegistrarMovimiento = `${urlBase}/movimientos`;
 
 let isEditarCaja = false;
 let idCajaActual = null;
 let turnoActivoCierre = null;
 let esperadoUsdActual = 0;
 let esperadoBsActual = 0;
+let cierreCiegoActual = false;
+let usuarioActualIdCaja = null;
+let esAdminCaja = false;
 
 $(document).ready(function () {
     cargarCatalogos();
@@ -92,14 +96,20 @@ $(document).ready(function () {
                     let btnsTurno = '';
 
                     if (row.turno_activo) {
-                        btnsTurno = `
-                            <button type="button" class="btn btn-outline-warning btn-sm rounded-circle shadow-sm" onclick="verCorteX(${row.turno_activo.id});" title="Ver Corte X (Auditoría)" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
-                                <i class="fas fa-file-invoice-dollar"></i>
-                            </button>
-                            <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="abrirModalCierre(${row.turno_activo.id});" title="Cerrar Turno (Z)" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
-                                <i class="fas fa-lock"></i>
-                            </button>
-                        `;
+                        const puedeOperarTurno = esAdminCaja || !usuarioActualIdCaja || parseInt(row.turno_activo.user_id) === parseInt(usuarioActualIdCaja);
+                        if (puedeOperarTurno) {
+                            btnsTurno = `
+                                <button type="button" class="btn btn-outline-dark btn-sm rounded-circle shadow-sm" onclick="abrirModalMovimientoCaja(${row.turno_activo.id}, '${nombreEscapado}');" title="Registrar Movimiento de Caja (Entrada / Salida)" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-warning btn-sm rounded-circle shadow-sm" onclick="verCorteX(${row.turno_activo.id});" title="Ver Corte X (Auditoría)" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-file-invoice-dollar"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="abrirModalCierre(${row.turno_activo.id});" title="Cerrar Turno (Z)" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-lock"></i>
+                                </button>
+                            `;
+                        }
                     } else if (row.estado) {
                         btnsTurno = `
                             <button type="button" class="btn btn-outline-success btn-sm rounded-circle shadow-sm" onclick="abrirModalApertura(${row.id});" title="Aperturar esta caja" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
@@ -273,9 +283,18 @@ $(document).ready(function () {
                 className: 'text-center align-middle',
                 orderable: false,
                 render: function (data, type, row) {
+                    const puedeVerTurno = esAdminCaja || !usuarioActualIdCaja || parseInt(row.user_id) === parseInt(usuarioActualIdCaja);
+                    if (!puedeVerTurno) {
+                        return '<span class="text-muted small">--</span>';
+                    }
+
                     let btnCierre = '';
+                    const nombreCajaTurno = (row.caja && row.caja.nombre ? row.caja.nombre : 'Caja').trim().replace(/'/g, "\\'");
                     if (row.estado === 'abierta') {
                         btnCierre = `
+                            <button type="button" class="btn btn-outline-dark btn-sm rounded-circle shadow-sm" onclick="abrirModalMovimientoCaja(${row.id}, '${nombreCajaTurno}');" title="Registrar Movimiento de Caja (Entrada / Salida)" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-exchange-alt"></i>
+                            </button>
                             <button type="button" class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" onclick="abrirModalCierre(${row.id});" title="Cerrar Turno (Z)" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                                 <i class="fas fa-lock"></i>
                             </button>
@@ -324,6 +343,8 @@ async function cargarCatalogos() {
         if (!res || !res.success || !res.data) return;
 
         const data = res.data;
+        usuarioActualIdCaja = data.usuario_actual_id || null;
+        esAdminCaja = Boolean(data.es_admin);
 
         const $selectAlmacen = $('#caja_almacen_id');
         $selectAlmacen.find('option:not(:first)').remove();
@@ -352,6 +373,9 @@ async function cargarCatalogos() {
             const horaStr = t.hora_apertura ? ` ${formatearHora(t.hora_apertura)}` : '';
             $('#bannerFechaApertura').text(`${fechaStr}${horaStr}`);
             $('#bannerUsuarioNombre').text(data.usuario_actual_nombre || 'Usuario');
+            $('#btnBannerMovimiento').off('click').on('click', function () {
+                abrirModalMovimientoCaja(t.id, t.caja ? t.caja.nombre : 'Caja');
+            });
             $('#btnBannerCorteX').off('click').on('click', function () {
                 verCorteX(t.id);
             });
@@ -556,6 +580,67 @@ async function verCorteX(turnoId) {
             filasMetodos = '<tr><td colspan="4" class="text-center text-muted py-3">Sin pagos registrados en este turno</td></tr>';
         }
 
+        let filasMovimientos = '';
+        if (rep.movimientos_listado && rep.movimientos_listado.length > 0) {
+            rep.movimientos_listado.forEach(mov => {
+                const esIngreso = mov.tipo === 'ingreso';
+                const esVuelto = Boolean(mov.es_vuelto);
+                let badgeTipo = '';
+                if (esIngreso) {
+                    badgeTipo = '<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5 fw-bold"><i class="fas fa-arrow-down me-1"></i>Ingreso (+)</span>';
+                } else if (esVuelto) {
+                    badgeTipo = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-0.5 fw-bold"><i class="fas fa-hand-holding-usd me-1"></i>Vuelto entregado (-)</span>';
+                } else {
+                    badgeTipo = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-0.5 fw-bold"><i class="fas fa-arrow-up me-1"></i>Egreso (-)</span>';
+                }
+                const refHtml = mov.comprobante_referencia ? `<small class="text-muted d-block font-monospace">Ref: ${mov.comprobante_referencia}</small>` : '';
+                const signo = esIngreso ? '+' : '-';
+                const claseMonto = esIngreso ? 'text-success' : 'text-danger';
+                filasMovimientos += `
+                    <tr>
+                        <td class="font-monospace small">${mov.hora || '--'}</td>
+                        <td>${badgeTipo}</td>
+                        <td>
+                            <span class="fw-semibold text-dark">${mov.concepto}</span>
+                            ${refHtml}
+                        </td>
+                        <td class="text-end fw-bold font-monospace ${claseMonto}">${signo}$${parseFloat(mov.monto_usd || 0).toFixed(2)}</td>
+                        <td class="text-end fw-bold font-monospace ${claseMonto}">${signo}Bs. ${parseFloat(mov.monto_bs || 0).toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            filasMovimientos = '<tr><td colspan="5" class="text-center text-muted py-3">Sin entradas ni salidas menores registradas en este turno</td></tr>';
+        }
+
+        const totalIngresosUsd = parseFloat(rep.total_ingresos_caja_usd || 0);
+        const totalIngresosBs = parseFloat(rep.total_ingresos_caja_bs || 0);
+        const totalEgresosUsd = parseFloat(rep.total_egresos_caja_usd || 0);
+        const totalEgresosBs = parseFloat(rep.total_egresos_caja_bs || 0);
+        const totalVueltoUsd = parseFloat(rep.total_vuelto_usd || 0);
+        const totalVueltoBs = parseFloat(rep.total_vuelto_bs || 0);
+        const mostrarEsperado = rep.efectivo_esperado_usd !== undefined && rep.efectivo_esperado_usd !== null && !rep.cierre_ciego;
+
+        const cardEsperadoHtml = mostrarEsperado
+            ? `
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-primary-subtle border border-primary-subtle rounded-4 p-2.5 text-center h-100">
+                        <span class="text-primary small fw-semibold">Efectivo Teórico</span>
+                        <h6 class="fw-bold text-primary mb-0 mt-1">$${parseFloat(rep.efectivo_esperado_usd).toFixed(2)}</h6>
+                        <small class="text-primary">Bs. ${parseFloat(rep.efectivo_esperado_bs).toFixed(2)}</small>
+                    </div>
+                </div>
+            `
+            : `
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-white border rounded-4 p-2.5 text-center shadow-xs h-100">
+                        <span class="text-muted small">Vuelto entregado</span>
+                        <h6 class="fw-bold text-warning-emphasis mb-0 mt-1">-$${totalVueltoUsd.toFixed(2)}</h6>
+                        <small class="text-muted">-Bs. ${totalVueltoBs.toFixed(2)}</small>
+                    </div>
+                </div>
+            `;
+
         const html = `
             <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
                 <div>
@@ -567,35 +652,43 @@ async function verCorteX(turnoId) {
                 </span>
             </div>
 
-            <div class="row g-3 mb-3">
-                <div class="col-6 col-md-3">
-                    <div class="card bg-white border rounded-4 p-3 text-center shadow-xs">
-                        <span class="text-muted small">Fondo Apertura</span>
+            <div class="row g-2 mb-3">
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-white border rounded-4 p-2.5 text-center shadow-xs h-100">
+                        <span class="text-muted small">Apertura</span>
                         <h6 class="fw-bold text-dark mb-0 mt-1">$${parseFloat(rep.monto_apertura_usd).toFixed(2)}</h6>
                         <small class="text-muted">Bs. ${parseFloat(rep.monto_apertura_bs).toFixed(2)}</small>
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <div class="card bg-white border rounded-4 p-3 text-center shadow-xs">
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-white border rounded-4 p-2.5 text-center shadow-xs h-100">
                         <span class="text-muted small">Ventas (${rep.cantidad_ventas})</span>
                         <h6 class="fw-bold text-success mb-0 mt-1">$${parseFloat(rep.total_ventas_usd).toFixed(2)}</h6>
                         <small class="text-muted">Bs. ${parseFloat(rep.total_ventas_bs).toFixed(2)}</small>
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <div class="card bg-white border rounded-4 p-3 text-center shadow-xs">
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-white border rounded-4 p-2.5 text-center shadow-xs h-100">
+                        <span class="text-muted small">Ingresos Caja</span>
+                        <h6 class="fw-bold text-success mb-0 mt-1">+$${totalIngresosUsd.toFixed(2)}</h6>
+                        <small class="text-muted">+Bs. ${totalIngresosBs.toFixed(2)}</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-white border rounded-4 p-2.5 text-center shadow-xs h-100">
+                        <span class="text-muted small">Retiros / Egresos</span>
+                        <h6 class="fw-bold text-danger mb-0 mt-1">-$${totalEgresosUsd.toFixed(2)}</h6>
+                        <small class="text-muted">-Bs. ${totalEgresosBs.toFixed(2)}</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-white border rounded-4 p-2.5 text-center shadow-xs h-100">
                         <span class="text-muted small">Devoluciones (${rep.cantidad_devoluciones})</span>
                         <h6 class="fw-bold text-danger mb-0 mt-1">-$${parseFloat(rep.total_devoluciones_usd).toFixed(2)}</h6>
                         <small class="text-muted">-Bs. ${parseFloat(rep.total_devoluciones_bs).toFixed(2)}</small>
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <div class="card bg-primary-subtle border border-primary-subtle rounded-4 p-3 text-center">
-                        <span class="text-primary small fw-semibold">Efectivo Teórico</span>
-                        <h6 class="fw-bold text-primary mb-0 mt-1">$${parseFloat(rep.efectivo_esperado_usd).toFixed(2)}</h6>
-                        <small class="text-primary">Bs. ${parseFloat(rep.efectivo_esperado_bs).toFixed(2)}</small>
-                    </div>
-                </div>
+                ${cardEsperadoHtml}
             </div>
 
             <h6 class="fw-bold text-dark mb-2"><i class="fas fa-wallet text-muted me-1"></i> Desglose por Método de Pago</h6>
@@ -610,6 +703,22 @@ async function verCorteX(turnoId) {
                         </tr>
                     </thead>
                     <tbody>${filasMetodos}</tbody>
+                </table>
+            </div>
+
+            <h6 class="fw-bold text-dark mb-2"><i class="fas fa-exchange-alt text-muted me-1"></i> Movimientos de Caja (Ingresos y Retiros de Efectivo)</h6>
+            <div class="table-responsive rounded-4 border mb-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="bg-white text-dark border-bottom">
+                        <tr>
+                            <th>Hora</th>
+                            <th>Tipo</th>
+                            <th>Concepto / Motivo</th>
+                            <th class="text-end">Monto USD</th>
+                            <th class="text-end">Monto Bs.</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filasMovimientos}</tbody>
                 </table>
             </div>
         `;
@@ -634,18 +743,39 @@ async function abrirModalCierre(turnoId) {
         const rep = res && res.data ? res.data : null;
         if (!rep) return;
 
-        esperadoUsdActual = parseFloat(rep.efectivo_esperado_usd || 0);
-        esperadoBsActual = parseFloat(rep.efectivo_esperado_bs || 0);
+        cierreCiegoActual = Boolean(rep.cierre_ciego) || rep.efectivo_esperado_usd === undefined || rep.efectivo_esperado_usd === null;
 
         $('#resumenAperturaUsd').text(`$${parseFloat(rep.monto_apertura_usd).toFixed(2)}`);
         $('#resumenVentasUsd').text(`$${parseFloat(rep.total_ventas_usd).toFixed(2)}`);
-        $('#resumenEsperadoUsd').text(`$${esperadoUsdActual.toFixed(2)}`);
-        $('#resumenEsperadoBs').text(`Bs. ${esperadoBsActual.toFixed(2)}`);
+        $('#resumenIngresosCajaUsd').text(`+$${parseFloat(rep.total_ingresos_caja_usd || 0).toFixed(2)}`);
+        $('#resumenIngresosCajaBs').text(`+Bs. ${parseFloat(rep.total_ingresos_caja_bs || 0).toFixed(2)}`);
+        $('#resumenEgresosCajaUsd').text(`-$${parseFloat(rep.total_egresos_caja_usd || 0).toFixed(2)}`);
+        $('#resumenEgresosCajaBs').text(`-Bs. ${parseFloat(rep.total_egresos_caja_bs || 0).toFixed(2)}`);
 
-        $('#monto_cierre_usd').val(esperadoUsdActual.toFixed(2));
-        $('#monto_cierre_bs').val(esperadoBsActual.toFixed(2));
-
-        calcularDiferenciasCierre();
+        if (cierreCiegoActual) {
+            esperadoUsdActual = 0;
+            esperadoBsActual = 0;
+            $('#contenedorAvisoCierreCiego').show();
+            $('#contenedorResumenCierreZ').hide();
+            $('#colResumenEsperadoUsd').hide();
+            $('#colResumenEsperadoBs').hide();
+            $('#monto_cierre_usd').val('0.00');
+            $('#monto_cierre_bs').val('0.00');
+            $('#alertaDiferenciaUsd').html('<span class="text-muted"><i class="fas fa-eye-slash me-1"></i>Cierre a ciegas: se calculará al confirmar</span>');
+            $('#alertaDiferenciaBs').html('<span class="text-muted"><i class="fas fa-eye-slash me-1"></i>Cierre a ciegas: se calculará al confirmar</span>');
+        } else {
+            esperadoUsdActual = parseFloat(rep.efectivo_esperado_usd || 0);
+            esperadoBsActual = parseFloat(rep.efectivo_esperado_bs || 0);
+            $('#contenedorAvisoCierreCiego').hide();
+            $('#contenedorResumenCierreZ').show();
+            $('#colResumenEsperadoUsd').show();
+            $('#colResumenEsperadoBs').show();
+            $('#resumenEsperadoUsd').text(`$${esperadoUsdActual.toFixed(2)}`);
+            $('#resumenEsperadoBs').text(`Bs. ${esperadoBsActual.toFixed(2)}`);
+            $('#monto_cierre_usd').val(esperadoUsdActual.toFixed(2));
+            $('#monto_cierre_bs').val(esperadoBsActual.toFixed(2));
+            calcularDiferenciasCierre();
+        }
 
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCierreZ'));
         modal.show();
@@ -661,6 +791,10 @@ async function abrirModalCierre(turnoId) {
 }
 
 function calcularDiferenciasCierre() {
+    if (cierreCiegoActual) {
+        return;
+    }
+
     const contadoUsd = parseFloat($('#monto_cierre_usd').val() || 0);
     const contadoBs = parseFloat($('#monto_cierre_bs').val() || 0);
 
@@ -687,6 +821,50 @@ function calcularDiferenciasCierre() {
     }
 }
 
+function resetearFormularioMovimientoCaja() {
+    const $form = $('#formularioMovimientoCaja');
+    if ($form.length) {
+        $form[0].reset();
+        $form.find('.is-invalid').removeClass('is-invalid');
+        $form.find('.invalid-feedback').remove();
+    }
+    $('#movimiento_tipo').val('egreso');
+    $('#movimiento_monto_usd').val('0.00');
+    $('#movimiento_monto_bs').val('0.00');
+}
+
+function abrirModalMovimientoCaja(turnoId, cajaNombre = 'Caja') {
+    if (!turnoId) return;
+    resetearFormularioMovimientoCaja();
+    $('#movimiento_caja_turno_id').val(turnoId);
+    $('#movimientoCajaEtiquetaTurno').text(`${cajaNombre} · Turno #${String(turnoId).padStart(5, '0')}`);
+
+    const modalEl = document.getElementById('modalMovimientoCaja');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    }
+}
+
+$('#formularioMovimientoCaja').on('submit', function (e) {
+    e.preventDefault();
+    enviarFormulario({
+        form: this,
+        url: urlRegistrarMovimiento,
+        isEditar: false,
+        modalSelector: '#modalMovimientoCaja',
+        tablaSelector: '#datatable_cajas',
+        btnSubmit: '#modalMovimientoCajaBtnGuardar',
+        textoGuardarOriginal: 'Registrar Movimiento',
+        onSuccess: function () {
+            if ($('#datatable_turnos').length && $.fn.DataTable.isDataTable('#datatable_turnos')) {
+                $('#datatable_turnos').DataTable().ajax.reload(null, false);
+            }
+            cargarCatalogos();
+        },
+    });
+});
+
 $('#formularioCierreZ').on('submit', function (e) {
     e.preventDefault();
     if (!turnoActivoCierre) return;
@@ -701,16 +879,22 @@ $('#formularioCierreZ').on('submit', function (e) {
         tablaSelector: '#datatable_cajas',
         btnSubmit: '#modalCierreZBtnGuardar',
         textoGuardarOriginal: 'Confirmar y Cerrar Turno',
-        onSuccess: function () {
+        onSuccess: function (res) {
             if ($('#datatable_turnos').length && $.fn.DataTable.isDataTable('#datatable_turnos')) {
                 $('#datatable_turnos').DataTable().ajax.reload(null, false);
             }
             cargarCatalogos();
             if (window.Swal) {
+                const turnoCerrado = res && res.data ? res.data : {};
+                const difUsd = parseFloat(turnoCerrado.diferencia_usd || 0);
+                const difBs = parseFloat(turnoCerrado.diferencia_bs || 0);
+                const estadoUsd = Math.abs(difUsd) < 0.001 ? 'Exacto ($0.00)' : (difUsd > 0 ? `Sobrante (+$${difUsd.toFixed(2)})` : `Faltante (-$${Math.abs(difUsd).toFixed(2)})`);
+                const estadoBs = Math.abs(difBs) < 0.001 ? 'Exacto (Bs. 0.00)' : (difBs > 0 ? `Sobrante (+Bs. ${difBs.toFixed(2)})` : `Faltante (-Bs. ${Math.abs(difBs).toFixed(2)})`);
+
                 Swal.fire({
                     icon: 'success',
                     title: '¡Turno Cerrado!',
-                    text: 'El cierre Z y arqueo físico se completaron correctamente.',
+                    html: `El cierre Z y arqueo físico se completaron correctamente.<br><br><strong>Resultado USD:</strong> ${estadoUsd}<br><strong>Resultado Bs.:</strong> ${estadoBs}`,
                     showCancelButton: true,
                     confirmButtonText: '🖨️ Imprimir Ticket Z',
                     cancelButtonText: 'Continuar',

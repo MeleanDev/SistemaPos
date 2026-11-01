@@ -16,6 +16,7 @@ class MetodoPagoClass
             'id',
             'nombre',
             'descripcion',
+            'es_efectivo',
             'estado',
             'created_at'
         )->where('estado', true);
@@ -34,6 +35,7 @@ class MetodoPagoClass
      */
     public function guardar(array $datos): MetodoPago
     {
+        $datos['es_efectivo'] = (bool) ($datos['es_efectivo'] ?? false);
         $existenteInactivo = MetodoPago::where('nombre', $datos['nombre'])->first();
 
         if ($existenteInactivo) {
@@ -54,6 +56,7 @@ class MetodoPagoClass
     public function actualizar(array $datos, int $id): MetodoPago
     {
         $metodo = MetodoPago::findOrFail($id);
+        $datos['es_efectivo'] = (bool) ($datos['es_efectivo'] ?? false);
         $metodo->update($datos);
 
         return $metodo;

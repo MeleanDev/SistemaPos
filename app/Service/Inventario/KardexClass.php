@@ -9,6 +9,7 @@ use App\Models\MovimientoInventario;
 use App\Models\Producto;
 use App\Models\ProductoStockAlmacen;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,10 +22,25 @@ class KardexClass
      */
     public function registrarMovimiento(array $datos): Kardex
     {
-        $empresaId = $datos['empresa_id'] ?? (Auth::user()?->empresaActiva()?->id ?? session('empresa_activa_id'));
-        $almacenId = $datos['almacen_id'];
-        $productoId = $datos['producto_id'];
-        $userId = $datos['user_id'] ?? Auth::id();
+        $empresaId = (int) ($datos['empresa_id'] ?? (Auth::user()?->empresaActiva()?->id ?? session('empresa_activa_id') ?? 0));
+        if ($empresaId <= 0) {
+            throw new Exception('No se pudo determinar la empresa activa para registrar el movimiento en Kardex.');
+        }
+
+        $almacenId = (int) ($datos['almacen_id'] ?? 0);
+        if ($almacenId <= 0) {
+            throw new Exception('El almacén es obligatorio para registrar movimientos en Kardex.');
+        }
+
+        $productoId = (int) ($datos['producto_id'] ?? 0);
+        if ($productoId <= 0) {
+            throw new Exception('El producto es obligatorio para registrar movimientos en Kardex.');
+        }
+
+        $userId = (int) ($datos['user_id'] ?? (Auth::id() ?? 0));
+        if ($userId <= 0) {
+            throw new Exception('No se pudo determinar el usuario autenticado para registrar el movimiento en Kardex.');
+        }
         $tipoMovimiento = $datos['tipo_movimiento'];
         $documentoTipo = $datos['documento_tipo'];
         $documentoId = $datos['documento_id'];

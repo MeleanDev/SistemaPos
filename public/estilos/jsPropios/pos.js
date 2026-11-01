@@ -9,7 +9,7 @@ let posCatalogos = {
 
 let posClienteActual = null;
 let posTipoVentaActual = "detal";
-let posAlmacenActualId = 1;
+let posAlmacenActualId = null;
 let posTasaDia = 1.0000;
 let posCarrito = [];
 let posPagos = [];
@@ -31,7 +31,7 @@ $(document).ready(function () {
         $inp.select();
     });
     $(document).on("change", "#posSelectAlmacen", function () {
-        posAlmacenActualId = parseInt($(this).val()) || 1;
+        posAlmacenActualId = parseInt($(this).val()) || null;
     });
 });
 
@@ -95,7 +95,13 @@ const cargarDatosInicialesPos = async function () {
                 $("#contenedorVendedorCobro").show();
             }
 
+            if (res.data.es_admin) {
+                const turnosAbiertos = Array.isArray(res.data.turnos_activos) ? res.data.turnos_activos : [];
+                posCatalogos.turno_activo = turnosAbiertos.length === 1 ? turnosAbiertos[0] : null;
+            }
+
             renderizarCajaNavbar();
+            sincronizarSelectorCajaCobro();
 
             if (res.data.es_cajero && !res.data.puede_operar) {
                 const modalApertura = document.getElementById("modalAperturaTurnoPos");
@@ -107,7 +113,7 @@ const cargarDatosInicialesPos = async function () {
                 if (modalBloqueo) {
                     bootstrap.Modal.getOrCreateInstance(modalBloqueo).show();
                 }
-            } else if (res.data.es_admin && !res.data.turno_activo) {
+            } else if (res.data.es_admin && (!Array.isArray(res.data.turnos_activos) || res.data.turnos_activos.length === 0)) {
                 abrirModalAperturaPos();
             } else if (!posClienteActual) {
                 activarModoConsulta();
@@ -1748,15 +1754,31 @@ const abrirModalCobro = function () {
         return;
     }
 
-    if (!posCatalogos.turno_activo) {
+    if (posCatalogos.es_admin) {
+        const turnosAbiertos = Array.isArray(posCatalogos.turnos_activos) ? posCatalogos.turnos_activos : [];
+        if (turnosAbiertos.length === 0) {
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "warning",
+                    title: "No hay cajas abiertas",
+                    text: "No hay cajas abiertas para procesar la venta. Debes aperturar una caja antes de iniciar el cobro.",
+                });
+            }
+            abrirModalAperturaPos();
+            return;
+        }
+        if (turnosAbiertos.length === 1 && !posCatalogos.turno_activo) {
+            posCatalogos.turno_activo = turnosAbiertos[0];
+        }
+        sincronizarSelectorCajaCobro();
+    } else if (!posCatalogos.turno_activo) {
         if (window.notificacion) {
             window.notificacion.fire({
                 icon: "warning",
                 title: "Estación sin Aperturar",
-                text: "Debes aperturar tu caja de trabajo antes de iniciar el cobro.",
+                text: "No tienes una caja registradora aperturada asignada para procesar cobros.",
             });
         }
-        abrirModalAperturaPos();
         return;
     }
 
@@ -1983,15 +2005,58 @@ const procesarVentaFinal = async function () {
         return;
     }
 
-    if (!posCatalogos.turno_activo) {
+    if (posCatalogos.es_admin) {
+        const turnosAbiertos = Array.isArray(posCatalogos.turnos_activos) ? posCatalogos.turnos_activos : [];
+        if (turnosAbiertos.length === 0) {
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "warning",
+                    title: "No hay cajas abiertas",
+                    text: "No hay cajas abiertas para procesar la venta.",
+                });
+            }
+            abrirModalAperturaPos();
+            return;
+        }
+
+        const turnoSeleccionadoCobro = parseInt($("#cobroSelectCajaTurno").val()) || 0;
+        if (turnoSeleccionadoCobro > 0) {
+            const encontrado = turnosAbiertos.find((t) => parseInt(t.id) === turnoSeleccionadoCobro);
+            posCatalogos.turno_activo = encontrado || null;
+        } else if (turnosAbiertos.length > 1) {
+            posCatalogos.turno_activo = null;
+        }
+
+        if (!posCatalogos.turno_activo) {
+            if (window.notificacion) {
+                window.notificacion.fire({
+                    icon: "warning",
+                    title: "Selecciona una caja abierta",
+                    text: "Debes elegir explícitamente la caja con turno abierto en la que se registrará esta venta.",
+                });
+            }
+            $("#cobroSelectCajaTurno").focus();
+            return;
+        }
+    } else if (!posCatalogos.turno_activo) {
         if (window.notificacion) {
             window.notificacion.fire({
                 icon: "warning",
                 title: "Turno de caja no aperturado",
-                text: "Debes aperturar un turno de caja antes de procesar ventas.",
+                text: "No tienes una caja registradora aperturada asignada para procesar cobros.",
             });
         }
-        abrirModalAperturaPos();
+        return;
+    }
+
+    if (!posAlmacenActualId) {
+        if (window.notificacion) {
+            window.notificacion.fire({
+                icon: "warning",
+                title: "Almacén requerido",
+                text: "Debes seleccionar un almacén de despacho para procesar la venta.",
+            });
+        }
         return;
     }
 
@@ -2911,6 +2976,7 @@ const roundDecimals = function (num, decimals = 2) {
 
 let posEsperadoCierreUsd = 0;
 let posEsperadoCierreBs = 0;
+let posCierreCiegoActual = false;
 
 const renderizarCajaNavbar = function () {
     const $container = $("#posContainerCajaNavbar");
@@ -2953,38 +3019,43 @@ const renderizarCajaNavbar = function () {
 
     const turnos = Array.isArray(posCatalogos.turnos_activos) ? posCatalogos.turnos_activos : [];
 
-    if (posCatalogos.turno_activo && posCatalogos.turno_activo.caja) {
-        const cajaNombre = posCatalogos.turno_activo.caja.nombre;
-        const turnoId = String(posCatalogos.turno_activo.id).padStart(5, '0');
+    if (turnos.length > 0) {
+        const tieneTurnoElegido = Boolean(posCatalogos.turno_activo && posCatalogos.turno_activo.caja);
+        const cajaNombre = tieneTurnoElegido ? posCatalogos.turno_activo.caja.nombre : `Elegir Caja (${turnos.length} abiertas)`;
+        const turnoIdTexto = tieneTurnoElegido ? `<span class="opacity-75">(#${String(posCatalogos.turno_activo.id).padStart(5, '0')})</span>` : '';
+        const iconoCaja = tieneTurnoElegido ? '<i class="fas fa-cash-register text-success"></i>' : '<i class="fas fa-exclamation-circle text-warning"></i>';
 
         let opcionesDropdown = '';
-        if (turnos.length > 0) {
-            turnos.forEach(t => {
-                const cNom = t.caja ? t.caja.nombre : 'Caja';
-                const tId = String(t.id).padStart(5, '0');
-                const esActivo = t.id === posCatalogos.turno_activo.id;
-                const iconoCheck = esActivo ? '<i class="fas fa-check text-success me-2"></i>' : '<i class="fas fa-circle text-muted me-2" style="font-size: 0.5rem;"></i>';
-                opcionesDropdown += `
-                    <li>
-                        <a class="dropdown-item d-flex align-items-center ${esActivo ? 'fw-bold active bg-secondary-subtle text-dark' : ''}" href="#" onclick="seleccionarTurnoPos(${t.id}); return false;">
-                            ${iconoCheck}
-                            <span>${cNom} (#${tId})</span>
-                        </a>
-                    </li>
-                `;
-            });
-        }
+        turnos.forEach(t => {
+            const cNom = t.caja ? t.caja.nombre : 'Caja';
+            const tId = String(t.id).padStart(5, '0');
+            const esActivo = tieneTurnoElegido && t.id === posCatalogos.turno_activo.id;
+            const iconoCheck = esActivo ? '<i class="fas fa-check text-success me-2"></i>' : '<i class="fas fa-circle text-muted me-2" style="font-size: 0.5rem;"></i>';
+            opcionesDropdown += `
+                <li>
+                    <a class="dropdown-item d-flex align-items-center ${esActivo ? 'fw-bold active bg-secondary-subtle text-dark' : ''}" href="#" onclick="seleccionarTurnoPos(${t.id}); return false;">
+                        ${iconoCheck}
+                        <span>${cNom} (#${tId})</span>
+                    </a>
+                </li>
+            `;
+        });
 
         $container.html(`
             <div class="dropdown">
                 <button class="btn btn-sm btn-dark rounded-pill border border-secondary px-3 py-1 font-monospace fw-bold dropdown-toggle d-flex align-items-center gap-1.5 shadow-sm text-white" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.78rem;">
-                    <i class="fas fa-cash-register text-success"></i>
-                    <span>Caja: <strong class="text-warning">${cajaNombre}</strong> <span class="opacity-75">(#${turnoId})</span></span>
+                    ${iconoCaja}
+                    <span>Caja: <strong class="text-warning">${cajaNombre}</strong> ${turnoIdTexto}</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-dark shadow rounded-4 py-2 font-monospace" style="font-size: 0.80rem; min-width: 220px;">
                     <li class="dropdown-header text-uppercase small text-white-50">Cajas con Turno Abierto</li>
                     ${opcionesDropdown}
                     <li><hr class="dropdown-divider border-secondary opacity-25"></li>
+                    <li>
+                        <a class="dropdown-item text-info" href="#" onclick="abrirModalMovimientoPos(); return false;">
+                            <i class="fas fa-exchange-alt me-2"></i> Registrar Entrada / Salida
+                        </a>
+                    </li>
                     <li>
                         <a class="dropdown-item text-warning" href="#" onclick="verCorteXPos(); return false;">
                             <i class="fas fa-file-invoice-dollar me-2"></i> Ver Corte X en Vivo
@@ -3007,7 +3078,7 @@ const renderizarCajaNavbar = function () {
     } else {
         $container.html(`
             <button type="button" class="btn btn-sm btn-warning rounded-pill px-3 py-1 font-monospace fw-bold shadow-xs" onclick="abrirModalAperturaPos()" style="font-size: 0.76rem;">
-                <i class="fas fa-key me-1"></i> Aperturar Caja
+                <i class="fas fa-key me-1"></i> No hay cajas abiertas · Aperturar
             </button>
         `);
     }
@@ -3074,12 +3145,61 @@ const guardarPreventaDirecta = async function () {
     }
 };
 
+const sincronizarSelectorCajaCobro = function () {
+    const $contenedor = $("#contenedorCajaTurnoCobro");
+    const $select = $("#cobroSelectCajaTurno");
+    if (!$contenedor.length || !$select.length) return;
+
+    if (!posCatalogos.es_admin) {
+        $contenedor.hide();
+        return;
+    }
+
+    $contenedor.show();
+    $select.empty();
+
+    const turnos = Array.isArray(posCatalogos.turnos_activos) ? posCatalogos.turnos_activos : [];
+    if (turnos.length === 0) {
+        $select.append('<option value="">-- No hay cajas abiertas --</option>');
+        return;
+    }
+
+    if (turnos.length > 1) {
+        $select.append('<option value="">-- Selecciona una caja abierta --</option>');
+    }
+
+    turnos.forEach((t) => {
+        const cNom = t.caja ? t.caja.nombre : "Caja";
+        const tId = String(t.id).padStart(5, "0");
+        const cajeroNom = t.usuario && t.usuario.name ? ` · ${t.usuario.name}` : "";
+        $select.append(`<option value="${t.id}">${cNom} (#${tId})${cajeroNom}</option>`);
+    });
+
+    if (turnos.length === 1) {
+        posCatalogos.turno_activo = turnos[0];
+        $select.val(String(turnos[0].id));
+    } else if (posCatalogos.turno_activo && posCatalogos.turno_activo.id) {
+        $select.val(String(posCatalogos.turno_activo.id));
+    } else {
+        $select.val("");
+    }
+};
+
+const cambiarCajaTurnoCobro = function (turnoId) {
+    const idNum = parseInt(turnoId) || 0;
+    const turnos = Array.isArray(posCatalogos.turnos_activos) ? posCatalogos.turnos_activos : [];
+    const seleccionado = turnos.find((t) => parseInt(t.id) === idNum) || null;
+    posCatalogos.turno_activo = seleccionado;
+    renderizarCajaNavbar();
+};
+
 const seleccionarTurnoPos = function (turnoId) {
     const turnos = Array.isArray(posCatalogos.turnos_activos) ? posCatalogos.turnos_activos : [];
     const seleccionado = turnos.find(t => t.id === turnoId);
     if (seleccionado) {
         posCatalogos.turno_activo = seleccionado;
         renderizarCajaNavbar();
+        sincronizarSelectorCajaCobro();
         if (window.notificacion) {
             window.notificacion.fire({
                 icon: "info",
@@ -3159,6 +3279,7 @@ $("#formAperturaPos").on("submit", async function (e) {
             }
             posCatalogos.turnos_activos.push(res.data);
             renderizarCajaNavbar();
+            sincronizarSelectorCajaCobro();
 
             const modalEl = document.getElementById("modalAperturaTurnoPos");
             if (modalEl) {
@@ -3239,6 +3360,67 @@ const verCorteXPos = async function () {
             filasMetodos = '<tr><td colspan="4" class="text-center text-muted py-3">Sin pagos registrados en este turno</td></tr>';
         }
 
+        let filasMovimientos = '';
+        if (rep.movimientos_listado && rep.movimientos_listado.length > 0) {
+            rep.movimientos_listado.forEach(mov => {
+                const esIngreso = mov.tipo === 'ingreso';
+                const esVuelto = Boolean(mov.es_vuelto);
+                let badgeTipo = '';
+                if (esIngreso) {
+                    badgeTipo = '<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5 fw-bold"><i class="fas fa-arrow-down me-1"></i>Ingreso (+)</span>';
+                } else if (esVuelto) {
+                    badgeTipo = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-0.5 fw-bold"><i class="fas fa-hand-holding-usd me-1"></i>Vuelto entregado (-)</span>';
+                } else {
+                    badgeTipo = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-0.5 fw-bold"><i class="fas fa-arrow-up me-1"></i>Egreso (-)</span>';
+                }
+                const refHtml = mov.comprobante_referencia ? `<small class="text-muted d-block font-monospace">Ref: ${mov.comprobante_referencia}</small>` : '';
+                const signo = esIngreso ? '+' : '-';
+                const claseMonto = esIngreso ? 'text-success' : 'text-danger';
+                filasMovimientos += `
+                    <tr>
+                        <td class="font-monospace small">${mov.hora || '--'}</td>
+                        <td>${badgeTipo}</td>
+                        <td>
+                            <span class="fw-semibold text-dark">${mov.concepto}</span>
+                            ${refHtml}
+                        </td>
+                        <td class="text-end fw-bold font-monospace ${claseMonto}">${signo}$${parseFloat(mov.monto_usd || 0).toFixed(2)}</td>
+                        <td class="text-end fw-bold font-monospace ${claseMonto}">${signo}Bs. ${parseFloat(mov.monto_bs || 0).toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            filasMovimientos = '<tr><td colspan="5" class="text-center text-muted py-3">Sin entradas ni salidas menores registradas en este turno</td></tr>';
+        }
+
+        const totalIngresosUsd = parseFloat(rep.total_ingresos_caja_usd || 0);
+        const totalIngresosBs = parseFloat(rep.total_ingresos_caja_bs || 0);
+        const totalEgresosUsd = parseFloat(rep.total_egresos_caja_usd || 0);
+        const totalEgresosBs = parseFloat(rep.total_egresos_caja_bs || 0);
+        const totalVueltoUsd = parseFloat(rep.total_vuelto_usd || 0);
+        const totalVueltoBs = parseFloat(rep.total_vuelto_bs || 0);
+        const mostrarEsperado = rep.efectivo_esperado_usd !== undefined && rep.efectivo_esperado_usd !== null && !rep.cierre_ciego;
+
+        const cardEsperadoHtml = mostrarEsperado
+            ? `
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-primary-subtle border border-primary-subtle rounded-4 p-2.5 text-center h-100">
+                        <span class="text-primary small fw-semibold">Efectivo Teórico</span>
+                        <h6 class="fw-bold text-primary mb-0 mt-1">$${parseFloat(rep.efectivo_esperado_usd).toFixed(2)}</h6>
+                        <small class="text-primary">Bs. ${parseFloat(rep.efectivo_esperado_bs).toFixed(2)}</small>
+                    </div>
+                </div>
+            `
+            : `
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-white border rounded-4 shadow-xs p-2.5 text-center h-100">
+                        <span class="text-muted small">Vuelto entregado</span>
+                        <h6 class="fw-bold text-warning-emphasis mb-0 mt-1">-$${totalVueltoUsd.toFixed(2)}</h6>
+                        <small class="text-muted">-Bs. ${totalVueltoBs.toFixed(2)}</small>
+                    </div>
+                </div>
+            `;
+
         const html = `
             <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
                 <div>
@@ -3248,35 +3430,43 @@ const verCorteXPos = async function () {
                 <span class="badge bg-success rounded-pill px-3 py-2 text-uppercase">EN CURSO</span>
             </div>
 
-            <div class="row g-3 mb-3">
-                <div class="col-6 col-md-3">
-                    <div class="card bg-white border rounded-4 shadow-xs p-3 text-center">
-                        <span class="text-muted small">Fondo Apertura</span>
+            <div class="row g-2 mb-3">
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-white border rounded-4 shadow-xs p-2.5 text-center h-100">
+                        <span class="text-muted small">Apertura</span>
                         <h6 class="fw-bold text-dark mb-0 mt-1">$${parseFloat(rep.monto_apertura_usd).toFixed(2)}</h6>
                         <small class="text-muted">Bs. ${parseFloat(rep.monto_apertura_bs).toFixed(2)}</small>
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <div class="card bg-white border rounded-4 shadow-xs p-3 text-center">
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-white border rounded-4 shadow-xs p-2.5 text-center h-100">
                         <span class="text-muted small">Ventas (${rep.cantidad_ventas})</span>
                         <h6 class="fw-bold text-success mb-0 mt-1">$${parseFloat(rep.total_ventas_usd).toFixed(2)}</h6>
                         <small class="text-muted">Bs. ${parseFloat(rep.total_ventas_bs).toFixed(2)}</small>
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <div class="card bg-white border rounded-4 shadow-xs p-3 text-center">
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-white border rounded-4 shadow-xs p-2.5 text-center h-100">
+                        <span class="text-muted small">Ingresos Caja</span>
+                        <h6 class="fw-bold text-success mb-0 mt-1">+$${totalIngresosUsd.toFixed(2)}</h6>
+                        <small class="text-muted">+Bs. ${totalIngresosBs.toFixed(2)}</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-white border rounded-4 shadow-xs p-2.5 text-center h-100">
+                        <span class="text-muted small">Retiros / Egresos</span>
+                        <h6 class="fw-bold text-danger mb-0 mt-1">-$${totalEgresosUsd.toFixed(2)}</h6>
+                        <small class="text-muted">-Bs. ${totalEgresosBs.toFixed(2)}</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="card bg-white border rounded-4 shadow-xs p-2.5 text-center h-100">
                         <span class="text-muted small">Devoluciones (${rep.cantidad_devoluciones})</span>
                         <h6 class="fw-bold text-danger mb-0 mt-1">-$${parseFloat(rep.total_devoluciones_usd).toFixed(2)}</h6>
                         <small class="text-muted">-Bs. ${parseFloat(rep.total_devoluciones_bs).toFixed(2)}</small>
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <div class="card bg-primary-subtle border border-primary-subtle rounded-4 p-3 text-center">
-                        <span class="text-primary small fw-semibold">Efectivo Teórico</span>
-                        <h6 class="fw-bold text-primary mb-0 mt-1">$${parseFloat(rep.efectivo_esperado_usd).toFixed(2)}</h6>
-                        <small class="text-primary">Bs. ${parseFloat(rep.efectivo_esperado_bs).toFixed(2)}</small>
-                    </div>
-                </div>
+                ${cardEsperadoHtml}
             </div>
 
             <h6 class="fw-bold text-dark mb-2"><i class="fas fa-wallet text-muted me-1"></i> Desglose por Método de Pago</h6>
@@ -3293,6 +3483,22 @@ const verCorteXPos = async function () {
                     <tbody>${filasMetodos}</tbody>
                 </table>
             </div>
+
+            <h6 class="fw-bold text-dark mb-2"><i class="fas fa-exchange-alt text-muted me-1"></i> Movimientos de Caja (Ingresos y Retiros de Efectivo)</h6>
+            <div class="table-responsive rounded-3 border mb-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="border-bottom font-monospace bg-white">
+                        <tr>
+                            <th>Hora</th>
+                            <th>Tipo</th>
+                            <th>Concepto / Motivo</th>
+                            <th class="text-end">Monto USD</th>
+                            <th class="text-end">Monto Bs.</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filasMovimientos}</tbody>
+                </table>
+            </div>
         `;
 
         $("#posContenidoCorteX").html(html);
@@ -3300,6 +3506,54 @@ const verCorteXPos = async function () {
         $("#posContenidoCorteX").html('<div class="alert alert-danger">Error al consultar datos del turno.</div>');
     }
 };
+
+const resetearFormularioMovimientoPos = function () {
+    const $form = $("#formMovimientoCajaPos");
+    if ($form.length) {
+        $form[0].reset();
+        $form.find(".is-invalid").removeClass("is-invalid");
+        $form.find(".invalid-feedback").remove();
+    }
+    $("#posMovimientoTipo").val("egreso");
+    $("#posMovimientoMontoUsd").val("0.00");
+    $("#posMovimientoMontoBs").val("0.00");
+};
+
+const abrirModalMovimientoPos = function () {
+    if (!posCatalogos.turno_activo) {
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: "warning", title: "Sin Turno Activo", text: "No tienes ninguna sesión de caja abierta actualmente." });
+        }
+        abrirModalAperturaPos();
+        return;
+    }
+
+    resetearFormularioMovimientoPos();
+    const turno = posCatalogos.turno_activo;
+    const cajaNom = turno.caja && turno.caja.nombre ? turno.caja.nombre : "Caja";
+    $("#posMovimientoTurnoId").val(turno.id);
+    $("#posMovimientoEtiquetaTurno").text(`${cajaNom} · Turno #${String(turno.id).padStart(5, "0")}`);
+
+    const modalEl = document.getElementById("modalMovimientoCajaPos");
+    if (modalEl) {
+        const modalInst = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modalInst.show();
+    }
+};
+
+$("#formMovimientoCajaPos").on("submit", function (e) {
+    e.preventDefault();
+    if (!posCatalogos.turno_activo) return;
+
+    enviarFormulario({
+        form: this,
+        url: typeof urlCajasMovimientos !== "undefined" ? urlCajasMovimientos : `${urlCajasBase}/movimientos`,
+        isEditar: false,
+        modalSelector: "#modalMovimientoCajaPos",
+        btnSubmit: "#modalMovimientoCajaPosBtnGuardar",
+        textoGuardarOriginal: "Registrar Movimiento",
+    });
+});
 
 const abrirModalCierrePos = async function () {
     if (!posCatalogos.turno_activo) {
@@ -3320,19 +3574,40 @@ const abrirModalCierrePos = async function () {
         const rep = res && res.data ? res.data : null;
         if (!rep) return;
 
-        posEsperadoCierreUsd = parseFloat(rep.efectivo_esperado_usd || 0);
-        posEsperadoCierreBs = parseFloat(rep.efectivo_esperado_bs || 0);
+        posCierreCiegoActual = Boolean(rep.cierre_ciego) || rep.efectivo_esperado_usd === undefined || rep.efectivo_esperado_usd === null;
 
         $("#posCierreResumenApertura").text(`$${parseFloat(rep.monto_apertura_usd).toFixed(2)}`);
         $("#posCierreResumenVentas").text(`$${parseFloat(rep.total_ventas_usd).toFixed(2)}`);
-        $("#posCierreResumenEsperadoUsd").text(`$${posEsperadoCierreUsd.toFixed(2)}`);
-        $("#posCierreResumenEsperadoBs").text(`Bs. ${posEsperadoCierreBs.toFixed(2)}`);
-
-        $("#posCierreMontoUsd").val(posEsperadoCierreUsd.toFixed(2));
-        $("#posCierreMontoBs").val(posEsperadoCierreBs.toFixed(2));
+        $("#posCierreResumenIngresosUsd").text(`+$${parseFloat(rep.total_ingresos_caja_usd || 0).toFixed(2)}`);
+        $("#posCierreResumenIngresosBs").text(`+Bs. ${parseFloat(rep.total_ingresos_caja_bs || 0).toFixed(2)}`);
+        $("#posCierreResumenEgresosUsd").text(`-$${parseFloat(rep.total_egresos_caja_usd || 0).toFixed(2)}`);
+        $("#posCierreResumenEgresosBs").text(`-Bs. ${parseFloat(rep.total_egresos_caja_bs || 0).toFixed(2)}`);
         $("#posCierreObservaciones").val("");
 
-        calcularDiferenciasCierrePos();
+        if (posCierreCiegoActual) {
+            posEsperadoCierreUsd = 0;
+            posEsperadoCierreBs = 0;
+            $("#posContenedorAvisoCierreCiego").show();
+            $("#posContenedorResumenCierreZ").hide();
+            $("#posColResumenEsperadoUsd").hide();
+            $("#posColResumenEsperadoBs").hide();
+            $("#posCierreMontoUsd").val("0.00");
+            $("#posCierreMontoBs").val("0.00");
+            $("#posCierreAlertaUsd").html('<span class="text-muted"><i class="fas fa-eye-slash me-1"></i>Cierre a ciegas: se calculará al confirmar</span>');
+            $("#posCierreAlertaBs").html('<span class="text-muted"><i class="fas fa-eye-slash me-1"></i>Cierre a ciegas: se calculará al confirmar</span>');
+        } else {
+            posEsperadoCierreUsd = parseFloat(rep.efectivo_esperado_usd || 0);
+            posEsperadoCierreBs = parseFloat(rep.efectivo_esperado_bs || 0);
+            $("#posContenedorAvisoCierreCiego").hide();
+            $("#posContenedorResumenCierreZ").show();
+            $("#posColResumenEsperadoUsd").show();
+            $("#posColResumenEsperadoBs").show();
+            $("#posCierreResumenEsperadoUsd").text(`$${posEsperadoCierreUsd.toFixed(2)}`);
+            $("#posCierreResumenEsperadoBs").text(`Bs. ${posEsperadoCierreBs.toFixed(2)}`);
+            $("#posCierreMontoUsd").val(posEsperadoCierreUsd.toFixed(2));
+            $("#posCierreMontoBs").val(posEsperadoCierreBs.toFixed(2));
+            calcularDiferenciasCierrePos();
+        }
 
         const modalEl = document.getElementById("modalCierreZPos");
         const modalInst = bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -3345,6 +3620,10 @@ const abrirModalCierrePos = async function () {
 };
 
 const calcularDiferenciasCierrePos = function () {
+    if (posCierreCiegoActual) {
+        return;
+    }
+
     const contadoUsd = parseFloat($("#posCierreMontoUsd").val() || 0);
     const contadoBs = parseFloat($("#posCierreMontoBs").val() || 0);
 
@@ -3407,10 +3686,16 @@ $("#formCierreZPos").on("submit", async function (e) {
             renderizarCajaNavbar();
 
             if (window.Swal) {
+                const turnoCerrado = res && res.data ? res.data : {};
+                const difUsd = parseFloat(turnoCerrado.diferencia_usd || 0);
+                const difBs = parseFloat(turnoCerrado.diferencia_bs || 0);
+                const estadoUsd = Math.abs(difUsd) < 0.001 ? 'Exacto ($0.00)' : (difUsd > 0 ? `Sobrante (+$${difUsd.toFixed(2)})` : `Faltante (-$${Math.abs(difUsd).toFixed(2)})`);
+                const estadoBs = Math.abs(difBs) < 0.001 ? 'Exacto (Bs. 0.00)' : (difBs > 0 ? `Sobrante (+Bs. ${difBs.toFixed(2)})` : `Faltante (-Bs. ${Math.abs(difBs).toFixed(2)})`);
+
                 Swal.fire({
                     icon: 'success',
                     title: '¡Cierre Z Completado!',
-                    text: 'El arqueo físico y cierre de turno se registraron exitosamente.',
+                    html: `El arqueo físico y cierre de turno se registraron exitosamente.<br><br><strong>Resultado USD:</strong> ${estadoUsd}<br><strong>Resultado Bs.:</strong> ${estadoBs}`,
                     showCancelButton: true,
                     confirmButtonText: '🖨️ Imprimir Ticket Z',
                     cancelButtonText: 'Finalizar',

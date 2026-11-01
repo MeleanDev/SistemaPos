@@ -245,15 +245,66 @@
 
         <div class="divider"></div>
 
-        <div class="fw-bold text-uppercase" style="margin-bottom: 3px;">4. EFECTIVO TEÓRICO EN CAJA</div>
+        <div class="fw-bold text-uppercase" style="margin-bottom: 3px;">4. MOVIMIENTOS DE CAJA (ENTRADAS / SALIDAS)</div>
         <div class="totales-row">
-            <span>Efectivo USD Esperado:</span>
-            <span class="fw-bold" style="font-size: 12px;">${{ number_format($reporte['efectivo_esperado_usd'], 2) }}</span>
+            <span>(+) Ingresos Menores USD / Bs.:</span>
+            <span>+${{ number_format($reporte['total_ingresos_caja_usd'] ?? 0, 2) }} / +Bs. {{ number_format($reporte['total_ingresos_caja_bs'] ?? 0, 2) }}</span>
         </div>
         <div class="totales-row">
-            <span>Efectivo Bs. Esperado:</span>
-            <span class="fw-bold" style="font-size: 12px;">Bs. {{ number_format($reporte['efectivo_esperado_bs'], 2) }}</span>
+            <span>(-) Vuelto Entregado USD / Bs.:</span>
+            <span>-${{ number_format($reporte['total_vuelto_usd'] ?? 0, 2) }} / -Bs. {{ number_format($reporte['total_vuelto_bs'] ?? 0, 2) }}</span>
         </div>
+        <div class="totales-row">
+            <span>(-) Retiros / Egresos USD / Bs.:</span>
+            <span class="fw-bold">-${{ number_format($reporte['total_egresos_caja_usd'] ?? 0, 2) }} / -Bs. {{ number_format($reporte['total_egresos_caja_bs'] ?? 0, 2) }}</span>
+        </div>
+        @if(!empty($reporte['movimientos_listado']))
+            <table style="margin-top: 3px;">
+                <thead>
+                    <tr>
+                        <th>HORA / CONCEPTO</th>
+                        <th class="text-end">MONTO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($reporte['movimientos_listado'] as $mov)
+                        @php
+                            $esIng = ($mov['tipo'] ?? '') === 'ingreso';
+                            $esVuelto = !empty($mov['es_vuelto']);
+                            $signoMov = $esIng ? '+' : '-';
+                            $prefijoMov = $esIng ? 'ING' : ($esVuelto ? 'Vuelto entregado' : 'EGR');
+                        @endphp
+                        <tr>
+                            <td>
+                                [{{ $mov['hora'] }}] {{ $prefijoMov }}: {{ $mov['concepto'] }}
+                            </td>
+                            <td class="text-end fw-bold">
+                                @if(($mov['monto_usd'] ?? 0) > 0)
+                                    {{ $signoMov }}${{ number_format($mov['monto_usd'], 2) }}
+                                @endif
+                                @if(($mov['monto_bs'] ?? 0) > 0)
+                                    {{ ($mov['monto_usd'] ?? 0) > 0 ? ' / ' : '' }}{{ $signoMov }}Bs.{{ number_format($mov['monto_bs'], 2) }}
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+
+        @if(isset($reporte['efectivo_esperado_usd']) && isset($reporte['efectivo_esperado_bs']))
+            <div class="divider"></div>
+
+            <div class="fw-bold text-uppercase" style="margin-bottom: 3px;">5. EFECTIVO TEÓRICO EN CAJA</div>
+            <div class="totales-row">
+                <span>Efectivo USD Esperado:</span>
+                <span class="fw-bold" style="font-size: 12px;">${{ number_format($reporte['efectivo_esperado_usd'], 2) }}</span>
+            </div>
+            <div class="totales-row">
+                <span>Efectivo Bs. Esperado:</span>
+                <span class="fw-bold" style="font-size: 12px;">Bs. {{ number_format($reporte['efectivo_esperado_bs'], 2) }}</span>
+            </div>
+        @endif
 
         <div class="double-divider"></div>
 

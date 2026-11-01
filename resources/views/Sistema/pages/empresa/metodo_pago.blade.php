@@ -25,6 +25,7 @@
         :headers="[
             'Método de Pago',
             'Descripción / Detalle',
+            'Tipo',
             'Fecha Creación',
             'Acciones',
         ]"
@@ -62,6 +63,16 @@
                     maxlength="255"
                     col="col-12"
                     optionalText="Opcional"
+                />
+
+                <x-checkbox
+                    name="es_efectivo"
+                    id="es_efectivo"
+                    value="1"
+                    label="Es efectivo (entra al conteo físico de gaveta en caja)"
+                    description="Actívalo si este método mueve billetes o monedas físicas que el cajero debe contar en el arqueo."
+                    :switch="true"
+                    col="col-12"
                 />
             </div>
         </form>

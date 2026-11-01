@@ -16,6 +16,13 @@ class ActualizarRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'es_efectivo' => $this->boolean('es_efectivo'),
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -36,6 +43,7 @@ class ActualizarRequest extends FormRequest
                     ->where(fn ($query) => $query->where('estado', true)),
             ],
             'descripcion' => ['nullable', 'string', 'max:255'],
+            'es_efectivo' => ['nullable', 'boolean'],
         ];
     }
 
@@ -52,6 +60,7 @@ class ActualizarRequest extends FormRequest
             'nombre.min' => 'El nombre debe tener al menos 2 caracteres.',
             'nombre.max' => 'El nombre no debe superar los 100 caracteres.',
             'descripcion.max' => 'La descripción no debe superar los 255 caracteres.',
+            'es_efectivo.boolean' => 'El indicador de efectivo debe ser verdadero o falso.',
         ];
     }
 }
