@@ -6,6 +6,8 @@ const urlAbonarFactura = `${urlBase}/abonar-factura`;
 const urlAbonarGeneral = `${urlBase}/abonar-general`;
 
 let metodosPagoList = [];
+let turnosAbiertosCxc = [];
+let turnoPropioCxcId = null;
 let tasaBcvActiva = 1.0;
 let clienteActivo = null;
 let facturasPendientesLista = [];
@@ -30,9 +32,12 @@ const cargarCatalogosCxc = async function () {
 
         if (res && res.success && res.data) {
             metodosPagoList = res.data.metodos_pago || [];
+            turnosAbiertosCxc = Array.isArray(res.data.turnos_abiertos) ? res.data.turnos_abiertos : [];
+            turnoPropioCxcId = res.data.caja_turno_propio_id || null;
             tasaBcvActiva = parseFloat(res.data.tasa_usd) || 1.0;
             $("#kpi_tasa_bcv_badge").text(`${formatearNumero(tasaBcvActiva, 2)} Bs/$`);
             poblarSelectsMetodos();
+            poblarSelectsTurnosCxc();
         }
     } catch (e) {
         console.error(e);
@@ -51,6 +56,51 @@ const poblarSelectsMetodos = function () {
             const nombreMetodo = m.nombre || "Método";
             $select.append(`<option value="${m.id}" data-nombre="${nombreMetodo}">${nombreMetodo}</option>`);
         });
+    });
+};
+
+const poblarSelectsTurnosCxc = function () {
+    const configs = [
+        { select: "#abono_caja_turno_id", contenedor: "#contenedor_abono_caja_turno" },
+        { select: "#gen_caja_turno_id", contenedor: "#contenedor_gen_caja_turno" }
+    ];
+
+    configs.forEach(function (cfg) {
+        const $select = $(cfg.select);
+        const $contenedor = $(cfg.contenedor);
+        if (!$select.length) return;
+
+        $select.empty();
+
+        if (turnoPropioCxcId) {
+            $select.append(`<option value="${turnoPropioCxcId}" selected>Turno propio #${turnoPropioCxcId}</option>`);
+            $select.prop("required", false);
+            $contenedor.addClass("d-none");
+            return;
+        }
+
+        if (turnosAbiertosCxc.length === 1) {
+            const unico = turnosAbiertosCxc[0];
+            $select.append(`<option value="${unico.id}" selected>${unico.caja_nombre} - ${unico.cajero_nombre}</option>`);
+            $select.prop("required", false);
+            $contenedor.addClass("d-none");
+            return;
+        }
+
+        if (turnosAbiertosCxc.length > 1) {
+            $select.append('<option value="">Seleccione turno de caja abierto...</option>');
+            turnosAbiertosCxc.forEach(function (t) {
+                $select.append(`<option value="${t.id}">${t.caja_nombre} (${t.cajero_nombre})</option>`);
+            });
+            $select.val(String(turnosAbiertosCxc[0].id));
+            $select.prop("required", true);
+            $contenedor.removeClass("d-none");
+            return;
+        }
+
+        $select.append('<option value="">Sin turnos abiertos</option>');
+        $select.prop("required", false);
+        $contenedor.addClass("d-none");
     });
 };
 
@@ -399,6 +449,7 @@ const abrirModalAbonoFactura = function (cuentaId, numeroFactura, saldoUsd, sald
     $("#abono_equivalente_label").text("Equivalente: Bs. 0.00");
 
     poblarSelectsMetodos();
+    poblarSelectsTurnosCxc();
     actualizarComportamientoReferencia("abono");
 
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalAbonarFactura"));
@@ -521,6 +572,7 @@ const abrirModalAbonoGeneral = async function (clienteId) {
         $("#gen_equivalente_label").text("Equivalente: Bs. 0.00");
 
         poblarSelectsMetodos();
+        poblarSelectsTurnosCxc();
         actualizarComportamientoReferencia("gen");
         recalcularAbonoGeneral();
 

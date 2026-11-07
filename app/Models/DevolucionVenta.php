@@ -23,12 +23,18 @@ class DevolucionVenta extends Model
         'total_devuelto_usd',
         'total_devuelto_bs',
         'tipo_reembolso',
+        'metodo_pago_id',
     ];
 
     protected $casts = [
         'total_devuelto_usd' => 'decimal:2',
         'total_devuelto_bs' => 'decimal:2',
     ];
+
+    public function metodoPago(): BelongsTo
+    {
+        return $this->belongsTo(MetodoPago::class, 'metodo_pago_id');
+    }
 
     public function empresa(): BelongsTo
     {

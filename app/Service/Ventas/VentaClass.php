@@ -16,6 +16,7 @@ use App\Models\MetodoPago;
 use App\Models\Moto;
 use App\Models\Producto;
 use App\Models\ProductoSerial;
+use App\Models\Secuencia;
 use App\Models\Servicio;
 use App\Models\User;
 use App\Models\Vendedor;
@@ -26,6 +27,7 @@ use App\Models\VentaPago;
 use App\Service\Inventario\KardexClass;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -326,30 +328,71 @@ class VentaClass
             'turnos_activos' => $turnosActivos,
             'cajas_disponibles' => $cajasDisponibles,
             'tasa_usd' => $tasaUsd,
-            'proximo_codigo' => $this->generarCodigo($empresaId),
+            'proximo_codigo' => $this->generarCodigo($empresaId, false),
             'productos' => $productos->concat($servicios)->concat($motos)->values(),
         ];
     }
 
     /**
-     * Generar correlativo de venta (Ej: VEN-00001) por empresa
+     * Resolver y validar un turno de caja abierto para facturar, devolver o anular
      */
-    public function generarCodigo(int $empresaId): string
+    protected function resolverTurnoOperacion(int $empresaId, User $user, ?int $cajaTurnoIdInput = null): CajaTurno
     {
-        $ventas = Venta::where('empresa_id', $empresaId)->get(['id', 'codigo']);
-        $maxNum = 0;
+        $esAdmin = $user->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) || $user->can('cajas.administrar_todas');
 
-        foreach ($ventas as $v) {
-            $cod = trim($v->codigo ?? '');
-            if (preg_match('/(\d+)/', $cod, $matches)) {
-                $val = (int) $matches[1];
-                if ($val > $maxNum) {
-                    $maxNum = $val;
-                }
+        if ($esAdmin) {
+            $turnosAbiertos = CajaTurno::where('empresa_id', $empresaId)
+                ->where('estado', 'abierta')
+                ->orderBy('id', 'asc')
+                ->get();
+
+            if ($turnosAbiertos->isEmpty()) {
+                throw new Exception('No hay cajas abiertas para procesar la operación.');
             }
+
+            $cajaTurnoId = (int) ($cajaTurnoIdInput ?? 0);
+            if ($cajaTurnoId <= 0) {
+                if ($turnosAbiertos->count() === 1) {
+                    return $turnosAbiertos->first();
+                }
+                throw new Exception('Debes seleccionar una caja con turno abierto para procesar la operación.');
+            }
+
+            $cajaTurno = CajaTurno::where('empresa_id', $empresaId)
+                ->where('id', $cajaTurnoId)
+                ->where('estado', 'abierta')
+                ->first();
+
+            if (! $cajaTurno) {
+                throw new Exception('El turno de caja seleccionado no pertenece a la empresa o no se encuentra abierto.');
+            }
+
+            return $cajaTurno;
         }
 
-        $correlativo = str_pad($maxNum + 1, 5, '0', STR_PAD_LEFT);
+        $turnoPropio = $user->cajaTurnoActivo($empresaId);
+        if (! $turnoPropio) {
+            throw new Exception('No tienes una caja registradora aperturada asignada para procesar cobros.');
+        }
+
+        if ($cajaTurnoIdInput !== null && $cajaTurnoIdInput > 0 && (int) $cajaTurnoIdInput !== (int) $turnoPropio->id) {
+            throw new Exception('Solo puedes operar utilizando tu propio turno de caja abierto.');
+        }
+
+        return $turnoPropio;
+    }
+
+    /**
+     * Generar correlativo de venta (Ej: VEN-00001) por empresa
+     */
+    public function generarCodigo(int $empresaId, ?bool $incrementar = null): string
+    {
+        $usarLock = $incrementar ?? (DB::transactionLevel() > 0);
+        $numero = $usarLock
+            ? Secuencia::siguiente($empresaId, 'venta')
+            : Secuencia::proximoValorSinIncrementar($empresaId, 'venta');
+
+        $correlativo = str_pad((string) $numero, 5, '0', STR_PAD_LEFT);
 
         return "VEN-{$correlativo}";
     }
@@ -357,29 +400,14 @@ class VentaClass
     /**
      * Generar número de control fiscal (Ej: 00-00000001) por empresa
      */
-    public function generarNumeroControl(int $empresaId): string
+    public function generarNumeroControl(int $empresaId, ?bool $incrementar = null): string
     {
-        $ventas = Venta::where('empresa_id', $empresaId)
-            ->whereNotNull('numero_control')
-            ->get(['id', 'numero_control']);
-        $maxNum = 0;
+        $usarLock = $incrementar ?? false;
+        $numero = $usarLock
+            ? Secuencia::siguiente($empresaId, 'numero_control')
+            : Secuencia::proximoValorSinIncrementar($empresaId, 'numero_control');
 
-        foreach ($ventas as $v) {
-            $control = trim($v->numero_control ?? '');
-            if ($control === '') {
-                continue;
-            }
-
-            $sinPrefijo = preg_replace('/^00-/', '', $control);
-            if (preg_match('/(\d+)$/', $sinPrefijo, $matches)) {
-                $val = (int) $matches[1];
-                if ($val > $maxNum) {
-                    $maxNum = $val;
-                }
-            }
-        }
-
-        $correlativo = str_pad($maxNum + 1, 8, '0', STR_PAD_LEFT);
+        $correlativo = str_pad((string) $numero, 8, '0', STR_PAD_LEFT);
 
         return "00-{$correlativo}";
     }
@@ -387,22 +415,14 @@ class VentaClass
     /**
      * Generar correlativo de devolución (Ej: DEV-00001) por empresa
      */
-    public function generarCodigoDevolucion(int $empresaId): string
+    public function generarCodigoDevolucion(int $empresaId, ?bool $incrementar = null): string
     {
-        $devoluciones = DevolucionVenta::where('empresa_id', $empresaId)->get(['id', 'codigo']);
-        $maxNum = 0;
+        $usarLock = $incrementar ?? (DB::transactionLevel() > 0);
+        $numero = $usarLock
+            ? Secuencia::siguiente($empresaId, 'devolucion')
+            : Secuencia::proximoValorSinIncrementar($empresaId, 'devolucion');
 
-        foreach ($devoluciones as $d) {
-            $cod = trim($d->codigo ?? '');
-            if (preg_match('/(\d+)/', $cod, $matches)) {
-                $val = (int) $matches[1];
-                if ($val > $maxNum) {
-                    $maxNum = $val;
-                }
-            }
-        }
-
-        $correlativo = str_pad($maxNum + 1, 5, '0', STR_PAD_LEFT);
+        $correlativo = str_pad((string) $numero, 5, '0', STR_PAD_LEFT);
 
         return "DEV-{$correlativo}";
     }
@@ -494,9 +514,20 @@ class VentaClass
                 throw new Exception('El almacén seleccionado no pertenece a la empresa o no se encuentra disponible.');
             }
             $tipoVenta = $datos['tipo_venta'] ?? 'detal';
+            if (! in_array($tipoVenta, ['detal', 'mayor', 'mayorista'], true)) {
+                throw new Exception("El tipo de venta '{$tipoVenta}' no es válido.");
+            }
+            $esMayor = in_array($tipoVenta, ['mayor', 'mayorista'], true);
             $condicionPago = $datos['condicion_pago'] ?? 'contado';
             $diasCredito = (int) ($datos['dias_credito'] ?? 0);
             $observaciones = $datos['observaciones'] ?? null;
+
+            $userCobro = User::find($userId);
+            if (! $userCobro) {
+                throw new Exception('No se pudo determinar el usuario que procesa la venta.');
+            }
+            $esAdmin = $userCobro->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) || $userCobro->can('cajas.administrar_todas');
+            $puedeDescontar = $userCobro->hasAnyRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) || $userCobro->can('ventas.descuentos');
 
             $items = $datos['items'] ?? [];
             if (empty($items) || ! is_array($items)) {
@@ -523,6 +554,17 @@ class VentaClass
                     continue;
                 }
 
+                if ($almacenItem !== $almacenIdGlobal) {
+                    $almacenItemValido = Almacen::where('empresa_id', $empresaId)
+                        ->where('id', $almacenItem)
+                        ->where('estado', true)
+                        ->exists();
+
+                    if (! $almacenItemValido) {
+                        throw new Exception('El almacén indicado para el ítem no pertenece a la empresa o se encuentra inactivo.');
+                    }
+                }
+
                 $producto = null;
                 $moto = null;
                 $servicio = null;
@@ -531,29 +573,78 @@ class VentaClass
                 $ivaPorcentaje = 0;
                 $nombreItem = null;
                 $serialIdentificador = null;
+                $serialId = ! empty($it['producto_serial_id']) ? (int) $it['producto_serial_id'] : null;
+                $precioListaConIva = 0.0;
+                $precioListaSinIva = 0.0;
 
                 if ($tipoItem === 'producto') {
                     $producto = Producto::where('id', $productoId)
                         ->where('empresa_id', $empresaId)
-                        ->firstOrFail();
+                        ->where('estado', true)
+                        ->first();
+
+                    if (! $producto) {
+                        throw new Exception('El producto seleccionado no existe, no pertenece a la empresa o está inactivo.');
+                    }
 
                     $costoUnitarioUsd = (float) $producto->precio_costo_usd;
                     $aplicaIva = (bool) $producto->aplica_iva;
                     $ivaPorcentaje = $aplicaIva ? (float) ($producto->iva_porcentaje ?? 16.00) : 0;
+                    $factorIva = ($aplicaIva && $ivaPorcentaje > 0) ? (1 + ($ivaPorcentaje / 100)) : 1.00;
+                    $precioBase = $esMayor
+                        ? (float) ($producto->precio_mayorista_usd > 0 ? $producto->precio_mayorista_usd : $producto->precio_detal_usd)
+                        : (float) $producto->precio_detal_usd;
+
+                    $precioListaConIva = round($precioBase * $factorIva, 2);
+                    $precioListaSinIva = round($precioBase, 2);
                     $nombreItem = $producto->nombre;
                     $serialIdentificador = $producto->codigo_interno;
+
+                    if ($producto->maneja_seriales && ! $serialId) {
+                        throw new Exception("El producto '{$producto->nombre}' maneja seriales y requiere seleccionar un serial disponible.");
+                    }
+
+                    if ($serialId) {
+                        $serialModel = ProductoSerial::where('id', $serialId)
+                            ->where('empresa_id', $empresaId)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (
+                            ! $serialModel
+                            || (int) $serialModel->producto_id !== (int) $producto->id
+                            || (int) $serialModel->almacen_id !== (int) $almacenItem
+                            || $serialModel->estado !== 'disponible'
+                        ) {
+                            throw new Exception("El serial seleccionado para '{$producto->nombre}' no pertenece al producto/almacén o no está disponible.");
+                        }
+
+                        if (! empty($serialModel->numero_serial)) {
+                            $serialIdentificador = $serialModel->numero_serial;
+                        }
+                    }
                 } elseif ($tipoItem === 'moto') {
                     $moto = Moto::where('id', $productoId)
                         ->where('empresa_id', $empresaId)
-                        ->firstOrFail();
+                        ->lockForUpdate()
+                        ->first();
 
-                    if ($moto->estado !== 'disponible') {
-                        throw new Exception("La moto con NIV '{$moto->numero_niv}' ya no se encuentra disponible para la venta.");
+                    if (! $moto || $moto->estado !== 'disponible') {
+                        throw new Exception('La moto seleccionada no pertenece a la empresa o ya no se encuentra disponible para la venta.');
                     }
 
                     $costoUnitarioUsd = (float) $moto->precio_costo_usd;
                     $aplicaIva = true;
-                    $ivaPorcentaje = 16.00;
+                    $ivaPorcentaje = (float) ($moto->iva_porcentaje ?? 16.00);
+                    $factorIva = $ivaPorcentaje > 0 ? (1 + ($ivaPorcentaje / 100)) : 1.16;
+                    $detalBase = (float) $moto->precio_detal_usd;
+                    $mayorBase = (float) ($moto->precio_mayorista_usd > 0 ? $moto->precio_mayorista_usd : $moto->precio_detal_usd);
+                    $detalConIva = (float) ($moto->precio_detal_con_iva_usd > 0 ? $moto->precio_detal_con_iva_usd : round($detalBase * $factorIva, 2));
+                    $mayorConIva = (float) ($moto->precio_mayorista_con_iva_usd > 0 ? $moto->precio_mayorista_con_iva_usd : round($mayorBase * $factorIva, 2));
+
+                    $precioListaConIva = round($esMayor ? $mayorConIva : $detalConIva, 2);
+                    $precioListaSinIva = round($esMayor ? $mayorBase : $detalBase, 2);
+
                     $colorTexto = ! empty($moto->color) ? " - Color: {$moto->color}" : '';
                     $motorTexto = ! empty($moto->numero_motor) ? " - Motor: {$moto->numero_motor}" : '';
                     $nombreItem = "{$moto->marca} {$moto->modelo} ({$moto->anio}){$colorTexto}{$motorTexto}";
@@ -562,22 +653,57 @@ class VentaClass
                 } elseif ($tipoItem === 'servicio') {
                     $servicio = Servicio::where('id', $productoId)
                         ->where('empresa_id', $empresaId)
-                        ->firstOrFail();
+                        ->where('estado', true)
+                        ->first();
+
+                    if (! $servicio) {
+                        throw new Exception('El servicio seleccionado no pertenece a la empresa o está inactivo.');
+                    }
 
                     $costoUnitarioUsd = (float) $servicio->precio_costo_usd;
                     $aplicaIva = (bool) $servicio->aplica_iva;
                     $ivaPorcentaje = $aplicaIva ? (float) ($servicio->iva_porcentaje ?? 16.00) : 0;
+                    $factorIva = ($aplicaIva && $ivaPorcentaje > 0) ? (1 + ($ivaPorcentaje / 100)) : 1.00;
+                    $precioBase = (float) $servicio->precio_venta_usd;
+
+                    $precioListaConIva = round($precioBase * $factorIva, 2);
+                    $precioListaSinIva = round($precioBase, 2);
                     $nombreItem = $servicio->nombre;
                     $serialIdentificador = $servicio->codigo;
+                } else {
+                    throw new Exception("El tipo de ítem '{$tipoItem}' no es válido.");
                 }
 
                 $descuentoPorc = (float) ($it['descuento_porcentaje'] ?? 0);
+                $descuentoInputUsd = isset($it['descuento_usd']) ? (float) $it['descuento_usd'] : 0.0;
+
+                if ($descuentoPorc < 0 || $descuentoPorc > 100 || $descuentoInputUsd < 0) {
+                    throw new Exception("El descuento para '{$nombreItem}' no puede ser negativo ni superar el 100%.");
+                }
+
+                $difiereDeLista = abs($precioUnitarioUsd - $precioListaConIva) > 0.01
+                    && abs($precioUnitarioUsd - $precioListaSinIva) > 0.01;
+                $tieneDescuento = $descuentoPorc > 0 || $descuentoInputUsd > 0;
+
+                if (($difiereDeLista || $tieneDescuento) && ! $puedeDescontar) {
+                    throw new Exception("No tienes permiso para modificar precios de lista ni aplicar descuentos en '{$nombreItem}' (se requiere el permiso ventas.descuentos).");
+                }
+
+                if (! $difiereDeLista) {
+                    $precioUnitarioUsd = abs($precioUnitarioUsd - $precioListaConIva) <= 0.01
+                        ? $precioListaConIva
+                        : $precioListaSinIva;
+                }
+
                 $renglonBrutoUsd = round($cantidad * $precioUnitarioUsd, 2);
+                if ($descuentoInputUsd > $renglonBrutoUsd + 0.01) {
+                    throw new Exception("El monto de descuento para '{$nombreItem}' no puede superar el 100% del monto del renglón.");
+                }
                 $montoBrutoUsd += $renglonBrutoUsd;
 
                 $descuentoItemUsd = 0;
-                if (isset($it['descuento_usd']) && (float) $it['descuento_usd'] > 0) {
-                    $descuentoItemUsd = min($renglonBrutoUsd, round((float) $it['descuento_usd'], 2));
+                if ($descuentoInputUsd > 0) {
+                    $descuentoItemUsd = min($renglonBrutoUsd, round($descuentoInputUsd, 2));
                     if ($renglonBrutoUsd > 0 && $descuentoPorc <= 0) {
                         $descuentoPorc = round(($descuentoItemUsd / $renglonBrutoUsd) * 100, 2);
                     }
@@ -588,6 +714,11 @@ class VentaClass
                 }
 
                 $renglonTotalNetoUsd = round($renglonBrutoUsd - $descuentoItemUsd, 2);
+                $precioNetoUnitarioUsd = $cantidad > 0 ? round($renglonTotalNetoUsd / $cantidad, 4) : 0.0;
+
+                if ($costoUnitarioUsd > 0 && ($precioUnitarioUsd + 0.0001 < $costoUnitarioUsd || $precioNetoUnitarioUsd + 0.0001 < $costoUnitarioUsd)) {
+                    throw new Exception("El precio de venta neto de '{$nombreItem}' ($".number_format($precioNetoUnitarioUsd, 2).') no puede ser menor al costo ($'.number_format($costoUnitarioUsd, 2).').');
+                }
 
                 if ($aplicaIva && $ivaPorcentaje > 0) {
                     $factorIva = 1 + ($ivaPorcentaje / 100);
@@ -646,7 +777,7 @@ class VentaClass
             foreach ($pagosInput as $p) {
                 $metodoId = (int) ($p['metodo_pago_id'] ?? 0);
                 $montoOrigen = (float) ($p['monto'] ?? 0);
-                $monedaPago = $p['moneda'] ?? 'USD';
+                $monedaPago = strtoupper(trim((string) ($p['moneda'] ?? 'USD')));
                 $tasaPago = (float) ($p['tasa_cambio'] ?? $tasaCambio);
                 $referencia = trim($p['referencia'] ?? '') ?: null;
 
@@ -654,8 +785,21 @@ class VentaClass
                     continue;
                 }
 
-                $montoUsd = $monedaPago === 'VES' ? ($tasaPago > 0 ? round($montoOrigen / $tasaPago, 2) : 0) : $montoOrigen;
-                $montoBs = $monedaPago === 'VES' ? $montoOrigen : round($montoOrigen * $tasaPago, 2);
+                if (! in_array($monedaPago, ['USD', 'VES', 'BS'], true)) {
+                    throw new Exception("La moneda de pago '{$monedaPago}' no es válida. Valores permitidos: USD, VES, BS.");
+                }
+
+                $metodoValido = MetodoPago::where('id', $metodoId)
+                    ->where('estado', true)
+                    ->exists();
+
+                if (! $metodoValido) {
+                    throw new Exception('El método de pago seleccionado no existe o se encuentra inactivo.');
+                }
+
+                $esBolivares = in_array($monedaPago, ['VES', 'BS'], true);
+                $montoUsd = $esBolivares ? ($tasaPago > 0 ? round($montoOrigen / $tasaPago, 2) : 0) : $montoOrigen;
+                $montoBs = $esBolivares ? $montoOrigen : round($montoOrigen * $tasaPago, 2);
 
                 $montoTotalPagadoUsd += $montoUsd;
                 $montoTotalPagadoBs += $montoBs;
@@ -760,7 +904,7 @@ class VentaClass
                 'comision_monto_bs' => $comisionMontoBs,
                 'user_id' => $userId,
                 'codigo' => $codigo,
-                'numero_control' => $datos['numero_control'] ?? $this->generarNumeroControl($empresaId),
+                'numero_control' => $datos['numero_control'] ?? $this->generarNumeroControl($empresaId, true),
                 'tipo_venta' => $tipoVenta,
                 'moneda' => 'USD',
                 'tasa_cambio' => $tasaCambio,
@@ -1055,8 +1199,32 @@ class VentaClass
             $empresaId = $this->empresaId($empresaId);
             $userId = $this->userId($userId);
 
+            $user = User::find($userId);
+            if (! $user) {
+                throw new Exception('No se pudo determinar el usuario que procesa la devolución.');
+            }
+
+            $esAdmin = $user->hasAnyRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']);
+            if (! $esAdmin && ! $user->can('ventas.anular')) {
+                throw new AuthorizationException('No tienes permiso para procesar devoluciones de venta (se requiere ventas.anular).');
+            }
+
+            $cajaTurno = $this->resolverTurnoOperacion(
+                $empresaId,
+                $user,
+                ! empty($datos['caja_turno_id']) ? (int) $datos['caja_turno_id'] : null
+            );
+
             $ventaId = (int) ($datos['venta_id'] ?? 0);
-            $venta = Venta::with(['detalles'])->where('id', $ventaId)->where('empresa_id', $empresaId)->firstOrFail();
+            $venta = Venta::with(['detalles', 'pagos.metodoPago', 'cuentaPorCobrar'])
+                ->where('id', $ventaId)
+                ->where('empresa_id', $empresaId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($venta->estado === 'anulada' || $venta->estado === 'devuelta_total') {
+                throw new Exception("La factura '{$venta->codigo}' ya se encuentra {$venta->estado} y no admite nuevas devoluciones.");
+            }
 
             $motivo = trim($datos['motivo'] ?? 'Devolución de cliente');
             $tipoReembolso = $datos['tipo_reembolso'] ?? 'sin_reembolso';
@@ -1066,9 +1234,10 @@ class VentaClass
                 throw new Exception('Debes indicar los productos y cantidades a devolver.');
             }
 
-            $codigoDevolucion = $this->generarCodigoDevolucion($empresaId);
-            $totalDevueltoUsd = 0;
-            $totalDevueltoBs = 0;
+            $tasaVenta = (float) ($venta->tasa_cambio > 0 ? $venta->tasa_cambio : 1.0000);
+            $codigoDevolucion = $this->generarCodigoDevolucion($empresaId, true);
+            $totalDevueltoUsd = 0.0;
+            $totalDevueltoBs = 0.0;
             $detallesDevolucion = [];
 
             foreach ($itemsADevolver as $item) {
@@ -1084,25 +1253,39 @@ class VentaClass
                     continue;
                 }
 
-                // Cantidad previamente devuelta
-                $cantPrevia = DevolucionVentaDetalle::where('venta_detalle_id', $detalleId)->sum('cantidad');
-                $cantDisponibleParaDevolver = $ventaDetalle->cantidad - $cantPrevia;
+                $cantFacturada = (float) $ventaDetalle->cantidad;
+                $cantPrevia = (float) DevolucionVentaDetalle::where('venta_detalle_id', $detalleId)->sum('cantidad');
+                $cantDisponibleParaDevolver = round($cantFacturada - $cantPrevia, 4);
 
-                if ($cantidadDevolver > $cantDisponibleParaDevolver) {
+                if ($cantidadDevolver > $cantDisponibleParaDevolver + 0.0001) {
                     throw new Exception("La cantidad a devolver ({$cantidadDevolver}) supera lo disponible facturado ({$cantDisponibleParaDevolver}) para el producto.");
                 }
 
-                $subtotalDevueltoUsd = round($cantidadDevolver * $ventaDetalle->precio_unitario_usd, 2);
-                $subtotalDevueltoBs = round($cantidadDevolver * $ventaDetalle->precio_unitario_bs, 2);
+                // Monto devuelto = valor neto proporcional del renglón (respetando descuento e IVA que tuvo el renglón)
+                $renglonTotalConIvaUsd = round((float) $ventaDetalle->subtotal_usd + (float) $ventaDetalle->iva_monto_usd, 2);
+                $renglonTotalConIvaBs = round((float) $ventaDetalle->subtotal_bs + (float) $ventaDetalle->iva_monto_bs, 2);
+                if ($renglonTotalConIvaBs <= 0 && $renglonTotalConIvaUsd > 0) {
+                    $renglonTotalConIvaBs = round($renglonTotalConIvaUsd * $tasaVenta, 2);
+                }
 
-                $totalDevueltoUsd += $subtotalDevueltoUsd;
-                $totalDevueltoBs += $subtotalDevueltoBs;
+                $unitNetoConIvaUsd = $cantFacturada > 0 ? round($renglonTotalConIvaUsd / $cantFacturada, 4) : (float) $ventaDetalle->precio_unitario_usd;
+                $unitNetoConIvaBs = $cantFacturada > 0 ? round($renglonTotalConIvaBs / $cantFacturada, 4) : (float) $ventaDetalle->precio_unitario_bs;
+
+                $subtotalDevueltoUsd = $cantFacturada > 0
+                    ? round(($renglonTotalConIvaUsd / $cantFacturada) * $cantidadDevolver, 2)
+                    : 0.0;
+                $subtotalDevueltoBs = $cantFacturada > 0
+                    ? round(($renglonTotalConIvaBs / $cantFacturada) * $cantidadDevolver, 2)
+                    : 0.0;
+
+                $totalDevueltoUsd = round($totalDevueltoUsd + $subtotalDevueltoUsd, 2);
+                $totalDevueltoBs = round($totalDevueltoBs + $subtotalDevueltoBs, 2);
 
                 $detallesDevolucion[] = [
                     'venta_detalle' => $ventaDetalle,
                     'cantidad' => $cantidadDevolver,
-                    'precio_unitario_usd' => $ventaDetalle->precio_unitario_usd,
-                    'precio_unitario_bs' => $ventaDetalle->precio_unitario_bs,
+                    'precio_unitario_usd' => $unitNetoConIvaUsd,
+                    'precio_unitario_bs' => $unitNetoConIvaBs,
                     'subtotal_usd' => $subtotalDevueltoUsd,
                     'subtotal_bs' => $subtotalDevueltoBs,
                 ];
@@ -1112,22 +1295,36 @@ class VentaClass
                 throw new Exception('No hay renglones válidos para procesar en la devolución.');
             }
 
-            // 1. Guardar Cabecera de Devolución
-            $cajaTurno = Auth::user()?->cajaTurnoActivo($empresaId);
+            // Resolver método de pago de reembolso cuando corresponda
+            $metodoReembolsoId = ! empty($datos['metodo_pago_id']) ? (int) $datos['metodo_pago_id'] : null;
+            if (! $metodoReembolsoId) {
+                if ($tipoReembolso === 'efectivo') {
+                    $pagoEfectivo = $venta->pagos->first(fn ($p) => (bool) $p->metodoPago?->es_efectivo);
+                    $metodoReembolsoId = $pagoEfectivo?->metodo_pago_id
+                        ?? MetodoPago::where('estado', true)->where('es_efectivo', true)->value('id');
+                } elseif (in_array($tipoReembolso, ['transferencia', 'otro_metodo', 'metodo_original'], true)) {
+                    $pagoNoEfectivo = $venta->pagos->first(fn ($p) => ! $p->metodoPago?->es_efectivo);
+                    $metodoReembolsoId = $pagoNoEfectivo?->metodo_pago_id
+                        ?? $venta->pagos->first()?->metodo_pago_id
+                        ?? MetodoPago::where('estado', true)->where('es_efectivo', false)->value('id');
+                }
+            }
 
+            // 1. Guardar Cabecera de Devolución (caja_turno_id nunca null)
             $devolucion = DevolucionVenta::create([
                 'empresa_id' => $empresaId,
                 'venta_id' => $venta->id,
-                'caja_turno_id' => $cajaTurno?->id,
+                'caja_turno_id' => $cajaTurno->id,
                 'user_id' => $userId,
                 'codigo' => $codigoDevolucion,
                 'motivo' => $motivo,
                 'total_devuelto_usd' => $totalDevueltoUsd,
                 'total_devuelto_bs' => $totalDevueltoBs,
                 'tipo_reembolso' => $tipoReembolso,
+                'metodo_pago_id' => $metodoReembolsoId,
             ]);
 
-            // 2. Guardar Detalles y Revertir Kardex
+            // 2. Guardar Detalles y Revertir Kardex (con lockForUpdate en seriales y motos)
             foreach ($detallesDevolucion as $d) {
                 $vd = $d['venta_detalle'];
 
@@ -1147,7 +1344,6 @@ class VentaClass
                     'subtotal_bs' => $d['subtotal_bs'],
                 ]);
 
-                // Reintegrar stock al almacén si es producto físico
                 if ($vd->tipo_item === 'producto' && $vd->producto_id) {
                     $this->kardexService->registrarMovimiento([
                         'empresa_id' => $empresaId,
@@ -1164,28 +1360,114 @@ class VentaClass
                     ]);
                 }
 
-                // Reintegrar serial único físico a 'disponible' si aplica
                 if (! empty($vd->producto_serial_id)) {
-                    ProductoSerial::where('id', $vd->producto_serial_id)
+                    $serialModel = ProductoSerial::where('id', $vd->producto_serial_id)
                         ->where('empresa_id', $empresaId)
-                        ->update([
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($serialModel) {
+                        $serialModel->update([
                             'estado' => 'disponible',
                             'venta_id' => null,
                             'venta_detalle_id' => null,
                         ]);
+                    }
                 }
 
-                // Reintegrar moto a estado 'disponible' si es moto
                 if ($vd->tipo_item === 'moto' && $vd->moto_id) {
-                    Moto::where('id', $vd->moto_id)->update(['estado' => 'disponible']);
+                    $motoModel = Moto::where('id', $vd->moto_id)
+                        ->where('empresa_id', $empresaId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($motoModel) {
+                        $motoModel->update(['estado' => 'disponible']);
+                    }
                 }
             }
 
-            // 3. Actualizar estado de la venta y recalcular comisión del vendedor
-            $totalCantidadOriginal = $venta->detalles->sum('cantidad');
-            $totalCantidadDevuelta = DevolucionVentaDetalle::whereIn('venta_detalle_id', $venta->detalles->pluck('id'))->sum('cantidad');
+            // 3. Si la venta tiene CXC con saldo pendiente, primero descuenta del saldo_pendiente; solo el excedente se reembolsa
+            $montoAReembolsarUsd = $totalDevueltoUsd;
+            $cxc = CuentaPorCobrar::where('venta_id', $venta->id)
+                ->where('empresa_id', $empresaId)
+                ->lockForUpdate()
+                ->first();
 
-            if ($totalCantidadDevuelta >= $totalCantidadOriginal) {
+            if ($cxc) {
+                $saldoAnteriorCxcUsd = (float) $cxc->saldo_pendiente_usd;
+                $descuentoEnCxcUsd = min($saldoAnteriorCxcUsd, $totalDevueltoUsd);
+                $nuevoSaldoCxcUsd = max(0.0, round($saldoAnteriorCxcUsd - $descuentoEnCxcUsd, 2));
+                $nuevoSaldoCxcBs = round($nuevoSaldoCxcUsd * $tasaVenta, 2);
+
+                $cxc->saldo_pendiente_usd = $nuevoSaldoCxcUsd;
+                $cxc->saldo_pendiente_bs = $nuevoSaldoCxcBs;
+                if ($nuevoSaldoCxcUsd <= 0.001) {
+                    $cxc->estado = 'pagada';
+                }
+                $cxc->save();
+
+                $venta->saldo_pendiente_usd = $nuevoSaldoCxcUsd;
+                $venta->saldo_pendiente_bs = $nuevoSaldoCxcBs;
+
+                $montoAReembolsarUsd = max(0.0, round($totalDevueltoUsd - $descuentoEnCxcUsd, 2));
+            } elseif ((float) $venta->saldo_pendiente_usd > 0) {
+                $saldoAntVenta = (float) $venta->saldo_pendiente_usd;
+                $descSaldoVenta = min($saldoAntVenta, $totalDevueltoUsd);
+                $nuevoSaldoVentaUsd = max(0.0, round($saldoAntVenta - $descSaldoVenta, 2));
+                $venta->saldo_pendiente_usd = $nuevoSaldoVentaUsd;
+                $venta->saldo_pendiente_bs = round($nuevoSaldoVentaUsd * $tasaVenta, 2);
+                $montoAReembolsarUsd = max(0.0, round($totalDevueltoUsd - $descSaldoVenta, 2));
+            }
+
+            $montoAReembolsarBs = round($montoAReembolsarUsd * $tasaVenta, 2);
+
+            // 4. Si hay monto efectivo/método a reembolsar, registrar movimiento egreso en el turno actual
+            $tiposSinSalidaCaja = ['sin_reembolso', 'credito', 'credito_cliente', 'credito_favor', 'nota_credito', 'saldo_cxc'];
+            if ($montoAReembolsarUsd > 0 && ! in_array($tipoReembolso, $tiposSinSalidaCaja, true)) {
+                $monedaReembolso = ! empty($datos['moneda_reembolso'])
+                    ? strtoupper(trim((string) $datos['moneda_reembolso']))
+                    : 'USD';
+
+                if (! in_array($monedaReembolso, ['USD', 'VES', 'BS'], true)) {
+                    $monedaReembolso = 'USD';
+                }
+
+                CajaMovimiento::create([
+                    'empresa_id' => $empresaId,
+                    'caja_turno_id' => $cajaTurno->id,
+                    'user_id' => $userId,
+                    'tipo' => 'egreso',
+                    'metodo_pago_id' => $metodoReembolsoId,
+                    'moneda' => $monedaReembolso,
+                    'monto_usd' => $montoAReembolsarUsd,
+                    'monto_bs' => $montoAReembolsarBs,
+                    'concepto' => "Reembolso por Devolución #{$devolucion->codigo} (Factura #{$venta->codigo})",
+                    'comprobante_referencia' => $devolucion->codigo,
+                    'documento_tipo' => 'devolucion_venta',
+                    'documento_id' => $devolucion->id,
+                ]);
+            }
+
+            // 5. Actualizar estado de la venta y recalcular comisión proporcional al monto neto sin IVA restante
+            $totalCantidadOriginal = (float) $venta->detalles->sum('cantidad');
+            $cantidadesDevueltasPorDetalle = DevolucionVentaDetalle::whereIn('venta_detalle_id', $venta->detalles->pluck('id'))
+                ->selectRaw('venta_detalle_id, SUM(cantidad) as total_cant')
+                ->groupBy('venta_detalle_id')
+                ->pluck('total_cant', 'venta_detalle_id');
+
+            $totalCantidadDevuelta = (float) $cantidadesDevueltasPorDetalle->sum();
+
+            $subtotalNetoSinIvaDevueltoUsd = 0.0;
+            foreach ($venta->detalles as $detOrig) {
+                $cantDevDet = (float) ($cantidadesDevueltasPorDetalle->get($detOrig->id) ?? 0);
+                if ($cantDevDet > 0 && (float) $detOrig->cantidad > 0) {
+                    $proporcionDet = min(1.0, $cantDevDet / (float) $detOrig->cantidad);
+                    $subtotalNetoSinIvaDevueltoUsd += round((float) $detOrig->subtotal_usd * $proporcionDet, 4);
+                }
+            }
+
+            if ($totalCantidadDevuelta >= $totalCantidadOriginal - 0.0001) {
                 $venta->estado = 'devuelta_total';
                 if ($venta->vendedor_id) {
                     $venta->comision_monto_usd = 0;
@@ -1193,29 +1475,282 @@ class VentaClass
                 }
             } else {
                 $venta->estado = 'devuelta_parcial';
-                if ($venta->vendedor_id && (float) $venta->comision_porcentaje > 0 && $totalCantidadOriginal > 0) {
-                    $proporcionRestante = max(0, ($totalCantidadOriginal - $totalCantidadDevuelta) / $totalCantidadOriginal);
-                    $nuevoSubtotalNetoUsd = round((float) $venta->subtotal_neto_usd * $proporcionRestante, 2);
-                    $nuevaComisionUsd = round($nuevoSubtotalNetoUsd * ((float) $venta->comision_porcentaje / 100), 2);
+                if ($venta->vendedor_id && (float) $venta->comision_porcentaje > 0) {
+                    $nuevoSubtotalNetoRestanteUsd = max(0.0, round((float) $venta->subtotal_neto_usd - $subtotalNetoSinIvaDevueltoUsd, 2));
+                    $nuevaComisionUsd = round($nuevoSubtotalNetoRestanteUsd * ((float) $venta->comision_porcentaje / 100), 2);
                     $venta->comision_monto_usd = $nuevaComisionUsd;
-                    $venta->comision_monto_bs = round($nuevaComisionUsd * (float) $venta->tasa_cambio, 2);
+                    $venta->comision_monto_bs = round($nuevaComisionUsd * $tasaVenta, 2);
                 }
             }
+
             $venta->save();
 
-            // 4. Si la venta tenía cuenta por cobrar pendiente, recalcular o anular
-            if ($venta->cuentaPorCobrar) {
-                $cxc = $venta->cuentaPorCobrar;
-                $nuevoSaldoUsd = max(0, $cxc->saldo_pendiente_usd - $totalDevueltoUsd);
-                $cxc->saldo_pendiente_usd = $nuevoSaldoUsd;
-                $cxc->saldo_pendiente_bs = round($nuevoSaldoUsd * $venta->tasa_cambio, 2);
-                if ($nuevoSaldoUsd <= 0) {
-                    $cxc->estado = 'pagada';
-                }
-                $cxc->save();
+            return $devolucion->load(['detalles.producto', 'detalles.moto', 'detalles.servicio', 'venta.cliente']);
+        });
+    }
+
+    /**
+     * Anular una factura (completada o devuelta_parcial) revirtiendo inventario restante, CXC, comisión y dinero cobrado
+     */
+    public function anularVenta(int $ventaId, array $datos, ?int $empresaId = null, ?int $userId = null): Venta
+    {
+        return DB::transaction(function () use ($ventaId, $datos, $empresaId, $userId) {
+            $empresaId = $this->empresaId($empresaId);
+            $userId = $this->userId($userId);
+
+            $user = User::find($userId);
+            if (! $user) {
+                throw new Exception('No se pudo determinar el usuario que anula la factura.');
             }
 
-            return $devolucion->load(['detalles.producto', 'detalles.moto', 'detalles.servicio', 'venta.cliente']);
+            $esAdmin = $user->hasAnyRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']);
+            if (! $esAdmin && ! $user->can('ventas.anular')) {
+                throw new AuthorizationException('No tienes permiso para anular facturas (se requiere ventas.anular).');
+            }
+
+            $motivo = trim((string) ($datos['motivo_anulacion'] ?? $datos['motivo'] ?? ''));
+            if (mb_strlen($motivo) < 5) {
+                throw new Exception('El motivo de anulación es obligatorio y debe tener al menos 5 caracteres.');
+            }
+
+            $cajaTurno = $this->resolverTurnoOperacion(
+                $empresaId,
+                $user,
+                ! empty($datos['caja_turno_id']) ? (int) $datos['caja_turno_id'] : null
+            );
+
+            $venta = Venta::with([
+                'detalles',
+                'pagos.metodoPago',
+                'cuentaPorCobrar.abonos.metodoPago',
+                'devoluciones.detalles',
+            ])
+                ->where('id', $ventaId)
+                ->where('empresa_id', $empresaId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! in_array($venta->estado, ['completada', 'devuelta_parcial'], true)) {
+                throw new Exception("La factura '{$venta->codigo}' se encuentra en estado '{$venta->estado}' y no puede ser anulada.");
+            }
+
+            $tasaVenta = (float) ($venta->tasa_cambio > 0 ? $venta->tasa_cambio : 1.0000);
+
+            // 1. Revertir inventario por la cantidad aún no devuelta de cada renglón
+            foreach ($venta->detalles as $vd) {
+                $cantPreviaDevuelta = (float) DevolucionVentaDetalle::where('venta_detalle_id', $vd->id)->sum('cantidad');
+                $cantRestante = round((float) $vd->cantidad - $cantPreviaDevuelta, 4);
+
+                if ($cantRestante <= 0.0001) {
+                    continue;
+                }
+
+                if ($vd->tipo_item === 'producto' && $vd->producto_id) {
+                    $this->kardexService->registrarMovimiento([
+                        'empresa_id' => $empresaId,
+                        'almacen_id' => $vd->almacen_id,
+                        'producto_id' => $vd->producto_id,
+                        'user_id' => $userId,
+                        'tipo_movimiento' => 'anulacion_venta',
+                        'documento_tipo' => 'venta',
+                        'documento_id' => $venta->id,
+                        'cantidad' => $cantRestante,
+                        'costo_unitario_usd' => $vd->costo_unitario_usd,
+                        'costo_unitario_bs' => $vd->costo_unitario_bs,
+                        'motivo' => "Anulación de Factura #{$venta->codigo}: {$motivo}",
+                    ]);
+                }
+
+                if (! empty($vd->producto_serial_id)) {
+                    $serialModel = ProductoSerial::where('id', $vd->producto_serial_id)
+                        ->where('empresa_id', $empresaId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($serialModel) {
+                        $serialModel->update([
+                            'estado' => 'disponible',
+                            'venta_id' => null,
+                            'venta_detalle_id' => null,
+                        ]);
+                    }
+                }
+
+                if ($vd->tipo_item === 'moto' && $vd->moto_id) {
+                    $motoModel = Moto::where('id', $vd->moto_id)
+                        ->where('empresa_id', $empresaId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($motoModel) {
+                        $motoModel->update(['estado' => 'disponible']);
+                    }
+                }
+            }
+
+            // 2. Si tiene CuentaPorCobrar, anularla y llevar su saldo a 0
+            $cxc = CuentaPorCobrar::where('venta_id', $venta->id)
+                ->where('empresa_id', $empresaId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($cxc) {
+                $cxc->update([
+                    'estado' => 'anulada',
+                    'saldo_pendiente_usd' => 0,
+                    'saldo_pendiente_bs' => 0,
+                ]);
+            }
+
+            // 3. Dinero: calcular lo efectivamente cobrado por método/moneda
+            // (pagos netos de la venta + abonos CXC recibidos - devoluciones previas ya reembolsadas)
+            $gruposCobro = [];
+            $agregarCobroGrupo = function (int $metodoId, string $moneda, float $usd, float $bs) use (&$gruposCobro) {
+                if ($usd <= 0.001 && $bs <= 0.001) {
+                    return;
+                }
+                $monedaNorm = in_array(strtoupper($moneda), ['VES', 'BS'], true) ? 'VES' : 'USD';
+                $key = "{$metodoId}_{$monedaNorm}";
+                if (! isset($gruposCobro[$key])) {
+                    $gruposCobro[$key] = [
+                        'metodo_pago_id' => $metodoId,
+                        'moneda' => $monedaNorm,
+                        'usd' => 0.0,
+                        'bs' => 0.0,
+                    ];
+                }
+                $gruposCobro[$key]['usd'] = round($gruposCobro[$key]['usd'] + $usd, 2);
+                $gruposCobro[$key]['bs'] = round($gruposCobro[$key]['bs'] + $bs, 2);
+            };
+
+            foreach ($venta->pagos as $pago) {
+                $agregarCobroGrupo(
+                    (int) $pago->metodo_pago_id,
+                    (string) ($pago->moneda ?? 'USD'),
+                    (float) $pago->monto_usd,
+                    (float) $pago->monto_bs
+                );
+            }
+
+            // Descontar el vuelto entregado originalmente en la venta para obtener el cobro neto inicial
+            $vueltoVentaUsd = (float) $venta->vuelto_usd;
+            $vueltoVentaBs = (float) $venta->vuelto_bs;
+            if ($vueltoVentaUsd > 0 && ! empty($gruposCobro)) {
+                $movVueltoOrig = CajaMovimiento::where('documento_tipo', 'venta')
+                    ->where('documento_id', $venta->id)
+                    ->where('tipo', 'egreso')
+                    ->first();
+
+                $keyVuelto = null;
+                if ($movVueltoOrig && $movVueltoOrig->metodo_pago_id) {
+                    $monV = in_array(strtoupper((string) $movVueltoOrig->moneda), ['VES', 'BS'], true) ? 'VES' : 'USD';
+                    $candidata = "{$movVueltoOrig->metodo_pago_id}_{$monV}";
+                    if (isset($gruposCobro[$candidata])) {
+                        $keyVuelto = $candidata;
+                    }
+                }
+                $keyVuelto = $keyVuelto ?? array_key_first($gruposCobro);
+                if ($keyVuelto !== null) {
+                    $gruposCobro[$keyVuelto]['usd'] = max(0.0, round($gruposCobro[$keyVuelto]['usd'] - $vueltoVentaUsd, 2));
+                    $gruposCobro[$keyVuelto]['bs'] = max(0.0, round($gruposCobro[$keyVuelto]['bs'] - $vueltoVentaBs, 2));
+                }
+            }
+
+            // Sumar abonos CXC recibidos
+            if ($cxc) {
+                $abonosCxc = $cxc->abonos()->with('metodoPago')->get();
+                foreach ($abonosCxc as $ab) {
+                    $nombreMet = strtolower($ab->metodoPago?->nombre ?? '');
+                    $esBs = str_contains($nombreMet, 'bs') || str_contains($nombreMet, 'ves') || str_contains($nombreMet, 'bolivar') || str_contains($nombreMet, 'bolívar');
+                    $monedaAb = $esBs ? 'VES' : 'USD';
+                    $agregarCobroGrupo(
+                        (int) $ab->metodo_pago_id,
+                        $monedaAb,
+                        (float) $ab->monto_usd,
+                        (float) $ab->monto_bs
+                    );
+                }
+            }
+
+            // Restar devoluciones previas ya reembolsadas de esta venta
+            $devIds = $venta->devoluciones->pluck('id')->all();
+            $reembolsosPreviosUsd = 0.0;
+            $reembolsosPreviosBs = 0.0;
+
+            if (! empty($devIds)) {
+                $movsDev = CajaMovimiento::whereIn('documento_tipo', ['devolucion_venta', 'devolucion'])
+                    ->whereIn('documento_id', $devIds)
+                    ->where('tipo', 'egreso')
+                    ->get();
+
+                if ($movsDev->isNotEmpty()) {
+                    $reembolsosPreviosUsd = (float) $movsDev->sum('monto_usd');
+                    $reembolsosPreviosBs = (float) $movsDev->sum('monto_bs');
+                } else {
+                    $tiposSinSalida = ['sin_reembolso', 'credito', 'credito_cliente', 'credito_favor', 'nota_credito', 'saldo_cxc'];
+                    foreach ($venta->devoluciones as $devPrev) {
+                        if (! in_array($devPrev->tipo_reembolso, $tiposSinSalida, true)) {
+                            $reembolsosPreviosUsd += (float) $devPrev->total_devuelto_usd;
+                            $reembolsosPreviosBs += (float) $devPrev->total_devuelto_bs;
+                        }
+                    }
+                }
+            }
+
+            $restanteDescontarUsd = round($reembolsosPreviosUsd, 2);
+            $restanteDescontarBs = round($reembolsosPreviosBs, 2);
+
+            foreach ($gruposCobro as $k => &$grupo) {
+                if ($restanteDescontarUsd <= 0.001) {
+                    break;
+                }
+                $descUsd = min($grupo['usd'], $restanteDescontarUsd);
+                $descBs = $restanteDescontarBs > 0 ? min($grupo['bs'], round($descUsd * $tasaVenta, 2)) : round($descUsd * $tasaVenta, 2);
+
+                $grupo['usd'] = max(0.0, round($grupo['usd'] - $descUsd, 2));
+                $grupo['bs'] = max(0.0, round($grupo['bs'] - $descBs, 2));
+
+                $restanteDescontarUsd = max(0.0, round($restanteDescontarUsd - $descUsd, 2));
+                $restanteDescontarBs = max(0.0, round($restanteDescontarBs - $descBs, 2));
+            }
+            unset($grupo);
+
+            foreach ($gruposCobro as $grupo) {
+                if ($grupo['usd'] <= 0.001 && $grupo['bs'] <= 0.001) {
+                    continue;
+                }
+
+                $montoBsFinal = $grupo['bs'] > 0 ? $grupo['bs'] : round($grupo['usd'] * $tasaVenta, 2);
+
+                CajaMovimiento::create([
+                    'empresa_id' => $empresaId,
+                    'caja_turno_id' => $cajaTurno->id,
+                    'user_id' => $userId,
+                    'tipo' => 'egreso',
+                    'metodo_pago_id' => $grupo['metodo_pago_id'],
+                    'moneda' => $grupo['moneda'],
+                    'monto_usd' => $grupo['usd'],
+                    'monto_bs' => $montoBsFinal,
+                    'concepto' => "Reembolso por Anulación de Factura #{$venta->codigo}",
+                    'comprobante_referencia' => $venta->codigo,
+                    'observaciones' => $motivo,
+                    'documento_tipo' => 'anulacion_venta',
+                    'documento_id' => $venta->id,
+                ]);
+            }
+
+            // 4. Actualizar estado de la venta, auditoría de anulación, saldos y comisión = 0
+            $venta->estado = 'anulada';
+            $venta->anulada_por_id = $userId;
+            $venta->anulada_at = Carbon::now();
+            $venta->motivo_anulacion = $motivo;
+            $venta->saldo_pendiente_usd = 0;
+            $venta->saldo_pendiente_bs = 0;
+            $venta->comision_monto_usd = 0;
+            $venta->comision_monto_bs = 0;
+            $venta->save();
+
+            return $venta->load(['cliente', 'almacen', 'detalles.producto', 'detalles.moto', 'detalles.servicio', 'pagos.metodoPago', 'cuentaPorCobrar']);
         });
     }
 

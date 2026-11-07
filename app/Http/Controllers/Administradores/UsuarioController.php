@@ -103,7 +103,7 @@ class UsuarioController extends Controller
                 'data' => $usuario,
             ]);
         } catch (Exception $e) {
-            $code = str_contains($e->getMessage(), 'autorización') ? 403 : 500;
+            $code = str_contains($e->getMessage(), 'autorización') ? 403 : 422;
 
             return response()->json([
                 'success' => false,
@@ -123,7 +123,7 @@ class UsuarioController extends Controller
                 'data' => $usuario,
             ]);
         } catch (Exception $e) {
-            $code = str_contains($e->getMessage(), 'autorización') ? 403 : 500;
+            $code = str_contains($e->getMessage(), 'autorización') ? 403 : 422;
 
             return response()->json([
                 'success' => false,
@@ -175,7 +175,7 @@ class UsuarioController extends Controller
                 'data' => $usuario,
             ]);
         } catch (Exception $e) {
-            $code = str_contains($e->getMessage(), 'autorización') ? 403 : 500;
+            $code = str_contains($e->getMessage(), 'autorización') ? 403 : 422;
 
             return response()->json([
                 'success' => false,

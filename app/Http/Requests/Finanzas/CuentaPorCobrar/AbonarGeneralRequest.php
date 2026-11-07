@@ -3,11 +3,42 @@
 namespace App\Http\Requests\Finanzas\CuentaPorCobrar;
 
 use App\Http\Requests\BaseRequest;
+use App\Models\CajaTurno;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
 class AbonarGeneralRequest extends BaseRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $user = $this->user();
+        $empresaId = $this->empresaId();
+
+        if (! $user || $empresaId <= 0) {
+            return;
+        }
+
+        if (! $this->filled('caja_turno_id')) {
+            $turnoPropio = $user->cajaTurnoActivo($empresaId);
+            if ($turnoPropio) {
+                $this->merge([
+                    'caja_turno_id' => $turnoPropio->id,
+                ]);
+            } elseif ($user->hasAnyRole(['SuperAdmin', 'Admin'])) {
+                $turnoEmpresa = CajaTurno::where('empresa_id', $empresaId)
+                    ->where('estado', 'abierta')
+                    ->orderBy('id', 'asc')
+                    ->first();
+
+                if ($turnoEmpresa) {
+                    $this->merge([
+                        'caja_turno_id' => $turnoEmpresa->id,
+                    ]);
+                }
+            }
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -20,6 +51,11 @@ class AbonarGeneralRequest extends BaseRequest
                 'required',
                 'integer',
                 Rule::exists('clientes', 'id')->where(fn ($query) => $query->where('estado', true)),
+            ],
+            'caja_turno_id' => [
+                'required',
+                'integer',
+                Rule::exists('caja_turnos', 'id')->where(fn ($query) => $query->where('empresa_id', $this->empresaId())->where('estado', 'abierta')),
             ],
             'metodo_pago_id' => [
                 'required',
@@ -45,6 +81,8 @@ class AbonarGeneralRequest extends BaseRequest
         return [
             'cliente_id.required' => 'El cliente es obligatorio.',
             'cliente_id.exists' => 'El cliente seleccionado no es válido o está inactivo.',
+            'caja_turno_id.required' => 'Debe existir un turno de caja abierto para registrar el abono.',
+            'caja_turno_id.exists' => 'El turno de caja seleccionado no existe, no está abierto o no pertenece a esta empresa.',
             'metodo_pago_id.required' => 'El método de pago es obligatorio.',
             'metodo_pago_id.exists' => 'El método de pago seleccionado no es válido o está inactivo.',
             'moneda.required' => 'La moneda del abono es obligatoria.',

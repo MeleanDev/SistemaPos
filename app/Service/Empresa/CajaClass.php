@@ -230,11 +230,15 @@ class CajaClass
         $turno = $this->obtenerTurnoPorId($cajaTurnoId, $empresaId);
 
         // Ventas asociadas al turno
-        $ventas = Venta::with(['pagos.metodoPago', 'cliente', 'vendedor'])
+        $todasVentasTurno = Venta::with(['pagos.metodoPago', 'cliente', 'vendedor'])
             ->where('empresa_id', $empresaId)
             ->where('caja_turno_id', $cajaTurnoId)
-            ->where('estado', '!=', 'anulada')
             ->get();
+
+        $ventas = $todasVentasTurno->where('estado', '!=', 'anulada')->values();
+        $ventasConFlujoCaja = $todasVentasTurno->filter(
+            fn (Venta $v) => $v->estado !== 'anulada' || $v->anulada_at !== null
+        );
 
         $cantidadVentas = $ventas->count();
         $totalVentasUsd = (float) $ventas->sum('total_usd');
@@ -255,7 +259,7 @@ class CajaClass
         $totalEfectivoVentasUsd = 0.0;
         $totalEfectivoVentasBs = 0.0;
 
-        foreach ($ventas as $v) {
+        foreach ($ventasConFlujoCaja as $v) {
             foreach ($v->pagos as $p) {
                 $metodoNombre = $p->metodoPago?->nombre ?? 'Otro Método';
                 $moneda = $p->moneda ?? 'USD';
@@ -288,10 +292,26 @@ class CajaClass
             }
         }
 
-        // Devoluciones en efectivo
+        // Movimientos de caja (ingresos, egresos manuales, vuelto y reembolsos)
+        $movimientos = CajaMovimiento::with(['usuario', 'metodoPago'])
+            ->where('caja_turno_id', $cajaTurnoId)
+            ->where('empresa_id', $empresaId)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        // Devoluciones en efectivo (solo las que no tienen movimiento registrado en caja_movimientos para evitar doble resta)
+        $devIdsConMovimiento = $movimientos
+            ->filter(fn ($m) => $m->tipo === 'egreso' && in_array($m->documento_tipo, ['devolucion_venta', 'devolucion'], true) && $m->documento_id !== null)
+            ->pluck('documento_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
         $totalDevolucionesEfectivoUsd = 0.0;
         $totalDevolucionesEfectivoBs = 0.0;
         foreach ($devoluciones as $dev) {
+            if (in_array((int) $dev->id, $devIdsConMovimiento, true)) {
+                continue;
+            }
             if ($dev->tipo_reembolso === 'efectivo') {
                 $usd = (float) $dev->total_devuelto_usd;
                 $bs = (float) $dev->total_devuelto_bs;
@@ -334,13 +354,6 @@ class CajaClass
             }
         }
 
-        // Movimientos de caja (ingresos, egresos manuales y vuelto entregado)
-        $movimientos = CajaMovimiento::with(['usuario', 'metodoPago'])
-            ->where('caja_turno_id', $cajaTurnoId)
-            ->where('empresa_id', $empresaId)
-            ->orderBy('id', 'asc')
-            ->get();
-
         $totalIngresosCajaUsd = 0.0;
         $totalIngresosCajaBs = 0.0;
         $totalEgresosCajaUsd = 0.0;
@@ -356,7 +369,7 @@ class CajaClass
 
             $monedaMov = strtoupper(trim($mov->moneda ?? ''));
             $esVuelto = $mov->tipo === 'egreso' && $mov->documento_tipo === 'venta';
-            $esReembolsoDev = $mov->tipo === 'egreso' && in_array($mov->documento_tipo, ['devolucion', 'anulacion'], true);
+            $esReembolsoDev = $mov->tipo === 'egreso' && in_array($mov->documento_tipo, ['devolucion', 'devolucion_venta', 'anulacion', 'anulacion_venta'], true);
 
             if ($mov->tipo === 'ingreso') {
                 if ($monedaMov === 'VES' || $monedaMov === 'BS') {
@@ -377,15 +390,13 @@ class CajaClass
                     $totalVueltoBs += (float) $mov->monto_bs;
                 }
             } elseif ($esReembolsoDev) {
-                if ($cantidadDevoluciones === 0) {
-                    if ($monedaMov === 'VES' || $monedaMov === 'BS') {
-                        $totalDevolucionesEfectivoBs += (float) $mov->monto_bs;
-                    } elseif ($monedaMov === 'USD') {
-                        $totalDevolucionesEfectivoUsd += (float) $mov->monto_usd;
-                    } else {
-                        $totalDevolucionesEfectivoUsd += (float) $mov->monto_usd;
-                        $totalDevolucionesEfectivoBs += (float) $mov->monto_bs;
-                    }
+                if ($monedaMov === 'VES' || $monedaMov === 'BS') {
+                    $totalDevolucionesEfectivoBs += (float) $mov->monto_bs;
+                } elseif ($monedaMov === 'USD') {
+                    $totalDevolucionesEfectivoUsd += (float) $mov->monto_usd;
+                } else {
+                    $totalDevolucionesEfectivoUsd += (float) $mov->monto_usd;
+                    $totalDevolucionesEfectivoBs += (float) $mov->monto_bs;
                 }
             } else {
                 if ($monedaMov === 'VES' || $monedaMov === 'BS') {

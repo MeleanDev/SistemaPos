@@ -196,6 +196,17 @@
 
         <div class="double-divider"></div>
 
+        @if($venta->estado === 'anulada')
+            <div class="text-center fw-bold text-uppercase" style="border: 2px solid #b91c1c; color: #b91c1c; padding: 4px 6px; margin-bottom: 6px; font-size: 13px; letter-spacing: 1.5px;">
+                *** FACTURA ANULADA ***
+                @if($venta->motivo_anulacion)
+                    <div style="font-size: 9px; font-weight: normal; letter-spacing: 0; margin-top: 2px;">
+                        Motivo: {{ $venta->motivo_anulacion }}
+                    </div>
+                @endif
+            </div>
+        @endif
+
         <!-- DATOS DEL DOCUMENTO -->
         <div>
             <div class="totales-row">

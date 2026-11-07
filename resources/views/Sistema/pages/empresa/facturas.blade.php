@@ -144,12 +144,67 @@
             <i class="fas fa-times me-1"></i> Cerrar
         </button>
         <div class="d-flex flex-wrap gap-2">
+            @can('ventas.anular')
+                <x-button variant="danger" id="btnAnularModalDetalle" class="d-none" icon="fas fa-ban" text="Anular Factura" />
+            @endcan
             <x-button variant="warning" id="btnImprimirGarantiaModalDetalle" icon="fas fa-shield-alt" text="Hoja de Garantía" />
             <x-button variant="primary" id="btnImprimirCartaModalDetalle" icon="fas fa-file-invoice" text="Factura Carta" />
             <x-button variant="success" id="btnReimprimirModalDetalle" icon="fas fa-receipt" text="Ticket Térmico" />
         </div>
     </x-slot:footer>
 </x-modal>
+
+@can('ventas.anular')
+    <x-modal
+        id="modalAnularFactura"
+        title="Anular Factura"
+        subtitle="Reversión de inventario, cuentas por cobrar y reembolso en caja"
+        icon="fas fa-ban text-danger fs-5"
+        size="modal-md"
+        headerColor="bg-dark text-white"
+        formId="formAnularFactura"
+        submitText="Confirmar Anulación"
+        submitIcon="fas fa-ban"
+    >
+        <input type="hidden" id="anular_factura_id" name="venta_id">
+
+        <div class="card border rounded-4 p-3 bg-white shadow-xs mb-3 font-monospace">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-secondary small fw-semibold">Comprobante a anular:</span>
+                <strong class="text-dark fs-6" id="anular_factura_codigo">#--</strong>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="text-secondary small fw-semibold">Total Factura:</span>
+                <strong class="text-danger fs-6" id="anular_factura_total">$ 0.00</strong>
+            </div>
+        </div>
+
+        <div id="contenedorTurnoAnularFactura" class="mb-3 d-none">
+            <label for="anular_caja_turno_id" class="form-label small fw-bold text-dark mb-1">
+                Turno de Caja Operativo <span class="text-danger">*</span>
+            </label>
+            <select name="caja_turno_id" id="anular_caja_turno_id" class="form-select rounded-3 shadow-none border">
+                <option value="">Seleccione el turno de caja abierto...</option>
+            </select>
+        </div>
+
+        <div class="mb-2">
+            <label for="anular_motivo" class="form-label small fw-bold text-dark mb-1">
+                Motivo de Anulación <span class="text-danger">*</span>
+            </label>
+            <textarea
+                class="form-control rounded-3 shadow-none border"
+                name="motivo"
+                id="anular_motivo"
+                rows="3"
+                required
+                minlength="5"
+                maxlength="500"
+                placeholder="Indique el motivo de la anulación (mínimo 5 caracteres)..."
+            ></textarea>
+        </div>
+    </x-modal>
+@endcan
 @endsection
 
 @section('scripts')
@@ -161,6 +216,7 @@
         const urlPosImprimirTicket = "{{ url('/pos/imprimir-ticket') }}";
         const urlPosImprimirCarta = "{{ url('/pos/imprimir-carta') }}";
         const urlPosImprimirGarantia = "{{ url('/pos/garantia') }}";
+        const puedeAnularFactura = @json(auth()->user()?->can('ventas.anular') || auth()->user()?->hasAnyRole(['SuperAdmin', 'Admin']));
     </script>
     <script src="{{ asset('estilos/jsPropios/facturas.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/facturas.js')) ?: time() }}"></script>
 @endsection

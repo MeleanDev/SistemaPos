@@ -1,4 +1,6 @@
 let datatableFacturas = null;
+let turnosAbiertosFacturas = [];
+let turnoPropioFacturaId = null;
 
 const formatearFechaLegal = function (fechaStr) {
     if (!fechaStr) {
@@ -125,6 +127,26 @@ $(document).ready(function () {
 
     inicializarTablaFacturas();
     cargarKpisFacturas();
+
+    $("#formAnularFactura").on("submit", function (e) {
+        e.preventDefault();
+        const id = $("#anular_factura_id").val();
+        if (!id) {
+            return;
+        }
+        enviarFormulario({
+            form: this,
+            url: `${urlFacturasDetalle}/${id}/anular`,
+            isEditar: false,
+            modalSelector: "#modalAnularFactura",
+            tablaSelector: "#datatable_facturas",
+            btnSubmit: "#modalAnularFacturaBtnGuardar",
+            textoGuardarOriginal: "Confirmar Anulación",
+            onSuccess: function () {
+                cargarKpisFacturas();
+            }
+        });
+    });
 });
 
 const inicializarTablaFacturas = function () {
@@ -287,6 +309,12 @@ const inicializarTablaFacturas = function () {
                 orderable: false,
                 searchable: false,
                 render: function (data, type, row) {
+                    const mostrarAnular = typeof puedeAnularFactura !== "undefined"
+                        && puedeAnularFactura
+                        && (row.estado === "completada" || row.estado === "devuelta_parcial");
+                    const btnAnularHtml = mostrarAnular
+                        ? `<button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2.5 py-1 shadow-xs" onclick="abrirModalAnularFactura(${data}, '${row.codigo}', ${parseFloat(row.total_usd || 0)})" title="Anular Factura"><i class="fas fa-ban"></i></button>`
+                        : "";
                     return `
                         <div class="d-flex justify-content-end gap-1">
                             <button type="button" class="btn btn-outline-info btn-sm rounded-pill px-2.5 py-1 shadow-xs" onclick="verDetalleFactura(${data})" title="Ver Detalle 360°">
@@ -298,6 +326,7 @@ const inicializarTablaFacturas = function () {
                             <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-2.5 py-1 shadow-xs" onclick="imprimirTicketFactura(${data})" title="Ticket Térmico (Tiquera)">
                                 <i class="fas fa-receipt"></i>
                             </button>
+                            ${btnAnularHtml}
                         </div>
                     `;
                 }
@@ -325,6 +354,8 @@ const cargarKpisFacturas = async function () {
             $("#kpiConteoHoy").text(d.conteo_hoy || 0);
             $("#kpiConteoCredito").text(d.conteo_credito || 0);
             $("#kpiConteoDevueltas").text(d.conteo_devueltas || 0);
+            turnosAbiertosFacturas = Array.isArray(d.turnos_abiertos) ? d.turnos_abiertos : [];
+            turnoPropioFacturaId = d.caja_turno_propio_id || null;
         }
     } catch (e) {
         if (window.notificacion) {
@@ -365,6 +396,15 @@ const verDetalleFactura = async function (id) {
             $("#btnImprimirCartaModalDetalle").attr("onclick", `imprimirCartaFactura(${v.id})`);
             $("#btnReimprimirModalDetalle").attr("onclick", `imprimirTicketFactura(${v.id})`);
             $("#btnImprimirGarantiaModalDetalle").attr("onclick", `imprimirGarantiaFactura(${v.id})`);
+            if ($("#btnAnularModalDetalle").length) {
+                if (v.estado === "completada" || v.estado === "devuelta_parcial") {
+                    $("#btnAnularModalDetalle")
+                        .removeClass("d-none")
+                        .attr("onclick", `abrirModalAnularFactura(${v.id}, '${v.codigo}', ${parseFloat(v.total_usd || 0)})`);
+                } else {
+                    $("#btnAnularModalDetalle").addClass("d-none").removeAttr("onclick");
+                }
+            }
 
             const cliNombre = v.cliente ? `${v.cliente.nombre} ${v.cliente.apellido || ''}`.trim() : "Consumidor Final";
             const cliCedula = v.cliente ? v.cliente.cedula : "V-00000000";
@@ -603,4 +643,65 @@ const imprimirCartaFactura = function (id) {
 
 const imprimirGarantiaFactura = function (id) {
     window.open(`${urlPosImprimirGarantia}/${id}`, "_blank");
+};
+
+const configurarSelectorTurnoAnular = function () {
+    const $contenedor = $("#contenedorTurnoAnularFactura");
+    const $select = $("#anular_caja_turno_id");
+    $select.empty();
+
+    if (turnoPropioFacturaId) {
+        $select.append(`<option value="${turnoPropioFacturaId}" selected>Turno propio #${turnoPropioFacturaId}</option>`);
+        $select.prop("required", false);
+        $contenedor.addClass("d-none");
+        return;
+    }
+
+    if (turnosAbiertosFacturas.length === 1) {
+        const unico = turnosAbiertosFacturas[0];
+        $select.append(`<option value="${unico.id}" selected>${unico.caja_nombre} - ${unico.cajero_nombre}</option>`);
+        $select.prop("required", false);
+        $contenedor.addClass("d-none");
+        return;
+    }
+
+    if (turnosAbiertosFacturas.length > 1) {
+        $select.append('<option value="">Seleccione el turno de caja abierto...</option>');
+        turnosAbiertosFacturas.forEach(function (t) {
+            $select.append(`<option value="${t.id}">${t.caja_nombre} (${t.cajero_nombre})</option>`);
+        });
+        $select.val(String(turnosAbiertosFacturas[0].id));
+        $select.prop("required", true);
+        $contenedor.removeClass("d-none");
+        return;
+    }
+
+    $select.append('<option value="">Sin turnos abiertos</option>');
+    $select.prop("required", false);
+    $contenedor.addClass("d-none");
+};
+
+const abrirModalAnularFactura = function (id, codigo, totalUsd) {
+    const modalDetalleEl = document.getElementById("modalDetalleFactura");
+    if (modalDetalleEl) {
+        const instDetalle = bootstrap.Modal.getInstance(modalDetalleEl);
+        if (instDetalle) {
+            instDetalle.hide();
+        }
+    }
+
+    const formEl = document.getElementById("formAnularFactura");
+    if (formEl) {
+        formEl.reset();
+    }
+    $("#anular_factura_id").val(id);
+    $("#anular_factura_codigo").text(`#${codigo}`);
+    $("#anular_factura_total").text(`$ ${parseFloat(totalUsd || 0).toFixed(2)}`);
+    $("#anular_motivo").val("");
+    configurarSelectorTurnoAnular();
+
+    const modalEl = document.getElementById("modalAnularFactura");
+    if (modalEl) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
 };

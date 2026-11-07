@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Caja;
+use App\Models\CajaTurno;
 use App\Models\Cliente;
 use App\Models\CuentaPorCobrar;
 use App\Models\CuentaPorCobrarAbono;
@@ -222,6 +224,24 @@ test('abono a factura especifica cxc actualiza saldos y cambia de estado', funct
     $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id);
 
+    $caja = Caja::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Caja CXC 1',
+        'codigo' => 'CAJ-CXC-01',
+        'estado' => true,
+    ]);
+    CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja->id,
+        'user_id' => $user->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'tasa_cambio_apertura' => 50,
+        'monto_apertura_usd' => 0,
+        'monto_apertura_bs' => 0,
+        'estado' => 'abierta',
+    ]);
+
     // 1. Abono parcial de $40
     $resp1 = $this->actingAs($user)
         ->withSession(['empresa_activa_id' => $empresa->id])
@@ -357,6 +377,24 @@ test('abono general cxc distribuye en cascada fifo desde la factura mas antigua'
     $user = User::factory()->create(['name' => 'V-88000004']);
     $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id);
+
+    $caja = Caja::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Caja CXC 2',
+        'codigo' => 'CAJ-CXC-02',
+        'estado' => true,
+    ]);
+    CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja->id,
+        'user_id' => $user->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'tasa_cambio_apertura' => 50,
+        'monto_apertura_usd' => 0,
+        'monto_apertura_bs' => 0,
+        'estado' => 'abierta',
+    ]);
 
     $response = $this->actingAs($user)
         ->withSession(['empresa_activa_id' => $empresa->id])

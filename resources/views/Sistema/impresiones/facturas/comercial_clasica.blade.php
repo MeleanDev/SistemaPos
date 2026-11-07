@@ -250,9 +250,20 @@
                     </div>
                 @endif
 
-                <div class="stamp-entregado">
-                    ENTREGADO
-                </div>
+                @if($venta->estado === 'anulada')
+                    <div class="stamp-entregado" style="border-color: #b91c1c; color: #b91c1c;">
+                        ANULADA
+                    </div>
+                    @if($venta->motivo_anulacion)
+                        <div style="font-size: 8.5px; color: #b91c1c; margin-top: 4px;">
+                            <strong>Motivo de anulación:</strong> {{ $venta->motivo_anulacion }}
+                        </div>
+                    @endif
+                @else
+                    <div class="stamp-entregado">
+                        ENTREGADO
+                    </div>
+                @endif
             </td>
             <td style="width: 45%; vertical-align: top;">
                 <table class="table-totals-clasica">

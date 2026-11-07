@@ -505,6 +505,14 @@ class UsuarioClass
             }
         }
 
+        if ($usuario->cajaTurnos()->where('estado', 'abierta')->exists()) {
+            throw new Exception('No se puede eliminar ni desactivar un usuario que tiene un turno de caja abierto.');
+        }
+
+        if ($usuario->cajaTurnos()->exists()) {
+            throw new Exception('No se puede eliminar un usuario que posee turnos de caja históricos registrados.');
+        }
+
         $usuario->estado = false;
         $usuario->save();
 

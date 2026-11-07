@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Almacen;
+use App\Models\Caja;
+use App\Models\CajaTurno;
 use App\Models\Categoria;
 use App\Models\Cliente;
 use App\Models\Empresa;
@@ -21,6 +23,29 @@ use Spatie\Permission\Models\Role;
 beforeEach(function () {
     Role::firstOrCreate(['name' => 'SuperAdmin', 'guard_name' => 'web']);
 });
+
+function abrirTurnoTestPos(Empresa $empresa, User $user, ?Almacen $almacen = null): CajaTurno
+{
+    $caja = Caja::create([
+        'empresa_id' => $empresa->id,
+        'almacen_id' => $almacen?->id,
+        'nombre' => 'Caja Test POS '.$empresa->id,
+        'codigo' => 'CAJ-POS-'.$empresa->id,
+        'estado' => true,
+    ]);
+
+    return CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja->id,
+        'user_id' => $user->id,
+        'aperturado_por_id' => $user->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 50.00,
+        'monto_apertura_bs' => 0.00,
+        'estado' => 'abierta',
+    ]);
+}
 
 test('vista principal de punto de venta carga correctamente', function () {
     $empresa = Empresa::create([
@@ -228,6 +253,7 @@ test('pos procesa venta al contado descontando inventario y registrando kardex y
     $user = User::factory()->create(['name' => 'V-90000002']);
     $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id);
+    $turno = abrirTurnoTestPos($empresa, $user, $almacen);
 
     // Venta de 5 unidades al detal a $2.00 c/u (con IVA incluido) = $10.00 Total
     // Base imponible = $8.62, IVA (16%) = $1.38
@@ -235,6 +261,7 @@ test('pos procesa venta al contado descontando inventario y registrando kardex y
     $payload = [
         'cliente_id' => $cliente->id,
         'almacen_id' => $almacen->id,
+        'caja_turno_id' => $turno->id,
         'tipo_venta' => 'detal',
         'tasa_cambio' => 40.0000,
         'condicion_pago' => 'contado',
@@ -370,11 +397,13 @@ test('pos procesa venta a credito y genera cuenta por cobrar vinculada', functio
     $user = User::factory()->create(['name' => 'V-90000003']);
     $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id);
+    $turno = abrirTurnoTestPos($empresa, $user, $almacen);
 
     // Venta al mayor a crédito: 2 taladros a $45 c/u = $90.00 (sin abono inicial)
     $payload = [
         'cliente_id' => $cliente->id,
         'almacen_id' => $almacen->id,
+        'caja_turno_id' => $turno->id,
         'tipo_venta' => 'mayor',
         'tasa_cambio' => 50.0000,
         'condicion_pago' => 'credito',
@@ -482,11 +511,13 @@ test('pos procesa devolucion de factura y revierte el stock en kardex', function
     $user = User::factory()->create(['name' => 'V-90000004']);
     $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id);
+    $turno = abrirTurnoTestPos($empresa, $user, $almacen);
 
     // 1. Crear venta de 4 camisas (Stock 20 -> 16)
     $payloadVenta = [
         'cliente_id' => $cliente->id,
         'almacen_id' => $almacen->id,
+        'caja_turno_id' => $turno->id,
         'tipo_venta' => 'detal',
         'tasa_cambio' => 40.0000,
         'condicion_pago' => 'contado',
@@ -517,6 +548,7 @@ test('pos procesa devolucion de factura y revierte el stock en kardex', function
     // 2. Procesar devolución de 2 camisas (Stock 16 -> 18)
     $payloadDevolucion = [
         'venta_id' => $venta->id,
+        'caja_turno_id' => $turno->id,
         'motivo' => 'Talla incorrecta solicitada por el cliente',
         'items' => [
             [
@@ -617,6 +649,7 @@ test('pos procesa venta de moto con seriales cambiando estado a vendida y permit
     $user = User::factory()->create(['name' => 'V-90000008']);
     $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id);
+    $turno = abrirTurnoTestPos($empresa, $user, $almacen);
 
     // 0. Verificar que en /pos/datos la moto incluye el número de placa y en el nombre para facilitar la búsqueda
     $resDatos = $this->actingAs($user)
@@ -634,6 +667,7 @@ test('pos procesa venta de moto con seriales cambiando estado a vendida y permit
     $payload = [
         'cliente_id' => $cliente->id,
         'almacen_id' => $almacen->id,
+        'caja_turno_id' => $turno->id,
         'tipo_venta' => 'detal',
         'tasa_cambio' => 36.5000,
         'condicion_pago' => 'contado',
@@ -687,6 +721,7 @@ test('pos procesa venta de moto con seriales cambiando estado a vendida y permit
     // 2. Procesar Devolución de la Moto
     $payloadDev = [
         'venta_id' => $venta->id,
+        'caja_turno_id' => $turno->id,
         'motivo' => 'Cancelación de compra por el cliente',
         'items' => [
             [
@@ -760,10 +795,12 @@ test('pos procesa venta de servicios correctamente', function () {
     $user = User::factory()->create(['name' => 'V-90000009']);
     $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id);
+    $turno = abrirTurnoTestPos($empresa, $user, $almacen);
 
     $payload = [
         'cliente_id' => $cliente->id,
         'almacen_id' => $almacen->id,
+        'caja_turno_id' => $turno->id,
         'tipo_venta' => 'detal',
         'tasa_cambio' => 36.5000,
         'condicion_pago' => 'contado',
@@ -859,6 +896,7 @@ test('pos procesa servicio exento de iva con 0 impuestos', function () {
     $user = User::factory()->create(['name' => 'V-90000010']);
     $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id);
+    $turno = abrirTurnoTestPos($empresa, $user, $almacen);
 
     // 1. Verificar catálogo inicial de POS (aplica_iva = false)
     $resDatos = $this->actingAs($user)
@@ -874,6 +912,7 @@ test('pos procesa servicio exento de iva con 0 impuestos', function () {
     $payload = [
         'cliente_id' => $cliente->id,
         'almacen_id' => $almacen->id,
+        'caja_turno_id' => $turno->id,
         'tipo_venta' => 'detal',
         'tasa_cambio' => 36.5000,
         'condicion_pago' => 'contado',
@@ -1300,10 +1339,12 @@ test('pos procesa venta con descuento exacto por monto en usd (descuento_usd)', 
     $user = User::factory()->create(['name' => 'V-99887766']);
     $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id);
+    $turno = abrirTurnoTestPos($empresa, $user, $almacen);
 
     $payload = [
         'cliente_id' => $cliente->id,
         'almacen_id' => $almacen->id,
+        'caja_turno_id' => $turno->id,
         'tipo_venta' => 'detal',
         'tasa_cambio' => 50.0000,
         'condicion_pago' => 'contado',

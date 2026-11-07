@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Empresa;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Pos\AnularFacturaRequest;
+use App\Models\CajaTurno;
 use App\Models\Venta;
 use App\Service\Ventas\VentaClass;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -46,6 +49,28 @@ class FacturaController extends Controller
             $conteoCredito = $ventas->where('condicion_pago', 'credito')->where('saldo_pendiente_usd', '>', 0)->count();
             $conteoDevueltas = $ventas->whereIn('estado', ['devuelta_parcial', 'devuelta_total', 'anulada'])->count();
 
+            $user = Auth::user();
+            $turnoPropio = $user?->cajaTurnoActivo($empresaId);
+            $turnosAbiertos = CajaTurno::with(['caja:id,nombre', 'usuario:id,name,nombre,apellido'])
+                ->where('empresa_id', $empresaId)
+                ->where('estado', 'abierta')
+                ->orderBy('id', 'asc')
+                ->get()
+                ->map(function (CajaTurno $turno) {
+                    $cajeroNombre = trim(($turno->usuario?->nombre ?? '').' '.($turno->usuario?->apellido ?? ''));
+                    if ($cajeroNombre === '') {
+                        $cajeroNombre = $turno->usuario?->name ?? 'Cajero';
+                    }
+
+                    return [
+                        'id' => $turno->id,
+                        'caja_id' => $turno->caja_id,
+                        'caja_nombre' => $turno->caja?->nombre ?? 'Caja #'.$turno->caja_id,
+                        'cajero_nombre' => $cajeroNombre,
+                    ];
+                })
+                ->values();
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -59,6 +84,8 @@ class FacturaController extends Controller
                     'conteo_hoy' => $conteoHoy,
                     'conteo_credito' => $conteoCredito,
                     'conteo_devueltas' => $conteoDevueltas,
+                    'turnos_abiertos' => $turnosAbiertos,
+                    'caja_turno_propio_id' => $turnoPropio?->id,
                 ],
             ]);
         } catch (Exception $e) {
@@ -166,6 +193,7 @@ class FacturaController extends Controller
                 'pagos.metodoPago',
                 'cuentaPorCobrar.abonos.metodoPago',
                 'devoluciones.detalles',
+                'anuladaPor',
             ])
                 ->where('empresa_id', $empresaId)
                 ->findOrFail($id);
@@ -179,6 +207,34 @@ class FacturaController extends Controller
                 'success' => false,
                 'message' => 'Factura no encontrada: '.$e->getMessage(),
             ], 404);
+        }
+    }
+
+    public function anular(AnularFacturaRequest $request, int $id): JsonResponse
+    {
+        try {
+            $venta = $this->ventaService->anularVenta(
+                $id,
+                $request->validated(),
+                $this->obtenerEmpresaId(),
+                (int) Auth::id()
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => "Factura #{$venta->codigo} anulada exitosamente.",
+                'data' => $venta,
+            ]);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 403);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al anular la factura: '.$e->getMessage(),
+            ], 422);
         }
     }
 }

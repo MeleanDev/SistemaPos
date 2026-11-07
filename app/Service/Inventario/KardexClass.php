@@ -49,17 +49,24 @@ class KardexClass
         $costoUnitarioBs = (float) ($datos['costo_unitario_bs'] ?? 0);
         $motivo = $datos['motivo'] ?? null;
 
-        // Obtener o inicializar registro de stock en el almacén
-        $stockAlmacen = ProductoStockAlmacen::firstOrCreate(
-            [
+        // Obtener o inicializar registro de stock en el almacén con bloqueo pesimista
+        $stockAlmacen = ProductoStockAlmacen::where('producto_id', $productoId)
+            ->where('almacen_id', $almacenId)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $stockAlmacen) {
+            $stockAlmacen = ProductoStockAlmacen::create([
                 'producto_id' => $productoId,
                 'almacen_id' => $almacenId,
-            ],
-            [
                 'cantidad_actual' => 0,
                 'cantidad_reservada' => 0,
-            ]
-        );
+            ]);
+
+            $stockAlmacen = ProductoStockAlmacen::where('id', $stockAlmacen->id)
+                ->lockForUpdate()
+                ->first() ?? $stockAlmacen;
+        }
 
         $stockAnterior = (float) $stockAlmacen->cantidad_actual;
 
@@ -69,12 +76,16 @@ class KardexClass
             'traslado_entrada',
             'ajuste_positivo',
             'anulacion_venta',
-        ]);
+        ], true);
 
         if ($esEntrada) {
             $stockNuevo = $stockAnterior + $cantidad;
         } else {
-            $stockNuevo = max(0, $stockAnterior - $cantidad);
+            if ($stockAnterior < $cantidad) {
+                $productoNombre = Producto::where('id', $productoId)->value('nombre') ?? "#{$productoId}";
+                throw new Exception("Stock insuficiente para el producto '{$productoNombre}'. Disponible: {$stockAnterior}, solicitado: {$cantidad}.");
+            }
+            $stockNuevo = $stockAnterior - $cantidad;
         }
 
         // Actualizar stock del almacén

@@ -2,12 +2,14 @@
 
 namespace App\Service\Finanzas;
 
+use App\Models\CajaTurno;
 use App\Models\Cliente;
 use App\Models\CuentaPorCobrar;
 use App\Models\CuentaPorCobrarAbono;
 use App\Models\Empresa;
 use App\Models\MetodoPago;
 use App\Models\User;
+use App\Models\Venta;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +28,57 @@ class CuentaPorCobrarClass
         if ($userId <= 0) {
             throw new Exception('No se pudo determinar el usuario autenticado para realizar la operación.');
         }
+    }
+
+    protected function resolverTurnoOperacion(int $empresaId, int $userId, ?int $cajaTurnoIdInput = null): CajaTurno
+    {
+        $user = User::find($userId);
+        if (! $user) {
+            throw new Exception('Usuario no encontrado para validar el turno de caja.');
+        }
+
+        $esAdmin = $user->hasAnyRole(['SuperAdmin', 'Admin']);
+        $turnoPropio = $user->cajaTurnoActivo($empresaId);
+
+        if (! $esAdmin) {
+            if (! $turnoPropio) {
+                throw new Exception('Debes tener un turno de caja abierto para registrar abonos de cuentas por cobrar.');
+            }
+
+            if ($cajaTurnoIdInput !== null && $cajaTurnoIdInput > 0 && (int) $turnoPropio->id !== $cajaTurnoIdInput) {
+                throw new Exception('No puedes registrar abonos utilizando el turno de otro cajero.');
+            }
+
+            return $turnoPropio;
+        }
+
+        if ($cajaTurnoIdInput !== null && $cajaTurnoIdInput > 0) {
+            $turnoSeleccionado = CajaTurno::where('id', $cajaTurnoIdInput)
+                ->where('empresa_id', $empresaId)
+                ->where('estado', 'abierta')
+                ->first();
+
+            if (! $turnoSeleccionado) {
+                throw new Exception('El turno de caja seleccionado no existe, no está abierto o no pertenece a la empresa activa.');
+            }
+
+            return $turnoSeleccionado;
+        }
+
+        if ($turnoPropio) {
+            return $turnoPropio;
+        }
+
+        $turnoEmpresa = CajaTurno::where('empresa_id', $empresaId)
+            ->where('estado', 'abierta')
+            ->orderBy('id', 'asc')
+            ->first();
+
+        if (! $turnoEmpresa) {
+            throw new Exception('No hay ningún turno de caja abierto en la empresa para registrar el abono.');
+        }
+
+        return $turnoEmpresa;
     }
 
     /**
@@ -246,8 +299,8 @@ class CuentaPorCobrarClass
 
             $saldoActualUsd = (float) $cuenta->saldo_pendiente_usd;
 
-            // Si el monto en USD excede el saldo pendiente (con margen de redondeo de 0.05)
-            if ($montoUsd > ($saldoActualUsd + 0.05)) {
+            // Si el monto en USD excede el saldo pendiente (con margen de redondeo de 0.01)
+            if ($montoUsd > ($saldoActualUsd + 0.01)) {
                 throw new Exception('El monto a abonar ($'.number_format($montoUsd, 2).') no puede ser mayor al saldo pendiente ($'.number_format($saldoActualUsd, 2).').');
             }
 
@@ -264,14 +317,17 @@ class CuentaPorCobrarClass
 
             $nuevoEstado = $nuevoSaldoUsd <= 0.001 ? 'pagada' : 'parcial';
 
-            $userObj = User::find($userId);
-            $cajaTurno = $userObj?->cajaTurnoActivo($empresaId);
+            $cajaTurno = $this->resolverTurnoOperacion(
+                $empresaId,
+                $userId,
+                ! empty($datos['caja_turno_id']) ? (int) $datos['caja_turno_id'] : null
+            );
 
             // Crear el registro de abono
             $abono = CuentaPorCobrarAbono::create([
                 'cuenta_por_cobrar_id' => $cuenta->id,
-                'caja_id' => $cajaTurno?->caja_id,
-                'caja_turno_id' => $cajaTurno?->id,
+                'caja_id' => $cajaTurno->caja_id,
+                'caja_turno_id' => $cajaTurno->id,
                 'user_id' => $userId,
                 'metodo_pago_id' => $datos['metodo_pago_id'],
                 'fecha_abono' => $datos['fecha_abono'] ?? Carbon::now()->toDateString(),
@@ -290,6 +346,26 @@ class CuentaPorCobrarClass
                 'saldo_pendiente_bs' => $nuevoSaldoBs,
                 'estado' => $nuevoEstado,
             ]);
+
+            if ($cuenta->venta_id) {
+                $venta = Venta::where('empresa_id', $empresaId)
+                    ->lockForUpdate()
+                    ->find($cuenta->venta_id);
+
+                if ($venta) {
+                    $tasaVenta = (float) ($venta->tasa_cambio > 0 ? $venta->tasa_cambio : $tasaCambio);
+                    $nuevoVentaPagadoUsd = round((float) $venta->monto_pagado_usd + $montoUsd, 2);
+                    $nuevoVentaPagadoBs = round($nuevoVentaPagadoUsd * $tasaVenta, 2);
+                    $nuevoVentaSaldoBs = round($nuevoSaldoUsd * $tasaVenta, 2);
+
+                    $venta->update([
+                        'monto_pagado_usd' => $nuevoVentaPagadoUsd,
+                        'monto_pagado_bs' => $nuevoVentaPagadoBs,
+                        'saldo_pendiente_usd' => $nuevoSaldoUsd,
+                        'saldo_pendiente_bs' => $nuevoVentaSaldoBs,
+                    ]);
+                }
+            }
 
             return [
                 'abono_id' => $abono->id,
@@ -343,7 +419,7 @@ class CuentaPorCobrarClass
 
             $deudaTotalClienteUsd = round($cuentasPendientes->sum('saldo_pendiente_usd'), 2);
 
-            if ($montoTotalUsd > ($deudaTotalClienteUsd + 0.05)) {
+            if ($montoTotalUsd > ($deudaTotalClienteUsd + 0.01)) {
                 throw new Exception('El abono general ($'.number_format($montoTotalUsd, 2).') no puede exceder la deuda total del cliente ($'.number_format($deudaTotalClienteUsd, 2).').');
             }
 
@@ -358,8 +434,11 @@ class CuentaPorCobrarClass
             $referenciaGlobal = trim($datos['referencia'] ?? '') ?: null;
             $observacionesGlobal = trim($datos['observaciones'] ?? '') ?: null;
 
-            $userObj = User::find($userId);
-            $cajaTurno = $userObj?->cajaTurnoActivo($empresaId);
+            $cajaTurno = $this->resolverTurnoOperacion(
+                $empresaId,
+                $userId,
+                ! empty($datos['caja_turno_id']) ? (int) $datos['caja_turno_id'] : null
+            );
 
             foreach ($cuentasPendientes as $cuenta) {
                 if ($montoRestanteUsd <= 0.001) {
@@ -379,8 +458,8 @@ class CuentaPorCobrarClass
                 // Registrar abono específico para este renglón
                 $abono = CuentaPorCobrarAbono::create([
                     'cuenta_por_cobrar_id' => $cuenta->id,
-                    'caja_id' => $cajaTurno?->caja_id,
-                    'caja_turno_id' => $cajaTurno?->id,
+                    'caja_id' => $cajaTurno->caja_id,
+                    'caja_turno_id' => $cajaTurno->id,
                     'user_id' => $userId,
                     'metodo_pago_id' => $datos['metodo_pago_id'],
                     'fecha_abono' => $fechaAbono,
@@ -398,6 +477,26 @@ class CuentaPorCobrarClass
                     'saldo_pendiente_bs' => $nuevoSaldoBs,
                     'estado' => $nuevoEstado,
                 ]);
+
+                if ($cuenta->venta_id) {
+                    $venta = Venta::where('empresa_id', $empresaId)
+                        ->lockForUpdate()
+                        ->find($cuenta->venta_id);
+
+                    if ($venta) {
+                        $tasaVenta = (float) ($venta->tasa_cambio > 0 ? $venta->tasa_cambio : $tasaCambio);
+                        $nuevoVentaPagadoUsd = round((float) $venta->monto_pagado_usd + $montoAplicarUsd, 2);
+                        $nuevoVentaPagadoBs = round($nuevoVentaPagadoUsd * $tasaVenta, 2);
+                        $nuevoVentaSaldoBs = round($nuevoSaldoUsd * $tasaVenta, 2);
+
+                        $venta->update([
+                            'monto_pagado_usd' => $nuevoVentaPagadoUsd,
+                            'monto_pagado_bs' => $nuevoVentaPagadoBs,
+                            'saldo_pendiente_usd' => $nuevoSaldoUsd,
+                            'saldo_pendiente_bs' => $nuevoVentaSaldoBs,
+                        ]);
+                    }
+                }
 
                 $abonosIds[] = $abono->id;
                 $facturasAfectadas[] = [
@@ -435,17 +534,42 @@ class CuentaPorCobrarClass
     /**
      * Catálogos para formularios de cobro (métodos de pago y tasa de cambio activa)
      */
-    public function catalogos(int $empresaId): array
+    public function catalogos(int $empresaId, ?int $userId = null): array
     {
         $empresa = Empresa::findOrFail($empresaId);
         $metodosPago = MetodoPago::where('estado', true)
             ->orderBy('nombre', 'asc')
             ->get(['id', 'nombre', 'descripcion']);
 
+        $user = $userId ? User::find($userId) : null;
+        $turnoPropio = $user?->cajaTurnoActivo($empresaId);
+
+        $turnosAbiertos = CajaTurno::with(['caja:id,nombre', 'usuario:id,name,nombre,apellido'])
+            ->where('empresa_id', $empresaId)
+            ->where('estado', 'abierta')
+            ->orderBy('id', 'asc')
+            ->get()
+            ->map(function (CajaTurno $turno) {
+                $cajeroNombre = trim(($turno->usuario?->nombre ?? '').' '.($turno->usuario?->apellido ?? ''));
+                if ($cajeroNombre === '') {
+                    $cajeroNombre = $turno->usuario?->name ?? 'Cajero';
+                }
+
+                return [
+                    'id' => $turno->id,
+                    'caja_id' => $turno->caja_id,
+                    'caja_nombre' => $turno->caja?->nombre ?? 'Caja #'.$turno->caja_id,
+                    'cajero_nombre' => $cajeroNombre,
+                ];
+            })
+            ->values();
+
         return [
             'metodos_pago' => $metodosPago,
             'tasa_usd' => (float) ($empresa->tasa_usd > 0 ? $empresa->tasa_usd : 1),
             'empresa_nombre' => $empresa->nombre_comercial,
+            'turnos_abiertos' => $turnosAbiertos,
+            'caja_turno_propio_id' => $turnoPropio?->id,
         ];
     }
 

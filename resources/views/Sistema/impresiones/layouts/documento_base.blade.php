@@ -253,6 +253,16 @@
 
         <!-- CONTENEDOR DEL DOCUMENTO -->
         <div class="page-container">
+            @if(isset($venta) && $venta->estado === 'anulada')
+                <div class="text-center fw-bold text-uppercase" style="border: 2px solid #b91c1c; color: #b91c1c; padding: 5px 12px; margin-bottom: 10px; font-size: 13px; letter-spacing: 2px; border-radius: 4px;">
+                    FACTURA ANULADA
+                    @if($venta->motivo_anulacion)
+                        <div style="font-size: 9px; font-weight: 600; letter-spacing: 0; margin-top: 2px;">
+                            Motivo: {{ $venta->motivo_anulacion }}
+                        </div>
+                    @endif
+                </div>
+            @endif
             @yield('contenido_documento')
         </div>
 

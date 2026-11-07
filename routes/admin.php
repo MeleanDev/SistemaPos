@@ -63,11 +63,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/pos/garantia-pdf/{id}', 'descargarGarantiaPdf')->name('pos.descargar_garantia_pdf');
     });
 
-    Route::middleware('permission:ventas.ver')->controller(FacturaController::class)->group(function () {
-        Route::get('/facturas', 'index')->name('factura');
-        Route::get('/facturas/kpis', 'kpis');
-        Route::get('/facturas/lista', 'lista');
-        Route::get('/facturas/{id}', 'detalle');
+    Route::controller(FacturaController::class)->group(function () {
+        Route::get('/facturas', 'index')->name('factura')->middleware('permission:ventas.ver');
+        Route::get('/facturas/kpis', 'kpis')->middleware('permission:ventas.ver');
+        Route::get('/facturas/lista', 'lista')->middleware('permission:ventas.ver');
+        Route::get('/facturas/{id}', 'detalle')->middleware('permission:ventas.ver');
+        Route::post('/facturas/{id}/anular', 'anular')->middleware('permission:ventas.anular');
     });
 
     Route::controller(ConfiguracionController::class)->group(function () {

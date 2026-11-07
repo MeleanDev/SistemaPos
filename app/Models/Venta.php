@@ -54,12 +54,16 @@ class Venta extends Model
         'comision_monto_usd',
         'comision_monto_bs',
         'estado',
+        'anulada_por_id',
+        'anulada_at',
+        'motivo_anulacion',
         'observaciones',
     ];
 
     protected $casts = [
         'tasa_cambio' => 'decimal:4',
         'fecha_emision' => 'date',
+        'anulada_at' => 'datetime',
         'monto_bruto_usd' => 'decimal:2',
         'monto_bruto_bs' => 'decimal:2',
         'descuento_porcentaje' => 'decimal:2',
@@ -103,6 +107,11 @@ class Venta extends Model
     public function usuario(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function anuladaPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'anulada_por_id');
     }
 
     public function caja(): BelongsTo

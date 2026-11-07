@@ -288,6 +288,13 @@
             </div>
 
             <div class="row g-3">
+                <div class="col-12 d-none" id="contenedor_abono_caja_turno">
+                    <label class="form-label small fw-bold text-dark mb-1">Turno de Caja Operativo *</label>
+                    <select class="form-select rounded-3 shadow-none border" name="caja_turno_id" id="abono_caja_turno_id">
+                        <option value="">Seleccione turno de caja abierto...</option>
+                    </select>
+                </div>
+
                 <div class="col-12">
                     <label class="form-label small fw-bold text-dark mb-1">Método de Pago *</label>
                     <select class="form-select rounded-3 shadow-none border" name="metodo_pago_id" id="abono_metodo_pago_id" required onchange="actualizarComportamientoReferencia('abono')">
@@ -368,6 +375,13 @@
             </div>
 
             <div class="row g-3">
+                <div class="col-12 d-none" id="contenedor_gen_caja_turno">
+                    <label class="form-label small fw-bold text-dark mb-1">Turno de Caja Operativo *</label>
+                    <select class="form-select rounded-3 shadow-none border" name="caja_turno_id" id="gen_caja_turno_id">
+                        <option value="">Seleccione turno de caja abierto...</option>
+                    </select>
+                </div>
+
                 <div class="col-md-6">
                     <label class="form-label small fw-bold text-dark mb-1">Método de Pago *</label>
                     <select class="form-select rounded-3 shadow-none border" name="metodo_pago_id" id="gen_metodo_pago_id" required onchange="actualizarComportamientoReferencia('gen')">

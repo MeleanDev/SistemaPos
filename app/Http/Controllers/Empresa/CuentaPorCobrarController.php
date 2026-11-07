@@ -44,7 +44,7 @@ class CuentaPorCobrarController extends Controller
     {
         try {
             $empresaId = $this->obtenerEmpresaId();
-            $catalogos = $this->cuentaPorCobrarClass->catalogos($empresaId);
+            $catalogos = $this->cuentaPorCobrarClass->catalogos($empresaId, (int) Auth::id());
 
             return response()->json([
                 'success' => true,

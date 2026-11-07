@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use Exception;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Collection;
@@ -20,6 +21,15 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, Notifiable;
+
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user): void {
+            if ($user->cajaTurnos()->exists()) {
+                throw new Exception('No se puede eliminar físicamente un usuario que posee turnos de caja registrados.');
+            }
+        });
+    }
 
     /**
      * Get the attributes that should be cast.

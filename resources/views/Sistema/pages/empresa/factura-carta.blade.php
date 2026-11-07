@@ -264,6 +264,17 @@
     <!-- DOCUMENTO FACTURA CARTA AJUSTADO A LA FORMA LIBRE -->
     <div class="page-container">
 
+        @if($venta->estado === 'anulada')
+            <div class="text-center fw-bold text-uppercase" style="border: 2px solid #b91c1c; color: #b91c1c; padding: 6px 12px; margin-bottom: 8px; font-size: 14px; letter-spacing: 2px; border-radius: 4px;">
+                DOCUMENTO ANULADO — FACTURA ANULADA
+                @if($venta->motivo_anulacion)
+                    <div style="font-size: 9.5px; font-weight: 600; letter-spacing: 0; margin-top: 2px;">
+                        Motivo: {{ $venta->motivo_anulacion }}
+                    </div>
+                @endif
+            </div>
+        @endif
+
         <!-- 1. DATOS DEL CLIENTE Y CONDICIONES -->
         <div class="meta-section">
             <div class="meta-row">
