@@ -50,7 +50,7 @@
                         </li>
                     @endcan
 
-                    @if (Auth::user()?->empresaActiva()?->maneja_vendedores ?? true)
+                    @if (Auth::user()?->empresaActiva()?->maneja_vendedores ?? false)
                         @can('vendedores.ver')
                             <li class="sidebar-item @if (request()->routeIs('vendedor*')) selected @endif">
                                 <a class="sidebar-link" href="{{ route('vendedor') }}" aria-expanded="false">
@@ -227,7 +227,7 @@
                         </li>
                     @endcan
 
-                    @if (Auth::user()?->empresaActiva()?->maneja_vendedores ?? true)
+                    @if (Auth::user()?->empresaActiva()?->maneja_vendedores ?? false)
                         @can('reportes.vendedores')
                             <li class="sidebar-item @if (request()->routeIs('reportes.vendedores*')) selected @endif">
                                 <a class="sidebar-link" href="{{ route('reportes.vendedores') }}" aria-expanded="false">

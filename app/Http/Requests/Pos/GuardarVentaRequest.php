@@ -120,7 +120,7 @@ class GuardarVentaRequest extends BaseRequest
                 return;
             }
 
-            $esAdmin = $user->hasAnyRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']);
+            $esAdmin = $user->hasAnyRole(['SuperAdmin', 'Admin']);
             $puedeDescontar = $esAdmin || $user->can('ventas.descuentos');
 
             if (! $esAdmin && $this->filled('caja_turno_id')) {

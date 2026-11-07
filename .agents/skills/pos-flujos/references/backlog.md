@@ -29,13 +29,13 @@ Estados: ⏳ pendiente · 🔄 en curso · ✅ hecho.
 ## Fase 2 — Roles y vendedores (ref: `vendedores-comisiones.md`, `roles-acciones.md`)
 | ID | Tarea | Aceptación | Estado |
 |---|---|---|:--:|
-| B-20 | Añadir `pos.preventa` a `permisos_modulos` (padre `pos.acceso`) y al seeder; eliminar `cajas.administrar_todas`. | Aparece en el modal de permisos. | ⏳ |
-| B-21 | Rol `Vendedor` asignable desde UI (`UsuarioClass::obtenerRolesYEmpresas`) con permisos base. | Crear usuario Vendedor desde pantalla y que solo pueda armar preventas. | ⏳ |
-| B-22 | Reemplazar `hasRole([...'admin'...])` por permisos (excepto SuperAdmin) en `VentaClass`, `CajaClass`, `PanelPrincipalClass`; `esVendedor` = `pos.preventa` ∧ ¬`ventas.crear`. Ajustar seeder del rol Admin. | Tests de permisos por rol. | ⏳ |
-| B-23 | Preventas con dueño: vendedor solo ve/elimina las suyas; `vendedor_id` fijo al recuperar. | Test de acceso cruzado. | ⏳ |
-| B-24 | `unique(empresa_id, user_id)` en `vendedores` (con chequeo previo de duplicados) y respeto de `maneja_vendedores` en rutas/POS/reportes. | Flag apagado → rutas de vendedores 404/403. | ⏳ |
-| B-25 | `comision_estado` + liquidación de comisiones (`vendedores.liquidar`), egreso opcional en caja. | Test: liquidar marca facturas como pagadas y no se liquidan dos veces. | ⏳ |
-| B-26 | Rol/permiso de vendedor propio en reportes: filtrar por `vendedor_id` propio siempre que no tenga `reportes.vendedores` global. | Vendedor con `reportes.ver` no ve ajenos. | ⏳ |
+| B-20 | Añadir `pos.preventa` a `permisos_modulos` (padre `pos.acceso`) y al seeder; eliminar `cajas.administrar_todas`. | Aparece en el modal de permisos. | ✅ |
+| B-21 | Rol `Vendedor` asignable desde UI (`UsuarioClass::obtenerRolesYEmpresas`) con permisos base. | Crear usuario Vendedor desde pantalla y que solo pueda armar preventas. | ✅ |
+| B-22 | Reemplazar `hasRole([...'admin'...])` por permisos (excepto SuperAdmin) en `VentaClass`, `CajaClass`, `PanelPrincipalClass`; `esVendedor` = `pos.preventa` ∧ ¬`ventas.crear`. Ajustar seeder del rol Admin. | Tests de permisos por rol. | ✅ |
+| B-23 | Preventas con dueño: vendedor solo ve/elimina las suyas; `vendedor_id` fijo al recuperar. | Test de acceso cruzado. | ✅ |
+| B-24 | `unique(empresa_id, user_id)` en `vendedores` (con chequeo previo de duplicados) y respeto de `maneja_vendedores` en rutas/POS/reportes. | Flag apagado → rutas de vendedores 404/403. | ✅ |
+| B-25 | `comision_estado` + liquidación de comisiones (`vendedores.liquidar`), egreso opcional en caja. | Test: liquidar marca facturas como pagadas y no se liquidan dos veces. | ✅ |
+| B-26 | Rol/permiso de vendedor propio en reportes: filtrar por `vendedor_id` propio siempre que no tenga `reportes.vendedores` global. | Vendedor con `reportes.ver` no ve ajenos. | ✅ |
 
 ## Fase 3 — Reportes (ref: `reportes.md`)
 | ID | Tarea | Aceptación | Estado |

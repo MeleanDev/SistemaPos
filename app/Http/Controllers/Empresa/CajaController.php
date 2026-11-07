@@ -23,7 +23,7 @@ class CajaController extends Controller
     {
         $user = Auth::user();
 
-        return $user ? $user->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) : false;
+        return $user ? $user->hasAnyRole(['SuperAdmin', 'Admin']) : false;
     }
 
     public function index(): View

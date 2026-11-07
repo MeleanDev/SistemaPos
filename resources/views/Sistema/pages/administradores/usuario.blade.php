@@ -73,6 +73,11 @@
                     data-rol="Operador" style="font-size: 0.78rem;">
                     <i class="fas fa-headset text-info me-1"></i> Operador (<span id="countRolOperador">0</span>)
                 </button>
+                <button type="button"
+                    class="btn btn-sm rounded-pill px-3 py-1 fw-semibold filter-role-chip bg-white border text-dark shadow-xs"
+                    data-rol="Vendedor" style="font-size: 0.78rem;">
+                    <i class="fas fa-user-tie text-success me-1"></i> Vendedor (<span id="countRolVendedor">0</span>)
+                </button>
             </div>
         </x-slot:bottom>
     </x-search-filter>
@@ -122,6 +127,7 @@
                     </label>
                     <select class="form-select form-control-executive" name="rol" id="rol" required>
                         <option value="Operador" selected>Operador (POS, Ventas y Operaciones)</option>
+                        <option value="Vendedor">Vendedor (Preventas POS y Comisiones)</option>
                         <option value="Admin">Administrador (Gestión de Empresa)</option>
                         @if (auth()->user()?->hasRole('SuperAdmin'))
                             <option value="SuperAdmin">SuperAdministrador (Acceso Global Total)</option>

@@ -12,6 +12,7 @@ use App\Models\DevolucionVenta;
 use App\Models\Empresa;
 use App\Models\EmpresaMoneda;
 use App\Models\Kardex;
+use App\Models\LiquidacionComision;
 use App\Models\MetodoPago;
 use App\Models\Moto;
 use App\Models\Producto;
@@ -37,10 +38,10 @@ beforeEach(function () {
         Role::firstOrCreate(['name' => $rol, 'guard_name' => 'web']);
     }
     foreach ([
-        'pos.acceso', 'ventas.crear', 'ventas.ver', 'ventas.anular', 'ventas.descuentos',
+        'pos.acceso', 'pos.preventa', 'ventas.crear', 'ventas.ver', 'ventas.anular', 'ventas.descuentos',
         'cajas.ver', 'cajas.crear', 'cajas.editar', 'cajas.eliminar',
         'cajas.aperturar', 'cajas.cerrar', 'cajas.movimientos', 'cajas.arqueo',
-        'vendedores.ver', 'vendedores.crear', 'vendedores.editar', 'vendedores.eliminar',
+        'vendedores.ver', 'vendedores.crear', 'vendedores.editar', 'vendedores.eliminar', 'vendedores.liquidar',
         'reportes.ver', 'reportes.vendedores',
     ] as $perm) {
         Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
@@ -54,6 +55,7 @@ test('modulo de vendedores permite registrar, listar y actualizar asesores con c
         'razon_social' => 'Empresa Vendedor Test C.A.',
         'direccion' => 'Av. Principal',
         'maneja_motos' => false,
+        'maneja_vendedores' => true,
         'estado' => true,
     ]);
 
@@ -280,6 +282,7 @@ test('flujo pos integra turno de caja, vendedor y calcula corte x y cierre z', f
         'razon_social' => 'Empresa POS Integral C.A.',
         'direccion' => 'Av. Integral',
         'maneja_motos' => false,
+        'maneja_vendedores' => true,
         'estado' => true,
     ]);
 
@@ -749,6 +752,7 @@ test('cajeros disponibles y apertura de turno respetan aislamiento multi-empresa
         'razon_social' => 'Empresa A C.A.',
         'direccion' => 'Calle A',
         'maneja_motos' => false,
+        'maneja_vendedores' => true,
         'estado' => true,
     ]);
 
@@ -842,6 +846,7 @@ test('validaciones de cajas y vendedores impiden duplicados, comisiones invalida
         'razon_social' => 'Empresa Validaciones C.A.',
         'direccion' => 'Calle Validaciones',
         'maneja_motos' => false,
+        'maneja_vendedores' => true,
         'estado' => true,
     ]);
 
@@ -1078,6 +1083,7 @@ test('devolucion parcial o total recalcula o anula la comision del vendedor', fu
         'razon_social' => 'Empresa Devolucion Test C.A.',
         'direccion' => 'Av. Devolucion',
         'maneja_motos' => false,
+        'maneja_vendedores' => true,
         'estado' => true,
     ]);
 
@@ -2826,6 +2832,7 @@ test('B-09 y B-10 devolucion proporcional con descuento e IVA y anulacion de fac
         'direccion' => 'Av. Principal B09',
         'tasa_usd' => 40.0000,
         'maneja_motos' => true,
+        'maneja_vendedores' => true,
         'estado' => true,
     ]);
 
@@ -3450,4 +3457,1077 @@ test('B-13 FK caja_turnos.user_id restrict y UsuarioClass impiden borrar usuario
         ->toThrow(QueryException::class);
 
     expect(CajaTurno::find($turno->id))->not->toBeNull();
+});
+
+test('B-20 y B-21 matriz de permisos expone pos.preventa y vendedores.liquidar y permite asignar rol Vendedor con permisos base', function () {
+    foreach (['usuarios.ver', 'usuarios.crear', 'usuarios.editar', 'usuarios.permisos'] as $perm) {
+        Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
+    }
+
+    $empresa = Empresa::create([
+        'rif' => 'J-99002001-1',
+        'nombre' => 'Empresa B20 B21',
+        'razon_social' => 'Empresa B20 B21 C.A.',
+        'direccion' => 'Av. Principal B20',
+        'maneja_vendedores' => true,
+        'estado' => true,
+    ]);
+
+    $adminRole = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
+    $adminRole->givePermissionTo(['usuarios.ver', 'usuarios.crear', 'usuarios.editar', 'pos.acceso', 'pos.preventa', 'vendedores.ver', 'vendedores.liquidar']);
+
+    $admin = User::factory()->create(['name' => 'V-20002001']);
+    $admin->assignRole('Admin');
+    $admin->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $usuarioClass = app(UsuarioClass::class);
+    $catalogos = $usuarioClass->obtenerRolesYEmpresas($admin);
+
+    // 1. El selector de roles para Admin incluye Vendedor junto a Admin y Operador
+    $nombresRoles = collect($catalogos['roles'])->pluck('name')->all();
+    expect($nombresRoles)->toContain('Admin')
+        ->and($nombresRoles)->toContain('Operador')
+        ->and($nombresRoles)->toContain('Vendedor')
+        ->and($nombresRoles)->not->toContain('SuperAdmin');
+
+    // 2. Matriz de permisos incluye pos.preventa y vendedores.liquidar, y no existe cajas.administrar_todas
+    $todosPermisosMatriz = collect($catalogos['permisos_modulos'])
+        ->pluck('permisos')
+        ->flatten(1)
+        ->pluck('name')
+        ->all();
+
+    expect($todosPermisosMatriz)->toContain('pos.preventa')
+        ->and($todosPermisosMatriz)->toContain('vendedores.liquidar')
+        ->and($todosPermisosMatriz)->not->toContain('cajas.administrar_todas');
+
+    // 3. normalizarPermisos agrega pos.acceso desde pos.preventa y vendedores.ver desde vendedores.liquidar
+    expect($usuarioClass->normalizarPermisos(['pos.preventa']))
+        ->toEqualCanonicalizing(['pos.preventa', 'pos.acceso']);
+    expect($usuarioClass->normalizarPermisos(['vendedores.liquidar']))
+        ->toEqualCanonicalizing(['vendedores.liquidar', 'vendedores.ver']);
+
+    // 4. Crear usuario con rol Vendedor desde endpoint /usuarios sin permisos manuales asigna sus permisos base
+    $respCrear = $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/usuarios', [
+            'name' => 'V-20002002',
+            'nombre' => 'Valeria',
+            'apellido' => 'Asesora',
+            'email' => 'valeria.b21@empresa.com',
+            'password' => 'secret123',
+            'rol' => 'Vendedor',
+            'empresas' => [$empresa->id],
+        ]);
+
+    $respCrear->assertOk()
+        ->assertJsonPath('success', true);
+
+    $nuevoVendedorUser = User::where('name', 'V-20002002')->firstOrFail();
+    expect($nuevoVendedorUser->hasRole('Vendedor'))->toBeTrue()
+        ->and($nuevoVendedorUser->getDirectPermissions()->pluck('name')->all())
+        ->toEqualCanonicalizing(['pos.acceso', 'pos.preventa', 'reportes.vendedores']);
+});
+
+test('B-22 y B-23 vendedor puro opera preventas propias sin facturar y cajero preserva vendedor_id fijo al recuperar preventa', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-99002201-1',
+        'nombre' => 'Empresa B22 B23 Preventas',
+        'razon_social' => 'Empresa B22 B23 Preventas C.A.',
+        'direccion' => 'Av. Principal B22',
+        'maneja_vendedores' => true,
+        'estado' => true,
+    ]);
+
+    EmpresaMoneda::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Dólares Americanos',
+        'codigo' => 'USD',
+        'simbolo' => '$',
+        'tasa_cambio' => 40.0000,
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'ALM-B22',
+        'nombre' => 'Almacén B22',
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'CAT-B22',
+        'nombre' => 'Categoría B22',
+        'estado' => true,
+    ]);
+
+    $producto = Producto::create([
+        'empresa_id' => $empresa->id,
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'PRD-B22-01',
+        'nombre' => 'Producto Preventa B22',
+        'unidad_medida' => 'UND',
+        'precio_costo_usd' => 30.00,
+        'precio_detal_usd' => 50.00,
+        'precio_mayorista_usd' => 45.00,
+        'aplica_iva' => false,
+        'iva_porcentaje' => 0,
+        'estado' => true,
+    ]);
+
+    ProductoStockAlmacen::create([
+        'producto_id' => $producto->id,
+        'almacen_id' => $almacen->id,
+        'cantidad_actual' => 50,
+    ]);
+
+    $cliente = Cliente::create([
+        'empresa_id' => $empresa->id,
+        'cedula' => 'V-22002200',
+        'nombre' => 'Cliente',
+        'apellido' => 'Preventa',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    $metodoPago = MetodoPago::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Efectivo USD B22',
+        'es_efectivo' => true,
+        'estado' => true,
+    ]);
+
+    $vendedorUser1 = User::factory()->create(['name' => 'V-22002201']);
+    $vendedorUser1->assignRole('Vendedor');
+    $vendedorUser1->givePermissionTo(['pos.acceso', 'pos.preventa', 'reportes.vendedores']);
+    $vendedorUser1->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $vendedorUser2 = User::factory()->create(['name' => 'V-22002202']);
+    $vendedorUser2->assignRole('Vendedor');
+    $vendedorUser2->givePermissionTo(['pos.acceso', 'pos.preventa', 'reportes.vendedores']);
+    $vendedorUser2->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $vendedor1 = Vendedor::create([
+        'empresa_id' => $empresa->id,
+        'user_id' => $vendedorUser1->id,
+        'tipo_documento' => 'V',
+        'documento' => '22002201',
+        'nombre' => 'Asesor Uno',
+        'comision_porcentaje' => 10.00,
+        'estado' => true,
+    ]);
+
+    $vendedor2 = Vendedor::create([
+        'empresa_id' => $empresa->id,
+        'user_id' => $vendedorUser2->id,
+        'tipo_documento' => 'V',
+        'documento' => '22002202',
+        'nombre' => 'Asesor Dos',
+        'comision_porcentaje' => 5.00,
+        'estado' => true,
+    ]);
+
+    $cajeroUser = User::factory()->create(['name' => 'V-22002203']);
+    $cajeroUser->assignRole('Operador');
+    $cajeroUser->givePermissionTo(['pos.acceso', 'ventas.crear', 'ventas.ver', 'cajas.ver']);
+    $cajeroUser->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $adminUser = User::factory()->create(['name' => 'V-22002204']);
+    $adminUser->assignRole('Admin');
+    $adminUser->givePermissionTo(['pos.acceso', 'pos.preventa', 'ventas.crear', 'ventas.ver', 'cajas.ver', 'cajas.aperturar']);
+    $adminUser->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $caja = Caja::create([
+        'empresa_id' => $empresa->id,
+        'almacen_id' => $almacen->id,
+        'nombre' => 'Caja B22',
+        'codigo' => 'CAJ-B22-01',
+        'estado' => true,
+    ]);
+
+    $turnoCajero = CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja->id,
+        'user_id' => $cajeroUser->id,
+        'aperturado_por_id' => $adminUser->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 100.00,
+        'monto_apertura_bs' => 0.00,
+        'estado' => 'abierta',
+    ]);
+
+    // 1. Vendedor 1 entra a /pos/datos -> es_vendedor = true, es_cajero = false, puede_operar = true
+    $respDatosV1 = $this->actingAs($vendedorUser1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/pos/datos');
+
+    $respDatosV1->assertOk()
+        ->assertJsonPath('data.es_vendedor', true)
+        ->assertJsonPath('data.es_cajero', false)
+        ->assertJsonPath('data.es_admin', false)
+        ->assertJsonPath('data.puede_operar', true)
+        ->assertJsonPath('data.vendedor_asociado.id', $vendedor1->id);
+
+    // 2. Vendedor 1 guarda preventa (incluso intentando enviar vendedor_id de Vendedor 2) -> servidor fuerza vendedor1->id
+    $respEspera1 = $this->actingAs($vendedorUser1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/en-espera/guardar', [
+            'cliente_id' => $cliente->id,
+            'vendedor_id' => $vendedor2->id,
+            'tipo_venta' => 'detal',
+            'total_usd' => 100.00,
+            'total_bs' => 4000.00,
+            'items' => [
+                [
+                    'producto_id' => $producto->id,
+                    'tipo_item' => 'producto',
+                    'cantidad' => 2,
+                    'precio_unitario_usd' => 50.00,
+                    'almacen_id' => $almacen->id,
+                ],
+            ],
+        ]);
+
+    $respEspera1->assertOk();
+    $espera1Id = (int) $respEspera1->json('data.id');
+    expect((int) $respEspera1->json('data.datos_json.vendedor_id'))->toBe($vendedor1->id);
+
+    // 3. Vendedor 2 guarda su propia preventa
+    $respEspera2 = $this->actingAs($vendedorUser2)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/en-espera/guardar', [
+            'cliente_id' => $cliente->id,
+            'tipo_venta' => 'detal',
+            'total_usd' => 50.00,
+            'total_bs' => 2000.00,
+            'items' => [
+                [
+                    'producto_id' => $producto->id,
+                    'tipo_item' => 'producto',
+                    'cantidad' => 1,
+                    'precio_unitario_usd' => 50.00,
+                    'almacen_id' => $almacen->id,
+                ],
+            ],
+        ]);
+
+    $respEspera2->assertOk();
+    $espera2Id = (int) $respEspera2->json('data.id');
+    expect((int) $respEspera2->json('data.datos_json.vendedor_id'))->toBe($vendedor2->id);
+
+    // 4. Vendedor 1 lista preventas -> solo ve la suya (1), y no puede recuperar ni eliminar la de Vendedor 2 (403)
+    $respListaV1 = $this->actingAs($vendedorUser1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/pos/en-espera/lista');
+
+    $respListaV1->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $espera1Id);
+
+    $this->actingAs($vendedorUser1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson("/pos/en-espera/{$espera2Id}/recuperar")
+        ->assertForbidden();
+
+    $this->actingAs($vendedorUser1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->deleteJson("/pos/en-espera/{$espera2Id}")
+        ->assertForbidden();
+
+    // 5. Vendedor 1 intenta facturar directamente en POST /pos/guardar -> 403 Forbidden
+    $this->actingAs($vendedorUser1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', [
+            'cliente_id' => $cliente->id,
+            'almacen_id' => $almacen->id,
+            'tipo_venta' => 'detal',
+            'tasa_cambio' => 40.0000,
+            'condicion_pago' => 'contado',
+            'items' => [
+                [
+                    'producto_id' => $producto->id,
+                    'tipo_item' => 'producto',
+                    'cantidad' => 1,
+                    'precio_unitario_usd' => 50.00,
+                    'almacen_id' => $almacen->id,
+                ],
+            ],
+            'pagos' => [
+                [
+                    'metodo_pago_id' => $metodoPago->id,
+                    'monto' => 50.00,
+                    'moneda' => 'USD',
+                    'tasa_cambio' => 40.0000,
+                ],
+            ],
+        ])
+        ->assertForbidden();
+
+    // 6. Cajero lista preventas -> ve todas las de la empresa (2)
+    $this->actingAs($cajeroUser)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/pos/en-espera/lista')
+        ->assertOk()
+        ->assertJsonCount(2, 'data');
+
+    // 7. Cajero recupera y factura espera1 intentando cambiar vendedor_id a vendedor2 (o quitarlo) -> servidor preserva vendedor1
+    $respVentaCajero = $this->actingAs($cajeroUser)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', [
+            'cliente_id' => $cliente->id,
+            'almacen_id' => $almacen->id,
+            'caja_turno_id' => $turnoCajero->id,
+            'venta_en_espera_id' => $espera1Id,
+            'vendedor_id' => $vendedor2->id,
+            'tipo_venta' => 'detal',
+            'tasa_cambio' => 40.0000,
+            'condicion_pago' => 'contado',
+            'items' => [
+                [
+                    'producto_id' => $producto->id,
+                    'tipo_item' => 'producto',
+                    'cantidad' => 2,
+                    'precio_unitario_usd' => 50.00,
+                    'almacen_id' => $almacen->id,
+                ],
+            ],
+            'pagos' => [
+                [
+                    'metodo_pago_id' => $metodoPago->id,
+                    'monto' => 100.00,
+                    'moneda' => 'USD',
+                    'tasa_cambio' => 40.0000,
+                ],
+            ],
+        ]);
+
+    $respVentaCajero->assertOk();
+    $ventaDePreventa1 = Venta::findOrFail($respVentaCajero->json('data.id'));
+    expect((int) $ventaDePreventa1->vendedor_id)->toBe($vendedor1->id)
+        ->and((float) $ventaDePreventa1->comision_porcentaje)->toBe(10.00)
+        ->and((float) $ventaDePreventa1->comision_monto_usd)->toBe(10.00)
+        ->and($ventaDePreventa1->comision_estado)->toBe('pendiente');
+
+    // 8. Admin sí puede cambiar el vendedor al facturar espera2
+    $respVentaAdmin = $this->actingAs($adminUser)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson('/pos/guardar', [
+            'cliente_id' => $cliente->id,
+            'almacen_id' => $almacen->id,
+            'caja_turno_id' => $turnoCajero->id,
+            'venta_en_espera_id' => $espera2Id,
+            'vendedor_id' => $vendedor1->id,
+            'tipo_venta' => 'detal',
+            'tasa_cambio' => 40.0000,
+            'condicion_pago' => 'contado',
+            'items' => [
+                [
+                    'producto_id' => $producto->id,
+                    'tipo_item' => 'producto',
+                    'cantidad' => 1,
+                    'precio_unitario_usd' => 50.00,
+                    'almacen_id' => $almacen->id,
+                ],
+            ],
+            'pagos' => [
+                [
+                    'metodo_pago_id' => $metodoPago->id,
+                    'monto' => 50.00,
+                    'moneda' => 'USD',
+                    'tasa_cambio' => 40.0000,
+                ],
+            ],
+        ]);
+
+    $respVentaAdmin->assertOk();
+    $ventaDePreventa2 = Venta::findOrFail($respVentaAdmin->json('data.id'));
+    expect((int) $ventaDePreventa2->vendedor_id)->toBe($vendedor1->id);
+});
+
+test('B-24 unique(empresa_id, user_id) en vendedores y bloqueo real cuando maneja_vendedores es false', function () {
+    $empresaConVend = Empresa::create([
+        'rif' => 'J-99002401-1',
+        'nombre' => 'Empresa B24 Con Vendedores',
+        'razon_social' => 'Empresa B24 Con Vendedores C.A.',
+        'direccion' => 'Av. Principal B24',
+        'maneja_vendedores' => true,
+        'estado' => true,
+    ]);
+
+    $empresaSinVend = Empresa::create([
+        'rif' => 'J-99002402-2',
+        'nombre' => 'Empresa B24 Sin Vendedores',
+        'razon_social' => 'Empresa B24 Sin Vendedores C.A.',
+        'direccion' => 'Av. Secundaria B24',
+        'maneja_vendedores' => false,
+        'estado' => true,
+    ]);
+
+    $superAdmin = User::factory()->create(['name' => 'V-24002401']);
+    $superAdmin->assignRole('SuperAdmin');
+    $superAdmin->empresas()->attach([$empresaConVend->id, $empresaSinVend->id]);
+
+    $usuarioEmpresa = User::factory()->create(['name' => 'V-24002402', 'estado' => true]);
+    $usuarioEmpresa->assignRole('Vendedor');
+    $usuarioEmpresa->empresas()->attach($empresaConVend->id, ['estado' => true]);
+
+    $usuarioOtraEmpresa = User::factory()->create(['name' => 'V-24002403', 'estado' => true]);
+    $usuarioOtraEmpresa->assignRole('Vendedor');
+    $usuarioOtraEmpresa->empresas()->attach($empresaSinVend->id, ['estado' => true]);
+
+    // 1. No permite vincular a un SuperAdmin como vendedor
+    $this->actingAs($superAdmin)
+        ->withSession(['empresa_activa_id' => $empresaConVend->id])
+        ->postJson('/vendedores', [
+            'tipo_documento' => 'V',
+            'documento' => '24002401',
+            'nombre' => 'Intento SuperAdmin Vendedor',
+            'user_id' => $superAdmin->id,
+            'comision_porcentaje' => 5.00,
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['user_id']);
+
+    // 2. No permite vincular a un usuario de otra empresa
+    $this->actingAs($superAdmin)
+        ->withSession(['empresa_activa_id' => $empresaConVend->id])
+        ->postJson('/vendedores', [
+            'tipo_documento' => 'V',
+            'documento' => '24002403',
+            'nombre' => 'Intento Otra Empresa',
+            'user_id' => $usuarioOtraEmpresa->id,
+            'comision_porcentaje' => 5.00,
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['user_id']);
+
+    // 3. Permite vincular usuario válido una vez, pero rechaza duplicarlo en otro vendedor de la misma empresa (Request y BD)
+    $this->actingAs($superAdmin)
+        ->withSession(['empresa_activa_id' => $empresaConVend->id])
+        ->postJson('/vendedores', [
+            'tipo_documento' => 'V',
+            'documento' => '24002402',
+            'nombre' => 'Vendedor Vinculado 1',
+            'user_id' => $usuarioEmpresa->id,
+            'comision_porcentaje' => 5.00,
+        ])
+        ->assertOk();
+
+    $this->actingAs($superAdmin)
+        ->withSession(['empresa_activa_id' => $empresaConVend->id])
+        ->postJson('/vendedores', [
+            'tipo_documento' => 'V',
+            'documento' => '24002499',
+            'nombre' => 'Vendedor Vinculado Duplicado',
+            'user_id' => $usuarioEmpresa->id,
+            'comision_porcentaje' => 5.00,
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['user_id']);
+
+    expect(fn () => Vendedor::create([
+        'empresa_id' => $empresaConVend->id,
+        'user_id' => $usuarioEmpresa->id,
+        'tipo_documento' => 'V',
+        'documento' => '24002498',
+        'nombre' => 'Duplicado Directo BD',
+        'comision_porcentaje' => 3.00,
+        'estado' => true,
+    ]))->toThrow(QueryException::class);
+
+    // 4. Cuando maneja_vendedores = false: rutas /vendedores* y /reportes/vendedores* abortan con 403
+    $this->actingAs($superAdmin)
+        ->withSession(['empresa_activa_id' => $empresaSinVend->id])
+        ->get('/vendedores')
+        ->assertForbidden();
+
+    $this->actingAs($superAdmin)
+        ->withSession(['empresa_activa_id' => $empresaSinVend->id])
+        ->getJson('/vendedores/activos')
+        ->assertForbidden();
+
+    $this->actingAs($superAdmin)
+        ->withSession(['empresa_activa_id' => $empresaSinVend->id])
+        ->postJson('/vendedores', [
+            'tipo_documento' => 'V',
+            'documento' => '24999999',
+            'nombre' => 'Bloqueado',
+            'comision_porcentaje' => 5.00,
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($superAdmin)
+        ->withSession(['empresa_activa_id' => $empresaSinVend->id])
+        ->get('/reportes/vendedores')
+        ->assertForbidden();
+
+    $this->actingAs($superAdmin)
+        ->withSession(['empresa_activa_id' => $empresaSinVend->id])
+        ->getJson('/reportes/vendedores/kpis')
+        ->assertForbidden();
+
+    $this->actingAs($superAdmin)
+        ->withSession(['empresa_activa_id' => $empresaSinVend->id])
+        ->getJson('/reportes/vendedores/json')
+        ->assertForbidden();
+
+    // 5. En empresa con maneja_vendedores = false, /pos/datos devuelve vendedores = [] y procesarVenta ignora vendedor_id
+    $vendedorFantasma = Vendedor::create([
+        'empresa_id' => $empresaSinVend->id,
+        'tipo_documento' => 'V',
+        'documento' => '24888888',
+        'nombre' => 'Vendedor Preexistente Inactivo Modulo',
+        'comision_porcentaje' => 12.00,
+        'estado' => true,
+    ]);
+
+    EmpresaMoneda::create([
+        'empresa_id' => $empresaSinVend->id,
+        'nombre' => 'Dólares Americanos',
+        'codigo' => 'USD',
+        'simbolo' => '$',
+        'tasa_cambio' => 40.0000,
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresaSinVend->id,
+        'codigo' => 'ALM-B24-SIN',
+        'nombre' => 'Almacén Sin Vend',
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresaSinVend->id,
+        'codigo' => 'CAT-B24-SIN',
+        'nombre' => 'Cat Sin Vend',
+        'estado' => true,
+    ]);
+
+    $producto = Producto::create([
+        'empresa_id' => $empresaSinVend->id,
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'PRD-B24-SIN',
+        'nombre' => 'Producto Sin Vendedor',
+        'unidad_medida' => 'UND',
+        'precio_costo_usd' => 10.00,
+        'precio_detal_usd' => 20.00,
+        'precio_mayorista_usd' => 18.00,
+        'aplica_iva' => false,
+        'iva_porcentaje' => 0,
+        'estado' => true,
+    ]);
+
+    ProductoStockAlmacen::create([
+        'producto_id' => $producto->id,
+        'almacen_id' => $almacen->id,
+        'cantidad_actual' => 20,
+    ]);
+
+    $cliente = Cliente::create([
+        'empresa_id' => $empresaSinVend->id,
+        'cedula' => 'V-24888800',
+        'nombre' => 'Cliente',
+        'apellido' => 'SinVend',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    $metodo = MetodoPago::create([
+        'empresa_id' => $empresaSinVend->id,
+        'nombre' => 'Efectivo B24',
+        'es_efectivo' => true,
+        'estado' => true,
+    ]);
+
+    $caja = Caja::create([
+        'empresa_id' => $empresaSinVend->id,
+        'almacen_id' => $almacen->id,
+        'nombre' => 'Caja B24',
+        'codigo' => 'CAJ-B24',
+        'estado' => true,
+    ]);
+
+    $turno = CajaTurno::create([
+        'empresa_id' => $empresaSinVend->id,
+        'caja_id' => $caja->id,
+        'user_id' => $superAdmin->id,
+        'aperturado_por_id' => $superAdmin->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 50.00,
+        'monto_apertura_bs' => 0.00,
+        'estado' => 'abierta',
+    ]);
+
+    $this->actingAs($superAdmin)
+        ->withSession(['empresa_activa_id' => $empresaSinVend->id])
+        ->getJson('/pos/datos')
+        ->assertOk()
+        ->assertJsonPath('data.maneja_vendedores', false)
+        ->assertJsonCount(0, 'data.vendedores');
+
+    $respVenta = $this->actingAs($superAdmin)
+        ->withSession(['empresa_activa_id' => $empresaSinVend->id])
+        ->postJson('/pos/guardar', [
+            'cliente_id' => $cliente->id,
+            'almacen_id' => $almacen->id,
+            'caja_turno_id' => $turno->id,
+            'vendedor_id' => $vendedorFantasma->id,
+            'tipo_venta' => 'detal',
+            'tasa_cambio' => 40.0000,
+            'condicion_pago' => 'contado',
+            'items' => [
+                [
+                    'producto_id' => $producto->id,
+                    'tipo_item' => 'producto',
+                    'cantidad' => 1,
+                    'precio_unitario_usd' => 20.00,
+                    'almacen_id' => $almacen->id,
+                ],
+            ],
+            'pagos' => [
+                [
+                    'metodo_pago_id' => $metodo->id,
+                    'monto' => 20.00,
+                    'moneda' => 'USD',
+                    'tasa_cambio' => 40.0000,
+                ],
+            ],
+        ]);
+
+    $respVenta->assertOk();
+    $ventaSinVend = Venta::findOrFail($respVenta->json('data.id'));
+    expect($ventaSinVend->vendedor_id)->toBeNull()
+        ->and((float) $ventaSinVend->comision_porcentaje)->toBe(0.0)
+        ->and((float) $ventaSinVend->comision_monto_usd)->toBe(0.0)
+        ->and($ventaSinVend->comision_estado)->toBe('sin_comision');
+});
+
+test('B-25 comision_estado y liquidacion de comisiones con bloqueo transaccional y egreso opcional de caja', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-99002501-1',
+        'nombre' => 'Empresa B25 Liquidaciones',
+        'razon_social' => 'Empresa B25 Liquidaciones C.A.',
+        'direccion' => 'Av. Principal B25',
+        'maneja_vendedores' => true,
+        'estado' => true,
+    ]);
+
+    EmpresaMoneda::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Dólares Americanos',
+        'codigo' => 'USD',
+        'simbolo' => '$',
+        'tasa_cambio' => 40.0000,
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'ALM-B25',
+        'nombre' => 'Almacén B25',
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'CAT-B25',
+        'nombre' => 'Categoría B25',
+        'estado' => true,
+    ]);
+
+    $producto = Producto::create([
+        'empresa_id' => $empresa->id,
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'PRD-B25-01',
+        'nombre' => 'Producto Comisión B25',
+        'unidad_medida' => 'UND',
+        'precio_costo_usd' => 50.00,
+        'precio_detal_usd' => 100.00,
+        'precio_mayorista_usd' => 90.00,
+        'aplica_iva' => false,
+        'iva_porcentaje' => 0,
+        'estado' => true,
+    ]);
+
+    ProductoStockAlmacen::create([
+        'producto_id' => $producto->id,
+        'almacen_id' => $almacen->id,
+        'cantidad_actual' => 50,
+    ]);
+
+    $cliente = Cliente::create([
+        'empresa_id' => $empresa->id,
+        'cedula' => 'V-25002500',
+        'nombre' => 'Cliente',
+        'apellido' => 'Comision',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    $metodoEfectivo = MetodoPago::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Efectivo USD B25',
+        'es_efectivo' => true,
+        'estado' => true,
+    ]);
+
+    $admin = User::factory()->create(['name' => 'V-25002501']);
+    $admin->assignRole('Admin');
+    $admin->givePermissionTo([
+        'pos.acceso', 'ventas.crear', 'ventas.ver', 'ventas.anular',
+        'vendedores.ver', 'vendedores.liquidar', 'cajas.ver', 'cajas.aperturar',
+    ]);
+    $admin->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $operadorSinLiquidar = User::factory()->create(['name' => 'V-25002502']);
+    $operadorSinLiquidar->assignRole('Operador');
+    $operadorSinLiquidar->givePermissionTo(['vendedores.ver']);
+    $operadorSinLiquidar->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $vendedor = Vendedor::create([
+        'empresa_id' => $empresa->id,
+        'tipo_documento' => 'V',
+        'documento' => '25002503',
+        'nombre' => 'Asesor Liquidación B25',
+        'comision_porcentaje' => 10.00,
+        'estado' => true,
+    ]);
+
+    $caja = Caja::create([
+        'empresa_id' => $empresa->id,
+        'almacen_id' => $almacen->id,
+        'nombre' => 'Caja B25',
+        'codigo' => 'CAJ-B25-01',
+        'estado' => true,
+    ]);
+
+    $turno = CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja->id,
+        'user_id' => $admin->id,
+        'aperturado_por_id' => $admin->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 200.00,
+        'monto_apertura_bs' => 0.00,
+        'estado' => 'abierta',
+    ]);
+
+    $crearVenta = function (int $cantidad, ?int $vendId) use ($admin, $empresa, $cliente, $almacen, $turno, $producto, $metodoEfectivo): Venta {
+        $total = $cantidad * 100.00;
+        $resp = $this->actingAs($admin)
+            ->withSession(['empresa_activa_id' => $empresa->id])
+            ->postJson('/pos/guardar', [
+                'cliente_id' => $cliente->id,
+                'almacen_id' => $almacen->id,
+                'caja_turno_id' => $turno->id,
+                'vendedor_id' => $vendId,
+                'tipo_venta' => 'detal',
+                'tasa_cambio' => 40.0000,
+                'condicion_pago' => 'contado',
+                'items' => [
+                    [
+                        'producto_id' => $producto->id,
+                        'tipo_item' => 'producto',
+                        'cantidad' => $cantidad,
+                        'precio_unitario_usd' => 100.00,
+                        'almacen_id' => $almacen->id,
+                    ],
+                ],
+                'pagos' => [
+                    [
+                        'metodo_pago_id' => $metodoEfectivo->id,
+                        'monto' => $total,
+                        'moneda' => 'USD',
+                        'tasa_cambio' => 40.0000,
+                    ],
+                ],
+            ]);
+        $resp->assertOk();
+
+        return Venta::findOrFail($resp->json('data.id'));
+    };
+
+    // 1. Venta sin vendedor -> sin_comision; Ventas con vendedor -> pendiente
+    $ventaSinVend = $crearVenta(1, null);
+    expect($ventaSinVend->comision_estado)->toBe('sin_comision');
+
+    $venta1 = $crearVenta(1, $vendedor->id); // Comisión $10.00
+    $venta2 = $crearVenta(2, $vendedor->id); // Comisión $20.00
+    $ventaAnulable = $crearVenta(1, $vendedor->id); // Comisión $10.00 que será anulada
+
+    expect($venta1->comision_estado)->toBe('pendiente')
+        ->and($venta2->comision_estado)->toBe('pendiente')
+        ->and($ventaAnulable->comision_estado)->toBe('pendiente');
+
+    // 2. Anular $ventaAnulable -> pasa a comision_estado = 'sin_comision'
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson("/facturas/{$ventaAnulable->id}/anular", [
+            'motivo' => 'Anulación de prueba B25',
+            'caja_turno_id' => $turno->id,
+        ])
+        ->assertOk();
+
+    expect($ventaAnulable->fresh()->comision_estado)->toBe('sin_comision');
+
+    // 3. GET /vendedores/{id}/comisiones-pendientes lista solo venta1 y venta2 ($30.00 total)
+    $respPendientes = $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson("/vendedores/{$vendedor->id}/comisiones-pendientes");
+
+    $respPendientes->assertOk()
+        ->assertJsonPath('data.cantidad_ventas', 2)
+        ->assertJsonPath('data.total_comision_usd', 30);
+
+    // 4. Operador sin permiso vendedores.liquidar recibe 403
+    $this->actingAs($operadorSinLiquidar)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson("/vendedores/{$vendedor->id}/liquidar", [
+            'venta_ids' => [$venta1->id],
+            'registrar_egreso_caja' => false,
+        ])
+        ->assertForbidden();
+
+    // 5. Liquidar venta1 y venta2 con registrar_egreso_caja = true -> crea LiquidacionComision, marca ventas como 'pagada' y registra CajaMovimiento egreso
+    $respLiquidar = $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson("/vendedores/{$vendedor->id}/liquidar", [
+            'venta_ids' => [$venta1->id, $venta2->id],
+            'registrar_egreso_caja' => true,
+            'caja_turno_id' => $turno->id,
+            'metodo_pago_id' => $metodoEfectivo->id,
+            'observaciones' => 'Pago quincenal de comisiones',
+        ]);
+
+    $respLiquidar->assertOk()
+        ->assertJsonPath('success', true);
+
+    $liquidacion = LiquidacionComision::findOrFail($respLiquidar->json('data.id'));
+    expect($liquidacion->codigo)->toStartWith('LIQ-')
+        ->and($liquidacion->cantidad_ventas)->toBe(2)
+        ->and((float) $liquidacion->total_comision_usd)->toBe(30.00)
+        ->and((float) $liquidacion->total_comision_bs)->toBe(1200.00)
+        ->and($liquidacion->pagado_por_caja)->toBeTrue();
+
+    expect($venta1->fresh()->comision_estado)->toBe('pagada')
+        ->and((int) $venta1->fresh()->liquidacion_comision_id)->toBe($liquidacion->id)
+        ->and($venta2->fresh()->comision_estado)->toBe('pagada')
+        ->and((int) $venta2->fresh()->liquidacion_comision_id)->toBe($liquidacion->id);
+
+    $movEgreso = CajaMovimiento::where('caja_turno_id', $turno->id)
+        ->where('documento_tipo', 'liquidacion_comision')
+        ->where('documento_id', $liquidacion->id)
+        ->first();
+
+    expect($movEgreso)->not->toBeNull()
+        ->and($movEgreso->tipo)->toBe('egreso')
+        ->and((float) $movEgreso->monto_usd)->toBe(30.00);
+
+    // 6. Intentar liquidar por segunda vez la misma factura -> 422
+    $this->actingAs($admin)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->postJson("/vendedores/{$vendedor->id}/liquidar", [
+            'venta_ids' => [$venta1->id],
+            'registrar_egreso_caja' => false,
+        ])
+        ->assertStatus(422);
+});
+
+test('B-26 vendedor vinculado no admin solo puede ver sus propias ventas y comisiones en todos los endpoints de reportes', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-99002601-1',
+        'nombre' => 'Empresa B26 Privacidad Vendedor',
+        'razon_social' => 'Empresa B26 Privacidad Vendedor C.A.',
+        'direccion' => 'Av. Principal B26',
+        'maneja_vendedores' => true,
+        'estado' => true,
+    ]);
+
+    EmpresaMoneda::create([
+        'empresa_id' => $empresa->id,
+        'nombre' => 'Dólares Americanos',
+        'codigo' => 'USD',
+        'simbolo' => '$',
+        'tasa_cambio' => 40.0000,
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $almacen = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'ALM-B26',
+        'nombre' => 'Almacén B26',
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $cliente = Cliente::create([
+        'empresa_id' => $empresa->id,
+        'cedula' => 'V-26002600',
+        'nombre' => 'Cliente',
+        'apellido' => 'Reporte',
+        'tipo_cliente' => 'detal',
+        'estado' => true,
+    ]);
+
+    $caja = Caja::create([
+        'empresa_id' => $empresa->id,
+        'almacen_id' => $almacen->id,
+        'nombre' => 'Caja B26',
+        'codigo' => 'CAJ-B26',
+        'estado' => true,
+    ]);
+
+    $userVendedor1 = User::factory()->create(['name' => 'V-26002601']);
+    $userVendedor1->assignRole('Vendedor');
+    // Incluso si tiene reportes.ver además de reportes.vendedores, no es Admin/SuperAdmin
+    $userVendedor1->givePermissionTo(['pos.acceso', 'pos.preventa', 'reportes.vendedores', 'reportes.ver']);
+    $userVendedor1->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $userVendedor2 = User::factory()->create(['name' => 'V-26002602']);
+    $userVendedor2->assignRole('Vendedor');
+    $userVendedor2->givePermissionTo(['pos.acceso', 'pos.preventa', 'reportes.vendedores']);
+    $userVendedor2->empresas()->attach($empresa->id, ['estado' => true]);
+
+    $vendedor1 = Vendedor::create([
+        'empresa_id' => $empresa->id,
+        'user_id' => $userVendedor1->id,
+        'tipo_documento' => 'V',
+        'documento' => '26002601',
+        'nombre' => 'Vendedor Propio Uno',
+        'comision_porcentaje' => 10.00,
+        'estado' => true,
+    ]);
+
+    $vendedor2 = Vendedor::create([
+        'empresa_id' => $empresa->id,
+        'user_id' => $userVendedor2->id,
+        'tipo_documento' => 'V',
+        'documento' => '26002602',
+        'nombre' => 'Vendedor Ajeno Dos',
+        'comision_porcentaje' => 10.00,
+        'estado' => true,
+    ]);
+
+    $turno = CajaTurno::create([
+        'empresa_id' => $empresa->id,
+        'caja_id' => $caja->id,
+        'user_id' => $userVendedor1->id,
+        'aperturado_por_id' => $userVendedor1->id,
+        'fecha_apertura' => now()->toDateString(),
+        'hora_apertura' => now()->toTimeString(),
+        'monto_apertura_usd' => 50.00,
+        'monto_apertura_bs' => 0.00,
+        'estado' => 'abierta',
+    ]);
+
+    // Crear 1 venta de $100 para Vendedor 1 y 1 venta de $500 para Vendedor 2
+    Venta::create([
+        'empresa_id' => $empresa->id,
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'caja_id' => $caja->id,
+        'caja_turno_id' => $turno->id,
+        'vendedor_id' => $vendedor1->id,
+        'user_id' => $userVendedor1->id,
+        'codigo' => 'VEN-B26-01',
+        'numero_control' => '00-00092601',
+        'tipo_venta' => 'detal',
+        'moneda' => 'USD',
+        'tasa_cambio' => 40.0000,
+        'fecha_emision' => now()->toDateString(),
+        'hora_emision' => now()->toTimeString(),
+        'monto_bruto_usd' => 100.00,
+        'monto_bruto_bs' => 4000.00,
+        'subtotal_neto_usd' => 100.00,
+        'subtotal_neto_bs' => 4000.00,
+        'total_usd' => 100.00,
+        'total_bs' => 4000.00,
+        'condicion_pago' => 'contado',
+        'monto_pagado_usd' => 100.00,
+        'monto_pagado_bs' => 4000.00,
+        'comision_porcentaje' => 10.00,
+        'comision_monto_usd' => 10.00,
+        'comision_monto_bs' => 400.00,
+        'comision_estado' => 'pendiente',
+        'estado' => 'completada',
+    ]);
+
+    Venta::create([
+        'empresa_id' => $empresa->id,
+        'cliente_id' => $cliente->id,
+        'almacen_id' => $almacen->id,
+        'caja_id' => $caja->id,
+        'caja_turno_id' => $turno->id,
+        'vendedor_id' => $vendedor2->id,
+        'user_id' => $userVendedor2->id,
+        'codigo' => 'VEN-B26-02',
+        'numero_control' => '00-00092602',
+        'tipo_venta' => 'detal',
+        'moneda' => 'USD',
+        'tasa_cambio' => 40.0000,
+        'fecha_emision' => now()->toDateString(),
+        'hora_emision' => now()->toTimeString(),
+        'monto_bruto_usd' => 500.00,
+        'monto_bruto_bs' => 20000.00,
+        'subtotal_neto_usd' => 500.00,
+        'subtotal_neto_bs' => 20000.00,
+        'total_usd' => 500.00,
+        'total_bs' => 20000.00,
+        'condicion_pago' => 'contado',
+        'monto_pagado_usd' => 500.00,
+        'monto_pagado_bs' => 20000.00,
+        'comision_porcentaje' => 10.00,
+        'comision_monto_usd' => 50.00,
+        'comision_monto_bs' => 2000.00,
+        'comision_estado' => 'pendiente',
+        'estado' => 'completada',
+    ]);
+
+    // 1. ReporteVendedorController::catalogos solo devuelve a Vendedor 1
+    $this->actingAs($userVendedor1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/reportes/vendedores/catalogos')
+        ->assertOk()
+        ->assertJsonCount(1, 'data.vendedores')
+        ->assertJsonPath('data.vendedores.0.id', $vendedor1->id);
+
+    // 2. ReporteVendedorController::kpis (incluso pasando ?vendedor_id=vendedor2) fuerza vendedor1 ($100 ventas, $10 comisión)
+    $this->actingAs($userVendedor1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson("/reportes/vendedores/kpis?vendedor_id={$vendedor2->id}")
+        ->assertOk()
+        ->assertJsonPath('data.total_ventas_usd', 100)
+        ->assertJsonPath('data.total_comisiones_usd', 10)
+        ->assertJsonPath('data.conteo_facturas', 1);
+
+    // 3. ReporteVendedorController::resumenVendedores (incluso pasando ?vendedor_id=vendedor2) solo devuelve a Vendedor 1
+    $this->actingAs($userVendedor1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson("/reportes/vendedores/resumen?vendedor_id={$vendedor2->id}")
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $vendedor1->id)
+        ->assertJsonPath('data.0.total_vendido_usd', 100);
+
+    // 4. ReporteController::vendedores (/reportes/vendedores/json) también fuerza Vendedor 1 aunque tenga reportes.ver
+    $this->actingAs($userVendedor1)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson("/reportes/vendedores/json?vendedor_id={$vendedor2->id}")
+        ->assertOk()
+        ->assertJsonCount(1, 'data.resumen')
+        ->assertJsonPath('data.resumen.0.id', $vendedor1->id)
+        ->assertJsonPath('data.kpis.total_ventas_usd', 100)
+        ->assertJsonPath('data.kpis.total_comisiones_usd', 10);
 });

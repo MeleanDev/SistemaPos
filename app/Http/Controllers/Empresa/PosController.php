@@ -11,6 +11,7 @@ use App\Service\Empresa\DocumentoImpresionClass;
 use App\Service\Ventas\VentaClass;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -111,6 +112,11 @@ class PosController extends Controller
                 'message' => 'Venta colocada en espera exitosamente.',
                 'data' => $espera,
             ]);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
@@ -122,7 +128,7 @@ class PosController extends Controller
     public function listarEnEspera(): JsonResponse
     {
         try {
-            $lista = $this->ventaService->listarEnEspera($this->obtenerEmpresaId());
+            $lista = $this->ventaService->listarEnEspera($this->obtenerEmpresaId(), (int) Auth::id());
 
             return response()->json([
                 'success' => true,
@@ -139,12 +145,17 @@ class PosController extends Controller
     public function recuperarEnEspera(int $id): JsonResponse
     {
         try {
-            $datos = $this->ventaService->recuperarEnEspera($id, $this->obtenerEmpresaId());
+            $datos = $this->ventaService->recuperarEnEspera($id, $this->obtenerEmpresaId(), (int) Auth::id());
 
             return response()->json([
                 'success' => true,
                 'data' => $datos,
             ]);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
@@ -156,12 +167,17 @@ class PosController extends Controller
     public function eliminarEnEspera(int $id): JsonResponse
     {
         try {
-            $this->ventaService->eliminarEnEspera($id, $this->obtenerEmpresaId());
+            $this->ventaService->eliminarEnEspera($id, $this->obtenerEmpresaId(), (int) Auth::id());
 
             return response()->json([
                 'success' => true,
                 'message' => 'Cuenta en espera descartada.',
             ]);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,

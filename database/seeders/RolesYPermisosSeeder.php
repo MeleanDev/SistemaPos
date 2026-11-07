@@ -91,6 +91,7 @@ class RolesYPermisosSeeder extends Seeder
             'vendedores.crear',
             'vendedores.editar',
             'vendedores.eliminar',
+            'vendedores.liquidar',
 
             // Cajas y Turnos
             'cajas.ver',
@@ -151,11 +152,12 @@ class RolesYPermisosSeeder extends Seeder
         $operadorRole = Role::firstOrCreate(['name' => 'Operador', 'guard_name' => 'web']);
         $operadorRole->syncPermissions([]);
 
-        // D. Vendedor: Rol para cargar órdenes de preventa en espera
+        // D. Vendedor: Rol para cargar órdenes de preventa en espera y ver sus reportes
         $vendedorRole = Role::firstOrCreate(['name' => 'Vendedor', 'guard_name' => 'web']);
         $vendedorPermissions = [
             'pos.acceso',
             'pos.preventa',
+            'reportes.vendedores',
         ];
         $vendedorRole->syncPermissions($vendedorPermissions);
     }

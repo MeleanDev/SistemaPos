@@ -433,16 +433,26 @@ class ReporteController extends Controller
      * 5. REPORTE DE VENDEDORES Y COMISIONES (GENERADOR DIRECTO)
      * ========================================================================= */
 
+    private function verificarModuloVendedoresHabilitado(): int
+    {
+        $empresa = $this->obtenerEmpresaActiva() ?? Empresa::find($this->obtenerEmpresaId());
+        if (! $empresa || ! $empresa->maneja_vendedores) {
+            abort(403, 'El módulo de vendedores no está habilitado para esta empresa.');
+        }
+
+        return (int) $empresa->id;
+    }
+
     private function obtenerDatosVendedores(Request $request): array
     {
-        $empresaId = $this->obtenerEmpresaId();
+        $empresaId = $this->verificarModuloVendedoresHabilitado();
 
         $fechaInicio = $request->input('fecha_inicio') ?: date('Y-m-01');
         $fechaFin = $request->input('fecha_fin') ?: date('Y-m-d');
         $vendedorId = $request->input('vendedor_id');
 
         $user = Auth::user();
-        $esAdmin = $user && ($user->hasRole(['SuperAdmin', 'Admin']) || $user->can('reportes.ver'));
+        $esAdmin = $user && $user->hasAnyRole(['SuperAdmin', 'Admin']);
         $vendedorPropio = $user?->vendedor()->where('empresa_id', $empresaId)->first();
 
         $queryVendedores = Vendedor::where('empresa_id', $empresaId);
@@ -515,6 +525,8 @@ class ReporteController extends Controller
 
     public function vendedores(Request $request): JsonResponse
     {
+        $this->verificarModuloVendedoresHabilitado();
+
         try {
             $data = $this->obtenerDatosVendedores($request);
 
@@ -532,7 +544,7 @@ class ReporteController extends Controller
 
     public function pdfVendedores(Request $request): Response
     {
-        $empresaId = $this->obtenerEmpresaId();
+        $empresaId = $this->verificarModuloVendedoresHabilitado();
         $empresa = Empresa::findOrFail($empresaId);
         $data = $this->obtenerDatosVendedores($request);
 
@@ -561,13 +573,13 @@ class ReporteController extends Controller
 
     public function excelVendedores(Request $request): StreamedResponse
     {
-        $empresaId = $this->obtenerEmpresaId();
+        $empresaId = $this->verificarModuloVendedoresHabilitado();
         $fechaInicio = $request->input('fecha_inicio') ?: date('Y-m-01');
         $fechaFin = $request->input('fecha_fin') ?: date('Y-m-d');
         $vendedorId = $request->input('vendedor_id');
 
         $user = Auth::user();
-        $esAdmin = $user && ($user->hasRole(['SuperAdmin', 'Admin']) || $user->can('reportes.ver'));
+        $esAdmin = $user && $user->hasAnyRole(['SuperAdmin', 'Admin']);
         $vendedorPropio = $user?->vendedor()->where('empresa_id', $empresaId)->first();
 
         $queryVendedores = Vendedor::where('empresa_id', $empresaId);

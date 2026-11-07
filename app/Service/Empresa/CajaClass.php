@@ -163,7 +163,7 @@ class CajaClass
 
         return DB::transaction(function () use ($datos, $empresaId, $adminUserId) {
             $adminUser = User::findOrFail($adminUserId);
-            $esAdmin = $adminUser->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) || $adminUser->can('cajas.aperturar');
+            $esAdmin = $adminUser->hasAnyRole(['SuperAdmin', 'Admin']) || $adminUser->can('cajas.aperturar');
 
             if (! $esAdmin) {
                 throw new Exception('Solo los administradores o usuarios autorizados pueden aperturar turnos de caja.');
@@ -546,7 +546,7 @@ class CajaClass
 
         return DB::transaction(function () use ($cajaTurnoId, $datos, $empresaId, $userId) {
             $user = User::findOrFail($userId);
-            $esAdmin = $user->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']);
+            $esAdmin = $user->hasAnyRole(['SuperAdmin', 'Admin']);
             $puedeCerrar = $esAdmin || $user->can('cajas.cerrar');
 
             if (! $puedeCerrar) {

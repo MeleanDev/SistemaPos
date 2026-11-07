@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Empresa;
 
 use App\Http\Controllers\Controller;
+use App\Models\Empresa;
 use App\Models\Vendedor;
 use App\Models\Venta;
 use App\Service\Inventario\ConsultorPrecioClass;
@@ -18,16 +19,28 @@ class ReporteVendedorController extends Controller
         private ConsultorPrecioClass $consultorPrecioClass
     ) {}
 
+    private function verificarModuloVendedoresHabilitado(): int
+    {
+        $empresa = $this->obtenerEmpresaActiva() ?? Empresa::find($this->obtenerEmpresaId());
+        if (! $empresa || ! $empresa->maneja_vendedores) {
+            abort(403, 'El módulo de vendedores no está habilitado para esta empresa.');
+        }
+
+        return (int) $empresa->id;
+    }
+
     public function index(): View
     {
+        $this->verificarModuloVendedoresHabilitado();
+
         return view('Sistema.pages.empresa.reporte-vendedores');
     }
 
     public function catalogos(): JsonResponse
     {
-        $empresaId = $this->obtenerEmpresaId();
+        $empresaId = $this->verificarModuloVendedoresHabilitado();
         $user = Auth::user();
-        $esAdmin = $user && ($user->hasRole(['SuperAdmin', 'Admin']) || $user->can('reportes.ver'));
+        $esAdmin = $user && $user->hasAnyRole(['SuperAdmin', 'Admin']);
         $vendedorPropio = $user?->vendedor()->where('empresa_id', $empresaId)->first();
 
         $queryVendedores = Vendedor::where('empresa_id', $empresaId)
@@ -51,10 +64,11 @@ class ReporteVendedorController extends Controller
 
     public function kpis(Request $request): JsonResponse
     {
+        $empresaId = $this->verificarModuloVendedoresHabilitado();
+
         try {
-            $empresaId = $this->obtenerEmpresaId();
             $user = Auth::user();
-            $esAdmin = $user && ($user->hasRole(['SuperAdmin', 'Admin']) || $user->can('reportes.ver'));
+            $esAdmin = $user && $user->hasAnyRole(['SuperAdmin', 'Admin']);
             $vendedorPropio = $user?->vendedor()->where('empresa_id', $empresaId)->first();
 
             $query = Venta::where('empresa_id', $empresaId)
@@ -120,9 +134,9 @@ class ReporteVendedorController extends Controller
 
     public function lista(Request $request): JsonResponse
     {
-        $empresaId = $this->obtenerEmpresaId();
+        $empresaId = $this->verificarModuloVendedoresHabilitado();
         $user = Auth::user();
-        $esAdmin = $user && ($user->hasRole(['SuperAdmin', 'Admin']) || $user->can('reportes.ver'));
+        $esAdmin = $user && $user->hasAnyRole(['SuperAdmin', 'Admin']);
         $vendedorPropio = $user?->vendedor()->where('empresa_id', $empresaId)->first();
 
         $query = Venta::with(['vendedor', 'cliente', 'almacen'])
@@ -160,9 +174,9 @@ class ReporteVendedorController extends Controller
 
     public function resumenVendedores(Request $request): JsonResponse
     {
-        $empresaId = $this->obtenerEmpresaId();
+        $empresaId = $this->verificarModuloVendedoresHabilitado();
         $user = Auth::user();
-        $esAdmin = $user && ($user->hasRole(['SuperAdmin', 'Admin']) || $user->can('reportes.ver'));
+        $esAdmin = $user && $user->hasAnyRole(['SuperAdmin', 'Admin']);
         $vendedorPropio = $user?->vendedor()->where('empresa_id', $empresaId)->first();
 
         $fechaInicio = $request->input('fecha_inicio');

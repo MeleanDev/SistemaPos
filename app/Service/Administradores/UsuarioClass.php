@@ -100,7 +100,7 @@ class UsuarioClass
 
         $rolesQuery = Role::where('guard_name', 'web');
         if (! $esSuperAdmin) {
-            $rolesQuery->whereIn('name', ['Admin', 'Operador']);
+            $rolesQuery->whereIn('name', ['Admin', 'Operador', 'Vendedor']);
         }
         $roles = $rolesQuery->get(['id', 'name']);
 
@@ -213,6 +213,7 @@ class UsuarioClass
                     'descripcion' => 'Facturación rápida, tickets y cobros',
                     'permisos' => [
                         ['name' => 'pos.acceso', 'label' => 'Acceso al Punto de Venta (POS)'],
+                        ['name' => 'pos.preventa', 'label' => 'Crear y gestionar preventas en espera'],
                         ['name' => 'ventas.ver', 'label' => 'Ver historial de ventas y facturas'],
                         ['name' => 'ventas.crear', 'label' => 'Procesar y facturar ventas'],
                         ['name' => 'ventas.anular', 'label' => 'Anular ventas y devoluciones'],
@@ -258,6 +259,7 @@ class UsuarioClass
                         ['name' => 'vendedores.crear', 'label' => 'Registrar nuevos vendedores'],
                         ['name' => 'vendedores.editar', 'label' => 'Editar información y comisiones'],
                         ['name' => 'vendedores.eliminar', 'label' => 'Eliminar / Desactivar'],
+                        ['name' => 'vendedores.liquidar', 'label' => 'Liquidar y pagar comisiones de vendedores'],
                     ],
                 ],
                 [
@@ -302,6 +304,7 @@ class UsuarioClass
             'cajas.' => 'cajas.ver',
             'cxc.' => 'cxc.ver',
             'cxp.' => 'cxp.ver',
+            'pos.' => 'pos.acceso',
             'ventas.' => 'ventas.ver',
             'inventario.' => 'inventario.kardex',
             'configuracion.' => 'configuracion.ver',
@@ -366,6 +369,10 @@ class UsuarioClass
             } elseif ($rol === 'Admin') {
                 $existenteInactivo->empresas()->sync($empresas);
                 $existenteInactivo->syncPermissions([]);
+            } elseif ($rol === 'Vendedor') {
+                $existenteInactivo->empresas()->sync($empresas);
+                $permisosVendedor = ! empty($permisos) ? $permisos : ['pos.acceso', 'pos.preventa', 'reportes.vendedores'];
+                $existenteInactivo->syncPermissions($permisosVendedor);
             } else { // Operador
                 $existenteInactivo->empresas()->sync($empresas);
                 $existenteInactivo->syncPermissions($permisos);
@@ -386,6 +393,12 @@ class UsuarioClass
         } elseif ($rol === 'Admin') {
             $usuario->empresas()->sync($empresas);
             $usuario->syncPermissions([]);
+        } elseif ($rol === 'Vendedor') {
+            if (! empty($empresas)) {
+                $usuario->empresas()->sync($empresas);
+            }
+            $permisosVendedor = ! empty($permisos) ? $permisos : ['pos.acceso', 'pos.preventa', 'reportes.vendedores'];
+            $usuario->syncPermissions($permisosVendedor);
         } else { // Operador
             if (! empty($empresas)) {
                 $usuario->empresas()->sync($empresas);
@@ -448,6 +461,10 @@ class UsuarioClass
         } elseif ($rol === 'Admin') {
             $usuario->empresas()->sync($empresas);
             $usuario->syncPermissions([]);
+        } elseif ($rol === 'Vendedor') {
+            $usuario->empresas()->sync($empresas);
+            $permisosVendedor = ! empty($permisos) ? $permisos : ['pos.acceso', 'pos.preventa', 'reportes.vendedores'];
+            $usuario->syncPermissions($permisosVendedor);
         } else { // Operador
             $usuario->empresas()->sync($empresas);
             $usuario->syncPermissions($permisos);

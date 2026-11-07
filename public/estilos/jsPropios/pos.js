@@ -1793,8 +1793,10 @@ const abrirModalCobro = function () {
         return;
     }
 
-    if (posVendedorFijoEspera) {
+    if (posVendedorFijoEspera && !posCatalogos.es_admin) {
         $("#cobroSelectVendedor").val(posVendedorFijoEspera).prop("disabled", true);
+    } else if (posVendedorFijoEspera && posCatalogos.es_admin) {
+        $("#cobroSelectVendedor").val(posVendedorFijoEspera).prop("disabled", false);
     } else {
         $("#cobroSelectVendedor").prop("disabled", false);
     }
@@ -2068,7 +2070,7 @@ const procesarVentaFinal = async function () {
         cliente_id: posClienteActual.id,
         almacen_id: posAlmacenActualId,
         caja_turno_id: posCatalogos.turno_activo ? posCatalogos.turno_activo.id : null,
-        vendedor_id: posVendedorFijoEspera || $("#cobroSelectVendedor").val() || null,
+        vendedor_id: (!posCatalogos.es_admin && posVendedorFijoEspera) ? posVendedorFijoEspera : ($("#cobroSelectVendedor").val() || null),
         venta_en_espera_id: posVentaEnEsperaIdActual || null,
         tipo_venta: posTipoVentaActual,
         tasa_cambio: posTasaDia,

@@ -267,20 +267,23 @@ class VentaClass
                 ];
             });
 
-        // 6. Vendedores activos
-        $vendedores = Vendedor::where('empresa_id', $empresaId)
-            ->where('estado', true)
-            ->orderBy('nombre')
-            ->get(['id', 'nombre', 'tipo_documento', 'documento', 'comision_porcentaje', 'user_id']);
-
-        // 7. Roles y Control de Acceso de Usuario
+        // 6. Roles, Control de Acceso de Usuario y Vendedores activos
         $user = Auth::user();
         $empresa = Empresa::findOrFail($empresaId);
         $manejaVendedores = (bool) ($empresa->maneja_vendedores ?? false);
 
-        $esAdmin = $user ? ($user->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) || $user->can('cajas.administrar_todas')) : false;
-        $vendedorAsociado = $user ? $user->vendedor()->where('empresa_id', $empresaId)->where('estado', true)->first() : null;
-        $esVendedor = (! $esAdmin) && ($user ? ($user->hasRole('Vendedor') || $user->can('pos.preventa') || ($vendedorAsociado !== null && ! $user->can('ventas.crear'))) : false);
+        $vendedores = $manejaVendedores
+            ? Vendedor::where('empresa_id', $empresaId)
+                ->where('estado', true)
+                ->orderBy('nombre')
+                ->get(['id', 'nombre', 'tipo_documento', 'documento', 'comision_porcentaje', 'user_id'])
+            : collect([]);
+
+        $esAdmin = $this->esAdmin($user);
+        $vendedorAsociado = ($manejaVendedores && $user)
+            ? $user->vendedor()->where('empresa_id', $empresaId)->where('estado', true)->first()
+            : null;
+        $esVendedor = $this->esVendedor($user);
         $esCajero = (! $esAdmin) && (! $esVendedor);
 
         // Turnos Activos de la Empresa y Cajas Disponibles
@@ -334,11 +337,31 @@ class VentaClass
     }
 
     /**
+     * Determinar si el usuario tiene rol administrativo (SuperAdmin o Admin)
+     */
+    protected function esAdmin(?User $user): bool
+    {
+        return $user ? $user->hasAnyRole(['SuperAdmin', 'Admin']) : false;
+    }
+
+    /**
+     * Determinar con criterio único si el usuario opera exclusivamente como Vendedor (preventas sin facturación)
+     */
+    protected function esVendedor(?User $user): bool
+    {
+        if (! $user || $this->esAdmin($user)) {
+            return false;
+        }
+
+        return ($user->can('pos.preventa') || $user->hasRole('Vendedor')) && ! $user->can('ventas.crear');
+    }
+
+    /**
      * Resolver y validar un turno de caja abierto para facturar, devolver o anular
      */
     protected function resolverTurnoOperacion(int $empresaId, User $user, ?int $cajaTurnoIdInput = null): CajaTurno
     {
-        $esAdmin = $user->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) || $user->can('cajas.administrar_todas');
+        $esAdmin = $this->esAdmin($user);
 
         if ($esAdmin) {
             $turnosAbiertos = CajaTurno::where('empresa_id', $empresaId)
@@ -526,8 +549,11 @@ class VentaClass
             if (! $userCobro) {
                 throw new Exception('No se pudo determinar el usuario que procesa la venta.');
             }
-            $esAdmin = $userCobro->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) || $userCobro->can('cajas.administrar_todas');
-            $puedeDescontar = $userCobro->hasAnyRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) || $userCobro->can('ventas.descuentos');
+            $esAdmin = $this->esAdmin($userCobro);
+            if ($this->esVendedor($userCobro)) {
+                throw new AuthorizationException('Un usuario con perfil Vendedor solo puede gestionar preventas y no está autorizado para facturar.');
+            }
+            $puedeDescontar = $esAdmin || $userCobro->can('ventas.descuentos');
 
             $items = $datos['items'] ?? [];
             if (empty($items) || ! is_array($items)) {
@@ -840,19 +866,35 @@ class VentaClass
             }
 
             // Vendedor y Comisión
-            $vendedorId = ! empty($datos['vendedor_id']) ? (int) $datos['vendedor_id'] : null;
-            $vendedor = $vendedorId ? Vendedor::where('empresa_id', $empresaId)->find($vendedorId) : null;
-            $comisionPorcentaje = $vendedor ? (float) $vendedor->comision_porcentaje : 0;
-            $comisionMontoUsd = round($subtotalNetoUsd * ($comisionPorcentaje / 100), 2);
-            $comisionMontoBs = round($comisionMontoUsd * $tasaCambio, 2);
+            $empresa = Empresa::findOrFail($empresaId);
+            $manejaVendedores = (bool) ($empresa->maneja_vendedores ?? false);
+            $vendedor = null;
+            $comisionPorcentaje = 0.0;
+            $comisionMontoUsd = 0.0;
+            $comisionMontoBs = 0.0;
 
-            // Turno de Caja
-            $userCobro = User::find($userId);
-            if (! $userCobro) {
-                throw new Exception('No se pudo determinar el usuario que procesa la venta.');
+            if ($manejaVendedores) {
+                $vendedorId = ! empty($datos['vendedor_id']) ? (int) $datos['vendedor_id'] : null;
+
+                if (! empty($datos['venta_en_espera_id'])) {
+                    $esperaRecuperada = VentaEnEspera::where('id', (int) $datos['venta_en_espera_id'])
+                        ->where('empresa_id', $empresaId)
+                        ->first();
+
+                    if ($esperaRecuperada && ! empty($esperaRecuperada->datos_json['vendedor_id']) && ! $esAdmin) {
+                        $vendedorId = (int) $esperaRecuperada->datos_json['vendedor_id'];
+                    }
+                }
+
+                $vendedor = $vendedorId ? Vendedor::where('empresa_id', $empresaId)->find($vendedorId) : null;
+                $comisionPorcentaje = $vendedor ? (float) $vendedor->comision_porcentaje : 0.0;
+                $comisionMontoUsd = round($subtotalNetoUsd * ($comisionPorcentaje / 100), 2);
+                $comisionMontoBs = round($comisionMontoUsd * $tasaCambio, 2);
             }
 
-            $esAdmin = $userCobro->hasRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']) || $userCobro->can('cajas.administrar_todas');
+            $comisionEstado = ($vendedor && $comisionMontoUsd > 0) ? 'pendiente' : 'sin_comision';
+
+            // Turno de Caja
             $cajaTurno = null;
 
             if ($esAdmin) {
@@ -902,6 +944,7 @@ class VentaClass
                 'comision_porcentaje' => $comisionPorcentaje,
                 'comision_monto_usd' => $comisionMontoUsd,
                 'comision_monto_bs' => $comisionMontoBs,
+                'comision_estado' => $comisionEstado,
                 'user_id' => $userId,
                 'codigo' => $codigo,
                 'numero_control' => $datos['numero_control'] ?? $this->generarNumeroControl($empresaId, true),
@@ -1087,15 +1130,22 @@ class VentaClass
         $empresaId = $this->empresaId($empresaId);
         $userId = $this->userId($userId);
         $user = User::find($userId);
-        $vendedorAsociado = $user ? $user->vendedor()->where('empresa_id', $empresaId)->where('estado', true)->first() : null;
+        if (! $user || (! $this->esAdmin($user) && ! $user->canAny(['pos.preventa', 'ventas.crear']))) {
+            throw new AuthorizationException('No tienes permiso para registrar preventas en espera.');
+        }
 
-        if ($vendedorAsociado && empty($datos['vendedor_id'])) {
+        $vendedorAsociado = $user->vendedor()->where('empresa_id', $empresaId)->where('estado', true)->first();
+
+        if ($vendedorAsociado) {
             $datos['vendedor_id'] = $vendedorAsociado->id;
             $datos['vendedor_nombre'] = $vendedorAsociado->nombre;
             $datos['comision_porcentaje'] = (float) $vendedorAsociado->comision_porcentaje;
+        } elseif ($this->esVendedor($user)) {
+            unset($datos['vendedor_id'], $datos['vendedor_nombre'], $datos['comision_porcentaje']);
         } elseif (! empty($datos['vendedor_id'])) {
-            $vendedor = Vendedor::where('empresa_id', $empresaId)->find($datos['vendedor_id']);
+            $vendedor = Vendedor::where('empresa_id', $empresaId)->where('estado', true)->find($datos['vendedor_id']);
             if ($vendedor) {
+                $datos['vendedor_id'] = $vendedor->id;
                 $datos['vendedor_nombre'] = $vendedor->nombre;
                 $datos['comision_porcentaje'] = (float) $vendedor->comision_porcentaje;
             }
@@ -1122,13 +1172,19 @@ class VentaClass
     /**
      * Listar ventas en espera activas
      */
-    public function listarEnEspera(?int $empresaId = null): array
+    public function listarEnEspera(?int $empresaId = null, ?int $userId = null): array
     {
         $empresaId = $this->empresaId($empresaId);
+        $user = $userId ? User::find($userId) : Auth::user();
 
-        return VentaEnEspera::with(['cliente', 'usuario'])
-            ->where('empresa_id', $empresaId)
-            ->orderBy('id', 'desc')
+        $query = VentaEnEspera::with(['cliente', 'usuario'])
+            ->where('empresa_id', $empresaId);
+
+        if ($user && ! $this->esAdmin($user) && ! $user->can('ventas.crear')) {
+            $query->where('user_id', $user->id);
+        }
+
+        return $query->orderBy('id', 'desc')
             ->get()
             ->toArray();
     }
@@ -1136,12 +1192,17 @@ class VentaClass
     /**
      * Recuperar venta en espera sin eliminarla prematuramente
      */
-    public function recuperarEnEspera(int $id, ?int $empresaId = null): array
+    public function recuperarEnEspera(int $id, ?int $empresaId = null, ?int $userId = null): array
     {
         $empresaId = $this->empresaId($empresaId);
         $espera = VentaEnEspera::where('id', $id)
             ->where('empresa_id', $empresaId)
             ->firstOrFail();
+
+        $user = $userId ? User::find($userId) : Auth::user();
+        if ($user && ! $this->esAdmin($user) && ! $user->can('ventas.crear') && (int) $espera->user_id !== (int) $user->id) {
+            throw new AuthorizationException('No tienes autorización para recuperar preventas de otro vendedor.');
+        }
 
         $datos = $espera->datos_json;
         $datos['venta_en_espera_id'] = $espera->id;
@@ -1152,12 +1213,17 @@ class VentaClass
     /**
      * Eliminar venta en espera
      */
-    public function eliminarEnEspera(int $id, ?int $empresaId = null): bool
+    public function eliminarEnEspera(int $id, ?int $empresaId = null, ?int $userId = null): bool
     {
         $empresaId = $this->empresaId($empresaId);
         $espera = VentaEnEspera::where('id', $id)
             ->where('empresa_id', $empresaId)
             ->firstOrFail();
+
+        $user = $userId ? User::find($userId) : Auth::user();
+        if ($user && ! $this->esAdmin($user) && ! $user->can('ventas.crear') && (int) $espera->user_id !== (int) $user->id) {
+            throw new AuthorizationException('No tienes autorización para eliminar preventas de otro vendedor.');
+        }
 
         return (bool) $espera->delete();
     }
@@ -1204,7 +1270,7 @@ class VentaClass
                 throw new Exception('No se pudo determinar el usuario que procesa la devolución.');
             }
 
-            $esAdmin = $user->hasAnyRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']);
+            $esAdmin = $this->esAdmin($user);
             if (! $esAdmin && ! $user->can('ventas.anular')) {
                 throw new AuthorizationException('No tienes permiso para procesar devoluciones de venta (se requiere ventas.anular).');
             }
@@ -1473,6 +1539,9 @@ class VentaClass
                     $venta->comision_monto_usd = 0;
                     $venta->comision_monto_bs = 0;
                 }
+                if ($venta->comision_estado !== 'pagada') {
+                    $venta->comision_estado = 'sin_comision';
+                }
             } else {
                 $venta->estado = 'devuelta_parcial';
                 if ($venta->vendedor_id && (float) $venta->comision_porcentaje > 0) {
@@ -1480,6 +1549,9 @@ class VentaClass
                     $nuevaComisionUsd = round($nuevoSubtotalNetoRestanteUsd * ((float) $venta->comision_porcentaje / 100), 2);
                     $venta->comision_monto_usd = $nuevaComisionUsd;
                     $venta->comision_monto_bs = round($nuevaComisionUsd * $tasaVenta, 2);
+                    if ($nuevaComisionUsd <= 0 && $venta->comision_estado !== 'pagada') {
+                        $venta->comision_estado = 'sin_comision';
+                    }
                 }
             }
 
@@ -1503,7 +1575,7 @@ class VentaClass
                 throw new Exception('No se pudo determinar el usuario que anula la factura.');
             }
 
-            $esAdmin = $user->hasAnyRole(['SuperAdmin', 'Admin', 'superadmin', 'admin', 'administrador']);
+            $esAdmin = $this->esAdmin($user);
             if (! $esAdmin && ! $user->can('ventas.anular')) {
                 throw new AuthorizationException('No tienes permiso para anular facturas (se requiere ventas.anular).');
             }
@@ -1748,6 +1820,9 @@ class VentaClass
             $venta->saldo_pendiente_bs = 0;
             $venta->comision_monto_usd = 0;
             $venta->comision_monto_bs = 0;
+            if ($venta->comision_estado !== 'pagada') {
+                $venta->comision_estado = 'sin_comision';
+            }
             $venta->save();
 
             return $venta->load(['cliente', 'almacen', 'detalles.producto', 'detalles.moto', 'detalles.servicio', 'pagos.metodoPago', 'cuentaPorCobrar']);

@@ -246,6 +246,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/vendedores/lista', 'lista')->middleware('permission:vendedores.ver');
         Route::get('/vendedores/catalogos', 'catalogos')->middleware('permission:vendedores.ver');
         Route::get('/vendedores/activos', 'activos')->middleware('permission:vendedores.ver');
+        Route::get('/vendedores/{id}/comisiones-pendientes', 'comisionesPendientes')->middleware('permission:vendedores.ver');
+        Route::post('/vendedores/{id}/liquidar', 'liquidarComisiones')->middleware('permission:vendedores.liquidar');
         Route::get('/vendedores/{id}', 'detalle')->middleware('permission:vendedores.ver');
         Route::post('/vendedores', 'guardar')->middleware('permission:vendedores.crear');
         Route::put('/vendedores/actualizar/{id}', 'actualizar')->middleware('permission:vendedores.editar');

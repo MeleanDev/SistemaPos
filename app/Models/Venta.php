@@ -53,6 +53,8 @@ class Venta extends Model
         'comision_porcentaje',
         'comision_monto_usd',
         'comision_monto_bs',
+        'comision_estado',
+        'liquidacion_comision_id',
         'estado',
         'anulada_por_id',
         'anulada_at',
@@ -127,6 +129,11 @@ class Venta extends Model
     public function vendedor(): BelongsTo
     {
         return $this->belongsTo(Vendedor::class, 'vendedor_id');
+    }
+
+    public function liquidacionComision(): BelongsTo
+    {
+        return $this->belongsTo(LiquidacionComision::class, 'liquidacion_comision_id');
     }
 
     public function detalles(): HasMany

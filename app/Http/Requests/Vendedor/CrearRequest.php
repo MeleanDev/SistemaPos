@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Vendedor;
 
 use App\Http\Requests\BaseRequest;
+use App\Models\Empresa;
 use App\Models\User;
 use App\Models\Vendedor;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -10,6 +11,13 @@ use Illuminate\Validation\Rule;
 
 class CrearRequest extends BaseRequest
 {
+    public function authorize(): bool
+    {
+        $empresa = Empresa::find($this->empresaId());
+
+        return (bool) ($empresa?->maneja_vendedores ?? false);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -24,6 +32,7 @@ class CrearRequest extends BaseRequest
             'user_id' => [
                 'nullable',
                 'integer',
+                Rule::unique('vendedores', 'user_id')->where(fn ($query) => $query->where('empresa_id', $empresaId)),
                 function ($attribute, $value, $fail) use ($empresaId) {
                     if ($value) {
                         $user = User::find($value);
@@ -32,16 +41,20 @@ class CrearRequest extends BaseRequest
 
                             return;
                         }
-                        if (! $user->hasRole('SuperAdmin')) {
-                            $pertenece = $user->empresas()
-                                ->where('empresas.id', $empresaId)
-                                ->wherePivot('estado', true)
-                                ->exists();
-                            if (! $pertenece) {
-                                $fail('El usuario seleccionado no pertenece a la empresa actual.');
+                        if ($user->hasRole('SuperAdmin')) {
+                            $fail('Un usuario con rol SuperAdmin no puede ser vinculado como vendedor.');
 
-                                return;
-                            }
+                            return;
+                        }
+
+                        $pertenece = $user->empresas()
+                            ->where('empresas.id', $empresaId)
+                            ->wherePivot('estado', true)
+                            ->exists();
+                        if (! $pertenece) {
+                            $fail('El usuario seleccionado no pertenece a la empresa actual.');
+
+                            return;
                         }
 
                         $vendedorExistente = Vendedor::where('empresa_id', $empresaId)

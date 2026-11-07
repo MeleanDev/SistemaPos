@@ -248,18 +248,20 @@ class PanelPrincipalClass
 
         // 6. Estado de Caja y Turnos
         if ($permisos['cajas_ver']) {
+            $puedeVerTodosLosTurnos = $user->hasAnyRole(['SuperAdmin', 'Admin']) || $user->can('cajas.aperturar');
+
             // Priorizar turno activo asignado a este usuario si es cajero/operador, o cualquier turno abierto de la empresa
             $turnoActivo = CajaTurno::with(['caja', 'usuario'])
                 ->where('empresa_id', $empresaId)
                 ->where('estado', 'abierta')
-                ->when(! $user->hasRole(['SuperAdmin', 'Admin']), function ($q) use ($user) {
+                ->when(! $puedeVerTodosLosTurnos, function ($q) use ($user) {
                     $q->where('user_id', $user->id);
                 })
                 ->latest('id')
                 ->first();
 
-            // Si es admin y no tiene turno propio, buscar el último turno abierto general
-            if (! $turnoActivo && $user->hasRole(['SuperAdmin', 'Admin'])) {
+            // Si tiene permiso de apertura o es admin y no tiene turno propio, buscar el último turno abierto general
+            if (! $turnoActivo && $puedeVerTodosLosTurnos) {
                 $turnoActivo = CajaTurno::with(['caja', 'usuario'])
                     ->where('empresa_id', $empresaId)
                     ->where('estado', 'abierta')

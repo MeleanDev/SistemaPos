@@ -59,11 +59,13 @@ const actualizarContadoresRoles = function (usuarios) {
     const superAdmins = (usuarios || []).filter(u => u.rol === "SuperAdmin").length;
     const admins = (usuarios || []).filter(u => u.rol === "Admin").length;
     const operadores = (usuarios || []).filter(u => u.rol === "Operador").length;
+    const vendedores = (usuarios || []).filter(u => u.rol === "Vendedor").length;
 
     $("#countRolTodos").text(todos);
     $("#countRolSuperAdmin").text(superAdmins);
     $("#countRolAdmin").text(admins);
     $("#countRolOperador").text(operadores);
+    $("#countRolVendedor").text(vendedores);
 };
 
 const obtenerUsuariosFiltrados = function () {
@@ -194,6 +196,17 @@ const renderizarUsuarios = function () {
                     <i class="fas fa-user-shield me-1"></i> Administrador
                 </span>
             `;
+        } else if (usuario.rol === "Vendedor") {
+            badgeRol = `
+                <span class="badge px-3 py-1.5 rounded-pill fw-bold border" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); color: #15803d; border-color: #86efac !important; font-size: 0.76rem; box-shadow: 0 2px 6px rgba(34, 197, 94, 0.12);">
+                    <i class="fas fa-user-tie text-success me-1"></i> Vendedor
+                </span>
+            `;
+            badgeRolTabla = `
+                <span class="badge bg-white text-success border border-success-subtle shadow-xs rounded-pill px-2.5 py-1 fw-bold font-monospace">
+                    <i class="fas fa-user-tie me-1"></i> Vendedor
+                </span>
+            `;
         } else {
             badgeRol = `
                 <span class="badge px-3 py-1.5 rounded-pill fw-bold border" style="background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%); color: #0e7490; border-color: #67e8f9 !important; font-size: 0.76rem; box-shadow: 0 2px 6px rgba(6, 182, 212, 0.12);">
@@ -247,7 +260,7 @@ const renderizarUsuarios = function () {
         let botonPermisos = "";
         let permisosColumnaTabla = "";
 
-        if (usuario.rol === "Operador") {
+        if (usuario.rol === "Operador" || usuario.rol === "Vendedor") {
             const cantPermisos = (usuario.permisos || []).length;
             permisosInfoHtml = `
                 <div class="mt-3 pt-2.5 border-top d-flex align-items-center justify-content-between">
@@ -263,7 +276,7 @@ const renderizarUsuarios = function () {
             `;
 
             botonPermisos = `
-                <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2.5 py-1 fw-bold shadow-none text-nowrap d-inline-flex align-items-center" onclick="abrirModalPermisos(${usuario.id})" title="Gestionar Permisos del Operador" style="font-size: 0.76rem;">
+                <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2.5 py-1 fw-bold shadow-none text-nowrap d-inline-flex align-items-center" onclick="abrirModalPermisos(${usuario.id})" title="Gestionar Permisos" style="font-size: 0.76rem;">
                     <i class="fas fa-user-lock me-1"></i> Permisos
                 </button>
             `;
@@ -430,6 +443,8 @@ const inicializarDataTableUsuarios = function () {
                         return `<span class="fw-semibold text-purple font-monospace" style="color: #7e22ce !important; font-size: 0.82rem;"><i class="fas fa-crown text-warning me-1"></i>SuperAdmin</span>`;
                     } else if (data === "Admin") {
                         return `<span class="fw-semibold text-primary font-monospace" style="font-size: 0.82rem;"><i class="fas fa-user-shield me-1"></i>Administrador</span>`;
+                    } else if (data === "Vendedor") {
+                        return `<span class="fw-semibold text-success font-monospace" style="font-size: 0.82rem;"><i class="fas fa-user-tie me-1"></i>Vendedor</span>`;
                     }
                     return `<span class="fw-semibold text-info font-monospace" style="font-size: 0.82rem;"><i class="fas fa-headset me-1"></i>Operador</span>`;
                 },
@@ -484,7 +499,7 @@ const inicializarDataTableUsuarios = function () {
                     const nombreEscapado = nombreCompleto.replace(/'/g, "\\'");
                     return `
                         <div class="d-flex justify-content-center gap-1">
-                            ${row.rol === "Operador" ? `
+                            ${(row.rol === "Operador" || row.rol === "Vendedor") ? `
                                 <button type="button" class="btn btn-outline-info btn-sm rounded-circle shadow-sm" onclick="abrirModalPermisos(${row.id});" title="Gestionar Permisos" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                                     <i class="fas fa-key"></i>
                                 </button>

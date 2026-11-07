@@ -46,6 +46,10 @@ class Secuencia extends Model
                 ->where('empresa_id', $empresaId)
                 ->selectRaw("MAX(CAST(REGEXP_SUBSTR(codigo, '[0-9]+') AS UNSIGNED)) as max_val")
                 ->value('max_val') ?? 0),
+            'liquidacion_comision' => (int) (DB::table('liquidaciones_comision')
+                ->where('empresa_id', $empresaId)
+                ->selectRaw("MAX(CAST(REGEXP_SUBSTR(codigo, '[0-9]+') AS UNSIGNED)) as max_val")
+                ->value('max_val') ?? 0),
             default => 0,
         };
     }

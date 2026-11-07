@@ -48,6 +48,11 @@ class Vendedor extends Model
         return $this->hasMany(Venta::class, 'vendedor_id');
     }
 
+    public function liquidaciones(): HasMany
+    {
+        return $this->hasMany(LiquidacionComision::class, 'vendedor_id');
+    }
+
     public function getDocumentoCompletoAttribute(): string
     {
         return "{$this->tipo_documento}-{$this->documento}";

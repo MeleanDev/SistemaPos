@@ -64,8 +64,8 @@ class ActualizarRequest extends FormRequest
                 'string',
                 'exists:roles,name',
                 $this->user()?->hasRole('SuperAdmin')
-                    ? Rule::in(['SuperAdmin', 'Admin', 'Operador'])
-                    : Rule::in(['Admin', 'Operador']),
+                    ? Rule::in(['SuperAdmin', 'Admin', 'Operador', 'Vendedor'])
+                    : Rule::in(['Admin', 'Operador', 'Vendedor']),
             ],
             'empresas' => [
                 'nullable',

@@ -12,7 +12,12 @@ class GuardarEnEsperaRequest extends BaseRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+        if (! $user) {
+            return false;
+        }
+
+        return $user->hasRole('SuperAdmin') || $user->canAny(['pos.preventa', 'ventas.crear']);
     }
 
     /**
@@ -24,6 +29,7 @@ class GuardarEnEsperaRequest extends BaseRequest
     {
         return [
             'cliente_id' => ['nullable', 'integer'],
+            'vendedor_id' => ['nullable', 'integer'],
             'cliente' => ['nullable', 'array'],
             'cliente.*' => ['nullable'],
             'tipo_venta' => ['nullable', 'string'],
