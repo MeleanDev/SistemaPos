@@ -99,6 +99,29 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Switch: Fórmula Alternativa Recepción USD (TC < TV) -->
+                <div class="col-12">
+                    <div class="p-3 rounded-4 border bg-white shadow-xs d-flex align-items-center justify-content-between h-100">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center bg-warning-subtle text-warning border border-warning-subtle" style="width: 42px; height: 42px; min-width: 42px; font-size: 1.15rem;">
+                                <i class="fas fa-calculator"></i>
+                            </div>
+                            <div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.9rem;">Fórmula Alternativa USD (TC &lt; TV)</h6>
+                                    <span class="badge rounded-pill font-monospace px-2 py-0.5" style="font-size: 0.68rem; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a;">
+                                        <i class="fas fa-shield-halved me-1"></i>SuperAdmin
+                                    </span>
+                                </div>
+                                <p class="mb-0 text-muted small" style="font-size: 0.76rem;">Aplica (Costo × TC) / TV como costo en recepciones USD cuando TC &lt; TV.</p>
+                            </div>
+                        </div>
+                        <div class="form-check form-switch fs-4 mb-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="usar_formula_costo_tc_menor" name="usar_formula_costo_tc_menor" value="1">
+                        </div>
+                    </div>
+                </div>
             </div>
         </form>
     </x-modal>

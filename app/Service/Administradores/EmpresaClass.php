@@ -25,6 +25,7 @@ class EmpresaClass
             'logo',
             'maneja_motos',
             'maneja_vendedores',
+            'usar_formula_costo_tc_menor',
             'estado',
             'created_at'
         )->where('estado', true);
@@ -49,6 +50,7 @@ class EmpresaClass
 
         $datos['maneja_motos'] = ! empty($datos['maneja_motos']);
         $datos['maneja_vendedores'] = ! empty($datos['maneja_vendedores']);
+        $datos['usar_formula_costo_tc_menor'] = ! empty($datos['usar_formula_costo_tc_menor']);
 
         $existenteInactivo = Empresa::where('rif', $datos['rif'])
             ->orWhere('nombre', $datos['nombre'])
@@ -85,6 +87,7 @@ class EmpresaClass
 
         $datos['maneja_motos'] = ! empty($datos['maneja_motos']);
         $datos['maneja_vendedores'] = ! empty($datos['maneja_vendedores']);
+        $datos['usar_formula_costo_tc_menor'] = ! empty($datos['usar_formula_costo_tc_menor']);
 
         $empresa->update($datos);
 

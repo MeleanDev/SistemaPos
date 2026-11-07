@@ -53,6 +53,13 @@ $(document).ready(function () {
             url: urlGuardarEmpresa,
             btnSubmit: "#btnGuardarEmpresa",
             textoGuardarOriginal: $("#btnGuardarEmpresa").html(),
+            antesDeEnviar: function (formData) {
+                if ($("#usar_formula_costo_tc_menor").length && !$("#usar_formula_costo_tc_menor").prop("disabled")) {
+                    formData.set("usar_formula_costo_tc_menor", $("#usar_formula_costo_tc_menor").is(":checked") ? 1 : 0);
+                }
+                formData.set("maneja_motos", $("#maneja_motos").is(":checked") ? 1 : 0);
+                formData.set("maneja_vendedores", $("#maneja_vendedores").is(":checked") ? 1 : 0);
+            },
             onSuccess: function (res) {
                 if (res && res.data) {
                     if (res.data.logo) {
@@ -249,6 +256,7 @@ const cargarConfiguracion = async function () {
                 $("#direccion").val(emp.direccion || "");
                 $("#maneja_motos").prop("checked", Boolean(emp.maneja_motos));
                 $("#maneja_vendedores").prop("checked", Boolean(emp.maneja_vendedores));
+                $("#usar_formula_costo_tc_menor").prop("checked", Boolean(emp.usar_formula_costo_tc_menor));
 
                 if (emp.logo) {
                     logoOriginalUrl = `/storage/${emp.logo}?v=${Date.now()}`;

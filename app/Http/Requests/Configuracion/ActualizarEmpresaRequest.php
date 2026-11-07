@@ -60,6 +60,7 @@ class ActualizarEmpresaRequest extends BaseRequest
             ],
             'maneja_motos' => ['nullable', 'boolean'],
             'maneja_vendedores' => ['nullable', 'boolean'],
+            'usar_formula_costo_tc_menor' => ['nullable', 'boolean'],
         ];
     }
 

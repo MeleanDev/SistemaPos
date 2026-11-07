@@ -168,6 +168,28 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="col-12">
+                                <div class="d-flex align-items-center justify-content-between py-2.5 px-1 border-bottom border-light-subtle">
+                                    <div class="d-flex align-items-center gap-2.5 pe-2">
+                                        <div class="rounded-circle bg-warning-subtle text-warning p-2 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 36px; height: 36px;">
+                                            <i class="fas fa-calculator"></i>
+                                        </div>
+                                        <div>
+                                            <div class="d-flex align-items-center flex-wrap gap-2">
+                                                <label class="form-check-label fw-bold text-dark mb-0 cursor-pointer" for="usar_formula_costo_tc_menor" style="font-size: 0.88rem;">Fórmula Alternativa en Recepción USD (TC &lt; TV)</label>
+                                                <span class="badge rounded-pill font-monospace px-2 py-0.5" style="font-size: 0.68rem; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a;">
+                                                    <i class="fas fa-shield-halved me-1"></i>SuperAdmin
+                                                </span>
+                                            </div>
+                                            <small class="text-muted d-block" style="font-size: 0.74rem;">Aplica (Costo × TC) / TV como costo base cuando la factura es en USD y la tasa de compra es menor a la de venta</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input fs-5 cursor-pointer" type="checkbox" role="switch" id="usar_formula_costo_tc_menor" name="usar_formula_costo_tc_menor" value="1" @unless(auth()->user()?->hasRole('SuperAdmin')) disabled title="Solo administradores con rol SuperAdmin pueden modificar esta opción" @endunless>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

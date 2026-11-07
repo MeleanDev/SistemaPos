@@ -23,6 +23,7 @@ window.CalculosCompra = {
         const tVenta = this.normalizarNumero(opciones.tasaVenta) > 0 ? this.normalizarNumero(opciones.tasaVenta) : 1.0;
         const esVes = opciones.moneda === "VES";
         const tasaMenor = tCompra < tVenta;
+        const usarFormulaTcMenor = Boolean(opciones.usarFormulaTcMenor);
 
         let costoBaseUsd = 0;
         let costoBaseBs = 0;
@@ -31,10 +32,17 @@ window.CalculosCompra = {
 
         if (costoInput > 0) {
             if (!esVes) {
-                costoBaseUsd = costoInput;
-                costoBaseBs = tasaMenor ? (costoBaseUsd * tVenta) : (costoBaseUsd * tCompra);
-                fleteUsd = fleteInput;
-                fleteBs = tasaMenor ? (fleteUsd * tVenta) : (fleteUsd * tCompra);
+                if (tasaMenor && usarFormulaTcMenor) {
+                    costoBaseUsd = tVenta > 0 ? (costoInput * tCompra) / tVenta : costoInput;
+                    costoBaseBs = costoBaseUsd * tVenta;
+                    fleteUsd = tVenta > 0 ? (fleteInput * tCompra) / tVenta : fleteInput;
+                    fleteBs = fleteUsd * tVenta;
+                } else {
+                    costoBaseUsd = costoInput;
+                    costoBaseBs = tasaMenor ? (costoBaseUsd * tVenta) : (costoBaseUsd * tCompra);
+                    fleteUsd = fleteInput;
+                    fleteBs = tasaMenor ? (fleteUsd * tVenta) : (fleteUsd * tCompra);
+                }
             } else {
                 costoBaseBs = costoInput;
                 costoBaseUsd = tasaMenor ? (tCompra > 0 ? costoBaseBs / tCompra : 0) : (tVenta > 0 ? costoBaseBs / tVenta : 0);
@@ -118,6 +126,7 @@ window.CalculosCompra = {
         const tVenta = this.normalizarNumero(opciones.tasaVenta) > 0 ? this.normalizarNumero(opciones.tasaVenta) : 1.0;
         const esVes = opciones.moneda === "VES";
         const tasaMenor = tCompra < tVenta;
+        const usarFormulaTcMenor = Boolean(opciones.usarFormulaTcMenor);
         const ivaPorcentaje = this.normalizarNumero(opciones.ivaPorcentaje);
         const aplicaIva = opciones.aplicaIva !== undefined ? Boolean(opciones.aplicaIva) : (ivaPorcentaje > 0);
 
@@ -125,8 +134,13 @@ window.CalculosCompra = {
         let fleteUsd = 0;
         if (costoInput > 0) {
             if (!esVes) {
-                costoBaseUsd = costoInput;
-                fleteUsd = fleteInput;
+                if (tasaMenor && usarFormulaTcMenor) {
+                    costoBaseUsd = tVenta > 0 ? (costoInput * tCompra) / tVenta : costoInput;
+                    fleteUsd = tVenta > 0 ? (fleteInput * tCompra) / tVenta : fleteInput;
+                } else {
+                    costoBaseUsd = costoInput;
+                    fleteUsd = fleteInput;
+                }
             } else {
                 costoBaseUsd = tasaMenor ? (tCompra > 0 ? costoInput / tCompra : 0) : (tVenta > 0 ? costoInput / tVenta : 0);
                 fleteUsd = tasaMenor ? (tCompra > 0 ? fleteInput / tCompra : 0) : (tVenta > 0 ? fleteInput / tVenta : 0);
@@ -191,7 +205,7 @@ window.CalculosCompra = {
         };
     },
 
-    calcularEquivalenteMoneda: function (monto, moneda, tasaCompra, tasaVenta) {
+    calcularEquivalenteMoneda: function (monto, moneda, tasaCompra, tasaVenta, usarFormulaTcMenor = false) {
         const num = this.normalizarNumero(monto);
         const tCompra = this.normalizarNumero(tasaCompra) > 0 ? this.normalizarNumero(tasaCompra) : 1.0;
         const tVenta = this.normalizarNumero(tasaVenta) > 0 ? this.normalizarNumero(tasaVenta) : 1.0;
@@ -204,6 +218,14 @@ window.CalculosCompra = {
                 bs: num,
             };
         } else {
+            if (tasaMenor && Boolean(usarFormulaTcMenor)) {
+                const usd = tVenta > 0 ? (num * tCompra) / tVenta : num;
+                const bs = usd * tVenta;
+                return {
+                    usd: usd,
+                    bs: bs,
+                };
+            }
             const bs = tasaMenor ? (num * tVenta) : (num * tCompra);
             return {
                 usd: num,

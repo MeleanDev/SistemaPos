@@ -5,6 +5,7 @@ namespace App\Service\Inventario;
 use App\Models\Almacen;
 use App\Models\Categoria;
 use App\Models\CuentaPorPagar;
+use App\Models\Empresa;
 use App\Models\EmpresaMoneda;
 use App\Models\Producto;
 use App\Models\ProductoProveedor;
@@ -122,6 +123,7 @@ class RecepcionClass
             'tasa_usd' => $tasaUsd,
             'tasa_compra' => $tasaUsd,
             'tasa_venta' => $tasaUsd,
+            'usar_formula_costo_tc_menor' => (bool) (Empresa::find($empresaId)?->usar_formula_costo_tc_menor),
             'productos' => $productos,
             'proximo_codigo' => $this->generarCodigo($empresaId),
         ];
@@ -158,6 +160,8 @@ class RecepcionClass
         return DB::transaction(function () use ($datos, $empresaId, $userId) {
             $empresaId = $this->empresaId($empresaId);
             $userId = $userId ?? Auth::id();
+            $empresa = Empresa::find($empresaId);
+            $usarFormulaTcMenor = (bool) ($empresa?->usar_formula_costo_tc_menor);
 
             $monedaUsd = EmpresaMoneda::where('empresa_id', $empresaId)->where('codigo', 'USD')->first();
             $tasaOficial = $monedaUsd ? (float) $monedaUsd->tasa_cambio : 1.0000;
@@ -221,11 +225,15 @@ class RecepcionClass
                     ->where('empresa_id', $empresaId)
                     ->firstOrFail();
 
+                $esVes = ($monedaDocumento === 'VES');
+                $tasaMenor = ($tasaCompra < $tasaVenta);
+                $tasaEfectivaBs = $tasaMenor ? $tasaVenta : $tasaCompra;
+
                 $almacenItem = ! empty($item['almacen_id']) ? (int) $item['almacen_id'] : $almacenIdGlobal;
                 $bultos = ! empty($item['bultos']) ? (float) $item['bultos'] : null;
                 $unidadesPorBulto = ! empty($item['unidades_por_bulto']) ? (float) $item['unidades_por_bulto'] : null;
                 $costoBultoUsd = (float) ($item['costo_bulto_usd'] ?? 0);
-                $costoBultoBs = round($costoBultoUsd * $tasaCompra, 4);
+                $costoBultoBs = round($costoBultoUsd * $tasaEfectivaBs, 4);
 
                 $costoAnteriorUsd = (float) $producto->precio_costo_usd;
                 $costoAnteriorBs = (float) $producto->precio_costo_bs;
@@ -233,6 +241,23 @@ class RecepcionClass
                 $detalAnteriorBs = (float) $producto->precio_detal_bs;
                 $mayoristaAnteriorUsd = (float) $producto->precio_mayorista_usd;
                 $mayoristaAnteriorBs = (float) $producto->precio_mayorista_bs;
+
+                if ($usarFormulaTcMenor && ! $esVes && $tasaMenor) {
+                    if (empty($item['costo_unitario_bs'])) {
+                        $costoUnitarioUsd = round(($costoUnitarioUsd * $tasaCompra) / $tasaVenta, 4);
+                        $costoUnitarioBs = round($costoUnitarioUsd * $tasaVenta, 4);
+                    } else {
+                        $costoUnitarioBs = (float) $item['costo_unitario_bs'];
+                    }
+                } else {
+                    if (! empty($item['costo_unitario_bs']) && (float) $item['costo_unitario_bs'] > 0) {
+                        $costoUnitarioBs = (float) $item['costo_unitario_bs'];
+                    } else {
+                        $costoUnitarioBs = ! $esVes
+                            ? ($tasaMenor ? round($costoUnitarioUsd * $tasaVenta, 4) : round($costoUnitarioUsd * $tasaCompra, 4))
+                            : ($tasaMenor ? round($costoUnitarioUsd * $tasaCompra, 4) : round($costoUnitarioUsd * $tasaVenta, 4));
+                    }
+                }
 
                 // Descuento por producto
                 $descuentoPorcentaje = (float) ($item['descuento_porcentaje'] ?? 0);
@@ -244,19 +269,11 @@ class RecepcionClass
 
                 if ($descuentoPorcentaje > 0) {
                     $descuentoUsd = round($renglonBrutoUsd * ($descuentoPorcentaje / 100), 2);
-                    $descuentoBs = round($descuentoUsd * $tasaCompra, 2);
+                    $descuentoBs = round($descuentoUsd * $tasaEfectivaBs, 2);
                 }
 
                 $renglonSubtotalNetoUsd = round($renglonBrutoUsd - $descuentoUsd, 2);
-                $renglonSubtotalNetoBs = round($renglonSubtotalNetoUsd * $tasaCompra, 2);
-                $esVes = ($monedaDocumento === 'VES');
-                $tasaMenor = ($tasaCompra < $tasaVenta);
-
-                if (! $esVes) {
-                    $costoUnitarioBs = $tasaMenor ? round($costoUnitarioUsd * $tasaVenta, 4) : round($costoUnitarioUsd * $tasaCompra, 4);
-                } else {
-                    $costoUnitarioBs = $tasaMenor ? round($costoUnitarioUsd * $tasaCompra, 4) : round($costoUnitarioUsd * $tasaVenta, 4);
-                }
+                $renglonSubtotalNetoBs = round($renglonSubtotalNetoUsd * $tasaEfectivaBs, 2);
 
                 // IVA por producto
                 $aplicaIva = isset($item['aplica_iva']) ? (bool) $item['aplica_iva'] : (bool) $producto->aplica_iva;
@@ -267,7 +284,7 @@ class RecepcionClass
                 if ($aplicaIva && $ivaPorcentaje > 0) {
                     $ivaPorcentajeGeneral = $ivaPorcentaje;
                     $ivaMontoUsd = round($renglonSubtotalNetoUsd * ($ivaPorcentaje / 100), 2);
-                    $ivaMontoBs = round($ivaMontoUsd * $tasaCompra, 2);
+                    $ivaMontoBs = round($ivaMontoUsd * $tasaEfectivaBs, 2);
                     $ivaTotalUsd += $ivaMontoUsd;
                     $baseImponibleUsd += $renglonSubtotalNetoUsd;
                 } else {
@@ -275,8 +292,9 @@ class RecepcionClass
                 }
 
                 // Precios de Venta
+                $fleteUnitarioUsd = ! empty($item['flete_unitario_usd']) ? (float) $item['flete_unitario_usd'] : 0;
                 $ivaUnitarioUsd = ($aplicaIva && $ivaPorcentaje > 0) ? round($costoUnitarioUsd * ($ivaPorcentaje / 100), 4) : 0;
-                $costoTotalUnitarioUsd = round($costoUnitarioUsd + $ivaUnitarioUsd, 4);
+                $costoTotalUnitarioUsd = round($costoUnitarioUsd + $ivaUnitarioUsd + $fleteUnitarioUsd, 4);
                 $factorIva = ($aplicaIva && $ivaPorcentaje > 0) ? (1 + ($ivaPorcentaje / 100)) : 1;
 
                 $margenDetal = (float) ($item['margen_detal_porcentaje'] ?? $producto->ultimo_margen_detal ?? 30);
@@ -362,22 +380,25 @@ class RecepcionClass
             $subtotalNetoUsd = round($baseImponibleUsd + $exentoUsd, 2);
             $descuentoGlobalUsd = 0;
             $descuentoGlobalBs = 0;
+            $tasaMenor = ($tasaCompra < $tasaVenta);
+            $tasaEfectivaBs = $tasaMenor ? $tasaVenta : $tasaCompra;
+
             if ($descuentoGlobalPorcentaje > 0) {
                 $descuentoGlobalUsd = round($subtotalNetoUsd * ($descuentoGlobalPorcentaje / 100), 2);
-                $descuentoGlobalBs = round($descuentoGlobalUsd * $tasaCompra, 2);
+                $descuentoGlobalBs = round($descuentoGlobalUsd * $tasaEfectivaBs, 2);
                 $baseImponibleUsd = round($baseImponibleUsd * (1 - ($descuentoGlobalPorcentaje / 100)), 2);
                 $exentoUsd = round($exentoUsd * (1 - ($descuentoGlobalPorcentaje / 100)), 2);
                 $ivaTotalUsd = round($baseImponibleUsd * ($ivaPorcentajeGeneral / 100), 2);
                 $subtotalNetoUsd = round($baseImponibleUsd + $exentoUsd, 2);
             }
 
-            $baseImponibleBs = round($baseImponibleUsd * $tasaCompra, 2);
-            $exentoBs = round($exentoUsd * $tasaCompra, 2);
-            $ivaTotalBs = round($ivaTotalUsd * $tasaCompra, 2);
+            $baseImponibleBs = round($baseImponibleUsd * $tasaEfectivaBs, 2);
+            $exentoBs = round($exentoUsd * $tasaEfectivaBs, 2);
+            $ivaTotalBs = round($ivaTotalUsd * $tasaEfectivaBs, 2);
 
             $totalUsd = round($subtotalNetoUsd + $ivaTotalUsd, 2);
-            $totalBs = round($totalUsd * $tasaCompra, 2);
-            $montoBrutoBs = round($montoBrutoUsd * $tasaCompra, 2);
+            $totalBs = round($totalUsd * $tasaEfectivaBs, 2);
+            $montoBrutoBs = round($montoBrutoUsd * $tasaEfectivaBs, 2);
 
             // 1. Crear Recepción Encabezado
             $recepcion = Recepcion::create([

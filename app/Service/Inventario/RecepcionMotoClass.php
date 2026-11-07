@@ -352,17 +352,18 @@ class RecepcionMotoClass
                     $costoUnitarioBs = $tasaMenor ? round($costoUnitarioUsd * $tasaCompra, 4) : round($costoUnitarioUsd * $tasaVenta, 4);
                 }
 
+                $tasaEfectivaBs = $tasaMenor ? $tasaVenta : $tasaCompra;
                 $fleteUnitarioUsd = ! empty($det['flete_unitario_usd']) ? (float) $det['flete_unitario_usd'] : 0;
-                $fleteUnitarioBs = round($fleteUnitarioUsd * $tasaCompra, 4);
+                $fleteUnitarioBs = round($fleteUnitarioUsd * $tasaEfectivaBs, 4);
                 $fleteGlobalUsd += ($fleteUnitarioUsd * $cantidad);
 
                 $descPct = ! empty($det['descuento_porcentaje']) ? (float) $det['descuento_porcentaje'] : 0;
                 $descUsd = round($costoUnitarioUsd * ($descPct / 100), 4);
-                $descBs = round($descUsd * $tasaCompra, 4);
+                $descBs = round($descUsd * $tasaEfectivaBs, 4);
                 $descuentoRenglonesUsd += ($descUsd * $cantidad);
 
                 $costoNetoUsd = $costoUnitarioUsd - $descUsd;
-                $costoNetoBs = round($costoNetoUsd * $tasaCompra, 4);
+                $costoNetoBs = round($costoNetoUsd * $tasaEfectivaBs, 4);
 
                 $aplicaIva = ! empty($det['aplica_iva']);
                 $ivaPct = $aplicaIva ? (! empty($det['iva_porcentaje']) ? (float) $det['iva_porcentaje'] : 16.00) : 0;
@@ -371,11 +372,11 @@ class RecepcionMotoClass
                 }
 
                 $ivaUnitarioUsd = $aplicaIva ? round($costoNetoUsd * ($ivaPct / 100), 4) : 0;
-                $ivaUnitarioBs = round($ivaUnitarioUsd * $tasaCompra, 4);
+                $ivaUnitarioBs = round($ivaUnitarioUsd * $tasaEfectivaBs, 4);
 
                 // Costo Total = Costo Base Neto + IVA de Compra + Flete Unitario
                 $costoTotalUnitarioUsd = round($costoNetoUsd + $ivaUnitarioUsd + $fleteUnitarioUsd, 4);
-                $costoTotalUnitarioBs = round($costoTotalUnitarioUsd * ($tasaMenor ? $tasaVenta : $tasaCompra), 4);
+                $costoTotalUnitarioBs = round($costoTotalUnitarioUsd * $tasaEfectivaBs, 4);
 
                 $margenDetalPct = ! empty($det['margen_detal']) ? (float) $det['margen_detal'] : 0;
                 if (! $esVes) {
@@ -421,14 +422,14 @@ class RecepcionMotoClass
                 $precioMayoristaConIvaBs = round($precioMayoristaConIvaUsd * $tasaVenta, 4);
 
                 $renglonSubtotalUsd = round($costoNetoUsd * $cantidad, 2);
-                $renglonSubtotalBs = round($renglonSubtotalUsd * $tasaCompra, 2);
+                $renglonSubtotalBs = round($renglonSubtotalUsd * $tasaEfectivaBs, 2);
 
                 $renglonIvaUsd = ($aplicaIva && $ivaPct > 0) ? round($renglonSubtotalUsd * ($ivaPct / 100), 2) : 0;
-                $renglonIvaBs = round($renglonIvaUsd * $tasaCompra, 2);
+                $renglonIvaBs = round($renglonIvaUsd * $tasaEfectivaBs, 2);
 
                 $renglonFleteUsd = $incluirFlete ? round($fleteUnitarioUsd * $cantidad, 2) : 0;
                 $renglonTotalUsd = round($renglonSubtotalUsd + $renglonIvaUsd + $renglonFleteUsd, 2);
-                $renglonTotalBs = round($renglonTotalUsd * $tasaCompra, 2);
+                $renglonTotalBs = round($renglonTotalUsd * $tasaEfectivaBs, 2);
 
                 if ($aplicaIva && $ivaPct > 0) {
                     $baseImponibleUsd += $renglonSubtotalUsd;
@@ -528,18 +529,19 @@ class RecepcionMotoClass
                 $ivaGlobalUsd = round($baseImponibleUsd * ($ivaPorcentajeGeneral / 100), 2);
             }
 
+            $tasaEfectivaBs = $tasaMenor ? $tasaVenta : $tasaCompra;
             $subtotalGlobalUsd = round($baseImponibleUsd + $exentoUsd, 2);
-            $subtotalBs = round($subtotalGlobalUsd * $tasaCompra, 2);
-            $baseImponibleBs = round($baseImponibleUsd * $tasaCompra, 2);
-            $exentoBs = round($exentoUsd * $tasaCompra, 2);
-            $ivaBs = round($ivaGlobalUsd * $tasaCompra, 2);
-            $fleteGlobalBs = round($fleteGlobalUsd * $tasaCompra, 2);
+            $subtotalBs = round($subtotalGlobalUsd * $tasaEfectivaBs, 2);
+            $baseImponibleBs = round($baseImponibleUsd * $tasaEfectivaBs, 2);
+            $exentoBs = round($exentoUsd * $tasaEfectivaBs, 2);
+            $ivaBs = round($ivaGlobalUsd * $tasaEfectivaBs, 2);
+            $fleteGlobalBs = round($fleteGlobalUsd * $tasaEfectivaBs, 2);
 
             $montoBrutoUsd = ! empty($datos['monto_bruto_usd']) ? (float) $datos['monto_bruto_usd'] : ($subtotalGlobalUsd + $descuentoRenglonesUsd + $descGlobalUsd);
-            $montoBrutoBs = round($montoBrutoUsd * $tasaCompra, 2);
+            $montoBrutoBs = round($montoBrutoUsd * $tasaEfectivaBs, 2);
 
             $totalGlobalUsd = round($subtotalGlobalUsd + $ivaGlobalUsd + ($incluirFlete ? $fleteGlobalUsd : 0), 2);
-            $totalBs = round($totalGlobalUsd * $tasaCompra, 2);
+            $totalBs = round($totalGlobalUsd * $tasaEfectivaBs, 2);
 
             $diferencia = abs(round($montoBrutoUsd, 2) - round($totalGlobalUsd, 2));
             if (round($diferencia, 2) > 0.00) {

@@ -20,6 +20,7 @@ class Empresa extends Model
         'logo',
         'maneja_motos',
         'maneja_vendedores',
+        'usar_formula_costo_tc_menor',
         'estado',
     ];
 
@@ -28,6 +29,7 @@ class Empresa extends Model
         return [
             'maneja_motos' => 'boolean',
             'maneja_vendedores' => 'boolean',
+            'usar_formula_costo_tc_menor' => 'boolean',
             'estado' => 'boolean',
         ];
     }

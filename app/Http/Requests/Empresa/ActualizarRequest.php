@@ -52,6 +52,7 @@ class ActualizarRequest extends BaseRequest
             'logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,svg', 'max:2048'],
             'maneja_motos' => ['nullable', 'boolean'],
             'maneja_vendedores' => ['nullable', 'boolean'],
+            'usar_formula_costo_tc_menor' => ['nullable', 'boolean'],
         ];
     }
 

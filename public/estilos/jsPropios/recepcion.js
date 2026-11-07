@@ -10,6 +10,7 @@ const urlGuardarProducto = `${window.location.origin}/productos`;
 let tasaUsdActual = 1.0000;
 let tasaCompraActual = 1.0000;
 let tasaVentaActual = 1.0000;
+let usarFormulaTcMenorActual = false;
 let monedaDocumentoActual = "USD";
 let borradorActualId = null;
 let autoSaveTimeout = null;
@@ -22,6 +23,7 @@ let catalogosSistema = {
     tasa_usd: 1.0000,
     tasa_compra: 1.0000,
     tasa_venta: 1.0000,
+    usar_formula_costo_tc_menor: false,
     proximo_codigo: "REC-00001",
 };
 
@@ -406,6 +408,7 @@ const cargarCatalogos = async function () {
             tasaUsdActual = parseFloat(res.data.tasa_usd) || 1.0000;
             tasaCompraActual = parseFloat(res.data.tasa_compra || res.data.tasa_usd) || tasaUsdActual;
             tasaVentaActual = parseFloat(res.data.tasa_venta || res.data.tasa_usd) || tasaUsdActual;
+            usarFormulaTcMenorActual = Boolean(res.data.usar_formula_costo_tc_menor);
 
             $("#tasa_cambio").val(tasaVentaActual.toFixed(4));
             $("#tasa_compra").val(tasaCompraActual.toFixed(4));
@@ -1071,6 +1074,7 @@ const calcularPrecioDetalDesdeMargen = function () {
         tasaCompra: tasaCompraActual,
         tasaVenta: tasaVentaActual,
         moneda: monedaDocumentoActual,
+        usarFormulaTcMenor: usarFormulaTcMenorActual,
     });
 
     if (res.costoBaseUsd > 0 || res.costoBaseBs > 0) {
@@ -1100,6 +1104,7 @@ const calcularMargenDetalDesdePrecio = function () {
         tasaCompra: tasaCompraActual,
         tasaVenta: tasaVentaActual,
         moneda: monedaDocumentoActual,
+        usarFormulaTcMenor: usarFormulaTcMenorActual,
     });
 
     if (res.precioConIvaUsd > 0 || res.precioConIvaBs > 0) {
@@ -1125,6 +1130,7 @@ const calcularPrecioMayoristaDesdeMargen = function () {
         tasaCompra: tasaCompraActual,
         tasaVenta: tasaVentaActual,
         moneda: monedaDocumentoActual,
+        usarFormulaTcMenor: usarFormulaTcMenorActual,
     });
 
     if (res.costoBaseUsd > 0 || res.costoBaseBs > 0) {
@@ -1154,6 +1160,7 @@ const calcularMargenMayoristaDesdePrecio = function () {
         tasaCompra: tasaCompraActual,
         tasaVenta: tasaVentaActual,
         moneda: monedaDocumentoActual,
+        usarFormulaTcMenor: usarFormulaTcMenorActual,
     });
 
     if (res.precioConIvaUsd > 0 || res.precioConIvaBs > 0) {
@@ -1175,7 +1182,7 @@ const recalcularFormularioRenglon = function () {
     const descPorc = normalizarNumero($("#form_renglon_descuento").val());
     const ivaPorc = normalizarNumero($("#form_renglon_iva").val());
 
-    const eq = window.CalculosCompra.calcularEquivalenteMoneda(costoInput, monedaDocumentoActual, tasaCompraActual, tasaVentaActual);
+    const eq = window.CalculosCompra.calcularEquivalenteMoneda(costoInput, monedaDocumentoActual, tasaCompraActual, tasaVentaActual, usarFormulaTcMenorActual);
     const costoUsd = eq.usd;
     const costoBs = eq.bs;
 
@@ -1185,7 +1192,7 @@ const recalcularFormularioRenglon = function () {
         $("#form_renglon_costo_equivalente").text(`Equiv: $ ${formatearMonto(costoUsd, 4)}`);
     }
 
-    const eqFlete = window.CalculosCompra.calcularEquivalenteMoneda(fleteInput, monedaDocumentoActual, tasaCompraActual, tasaVentaActual);
+    const eqFlete = window.CalculosCompra.calcularEquivalenteMoneda(fleteInput, monedaDocumentoActual, tasaCompraActual, tasaVentaActual, usarFormulaTcMenorActual);
     if (!esVes) {
         $("#form_renglon_flete_equivalente").text(`Flete: Bs. ${formatearMonto(eqFlete.bs, 4)}`);
     } else {
@@ -1202,15 +1209,17 @@ const recalcularFormularioRenglon = function () {
         tasaCompra: tasaCompraActual,
         tasaVenta: tasaVentaActual,
         moneda: monedaDocumentoActual,
+        usarFormulaTcMenor: usarFormulaTcMenorActual,
     });
 
     $("#form_renglon_costo_total_usd").text(`$ ${formatearMonto(resPrecios.costoTotalUsd, 4)}`);
     $("#form_renglon_costo_total_bs").text(`Bs. ${formatearMonto(resPrecios.costoTotalBs, 4)}`);
 
-    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
+    const tasaMenor = tasaCompraActual < tasaVentaActual;
+    const tasaCostoBs = tasaMenor ? (tasaVentaActual > 0 ? tasaVentaActual : 1.0) : (tasaCompraActual > 0 ? tasaCompraActual : 1.0);
     const subtotalBrutoUsd = cantidad * costoUsd;
     const subtotalNetoUsd = subtotalBrutoUsd * (1 - descPorc / 100);
-    const subtotalNetoBs = subtotalNetoUsd * tCompra;
+    const subtotalNetoBs = subtotalNetoUsd * tasaCostoBs;
 
     if (!esVes) {
         $("#form_renglon_subtotal_usd").text(`$ ${formatearMonto(subtotalNetoUsd, 4)}`);
@@ -1321,26 +1330,32 @@ const agregarOActualizarRenglon = function () {
     let costoBs = 0;
     let costoBultoUsd = 0;
     let costoBultoBs = 0;
+    let fleteUsd = 0;
+    let fleteBs = 0;
+
+    const fleteInput = normalizarNumero($("#form_renglon_flete").val());
 
     if (!esVes) {
-        costoUsd = costoInput;
-        costoBs = tasaMenor ? (costoUsd * tVenta) : (costoUsd * tCompra);
-        costoBultoUsd = costoBultoInput;
-        costoBultoBs = tasaMenor ? (costoBultoUsd * tVenta) : (costoBultoUsd * tCompra);
+        if (tasaMenor && usarFormulaTcMenorActual) {
+            costoUsd = tVenta > 0 ? (costoInput * tCompra) / tVenta : costoInput;
+            costoBs = costoUsd * tVenta;
+            costoBultoUsd = tVenta > 0 ? (costoBultoInput * tCompra) / tVenta : costoBultoInput;
+            costoBultoBs = costoBultoUsd * tVenta;
+            fleteUsd = tVenta > 0 ? (fleteInput * tCompra) / tVenta : fleteInput;
+            fleteBs = fleteUsd * tVenta;
+        } else {
+            costoUsd = costoInput;
+            costoBs = tasaMenor ? (costoUsd * tVenta) : (costoUsd * tCompra);
+            costoBultoUsd = costoBultoInput;
+            costoBultoBs = tasaMenor ? (costoBultoUsd * tVenta) : (costoBultoUsd * tCompra);
+            fleteUsd = fleteInput;
+            fleteBs = tasaMenor ? (fleteUsd * tVenta) : (fleteUsd * tCompra);
+        }
     } else {
         costoBs = costoInput;
         costoUsd = tasaMenor ? (costoBs / tCompra) : (costoBs / tVenta);
         costoBultoBs = costoBultoInput;
         costoBultoUsd = tasaMenor ? (costoBultoBs / tCompra) : (costoBultoBs / tVenta);
-    }
-
-    const fleteInput = normalizarNumero($("#form_renglon_flete").val());
-    let fleteUsd = 0;
-    let fleteBs = 0;
-    if (!esVes) {
-        fleteUsd = fleteInput;
-        fleteBs = tasaMenor ? (fleteUsd * tVenta) : (fleteUsd * tCompra);
-    } else {
         fleteBs = fleteInput;
         fleteUsd = tasaMenor ? (fleteBs / tCompra) : (fleteBs / tVenta);
     }
@@ -1360,6 +1375,7 @@ const agregarOActualizarRenglon = function () {
         tasaCompra: tCompra,
         tasaVenta: tVenta,
         moneda: monedaDocumentoActual,
+        usarFormulaTcMenor: usarFormulaTcMenorActual,
     });
 
     const pDetalInput = normalizarNumero($("#form_renglon_precio_detal").val());
@@ -1381,6 +1397,7 @@ const agregarOActualizarRenglon = function () {
             tasaCompra: tCompra,
             tasaVenta: tVenta,
             moneda: monedaDocumentoActual,
+            usarFormulaTcMenor: usarFormulaTcMenorActual,
         });
         precioDetalConIvaUsd = resDetal.precioConIvaUsd;
         precioDetalConIvaBs = resDetal.precioConIvaBs;
@@ -1405,6 +1422,7 @@ const agregarOActualizarRenglon = function () {
             tasaCompra: tCompra,
             tasaVenta: tVenta,
             moneda: monedaDocumentoActual,
+            usarFormulaTcMenor: usarFormulaTcMenorActual,
         });
         precioMayoristaConIvaUsd = resMayor.precioConIvaUsd;
         precioMayoristaConIvaBs = resMayor.precioConIvaBs;
@@ -1413,12 +1431,13 @@ const agregarOActualizarRenglon = function () {
         margenMayor = parseFloat(resMayor.margen.toFixed(2));
     }
 
+    const tasaCostoBs = tasaMenor ? tVenta : tCompra;
     const subtotalBrutoUsd = cantidad * costoUsd;
     const descuentoUsd = subtotalBrutoUsd * (descPorc / 100);
     const subtotalNetoUsd = subtotalBrutoUsd - descuentoUsd;
-    const subtotalNetoBs = subtotalNetoUsd * tCompra;
+    const subtotalNetoBs = subtotalNetoUsd * tasaCostoBs;
     const ivaMontoUsd = ivaPorc > 0 ? subtotalNetoUsd * (ivaPorc / 100) : 0;
-    const ivaMontoBs = ivaMontoUsd * tCompra;
+    const ivaMontoBs = ivaMontoUsd * tasaCostoBs;
 
     const itemRenglon = {
         producto_id: productoSeleccionadoActual.id,
@@ -1440,7 +1459,7 @@ const agregarOActualizarRenglon = function () {
         costo_total_unitario_bs: resPrecios.costoTotalBs,
         descuento_porcentaje: descPorc,
         descuento_usd: descuentoUsd,
-        descuento_bs: descuentoUsd * tCompra,
+        descuento_bs: descuentoUsd * tasaCostoBs,
         aplica_iva: ivaPorc > 0,
         iva_porcentaje: ivaPorc,
         iva_monto_usd: ivaMontoUsd,
@@ -1458,7 +1477,7 @@ const agregarOActualizarRenglon = function () {
         subtotal_usd: subtotalNetoUsd,
         subtotal_bs: subtotalNetoBs,
         costo_anterior_usd: parseFloat(productoSeleccionadoActual.precio_costo_usd) || 0,
-        costo_anterior_bs: (parseFloat(productoSeleccionadoActual.precio_costo_usd) || 0) * tCompra,
+        costo_anterior_bs: (parseFloat(productoSeleccionadoActual.precio_costo_usd) || 0) * tasaCostoBs,
         precio_detal_anterior_usd: parseFloat(productoSeleccionadoActual.precio_detal_usd) || 0,
         precio_detal_anterior_bs: (parseFloat(productoSeleccionadoActual.precio_detal_usd) || 0) * tVenta,
         precio_mayorista_anterior_usd: parseFloat(productoSeleccionadoActual.precio_mayorista_usd) || 0,
@@ -1721,7 +1740,8 @@ const recalcularTotalesGenerales = function () {
     let exentoUsd = 0;
     let totalIvaUsd = 0;
     let ivaPorcentajeGeneral = 16.00;
-    const tCompra = tasaCompraActual > 0 ? tasaCompraActual : tasaUsdActual;
+    const tasaMenor = tasaCompraActual < tasaVentaActual;
+    const tasaCostoBs = tasaMenor ? (tasaVentaActual > 0 ? tasaVentaActual : 1.0) : (tasaCompraActual > 0 ? tasaCompraActual : 1.0);
 
     listaProductosCargados.forEach((item) => {
         const cant = parseFloat(item.cantidad) || 0;
@@ -1754,12 +1774,12 @@ const recalcularTotalesGenerales = function () {
 
     const subtotalNetoUsd = baseFinalUsd + exentoFinalUsd;
     const totalGeneralUsd = subtotalNetoUsd + totalIvaUsd;
-    const totalGeneralBs = totalGeneralUsd * tCompra;
+    const totalGeneralBs = totalGeneralUsd * tasaCostoBs;
 
-    const baseFinalBs = baseFinalUsd * tCompra;
-    const descGlobalBs = descGlobalMontoUsd * tCompra;
-    const exentoFinalBs = exentoFinalUsd * tCompra;
-    const ivaBs = totalIvaUsd * tCompra;
+    const baseFinalBs = baseFinalUsd * tasaCostoBs;
+    const descGlobalBs = descGlobalMontoUsd * tasaCostoBs;
+    const exentoFinalBs = exentoFinalUsd * tasaCostoBs;
+    const ivaBs = totalIvaUsd * tasaCostoBs;
 
     $("#resumenTotalUnidades").text(`${formatearMonto(totalUnidades, 0)} Unidades`);
     $("#resumenBaseImponible").text(`$ ${formatearMonto(baseFinalUsd, 2)} | Bs. ${formatearMonto(baseFinalBs, 2)}`);

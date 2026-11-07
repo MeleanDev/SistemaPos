@@ -72,6 +72,13 @@ class ConfiguracionEmpresaClass
             if (array_key_exists('maneja_vendedores', $datos)) {
                 $datos['maneja_vendedores'] = filter_var($datos['maneja_vendedores'], FILTER_VALIDATE_BOOLEAN);
             }
+            if (array_key_exists('usar_formula_costo_tc_menor', $datos)) {
+                if (auth()->user()?->hasRole('SuperAdmin')) {
+                    $datos['usar_formula_costo_tc_menor'] = filter_var($datos['usar_formula_costo_tc_menor'], FILTER_VALIDATE_BOOLEAN);
+                } else {
+                    unset($datos['usar_formula_costo_tc_menor']);
+                }
+            }
 
             $empresa->update($datos);
 

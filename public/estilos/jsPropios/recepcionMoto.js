@@ -818,14 +818,14 @@ const agregarProductoAFactura = function () {
         flete_unitario_usd: 0,
         flete_unitario_bs: 0,
         costo_total_unitario_usd: costoNetoUsd,
-        costo_total_unitario_bs: costoNetoUsd * tCompra,
+        costo_total_unitario_bs: costoNetoUsd * (tasaMenor ? tVenta : tCompra),
         descuento_porcentaje: descPct,
         descuento_usd: descUsd,
-        descuento_bs: descUsd * tCompra,
+        descuento_bs: descUsd * (tasaMenor ? tVenta : tCompra),
         aplica_iva: aplicaIva,
         iva_porcentaje: ivaPct,
         iva_monto_usd: ivaUsd / cantidad,
-        iva_monto_bs: (ivaUsd * tCompra) / cantidad,
+        iva_monto_bs: (ivaUsd * (tasaMenor ? tVenta : tCompra)) / cantidad,
         margen_detal: margenDetal,
         precio_detal_usd: precioDetalUsd,
         precio_detal_bs: precioDetalBs,
@@ -1434,11 +1434,11 @@ const agregarLoteAFactura = function () {
         costo_total_unitario_bs: costoTotalUnitarioBs,
         descuento_porcentaje: descPct,
         descuento_usd: descUsd,
-        descuento_bs: descUsd * tCompra,
+        descuento_bs: descUsd * (tasaMenor ? tVenta : tCompra),
         aplica_iva: aplicaIva,
         iva_porcentaje: ivaPct,
         iva_monto_usd: ivaUnitarioUsd,
-        iva_monto_bs: ivaUnitarioUsd * tCompra,
+        iva_monto_bs: ivaUnitarioUsd * (tasaMenor ? tVenta : tCompra),
         margen_detal: margenDetal,
         precio_detal_usd: precioDetalUsd,
         precio_detal_bs: precioDetalBs,
@@ -1450,11 +1450,11 @@ const agregarLoteAFactura = function () {
         precio_mayorista_con_iva_usd: precioMayoristaConIvaUsd,
         precio_mayorista_con_iva_bs: precioMayoristaConIvaBs,
         subtotal_usd: subtotalRenglonUsd,
-        subtotal_bs: subtotalRenglonUsd * tCompra,
+        subtotal_bs: subtotalRenglonUsd * (tasaMenor ? tVenta : tCompra),
         iva_usd: ivaRenglonUsd,
-        iva_bs: ivaRenglonUsd * tCompra,
+        iva_bs: ivaRenglonUsd * (tasaMenor ? tVenta : tCompra),
         total_usd: totalRenglonUsd,
-        total_bs: totalRenglonUsd * tCompra,
+        total_bs: totalRenglonUsd * (tasaMenor ? tVenta : tCompra),
         seriales: seriales,
     };
 
@@ -1980,12 +1980,16 @@ const recalcularTotalesGenerales = function () {
         (subtotalNetoUsd + ivaUsd + (incluirFlete ? fleteTotalUsd : 0)).toFixed(2),
     );
 
-    const baseFinalBs = parseFloat((baseFinalUsd * tCompra).toFixed(2));
-    const descGlobalBs = parseFloat((descGlobalUsd * tCompra).toFixed(2));
-    const exentoFinalBs = parseFloat((exentoFinalUsd * tCompra).toFixed(2));
-    const ivaBs = parseFloat((ivaUsd * tCompra).toFixed(2));
-    const fleteTotalBs = parseFloat((fleteTotalUsd * tCompra).toFixed(2));
-    const totalFacturaBs = parseFloat((totalFacturaUsd * tCompra).toFixed(2));
+    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
+    const tasaMenor = tCompra < tVenta;
+    const tasaCostoBs = tasaMenor ? tVenta : tCompra;
+
+    const baseFinalBs = parseFloat((baseFinalUsd * tasaCostoBs).toFixed(2));
+    const descGlobalBs = parseFloat((descGlobalUsd * tasaCostoBs).toFixed(2));
+    const exentoFinalBs = parseFloat((exentoFinalUsd * tasaCostoBs).toFixed(2));
+    const ivaBs = parseFloat((ivaUsd * tasaCostoBs).toFixed(2));
+    const fleteTotalBs = parseFloat((fleteTotalUsd * tasaCostoBs).toFixed(2));
+    const totalFacturaBs = parseFloat((totalFacturaUsd * tasaCostoBs).toFixed(2));
 
     const fleteFacturadoUsd = incluirFlete ? fleteTotalUsd : 0;
     const fleteFacturadoBs = incluirFlete ? fleteTotalBs : 0;
@@ -2040,10 +2044,13 @@ const recalcularTotalesGenerales = function () {
 const actualizarCuadreFactura = function () {
     const montoFacturaInput = parseFloat($("#monto_bruto_input").val()) || 0;
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
+    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
+    const tasaMenor = tCompra < tVenta;
+    const divisorVes = tasaMenor ? tCompra : tVenta;
     const montoFacturaUsd =
         monedaSeleccionada === "VES"
-            ? tCompra > 0
-                ? montoFacturaInput / tCompra
+            ? divisorVes > 0
+                ? montoFacturaInput / divisorVes
                 : montoFacturaInput
             : montoFacturaInput;
 
@@ -2195,10 +2202,13 @@ const procesarRecepcionMoto = async function () {
     }
 
     const tCompra = tasaCompraActual > 0 ? tasaCompraActual : 1.0;
+    const tVenta = tasaVentaActual > 0 ? tasaVentaActual : 1.0;
+    const tasaMenor = tCompra < tVenta;
+    const divisorVes = tasaMenor ? tCompra : tVenta;
     const montoBrutoUsd = parseFloat((
         monedaSeleccionada === "VES"
-            ? tCompra > 0
-                ? montoBrutoInput / tCompra
+            ? divisorVes > 0
+                ? montoBrutoInput / divisorVes
                 : montoBrutoInput
             : montoBrutoInput
     ).toFixed(2));
@@ -2249,7 +2259,7 @@ const procesarRecepcionMoto = async function () {
 
     if (diferencia > 0.00) {
         const simbolo = monedaSeleccionada === "VES" ? "Bs." : "$";
-        const factorMoneda = monedaSeleccionada === "VES" ? tCompra : 1.0;
+        const factorMoneda = monedaSeleccionada === "VES" ? (tasaMenor ? tCompra : tVenta) : 1.0;
         const totalCalculadoMostrar = totalFacturaCalculadoUsd * factorMoneda;
         const montoIngresadoMostrar = montoBrutoInput;
         const diferenciaMostrar = diferencia * factorMoneda;
