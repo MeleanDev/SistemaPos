@@ -214,18 +214,18 @@
                 @endcan
 
                 <!-- REPORTES -->
-                @if (auth()->user()?->canAny(['reportes.ver', 'reportes.vendedores']))
+                @if (auth()->user()?->canAny(['reportes.ver', 'reportes.financieros', 'reportes.inventario', 'reportes.vendedores', 'cajas.arqueo', 'ventas.anular']))
                     <li class="list-divider"></li>
                     <li class="nav-small-cap"><span class="hide-menu">Informes & Auditoría</span></li>
 
-                    @can('reportes.ver')
+                    @if (auth()->user()?->canAny(['reportes.ver', 'reportes.financieros', 'reportes.inventario', 'cajas.arqueo', 'ventas.anular']))
                         <li class="sidebar-item @if (request()->routeIs('reportes') && !request()->routeIs('reportes.vendedores*')) selected @endif">
                             <a class="sidebar-link" href="{{ route('reportes') }}" aria-expanded="false">
                                 <i class="fas fa-chart-pie"></i>
                                 <span class="hide-menu">Centro de Reportes</span>
                             </a>
                         </li>
-                    @endcan
+                    @endif
 
                     @if (Auth::user()?->empresaActiva()?->maneja_vendedores ?? false)
                         @can('reportes.vendedores')

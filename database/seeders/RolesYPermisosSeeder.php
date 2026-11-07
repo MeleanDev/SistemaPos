@@ -121,6 +121,8 @@ class RolesYPermisosSeeder extends Seeder
             'configuracion.ver',
             'configuracion.editar',
             'reportes.ver',
+            'reportes.financieros',
+            'reportes.inventario',
             'reportes.vendedores',
             'logs.ver',
         ];

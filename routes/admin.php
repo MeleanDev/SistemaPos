@@ -274,27 +274,60 @@ Route::middleware('auth')->group(function () {
         Route::post('/cajas/movimientos', 'registrarMovimiento')->middleware('permission:cajas.movimientos');
     });
 
-    Route::middleware('permission:reportes.ver')->controller(ReporteController::class)->group(function () {
-        Route::get('/reportes', 'index')->name('reportes');
-        Route::get('/reportes/ingresos', 'ingresos');
-        Route::get('/reportes/ingresos/pdf', 'pdfIngresos')->name('reportes.ingresos.pdf');
-        Route::get('/reportes/ingresos/excel', 'excelIngresos')->name('reportes.ingresos.excel');
+    Route::controller(ReporteController::class)->group(function () {
+        Route::get('/reportes', 'index')->name('reportes')
+            ->middleware('permission:reportes.ver|reportes.financieros|reportes.inventario|reportes.vendedores|cajas.arqueo|ventas.anular');
 
-        Route::get('/reportes/creditos', 'creditos');
-        Route::get('/reportes/creditos/pdf', 'pdfCreditos')->name('reportes.creditos.pdf');
-        Route::get('/reportes/creditos/excel', 'excelCreditos')->name('reportes.creditos.excel');
+        // Ingresos y Flujo de Caja (reportes.ver)
+        Route::middleware('permission:reportes.ver')->group(function () {
+            Route::get('/reportes/ingresos', 'ingresos');
+            Route::get('/reportes/ingresos/pdf', 'pdfIngresos')->name('reportes.ingresos.pdf');
+            Route::get('/reportes/ingresos/excel', 'excelIngresos')->name('reportes.ingresos.excel');
 
-        Route::get('/reportes/inventario', 'inventario');
-        Route::get('/reportes/inventario/pdf', 'pdfInventario')->name('reportes.inventario.pdf');
-        Route::get('/reportes/inventario/excel', 'excelInventario')->name('reportes.inventario.excel');
+            Route::get('/reportes/flujo-caja', 'flujoCaja');
+            Route::get('/reportes/flujo-caja/pdf', 'pdfFlujoCaja')->name('reportes.flujo_caja.pdf');
+            Route::get('/reportes/flujo-caja/excel', 'excelFlujoCaja')->name('reportes.flujo_caja.excel');
+        });
 
-        Route::get('/reportes/rentabilidad', 'rentabilidad');
-        Route::get('/reportes/rentabilidad/pdf', 'pdfRentabilidad')->name('reportes.rentabilidad.pdf');
-        Route::get('/reportes/rentabilidad/excel', 'excelRentabilidad')->name('reportes.rentabilidad.excel');
+        // Financieros: Créditos, Rentabilidad, Libro de Ventas (reportes.financieros)
+        Route::middleware('permission:reportes.financieros')->group(function () {
+            Route::get('/reportes/creditos', 'creditos');
+            Route::get('/reportes/creditos/pdf', 'pdfCreditos')->name('reportes.creditos.pdf');
+            Route::get('/reportes/creditos/excel', 'excelCreditos')->name('reportes.creditos.excel');
 
-        Route::get('/reportes/stock-almacenes', 'stockAlmacenes')->name('reportes.stock_almacenes');
-        Route::get('/reportes/stock-almacenes/pdf', 'pdfStockAlmacenes')->name('reportes.stock_almacenes.pdf');
-        Route::get('/reportes/stock-almacenes/excel', 'excelStockAlmacenes')->name('reportes.stock_almacenes.excel');
+            Route::get('/reportes/rentabilidad', 'rentabilidad');
+            Route::get('/reportes/rentabilidad/pdf', 'pdfRentabilidad')->name('reportes.rentabilidad.pdf');
+            Route::get('/reportes/rentabilidad/excel', 'excelRentabilidad')->name('reportes.rentabilidad.excel');
+
+            Route::get('/reportes/libro-ventas', 'libroVentas');
+            Route::get('/reportes/libro-ventas/pdf', 'pdfLibroVentas')->name('reportes.libro_ventas.pdf');
+            Route::get('/reportes/libro-ventas/excel', 'excelLibroVentas')->name('reportes.libro_ventas.excel');
+        });
+
+        // Inventario y Stock Almacenes (reportes.inventario)
+        Route::middleware('permission:reportes.inventario')->group(function () {
+            Route::get('/reportes/inventario', 'inventario');
+            Route::get('/reportes/inventario/pdf', 'pdfInventario')->name('reportes.inventario.pdf');
+            Route::get('/reportes/inventario/excel', 'excelInventario')->name('reportes.inventario.excel');
+
+            Route::get('/reportes/stock-almacenes', 'stockAlmacenes')->name('reportes.stock_almacenes');
+            Route::get('/reportes/stock-almacenes/pdf', 'pdfStockAlmacenes')->name('reportes.stock_almacenes.pdf');
+            Route::get('/reportes/stock-almacenes/excel', 'excelStockAlmacenes')->name('reportes.stock_almacenes.excel');
+        });
+
+        // Operativos: Cuadre Diario (cajas.arqueo)
+        Route::middleware('permission:cajas.arqueo')->group(function () {
+            Route::get('/reportes/cuadre-diario', 'cuadreDiario');
+            Route::get('/reportes/cuadre-diario/pdf', 'pdfCuadreDiario')->name('reportes.cuadre_diario.pdf');
+            Route::get('/reportes/cuadre-diario/excel', 'excelCuadreDiario')->name('reportes.cuadre_diario.excel');
+        });
+
+        // Auditoría / Seguridad: Devoluciones y Anulaciones (ventas.anular)
+        Route::middleware('permission:ventas.anular')->group(function () {
+            Route::get('/reportes/devoluciones-anulaciones', 'devolucionesAnulaciones');
+            Route::get('/reportes/devoluciones-anulaciones/pdf', 'pdfDevolucionesAnulaciones')->name('reportes.devoluciones_anulaciones.pdf');
+            Route::get('/reportes/devoluciones-anulaciones/excel', 'excelDevolucionesAnulaciones')->name('reportes.devoluciones_anulaciones.excel');
+        });
     });
 
     Route::prefix('reportes/vendedores')->group(function () {

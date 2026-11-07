@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Pos\AnularFacturaRequest;
 use App\Models\CajaTurno;
 use App\Models\Venta;
+use App\Queries\VentaNetaQuery;
 use App\Service\Ventas\VentaClass;
 use Carbon\Carbon;
 use Exception;
@@ -35,18 +36,22 @@ class FacturaController extends Controller
             $ventas = Venta::where('empresa_id', $empresaId)->get();
             $ventasHoy = $ventas->where('fecha_emision', $hoy);
 
-            $totalUsd = (float) $ventas->where('estado', '!=', 'anulada')->sum('total_usd');
-            $totalBs = (float) $ventas->where('estado', '!=', 'anulada')->sum('total_bs');
+            $totalesHistoricos = VentaNetaQuery::calcularTotales($empresaId);
+            $totalesHoy = VentaNetaQuery::calcularTotales($empresaId, $hoy, $hoy);
 
-            $totalHoyUsd = (float) $ventasHoy->where('estado', '!=', 'anulada')->sum('total_usd');
-            $totalHoyBs = (float) $ventasHoy->where('estado', '!=', 'anulada')->sum('total_bs');
+            $totalUsd = $totalesHistoricos['neto_usd'];
+            $totalBs = $totalesHistoricos['neto_bs'];
 
-            $totalCreditoUsd = (float) $ventas->where('condicion_pago', 'credito')->sum('saldo_pendiente_usd');
-            $totalCreditoBs = (float) $ventas->where('condicion_pago', 'credito')->sum('saldo_pendiente_bs');
+            $totalHoyUsd = $totalesHoy['neto_usd'];
+            $totalHoyBs = $totalesHoy['neto_bs'];
+
+            $ventasValidas = $ventas->where('estado', '!=', 'anulada');
+            $totalCreditoUsd = (float) $ventasValidas->where('condicion_pago', 'credito')->sum('saldo_pendiente_usd');
+            $totalCreditoBs = (float) $ventasValidas->where('condicion_pago', 'credito')->sum('saldo_pendiente_bs');
 
             $conteoTotal = $ventas->count();
             $conteoHoy = $ventasHoy->count();
-            $conteoCredito = $ventas->where('condicion_pago', 'credito')->where('saldo_pendiente_usd', '>', 0)->count();
+            $conteoCredito = $ventasValidas->where('condicion_pago', 'credito')->where('saldo_pendiente_usd', '>', 0)->count();
             $conteoDevueltas = $ventas->whereIn('estado', ['devuelta_parcial', 'devuelta_total', 'anulada'])->count();
 
             $user = Auth::user();
@@ -100,14 +105,14 @@ class FacturaController extends Controller
     {
         $empresaId = $this->obtenerEmpresaId();
         $user = Auth::user();
-        $esAdmin = $user && ($user->hasRole(['SuperAdmin', 'Admin']) || $user->can('ventas.ver_todas'));
+        $esAdminOCajero = $user && ($user->hasAnyRole(['SuperAdmin', 'Admin']) || $user->can('ventas.crear'));
         $vendedorPropio = $user?->vendedor()->where('empresa_id', $empresaId)->first();
 
         $query = Venta::with(['cliente', 'almacen', 'usuario', 'detalles', 'vendedor', 'caja'])
             ->where('empresa_id', $empresaId)
             ->orderBy('id', 'desc');
 
-        if (! $esAdmin && $vendedorPropio) {
+        if (! $esAdminOCajero && $vendedorPropio) {
             $query->where('vendedor_id', $vendedorPropio->id);
         }
 

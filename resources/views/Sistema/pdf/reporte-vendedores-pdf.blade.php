@@ -65,7 +65,7 @@
                 <div class="kpi-box" style="border-left: 3px solid #059669;">
                     <div class="kpi-label">Total Comisiones Ganadas</div>
                     <div class="kpi-val-usd text-success">${{ number_format($kpis['total_comisiones_usd'], 2, ',', '.') }}</div>
-                    <div class="kpi-val-bs">Bs. {{ number_format($kpis['total_comisiones_bs'], 2, ',', '.') }}</div>
+                    <div class="kpi-val-bs">Pagada: ${{ number_format($kpis['total_comisiones_pagadas_usd'] ?? 0, 2, ',', '.') }} | Pend: ${{ number_format($kpis['total_comisiones_pendientes_usd'] ?? 0, 2, ',', '.') }}</div>
                 </div>
             </td>
             <td style="width: 33%;">

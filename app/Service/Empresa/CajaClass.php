@@ -446,6 +446,8 @@ class CajaClass
             'cantidad_ventas' => $cantidadVentas,
             'total_ventas_usd' => $totalVentasUsd,
             'total_ventas_bs' => $totalVentasBs,
+            'total_venta_neta_usd' => round($totalVentasUsd - $totalDevolucionesUsd, 2),
+            'total_venta_neta_bs' => round($totalVentasBs - $totalDevolucionesBs, 2),
             'cantidad_devoluciones' => $cantidadDevoluciones,
             'total_devoluciones_usd' => $totalDevolucionesUsd,
             'total_devoluciones_bs' => $totalDevolucionesBs,

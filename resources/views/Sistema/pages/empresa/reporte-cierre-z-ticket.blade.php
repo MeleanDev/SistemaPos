@@ -214,6 +214,14 @@
             <span>Total Devoluciones Bs.:</span>
             <span>-Bs. {{ number_format($reporte['total_devoluciones_bs'], 2) }}</span>
         </div>
+        <div class="totales-row">
+            <span class="fw-bold">Venta Neta USD:</span>
+            <span class="fw-bold text-success">${{ number_format($reporte['total_venta_neta_usd'] ?? ($reporte['total_ventas_usd'] - $reporte['total_devoluciones_usd']), 2) }}</span>
+        </div>
+        <div class="totales-row">
+            <span class="fw-bold">Venta Neta Bs.:</span>
+            <span class="fw-bold text-success">Bs. {{ number_format($reporte['total_venta_neta_bs'] ?? ($reporte['total_ventas_bs'] - $reporte['total_devoluciones_bs']), 2) }}</span>
+        </div>
 
         <div class="divider"></div>
 

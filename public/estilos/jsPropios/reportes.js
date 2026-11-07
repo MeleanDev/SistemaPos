@@ -63,6 +63,42 @@ const generarReporte = function (modulo, accion) {
             producto_ids: Array.isArray(selectedProducts) ? selectedProducts.join(',') : (selectedProducts || ''),
             solo_con_stock: $('#stock_solo_con_stock').is(':checked') ? 1 : 0
         };
+    } else if (modulo === 'cuadre_diario') {
+        urlPdf = '/reportes/cuadre-diario/pdf';
+        urlExcel = '/reportes/cuadre-diario/excel';
+        urlJson = '/reportes/cuadre-diario';
+        params = {
+            fecha_inicio: $('#cuadre_fecha_inicio').val() || '',
+            fecha_fin: $('#cuadre_fecha_fin').val() || '',
+            caja_id: $('#cuadre_caja_id').val() || ''
+        };
+    } else if (modulo === 'devoluciones_anulaciones') {
+        urlPdf = '/reportes/devoluciones-anulaciones/pdf';
+        urlExcel = '/reportes/devoluciones-anulaciones/excel';
+        urlJson = '/reportes/devoluciones-anulaciones';
+        params = {
+            fecha_inicio: $('#devanul_fecha_inicio').val() || '',
+            fecha_fin: $('#devanul_fecha_fin').val() || '',
+            tipo: $('#devanul_tipo').val() || 'todos'
+        };
+    } else if (modulo === 'flujo_caja') {
+        urlPdf = '/reportes/flujo-caja/pdf';
+        urlExcel = '/reportes/flujo-caja/excel';
+        urlJson = '/reportes/flujo-caja';
+        params = {
+            fecha_inicio: $('#flujo_fecha_inicio').val() || '',
+            fecha_fin: $('#flujo_fecha_fin').val() || '',
+            caja_id: $('#flujo_caja_id').val() || '',
+            metodo_pago_id: $('#flujo_metodo_pago_id').val() || ''
+        };
+    } else if (modulo === 'libro_ventas') {
+        urlPdf = '/reportes/libro-ventas/pdf';
+        urlExcel = '/reportes/libro-ventas/excel';
+        urlJson = '/reportes/libro-ventas';
+        params = {
+            fecha_inicio: $('#libro_fecha_inicio').val() || '',
+            fecha_fin: $('#libro_fecha_fin').val() || ''
+        };
     }
 
     const queryString = new URLSearchParams(params).toString();
@@ -157,13 +193,13 @@ const renderizarVistaPrevia = function (modulo, data) {
             <div class="col-12 col-sm-6 col-xl-3">
                 <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="text-muted fw-bold small text-uppercase" style="letter-spacing: 0.5px; font-size: 0.72rem;">Total Facturado</span>
+                        <span class="text-muted fw-bold small text-uppercase" style="letter-spacing: 0.5px; font-size: 0.72rem;">Venta Neta</span>
                         <div class="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
                             <i class="fas fa-file-invoice-dollar fs-6"></i>
                         </div>
                     </div>
-                    <h3 class="fw-bold text-dark mb-0 font-monospace">$${formatearNumero(data.kpis?.total_facturado_usd)}</h3>
-                    <div class="text-primary font-monospace fw-semibold mt-1" style="font-size: 0.8rem;">Bs. ${formatearNumero(data.kpis?.total_facturado_bs)}</div>
+                    <h3 class="fw-bold text-dark mb-0 font-monospace">$${formatearNumero(data.kpis?.total_neto_usd ?? data.kpis?.total_facturado_usd)}</h3>
+                    <div class="text-primary font-monospace fw-semibold mt-1" style="font-size: 0.78rem;">Bruto: $${formatearNumero(data.kpis?.total_bruto_usd ?? data.kpis?.total_facturado_usd)} • Dev: -$${formatearNumero(data.kpis?.total_devoluciones_usd)}</div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-xl-3">
@@ -565,7 +601,7 @@ const renderizarVistaPrevia = function (modulo, data) {
                         </div>
                     </div>
                     <h3 class="fw-bold text-success mb-0 font-monospace">$${formatearNumero(data.kpis?.total_comisiones_usd)}</h3>
-                    <div class="text-success font-monospace fw-semibold mt-1" style="font-size: 0.8rem;">Bs. ${formatearNumero(data.kpis?.total_comisiones_bs)}</div>
+                    <div class="text-muted font-monospace fw-semibold mt-1" style="font-size: 0.76rem;">Pagada: <span class="text-success">$${formatearNumero(data.kpis?.total_comisiones_pagadas_usd)}</span> • Pend: <span class="text-warning">$${formatearNumero(data.kpis?.total_comisiones_pendientes_usd)}</span></div>
                 </div>
             </div>
             <div class="col-12 col-md-4">
@@ -755,6 +791,289 @@ const renderizarVistaPrevia = function (modulo, data) {
                     </td>
                 </tr>
             `;
+        }
+        htmlTabla += '</tbody></table>';
+        tablaEl.html(htmlTabla);
+    } else if (modulo === 'cuadre_diario') {
+        tituloModalEl.text('Informe de Cuadre Diario de Cajas & Turnos');
+        badgeModuloEl.text('CUADRE & ARQUEO');
+        periodoEl.text(data.kpis?.periodo_texto || 'Período Seleccionado');
+        tituloTablaEl.html('<i class="fas fa-balance-scale text-primary me-2"></i>Turnos y Cierres Auditados');
+        conteoEl.text(`${data.turnos?.length || 0} turnos`);
+
+        kpisEl.html(`
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Ventas Netas</span>
+                    <h3 class="fw-bold text-success mb-0 font-monospace">$${formatearNumero(data.kpis?.total_ventas_neto_usd)}</h3>
+                    <div class="text-muted small mt-1">Bruto: $${formatearNumero(data.kpis?.total_ventas_bruto_usd)}</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Efectivo Esperado</span>
+                    <h3 class="fw-bold text-dark mb-0 font-monospace">$${formatearNumero(data.kpis?.total_esperado_usd)}</h3>
+                    <div class="text-muted small mt-1">Apertura: $${formatearNumero(data.kpis?.total_apertura_usd)}</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Efectivo Contado</span>
+                    <h3 class="fw-bold text-primary mb-0 font-monospace">$${formatearNumero(data.kpis?.total_contado_usd)}</h3>
+                    <div class="text-muted small mt-1">Vueltos: $${formatearNumero(data.kpis?.total_vueltos_usd)}</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Diferencia Neta</span>
+                    <h3 class="fw-bold ${data.kpis?.total_diferencia_usd < 0 ? 'text-danger' : (data.kpis?.total_diferencia_usd > 0 ? 'text-success' : 'text-dark')} mb-0 font-monospace">$${formatearNumero(data.kpis?.total_diferencia_usd)}</h3>
+                    <div class="text-muted small mt-1">${data.kpis?.total_diferencia_usd < 0 ? 'Faltante de Caja' : (data.kpis?.total_diferencia_usd > 0 ? 'Sobrante de Caja' : 'Caja Cuadrada')}</div>
+                </div>
+            </div>
+        `);
+
+        let htmlTabla = `
+            <table class="table table-hover align-middle mb-0 font-monospace small">
+                <thead style="background-color: #0f172a;">
+                    <tr>
+                        <th class="ps-3 py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Turno</th>
+                        <th class="py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Caja / Cajero</th>
+                        <th class="py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Apertura</th>
+                        <th class="py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Cierre</th>
+                        <th class="text-center py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Estado</th>
+                        <th class="text-end py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Venta Neta</th>
+                        <th class="text-end py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Esperado</th>
+                        <th class="text-end py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Contado</th>
+                        <th class="text-end pe-3 py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Diferencia</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        if (data.turnos && data.turnos.length > 0) {
+            data.turnos.forEach(function (t) {
+                htmlTabla += `
+                    <tr class="border-bottom">
+                        <td class="ps-3 py-2 fw-bold">#${t.turno_id}</td>
+                        <td class="py-2"><strong>${t.caja_nombre}</strong><br><span class="text-muted" style="font-size: 0.72rem;">${t.cajero_nombre}</span></td>
+                        <td class="py-2">${t.fecha_apertura} ${t.hora_apertura}</td>
+                        <td class="py-2">${t.fecha_cierre} ${t.hora_cierre}</td>
+                        <td class="text-center py-2"><span class="badge ${t.estado === 'cerrada' ? 'bg-success' : 'bg-warning text-dark'} rounded-pill px-2 py-0.5">${t.estado.toUpperCase()}</span></td>
+                        <td class="text-end py-2 fw-bold text-success">$${formatearNumero(t.ventas_neto_usd)}</td>
+                        <td class="text-end py-2 fw-bold">$${formatearNumero(t.esperado_usd)}</td>
+                        <td class="text-end py-2">$${formatearNumero(t.contado_usd)}</td>
+                        <td class="text-end pe-3 py-2 fw-bold ${t.diferencia_usd < 0 ? 'text-danger' : (t.diferencia_usd > 0 ? 'text-success' : '')}">$${formatearNumero(t.diferencia_usd)}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            htmlTabla += `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="fas fa-cash-register fs-3 mb-2 d-block opacity-50"></i>No hay turnos registrados</td></tr>`;
+        }
+        htmlTabla += '</tbody></table>';
+        tablaEl.html(htmlTabla);
+    } else if (modulo === 'devoluciones_anulaciones') {
+        tituloModalEl.text('Informe de Devoluciones y Anulaciones');
+        badgeModuloEl.text('AUDITORÍA');
+        periodoEl.text(data.kpis?.periodo_texto || 'Período Seleccionado');
+        tituloTablaEl.html('<i class="fas fa-ban text-danger me-2"></i>Eventos Revertidos');
+        conteoEl.text(`${data.items?.length || 0} eventos`);
+
+        kpisEl.html(`
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Devoluciones</span>
+                    <h3 class="fw-bold text-warning mb-0 font-monospace">$${formatearNumero(data.kpis?.total_devoluciones_usd)}</h3>
+                    <div class="text-muted small mt-1">${data.kpis?.conteo_devoluciones || 0} devoluciones</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Anulaciones</span>
+                    <h3 class="fw-bold text-danger mb-0 font-monospace">$${formatearNumero(data.kpis?.total_anuladas_usd)}</h3>
+                    <div class="text-muted small mt-1">${data.kpis?.conteo_anulaciones || 0} facturas anuladas</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Total Revertido ($ USD)</span>
+                    <h3 class="fw-bold text-dark mb-0 font-monospace">$${formatearNumero(data.kpis?.total_general_usd)}</h3>
+                    <div class="text-muted small mt-1">${data.kpis?.conteo_total || 0} eventos totales</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Total Revertido (Bs.)</span>
+                    <h3 class="fw-bold text-primary mb-0 font-monospace">Bs. ${formatearNumero(data.kpis?.total_general_bs)}</h3>
+                    <div class="text-muted small mt-1">Tasa: ${formatearNumero(data.kpis?.tasa_cambio)} Bs/$</div>
+                </div>
+            </div>
+        `);
+
+        let htmlTabla = `
+            <table class="table table-hover align-middle mb-0 font-monospace small">
+                <thead style="background-color: #0f172a;">
+                    <tr>
+                        <th class="ps-3 py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Tipo</th>
+                        <th class="py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Comprobante</th>
+                        <th class="py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Factura Orig.</th>
+                        <th class="py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Fecha / Hora</th>
+                        <th class="py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Usuario</th>
+                        <th class="py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Cliente</th>
+                        <th class="py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Motivo</th>
+                        <th class="text-end pe-3 py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Monto Revertido</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        if (data.items && data.items.length > 0) {
+            data.items.forEach(function (i) {
+                htmlTabla += `
+                    <tr class="border-bottom">
+                        <td class="ps-3 py-2"><span class="badge ${i.tipo === 'Anulación' ? 'bg-danger' : 'bg-warning text-dark'} rounded-pill px-2 py-0.5">${i.tipo}</span></td>
+                        <td class="py-2 fw-bold">${i.codigo}</td>
+                        <td class="py-2">${i.factura_codigo}</td>
+                        <td class="py-2">${i.fecha} ${i.hora}</td>
+                        <td class="py-2">${i.usuario}</td>
+                        <td class="py-2">${i.cliente}</td>
+                        <td class="py-2">${i.motivo}</td>
+                        <td class="text-end pe-3 py-2 fw-bold text-danger">-$${formatearNumero(i.monto_usd)}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            htmlTabla += `<tr><td colspan="8" class="text-center py-4 text-muted"><i class="fas fa-ban fs-3 mb-2 d-block opacity-50"></i>No hay devoluciones ni anulaciones registradas</td></tr>`;
+        }
+        htmlTabla += '</tbody></table>';
+        tablaEl.html(htmlTabla);
+    } else if (modulo === 'flujo_caja') {
+        tituloModalEl.text('Informe de Flujo Real de Caja');
+        badgeModuloEl.text('FLUJO DE CAJA');
+        periodoEl.text(data.kpis?.periodo_texto || 'Período Seleccionado');
+        tituloTablaEl.html('<i class="fas fa-credit-card text-success me-2"></i>Flujo por Método de Pago');
+        conteoEl.text(`${data.desglose_metodos?.length || 0} métodos`);
+
+        kpisEl.html(`
+            <div class="col-12 col-sm-6 col-xl-4">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Total Entradas</span>
+                    <h3 class="fw-bold text-success mb-0 font-monospace">$${formatearNumero(data.kpis?.total_entradas_usd)}</h3>
+                    <div class="text-success small mt-1">Bs. ${formatearNumero(data.kpis?.total_entradas_bs)}</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-4">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Total Salidas</span>
+                    <h3 class="fw-bold text-danger mb-0 font-monospace">$${formatearNumero(data.kpis?.total_salidas_usd)}</h3>
+                    <div class="text-danger small mt-1">Vueltos + Reembolsos</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-4">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Flujo Neto Real</span>
+                    <h3 class="fw-bold ${data.kpis?.flujo_neto_usd >= 0 ? 'text-success' : 'text-danger'} mb-0 font-monospace">$${formatearNumero(data.kpis?.flujo_neto_usd)}</h3>
+                    <div class="text-muted small mt-1">Bs. ${formatearNumero(data.kpis?.flujo_neto_bs)}</div>
+                </div>
+            </div>
+        `);
+
+        let htmlTabla = `
+            <table class="table table-hover align-middle mb-0 font-monospace small">
+                <thead style="background-color: #0f172a;">
+                    <tr>
+                        <th class="ps-3 py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Método de Pago</th>
+                        <th class="text-end py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Entradas ($)</th>
+                        <th class="text-end py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Entradas (Bs.)</th>
+                        <th class="text-end py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Salidas ($)</th>
+                        <th class="text-end pe-3 py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Flujo Neto ($)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        if (data.desglose_metodos && data.desglose_metodos.length > 0) {
+            data.desglose_metodos.forEach(function (m) {
+                htmlTabla += `
+                    <tr class="border-bottom">
+                        <td class="ps-3 py-2 fw-bold">${m.nombre}</td>
+                        <td class="text-end py-2 text-success fw-bold">$${formatearNumero(m.entradas_usd)}</td>
+                        <td class="text-end py-2">Bs. ${formatearNumero(m.entradas_bs)}</td>
+                        <td class="text-end py-2 text-danger">-$${formatearNumero(m.salidas_usd)}</td>
+                        <td class="text-end pe-3 py-2 fw-bold ${m.neto_usd >= 0 ? 'text-success' : 'text-danger'}">$${formatearNumero(m.neto_usd)}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            htmlTabla += `<tr><td colspan="5" class="text-center py-4 text-muted"><i class="fas fa-money-bill-transfer fs-3 mb-2 d-block opacity-50"></i>Sin movimientos</td></tr>`;
+        }
+        htmlTabla += '</tbody></table>';
+        tablaEl.html(htmlTabla);
+    } else if (modulo === 'libro_ventas') {
+        tituloModalEl.text('Libro de Ventas Fiscal (Sin IGTF)');
+        badgeModuloEl.text('LIBRO FISCAL');
+        periodoEl.text(data.kpis?.periodo_texto || 'Período Seleccionado');
+        tituloTablaEl.html('<i class="fas fa-book-bookmark text-dark me-2"></i>Facturas y Notas de Crédito');
+        conteoEl.text(`${data.items?.length || 0} registros`);
+
+        kpisEl.html(`
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Total Facturado</span>
+                    <h3 class="fw-bold text-dark mb-0 font-monospace">$${formatearNumero(data.kpis?.total_facturado_usd)}</h3>
+                    <div class="text-primary small mt-1">Bs. ${formatearNumero(data.kpis?.total_facturado_bs)}</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Base Imponible Gravada</span>
+                    <h3 class="fw-bold text-primary mb-0 font-monospace">$${formatearNumero(data.kpis?.total_base_imponible_usd)}</h3>
+                    <div class="text-muted small mt-1">Bs. ${formatearNumero(data.kpis?.total_base_imponible_bs)}</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">IVA Causado (16%)</span>
+                    <h3 class="fw-bold text-success mb-0 font-monospace">$${formatearNumero(data.kpis?.total_iva_usd)}</h3>
+                    <div class="text-success small mt-1">Bs. ${formatearNumero(data.kpis?.total_iva_bs)}</div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
+                    <span class="text-muted fw-bold small text-uppercase" style="font-size: 0.72rem;">Ventas Exentas</span>
+                    <h3 class="fw-bold text-secondary mb-0 font-monospace">$${formatearNumero(data.kpis?.total_exento_usd)}</h3>
+                    <div class="text-muted small mt-1">Bs. ${formatearNumero(data.kpis?.total_exento_bs)}</div>
+                </div>
+            </div>
+        `);
+
+        let htmlTabla = `
+            <table class="table table-hover align-middle mb-0 font-monospace small">
+                <thead style="background-color: #0f172a;">
+                    <tr>
+                        <th class="ps-3 py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Fecha</th>
+                        <th class="py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Tipo Doc.</th>
+                        <th class="py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Factura / Control</th>
+                        <th class="py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Cliente / RIF</th>
+                        <th class="text-end py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Total ($)</th>
+                        <th class="text-end py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">Base Imp. ($)</th>
+                        <th class="text-end pe-3 py-2 text-white fw-bold text-uppercase" style="font-size: 0.72rem;">IVA ($)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        if (data.items && data.items.length > 0) {
+            data.items.forEach(function (i) {
+                htmlTabla += `
+                    <tr class="border-bottom">
+                        <td class="ps-3 py-2">${i.fecha}</td>
+                        <td class="py-2 fw-bold ${i.tipo_doc.includes('Nota') ? 'text-danger' : ''}">${i.tipo_doc}</td>
+                        <td class="py-2"><strong>${i.codigo}</strong><br><span class="text-muted" style="font-size: 0.72rem;">Ctrl: ${i.numero_control}</span></td>
+                        <td class="py-2">${i.cliente_nombre}<br><span class="text-muted" style="font-size: 0.72rem;">${i.cliente_rif}</span></td>
+                        <td class="text-end py-2 fw-bold ${i.total_usd < 0 ? 'text-danger' : ''}">$${formatearNumero(i.total_usd)}</td>
+                        <td class="text-end py-2 ${i.base_imponible_usd < 0 ? 'text-danger' : ''}">$${formatearNumero(i.base_imponible_usd)}</td>
+                        <td class="text-end pe-3 py-2 fw-bold ${i.iva_usd < 0 ? 'text-danger' : 'text-success'}">$${formatearNumero(i.iva_usd)}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            htmlTabla += `<tr><td colspan="7" class="text-center py-4 text-muted"><i class="fas fa-book-bookmark fs-3 mb-2 d-block opacity-50"></i>No hay registros fiscales</td></tr>`;
         }
         htmlTabla += '</tbody></table>';
         tablaEl.html(htmlTabla);

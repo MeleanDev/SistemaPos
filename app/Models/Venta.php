@@ -155,4 +155,54 @@ class Venta extends Model
     {
         return $this->hasMany(DevolucionVenta::class, 'venta_id');
     }
+
+    public function scopeValidas($query)
+    {
+        return $query->where('estado', '!=', 'anulada');
+    }
+
+    public function scopeConVentaNeta($query)
+    {
+        return $query->select('ventas.*')
+            ->selectRaw('COALESCE((SELECT SUM(d.total_devuelto_usd) FROM devoluciones_venta d WHERE d.venta_id = ventas.id), 0) as total_devuelto_usd')
+            ->selectRaw('COALESCE((SELECT SUM(d.total_devuelto_bs) FROM devoluciones_venta d WHERE d.venta_id = ventas.id), 0) as total_devuelto_bs')
+            ->selectRaw('(ventas.total_usd - COALESCE((SELECT SUM(d.total_devuelto_usd) FROM devoluciones_venta d WHERE d.venta_id = ventas.id), 0)) as venta_neta_usd')
+            ->selectRaw('(ventas.total_bs - COALESCE((SELECT SUM(d.total_devuelto_bs) FROM devoluciones_venta d WHERE d.venta_id = ventas.id), 0)) as venta_neta_bs');
+    }
+
+    public function getTotalDevueltoUsdAttribute(): float
+    {
+        if (array_key_exists('total_devuelto_usd', $this->attributes)) {
+            return (float) $this->attributes['total_devuelto_usd'];
+        }
+
+        return (float) ($this->devoluciones()->sum('total_devuelto_usd') ?? 0);
+    }
+
+    public function getTotalDevueltoBsAttribute(): float
+    {
+        if (array_key_exists('total_devuelto_bs', $this->attributes)) {
+            return (float) $this->attributes['total_devuelto_bs'];
+        }
+
+        return (float) ($this->devoluciones()->sum('total_devuelto_bs') ?? 0);
+    }
+
+    public function getVentaNetaUsdAttribute(): float
+    {
+        if (array_key_exists('venta_neta_usd', $this->attributes)) {
+            return max(0.0, (float) $this->attributes['venta_neta_usd']);
+        }
+
+        return max(0.0, round((float) $this->total_usd - $this->total_devuelto_usd, 2));
+    }
+
+    public function getVentaNetaBsAttribute(): float
+    {
+        if (array_key_exists('venta_neta_bs', $this->attributes)) {
+            return max(0.0, (float) $this->attributes['venta_neta_bs']);
+        }
+
+        return max(0.0, round((float) $this->total_bs - $this->total_devuelto_bs, 2));
+    }
 }

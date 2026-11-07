@@ -146,32 +146,39 @@
     <!-- KPIS EJECUTIVOS -->
     <table class="kpi-container" cellspacing="6">
         <tr>
-            <td style="width: 25%;">
+            <td style="width: 20%;">
                 <div class="kpi-box">
-                    <div class="kpi-label">Total Facturado</div>
-                    <div class="kpi-val-usd">${{ number_format($data['kpis']['total_facturado_usd'], 2, ',', '.') }}</div>
-                    <div class="kpi-val-bs">Bs. {{ number_format($data['kpis']['total_facturado_bs'], 2, ',', '.') }}</div>
+                    <div class="kpi-label">Ventas Brutas</div>
+                    <div class="kpi-val-usd">${{ number_format($data['kpis']['total_bruto_usd'] ?? $data['kpis']['total_facturado_usd'], 2, ',', '.') }}</div>
+                    <div class="kpi-val-bs">Bs. {{ number_format($data['kpis']['total_bruto_bs'] ?? $data['kpis']['total_facturado_bs'], 2, ',', '.') }}</div>
                 </div>
             </td>
-            <td style="width: 25%;">
+            <td style="width: 20%;">
+                <div class="kpi-box" style="border-left: 3px solid #ef4444;">
+                    <div class="kpi-label">Devoluciones</div>
+                    <div class="kpi-val-usd text-danger">-${{ number_format($data['kpis']['total_devoluciones_usd'] ?? 0, 2, ',', '.') }}</div>
+                    <div class="kpi-val-bs">Anuladas: ${{ number_format($data['kpis']['total_anuladas_usd'] ?? 0, 2, ',', '.') }}</div>
+                </div>
+            </td>
+            <td style="width: 20%;">
                 <div class="kpi-box" style="border-left: 3px solid #059669;">
-                    <div class="kpi-label">Total Recaudado (Caja)</div>
-                    <div class="kpi-val-usd text-success">${{ number_format($data['kpis']['total_pagado_usd'], 2, ',', '.') }}</div>
-                    <div class="kpi-val-bs">Bs. {{ number_format($data['kpis']['total_pagado_bs'], 2, ',', '.') }}</div>
+                    <div class="kpi-label">Venta Neta</div>
+                    <div class="kpi-val-usd text-success">${{ number_format($data['kpis']['total_neto_usd'] ?? $data['kpis']['total_facturado_usd'], 2, ',', '.') }}</div>
+                    <div class="kpi-val-bs">Bs. {{ number_format($data['kpis']['total_neto_bs'] ?? $data['kpis']['total_facturado_bs'], 2, ',', '.') }}</div>
                 </div>
             </td>
-            <td style="width: 25%;">
+            <td style="width: 20%;">
                 <div class="kpi-box">
-                    <div class="kpi-label">Ventas Procesadas</div>
-                    <div class="kpi-val-usd">{{ $data['kpis']['conteo_ventas'] }}</div>
-                    <div class="kpi-val-bs">Prom: ${{ number_format($data['kpis']['ticket_promedio_usd'], 2, ',', '.') }}</div>
+                    <div class="kpi-label">Recaudado (Caja)</div>
+                    <div class="kpi-val-usd text-primary">${{ number_format($data['kpis']['total_pagado_usd'], 2, ',', '.') }}</div>
+                    <div class="kpi-val-bs">Vueltos: ${{ number_format($data['kpis']['total_vuelto_usd'], 2, ',', '.') }}</div>
                 </div>
             </td>
-            <td style="width: 25%;">
+            <td style="width: 20%;">
                 <div class="kpi-box" style="border-left: 3px solid #d97706;">
-                    <div class="kpi-label">Por Cobrar (Créditos)</div>
+                    <div class="kpi-label">Por Cobrar</div>
                     <div class="kpi-val-usd" style="color: #d97706;">${{ number_format($data['kpis']['total_por_cobrar_usd'], 2, ',', '.') }}</div>
-                    <div class="kpi-val-bs">Vueltos: ${{ number_format($data['kpis']['total_vuelto_usd'], 2, ',', '.') }}</div>
+                    <div class="kpi-val-bs">Prom: ${{ number_format($data['kpis']['ticket_promedio_usd'], 2, ',', '.') }}</div>
                 </div>
             </td>
         </tr>

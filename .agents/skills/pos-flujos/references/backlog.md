@@ -40,10 +40,10 @@ Estados: ⏳ pendiente · 🔄 en curso · ✅ hecho.
 ## Fase 3 — Reportes (ref: `reportes.md`)
 | ID | Tarea | Aceptación | Estado |
 |---|---|---|:--:|
-| B-30 | Crear fuente única de venta neta (scope/clase) y migrar Panel, Ingresos, Rentabilidad, Vendedores (UI/PDF/CSV) y Z. | Criterios globales 1-3 de `reportes.md` con tests. | ⏳ |
-| B-31 | Panel: CXC/CXP incluyen `pendiente + parcial`. | Mismo número que reporte de Créditos. | ⏳ |
-| B-32 | Nuevos reportes: Cuadre diario, Devoluciones/Anulaciones, Flujo de caja, Libro de ventas (sin IGTF). | Vista previa, PDF y CSV coinciden. | ⏳ |
-| B-33 | Dividir permisos de reportes (`financieros`, `inventario`) en seeder + `UsuarioClass` + sidebar + rutas. | Cajero sin acceso a rentabilidad. | ⏳ |
+| B-30 | Crear fuente única de venta neta (scope/clase) y migrar Panel, Ingresos, Rentabilidad, Vendedores (UI/PDF/CSV) y Z. | Criterios globales 1-3 de `reportes.md` con tests. | ✅ |
+| B-31 | Panel: CXC/CXP incluyen `pendiente + parcial`. | Mismo número que reporte de Créditos. | ✅ |
+| B-32 | Nuevos reportes: Cuadre diario, Devoluciones/Anulaciones, Flujo de caja, Libro de ventas (sin IGTF). | Vista previa, PDF y CSV coinciden. | ✅ |
+| B-33 | Dividir permisos de reportes (`financieros`, `inventario`) en seeder + `UsuarioClass` + sidebar + rutas. | Cajero sin acceso a rentabilidad. | ✅ |
 
 ## Fase 4 — Estándares y documentación
 | ID | Tarea | Aceptación | Estado |

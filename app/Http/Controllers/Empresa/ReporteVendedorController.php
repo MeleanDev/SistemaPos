@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Empresa;
 use App\Http\Controllers\Controller;
 use App\Models\Empresa;
 use App\Models\Vendedor;
-use App\Models\Venta;
+use App\Queries\VentaNetaQuery;
 use App\Service\Inventario\ConsultorPrecioClass;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -71,16 +71,10 @@ class ReporteVendedorController extends Controller
             $esAdmin = $user && $user->hasAnyRole(['SuperAdmin', 'Admin']);
             $vendedorPropio = $user?->vendedor()->where('empresa_id', $empresaId)->first();
 
-            $query = Venta::where('empresa_id', $empresaId)
-                ->whereNotNull('vendedor_id')
-                ->whereNotIn('estado', ['anulada', 'devuelta_total']);
-
-            if ($fechaInicio = $request->input('fecha_inicio')) {
-                $query->where('fecha_emision', '>=', $fechaInicio);
-            }
-            if ($fechaFin = $request->input('fecha_fin')) {
-                $query->where('fecha_emision', '<=', $fechaFin);
-            }
+            $query = VentaNetaQuery::conVentaNeta(
+                VentaNetaQuery::paraPeriodo($empresaId, $request->input('fecha_inicio'), $request->input('fecha_fin'))
+                    ->whereNotNull('vendedor_id')
+            );
 
             if (! $esAdmin && $vendedorPropio) {
                 $query->where('vendedor_id', $vendedorPropio->id);
@@ -88,38 +82,47 @@ class ReporteVendedorController extends Controller
                 $query->where('vendedor_id', $vendedorId);
             }
 
-            $totales = (clone $query)->selectRaw('
-                COALESCE(SUM(total_usd), 0) as total_ventas_usd,
-                COALESCE(SUM(total_bs), 0) as total_ventas_bs,
-                COALESCE(SUM(comision_monto_usd), 0) as total_comisiones_usd,
-                COALESCE(SUM(comision_monto_bs), 0) as total_comisiones_bs,
-                COUNT(*) as conteo_facturas
-            ')->first();
-
-            $topGroup = (clone $query)
-                ->selectRaw('vendedor_id, SUM(total_usd) as total_usd, COUNT(*) as conteo_facturas')
-                ->groupBy('vendedor_id')
-                ->orderByDesc('total_usd')
-                ->first();
+            $ventas = $query->get();
+            $totalesVentasUsd = round((float) $ventas->sum('venta_neta_usd'), 2);
+            $totalesVentasBs = round((float) $ventas->sum('venta_neta_bs'), 2);
+            $totalesComisionesUsd = round((float) $ventas->sum('comision_monto_usd'), 2);
+            $totalesComisionesBs = round((float) $ventas->sum('comision_monto_bs'), 2);
+            $ventasPagadas = $ventas->where('comision_estado', 'pagada');
+            $ventasPendientes = $ventas->where('comision_estado', 'pendiente');
+            $comisionPagadaUsd = round((float) $ventasPagadas->sum('comision_monto_usd'), 2);
+            $comisionPagadaBs = round((float) $ventasPagadas->sum('comision_monto_bs'), 2);
+            $comisionPendienteUsd = round((float) $ventasPendientes->sum('comision_monto_usd'), 2);
+            $comisionPendienteBs = round((float) $ventasPendientes->sum('comision_monto_bs'), 2);
+            $conteoFacturas = $ventas->count();
 
             $topVendedorNombre = 'N/A';
             $topVendedorMontoUsd = 0.00;
-            if ($topGroup) {
-                $vendedorObj = Vendedor::find($topGroup->vendedor_id);
-                if ($vendedorObj) {
-                    $topVendedorMontoUsd = round((float) $topGroup->total_usd, 2);
-                    $topVendedorNombre = "{$vendedorObj->nombre} ($".number_format($topVendedorMontoUsd, 2).')';
+            if ($ventas->isNotEmpty()) {
+                $agrupadoVendedores = $ventas->groupBy('vendedor_id')
+                    ->map(fn ($g) => (float) $g->sum('venta_neta_usd'))
+                    ->sortDesc();
+
+                $topVendedorId = $agrupadoVendedores->keys()->first();
+                $topMonto = $agrupadoVendedores->first();
+
+                if ($topVendedorId && $topVendedor = Vendedor::find($topVendedorId)) {
+                    $topVendedorMontoUsd = round((float) $topMonto, 2);
+                    $topVendedorNombre = "{$topVendedor->nombre} ($".number_format($topVendedorMontoUsd, 2).')';
                 }
             }
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'total_ventas_usd' => round((float) $totales->total_ventas_usd, 2),
-                    'total_ventas_bs' => round((float) $totales->total_ventas_bs, 2),
-                    'total_comisiones_usd' => round((float) $totales->total_comisiones_usd, 2),
-                    'total_comisiones_bs' => round((float) $totales->total_comisiones_bs, 2),
-                    'conteo_facturas' => (int) $totales->conteo_facturas,
+                    'total_ventas_usd' => $totalesVentasUsd,
+                    'total_ventas_bs' => $totalesVentasBs,
+                    'total_comisiones_usd' => $totalesComisionesUsd,
+                    'total_comisiones_bs' => $totalesComisionesBs,
+                    'total_comisiones_pagadas_usd' => $comisionPagadaUsd,
+                    'total_comisiones_pagadas_bs' => $comisionPagadaBs,
+                    'total_comisiones_pendientes_usd' => $comisionPendienteUsd,
+                    'total_comisiones_pendientes_bs' => $comisionPendienteBs,
+                    'conteo_facturas' => $conteoFacturas,
                     'top_vendedor' => $topVendedorNombre,
                     'top_vendedor_monto_usd' => $topVendedorMontoUsd,
                 ],
@@ -139,18 +142,11 @@ class ReporteVendedorController extends Controller
         $esAdmin = $user && $user->hasAnyRole(['SuperAdmin', 'Admin']);
         $vendedorPropio = $user?->vendedor()->where('empresa_id', $empresaId)->first();
 
-        $query = Venta::with(['vendedor', 'cliente', 'almacen'])
-            ->where('empresa_id', $empresaId)
-            ->whereNotNull('vendedor_id')
-            ->whereNotIn('estado', ['anulada', 'devuelta_total'])
+        $query = VentaNetaQuery::conVentaNeta(
+            VentaNetaQuery::paraPeriodo($empresaId, $request->input('fecha_inicio'), $request->input('fecha_fin'))
+                ->whereNotNull('vendedor_id')
+        )->with(['vendedor', 'cliente', 'almacen'])
             ->orderBy('id', 'desc');
-
-        if ($fechaInicio = $request->input('fecha_inicio')) {
-            $query->where('fecha_emision', '>=', $fechaInicio);
-        }
-        if ($fechaFin = $request->input('fecha_fin')) {
-            $query->where('fecha_emision', '<=', $fechaFin);
-        }
 
         if (! $esAdmin && $vendedorPropio) {
             $query->where('vendedor_id', $vendedorPropio->id);
@@ -191,16 +187,10 @@ class ReporteVendedorController extends Controller
         }
         $vendedores = $vendedoresQuery->orderBy('nombre')->get();
 
-        $ventasQuery = Venta::where('empresa_id', $empresaId)
-            ->whereNotNull('vendedor_id')
-            ->whereNotIn('estado', ['anulada', 'devuelta_total']);
-
-        if ($fechaInicio) {
-            $ventasQuery->where('fecha_emision', '>=', $fechaInicio);
-        }
-        if ($fechaFin) {
-            $ventasQuery->where('fecha_emision', '<=', $fechaFin);
-        }
+        $ventasQuery = VentaNetaQuery::conVentaNeta(
+            VentaNetaQuery::paraPeriodo($empresaId, $fechaInicio, $fechaFin)
+                ->whereNotNull('vendedor_id')
+        );
 
         if (! $esAdmin && $vendedorPropio) {
             $ventasQuery->where('vendedor_id', $vendedorPropio->id);
@@ -208,21 +198,13 @@ class ReporteVendedorController extends Controller
             $ventasQuery->where('vendedor_id', $vendedorId);
         }
 
-        $ventasAgrupadas = $ventasQuery
-            ->selectRaw('
-                vendedor_id,
-                COUNT(*) as conteo_ventas,
-                SUM(total_usd) as total_vendido_usd,
-                SUM(total_bs) as total_vendido_bs,
-                SUM(comision_monto_usd) as total_comision_usd,
-                SUM(comision_monto_bs) as total_comision_bs
-            ')
-            ->groupBy('vendedor_id')
-            ->get()
-            ->keyBy('vendedor_id');
+        $ventasColeccion = $ventasQuery->get();
+        $ventasAgrupadas = $ventasColeccion->groupBy('vendedor_id');
 
         $resumen = $vendedores->map(function ($v) use ($ventasAgrupadas) {
-            $agrupado = $ventasAgrupadas->get($v->id);
+            $grupo = $ventasAgrupadas->get($v->id);
+            $pagadas = $grupo ? $grupo->where('comision_estado', 'pagada') : collect();
+            $pendientes = $grupo ? $grupo->where('comision_estado', 'pendiente') : collect();
 
             return [
                 'id' => $v->id,
@@ -231,11 +213,15 @@ class ReporteVendedorController extends Controller
                 'telefono' => $v->telefono ?? 'N/A',
                 'correo' => $v->correo ?? 'N/A',
                 'comision_porcentaje' => (float) $v->comision_porcentaje,
-                'conteo_ventas' => $agrupado ? (int) $agrupado->conteo_ventas : 0,
-                'total_vendido_usd' => $agrupado ? round((float) $agrupado->total_vendido_usd, 2) : 0.00,
-                'total_vendido_bs' => $agrupado ? round((float) $agrupado->total_vendido_bs, 2) : 0.00,
-                'total_comision_usd' => $agrupado ? round((float) $agrupado->total_comision_usd, 2) : 0.00,
-                'total_comision_bs' => $agrupado ? round((float) $agrupado->total_comision_bs, 2) : 0.00,
+                'conteo_ventas' => $grupo ? $grupo->count() : 0,
+                'total_vendido_usd' => $grupo ? round((float) $grupo->sum('venta_neta_usd'), 2) : 0.00,
+                'total_vendido_bs' => $grupo ? round((float) $grupo->sum('venta_neta_bs'), 2) : 0.00,
+                'total_comision_usd' => $grupo ? round((float) $grupo->sum('comision_monto_usd'), 2) : 0.00,
+                'total_comision_bs' => $grupo ? round((float) $grupo->sum('comision_monto_bs'), 2) : 0.00,
+                'comision_pagada_usd' => round((float) $pagadas->sum('comision_monto_usd'), 2),
+                'comision_pagada_bs' => round((float) $pagadas->sum('comision_monto_bs'), 2),
+                'comision_pendiente_usd' => round((float) $pendientes->sum('comision_monto_usd'), 2),
+                'comision_pendiente_bs' => round((float) $pendientes->sum('comision_monto_bs'), 2),
             ];
         });
 

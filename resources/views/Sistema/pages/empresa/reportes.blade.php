@@ -34,7 +34,7 @@
                 <div class="col-12 col-lg-4 text-start text-lg-end">
                     <div class="d-inline-flex flex-column align-items-start align-items-lg-end bg-white bg-opacity-10 p-3 rounded-4">
                         <span class="text-white-50 small fw-semibold text-uppercase">Informes Disponibles</span>
-                        <span class="fs-5 fw-bold text-white"><i class="fas fa-file-invoice text-success me-2"></i>6 Módulos de Auditoría</span>
+                        <span class="fs-5 fw-bold text-white"><i class="fas fa-file-invoice text-success me-2"></i>10 Módulos de Auditoría</span>
                     </div>
                 </div>
             </div>
@@ -146,6 +146,7 @@
 
     <div class="row g-4">
 
+        @can('reportes.ver')
         <div class="col-12 col-xl-6">
             <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
                 <div class="p-4 border-bottom bg-white">
@@ -218,7 +219,9 @@
                 </div>
             </div>
         </div>
+        @endcan
 
+        @can('reportes.financieros')
         <div class="col-12 col-xl-6">
             <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
                 <div class="p-4 border-bottom bg-white">
@@ -267,7 +270,9 @@
                 </div>
             </div>
         </div>
+        @endcan
 
+        @can('reportes.inventario')
         <div class="col-12 col-xl-6">
             <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
                 <div class="p-4 border-bottom bg-white">
@@ -330,7 +335,9 @@
                 </div>
             </div>
         </div>
+        @endcan
 
+        @can('reportes.financieros')
         <div class="col-12 col-xl-6">
             <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
                 <div class="p-4 border-bottom bg-white">
@@ -391,7 +398,9 @@
                 </div>
             </div>
         </div>
+        @endcan
 
+        @can('reportes.vendedores')
         <div class="col-12 col-xl-6">
             <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
                 <div class="p-4 border-bottom bg-white">
@@ -452,7 +461,9 @@
                 </div>
             </div>
         </div>
+        @endcan
 
+        @can('reportes.inventario')
         <div class="col-12 col-xl-6">
             <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
                 <div class="p-4 border-bottom bg-white">
@@ -536,6 +547,258 @@
                 </div>
             </div>
         </div>
+        @endcan
+
+        @can('cajas.arqueo')
+        <div class="col-12 col-xl-6">
+            <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
+                <div class="p-4 border-bottom bg-white">
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <div class="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                            <i class="fas fa-balance-scale fs-5"></i>
+                        </div>
+                        <div>
+                            <span class="badge bg-primary bg-opacity-10 text-primary fw-semibold rounded-pill px-2.5 py-1 small">Arqueo & Cajas</span>
+                            <h5 class="fw-bold text-dark mb-0 mt-1">Cuadre Diario (Cajas & Turnos)</h5>
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-0">
+                        Auditoría por turno y caja: ventas, devoluciones, abonos, vuelto entregado, efectivo esperado vs contado y diferencias.
+                    </p>
+                </div>
+
+                <div class="p-4 bg-white flex-grow-1">
+                    <div class="row g-3">
+                        <x-input
+                            name="cuadre_fecha_inicio"
+                            id="cuadre_fecha_inicio"
+                            type="date"
+                            label="Desde"
+                            icon="fas fa-calendar-alt text-secondary"
+                            value="{{ date('Y-m-01') }}"
+                            col="col-12 col-sm-6"
+                        />
+                        <x-input
+                            name="cuadre_fecha_fin"
+                            id="cuadre_fecha_fin"
+                            type="date"
+                            label="Hasta"
+                            icon="fas fa-calendar-alt text-secondary"
+                            value="{{ date('Y-m-d') }}"
+                            col="col-12 col-sm-6"
+                        />
+                        <x-select
+                            name="cuadre_caja_id"
+                            id="cuadre_caja_id"
+                            label="Caja"
+                            icon="fas fa-cash-register text-secondary"
+                            col="col-12"
+                        >
+                            <option value="">-- Todas las Cajas --</option>
+                            @foreach($cajas as $caja)
+                                <option value="{{ $caja->id }}">{{ $caja->nombre }}</option>
+                            @endforeach
+                        </x-select>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-white border-top d-flex flex-column flex-sm-row flex-wrap gap-2 align-items-stretch align-items-sm-center">
+                    <x-button variant="primary" icon="fas fa-eye" text="Vista Previa" onclick="generarReporte('cuadre_diario', 'previa')" class="flex-fill" />
+                    <x-button variant="outline-dark" icon="fas fa-file-pdf" iconColor="text-danger" text="Ver PDF" onclick="generarReporte('cuadre_diario', 'pdf_ver')" class="flex-fill" />
+                    <x-button variant="outline-danger" icon="fas fa-download" text="Descargar PDF" onclick="generarReporte('cuadre_diario', 'pdf_descargar')" class="flex-fill" />
+                    <x-button variant="outline-success" icon="fas fa-file-excel" text="Excel" onclick="generarReporte('cuadre_diario', 'excel')" class="flex-fill" />
+                </div>
+            </div>
+        </div>
+        @endcan
+
+        @can('ventas.anular')
+        <div class="col-12 col-xl-6">
+            <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
+                <div class="p-4 border-bottom bg-white">
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <div class="rounded-3 bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                            <i class="fas fa-ban fs-5"></i>
+                        </div>
+                        <div>
+                            <span class="badge bg-danger bg-opacity-10 text-danger fw-semibold rounded-pill px-2.5 py-1 small">Auditoría & Control</span>
+                            <h5 class="fw-bold text-dark mb-0 mt-1">Devoluciones & Anulaciones</h5>
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-0">
+                        Bitácora detallada de reversiones, facturas anuladas y notas de devolución con motivo, usuario autorizado y reembolsos.
+                    </p>
+                </div>
+
+                <div class="p-4 bg-white flex-grow-1">
+                    <div class="row g-3">
+                        <x-input
+                            name="devanul_fecha_inicio"
+                            id="devanul_fecha_inicio"
+                            type="date"
+                            label="Desde"
+                            icon="fas fa-calendar-alt text-secondary"
+                            value="{{ date('Y-m-01') }}"
+                            col="col-12 col-sm-6"
+                        />
+                        <x-input
+                            name="devanul_fecha_fin"
+                            id="devanul_fecha_fin"
+                            type="date"
+                            label="Hasta"
+                            icon="fas fa-calendar-alt text-secondary"
+                            value="{{ date('Y-m-d') }}"
+                            col="col-12 col-sm-6"
+                        />
+                        <x-select
+                            name="devanul_tipo"
+                            id="devanul_tipo"
+                            label="Tipo de Evento"
+                            icon="fas fa-filter text-secondary"
+                            col="col-12"
+                        >
+                            <option value="todos">-- Todas (Devoluciones & Anulaciones) --</option>
+                            <option value="devolucion">Solo Devoluciones de Venta</option>
+                            <option value="anulacion">Solo Facturas Anuladas</option>
+                        </x-select>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-white border-top d-flex flex-column flex-sm-row flex-wrap gap-2 align-items-stretch align-items-sm-center">
+                    <x-button variant="primary" icon="fas fa-eye" text="Vista Previa" onclick="generarReporte('devoluciones_anulaciones', 'previa')" class="flex-fill" />
+                    <x-button variant="outline-dark" icon="fas fa-file-pdf" iconColor="text-danger" text="Ver PDF" onclick="generarReporte('devoluciones_anulaciones', 'pdf_ver')" class="flex-fill" />
+                    <x-button variant="outline-danger" icon="fas fa-download" text="Descargar PDF" onclick="generarReporte('devoluciones_anulaciones', 'pdf_descargar')" class="flex-fill" />
+                    <x-button variant="outline-success" icon="fas fa-file-excel" text="Excel" onclick="generarReporte('devoluciones_anulaciones', 'excel')" class="flex-fill" />
+                </div>
+            </div>
+        </div>
+        @endcan
+
+        @can('reportes.ver')
+        <div class="col-12 col-xl-6">
+            <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
+                <div class="p-4 border-bottom bg-white">
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <div class="rounded-3 bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                            <i class="fas fa-money-bill-transfer fs-5"></i>
+                        </div>
+                        <div>
+                            <span class="badge bg-success bg-opacity-10 text-success fw-semibold rounded-pill px-2.5 py-1 small">Tesorería & Flujo</span>
+                            <h5 class="fw-bold text-dark mb-0 mt-1">Flujo Real de Caja</h5>
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-0">
+                        Entradas reales (ventas, abonos CXC, ingresos) menos salidas (vueltos, reembolsos, egresos) por método de pago.
+                    </p>
+                </div>
+
+                <div class="p-4 bg-white flex-grow-1">
+                    <div class="row g-3">
+                        <x-input
+                            name="flujo_fecha_inicio"
+                            id="flujo_fecha_inicio"
+                            type="date"
+                            label="Desde"
+                            icon="fas fa-calendar-alt text-secondary"
+                            value="{{ date('Y-m-01') }}"
+                            col="col-12 col-sm-6"
+                        />
+                        <x-input
+                            name="flujo_fecha_fin"
+                            id="flujo_fecha_fin"
+                            type="date"
+                            label="Hasta"
+                            icon="fas fa-calendar-alt text-secondary"
+                            value="{{ date('Y-m-d') }}"
+                            col="col-12 col-sm-6"
+                        />
+                        <x-select
+                            name="flujo_caja_id"
+                            id="flujo_caja_id"
+                            label="Caja"
+                            icon="fas fa-cash-register text-secondary"
+                            col="col-12 col-sm-6"
+                        >
+                            <option value="">-- Todas las Cajas --</option>
+                            @foreach($cajas as $caja)
+                                <option value="{{ $caja->id }}">{{ $caja->nombre }}</option>
+                            @endforeach
+                        </x-select>
+                        <x-select
+                            name="flujo_metodo_pago_id"
+                            id="flujo_metodo_pago_id"
+                            label="Método de Pago"
+                            icon="fas fa-credit-card text-secondary"
+                            col="col-12 col-sm-6"
+                        >
+                            <option value="">-- Todos los Métodos --</option>
+                            @foreach($metodos_pago as $metodo)
+                                <option value="{{ $metodo->id }}">{{ $metodo->nombre }}</option>
+                            @endforeach
+                        </x-select>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-white border-top d-flex flex-column flex-sm-row flex-wrap gap-2 align-items-stretch align-items-sm-center">
+                    <x-button variant="primary" icon="fas fa-eye" text="Vista Previa" onclick="generarReporte('flujo_caja', 'previa')" class="flex-fill" />
+                    <x-button variant="outline-dark" icon="fas fa-file-pdf" iconColor="text-danger" text="Ver PDF" onclick="generarReporte('flujo_caja', 'pdf_ver')" class="flex-fill" />
+                    <x-button variant="outline-danger" icon="fas fa-download" text="Descargar PDF" onclick="generarReporte('flujo_caja', 'pdf_descargar')" class="flex-fill" />
+                    <x-button variant="outline-success" icon="fas fa-file-excel" text="Excel" onclick="generarReporte('flujo_caja', 'excel')" class="flex-fill" />
+                </div>
+            </div>
+        </div>
+        @endcan
+
+        @can('reportes.financieros')
+        <div class="col-12 col-xl-6">
+            <div class="card border rounded-4 shadow-xs h-100 bg-white d-flex flex-column justify-content-between overflow-hidden">
+                <div class="p-4 border-bottom bg-white">
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <div class="rounded-3 bg-dark bg-opacity-10 text-dark d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                            <i class="fas fa-book-bookmark fs-5"></i>
+                        </div>
+                        <div>
+                            <span class="badge bg-dark bg-opacity-10 text-dark fw-semibold rounded-pill px-2.5 py-1 small">Contabilidad & SENIAT</span>
+                            <h5 class="fw-bold text-dark mb-0 mt-1">Libro de Ventas Fiscal</h5>
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-0">
+                        Consolidado fiscal de facturas y devoluciones: base imponible, impuesto IVA causado (16%) y ventas exentas (sin IGTF).
+                    </p>
+                </div>
+
+                <div class="p-4 bg-white flex-grow-1">
+                    <div class="row g-3">
+                        <x-input
+                            name="libro_fecha_inicio"
+                            id="libro_fecha_inicio"
+                            type="date"
+                            label="Desde"
+                            icon="fas fa-calendar-alt text-secondary"
+                            value="{{ date('Y-m-01') }}"
+                            col="col-12 col-sm-6"
+                        />
+                        <x-input
+                            name="libro_fecha_fin"
+                            id="libro_fecha_fin"
+                            type="date"
+                            label="Hasta"
+                            icon="fas fa-calendar-alt text-secondary"
+                            value="{{ date('Y-m-d') }}"
+                            col="col-12 col-sm-6"
+                        />
+                    </div>
+                </div>
+
+                <div class="p-3 bg-white border-top d-flex flex-column flex-sm-row flex-wrap gap-2 align-items-stretch align-items-sm-center">
+                    <x-button variant="primary" icon="fas fa-eye" text="Vista Previa" onclick="generarReporte('libro_ventas', 'previa')" class="flex-fill" />
+                    <x-button variant="outline-dark" icon="fas fa-file-pdf" iconColor="text-danger" text="Ver PDF" onclick="generarReporte('libro_ventas', 'pdf_ver')" class="flex-fill" />
+                    <x-button variant="outline-danger" icon="fas fa-download" text="Descargar PDF" onclick="generarReporte('libro_ventas', 'pdf_descargar')" class="flex-fill" />
+                    <x-button variant="outline-success" icon="fas fa-file-excel" text="Excel" onclick="generarReporte('libro_ventas', 'excel')" class="flex-fill" />
+                </div>
+            </div>
+        </div>
+        @endcan
 
     </div>
 </div>

@@ -187,7 +187,7 @@ const cargarResumen = async function () {
                         <td class="text-end">
                             <div class="d-flex flex-column align-items-end">
                                 <span class="fw-bold text-success font-monospace">+$ ${parseFloat(v.total_comision_usd || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                <span class="text-success-emphasis small font-monospace">+Bs. ${parseFloat(v.total_comision_bs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span class="text-muted small font-monospace" style="font-size: 0.72rem;">Pag: $${parseFloat(v.comision_pagada_usd || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} • Pend: $${parseFloat(v.comision_pendiente_usd || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                         </td>
                         <td class="text-center">
@@ -414,12 +414,14 @@ const inicializarTablaFacturas = function () {
                 },
             },
             {
-                data: "total_usd",
+                data: "venta_neta_usd",
                 name: "total_usd",
                 className: "text-end align-middle",
                 render: function (data, type, row) {
-                    const usd = parseFloat(data || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    const bs = parseFloat(row.total_bs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const valorUsd = data !== undefined ? data : row.total_usd;
+                    const valorBs = row.venta_neta_bs !== undefined ? row.venta_neta_bs : row.total_bs;
+                    const usd = parseFloat(valorUsd || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const bs = parseFloat(valorBs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                     return `
                         <div class="d-flex flex-column align-items-end">
                             <span class="fw-bold text-dark font-monospace">$ ${usd}</span>

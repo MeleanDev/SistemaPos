@@ -268,6 +268,8 @@ class UsuarioClass
                     'descripcion' => 'Métricas gerenciales, balances y ventas por asesor',
                     'permisos' => [
                         ['name' => 'reportes.ver', 'label' => 'Ver reportes e ingresos generales'],
+                        ['name' => 'reportes.financieros', 'label' => 'Ver reportes financieros (Rentabilidad, Libro de Ventas, Créditos)'],
+                        ['name' => 'reportes.inventario', 'label' => 'Ver reportes de inventario valorizado y stock'],
                         ['name' => 'reportes.vendedores', 'label' => 'Ver estadísticas y comisiones de vendedores'],
                     ],
                 ],

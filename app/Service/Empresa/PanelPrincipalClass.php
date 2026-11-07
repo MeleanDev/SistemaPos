@@ -12,6 +12,7 @@ use App\Models\Producto;
 use App\Models\User;
 use App\Models\Venta;
 use App\Models\VentaPago;
+use App\Queries\VentaNetaQuery;
 use Carbon\Carbon;
 
 class PanelPrincipalClass
@@ -72,19 +73,19 @@ class PanelPrincipalClass
             $hoy = Carbon::today();
             $ayer = Carbon::yesterday();
 
-            $queryVentasHoy = Venta::where('empresa_id', $empresaId)
-                ->where('estado', '!=', 'anulada')
+            $queryVentasHoy = VentaNetaQuery::validas($empresaId)
                 ->whereDate('fecha_emision', $hoy);
 
-            $ventasHoyUsd = round((float) $queryVentasHoy->sum('total_usd'), 2);
-            $ventasHoyBs = round((float) $queryVentasHoy->sum('total_bs'), 2);
-            $facturasHoyCount = $queryVentasHoy->count();
-            $ticketPromedioUsd = $facturasHoyCount > 0 ? round($ventasHoyUsd / $facturasHoyCount, 2) : 0;
+            $metricasHoy = VentaNetaQuery::calcularTotales($queryVentasHoy);
+            $ventasHoyUsd = $metricasHoy['total_neto_usd'];
+            $ventasHoyBs = $metricasHoy['total_neto_bs'];
+            $facturasHoyCount = $metricasHoy['conteo_ventas'];
+            $ticketPromedioUsd = $metricasHoy['ticket_promedio_usd'];
 
-            $ventasAyerUsd = round((float) Venta::where('empresa_id', $empresaId)
-                ->where('estado', '!=', 'anulada')
-                ->whereDate('fecha_emision', $ayer)
-                ->sum('total_usd'), 2);
+            $queryVentasAyer = VentaNetaQuery::validas($empresaId)
+                ->whereDate('fecha_emision', $ayer);
+            $metricasAyer = VentaNetaQuery::calcularTotales($queryVentasAyer);
+            $ventasAyerUsd = $metricasAyer['total_neto_usd'];
 
             $crecimientoVentas = 0;
             if ($ventasAyerUsd > 0) {
@@ -121,18 +122,14 @@ class PanelPrincipalClass
                 $nombreDia = $nombresDias[$fecha->dayOfWeek] ?? $fecha->format('D');
                 $etiqueta = $nombreDia.' '.$fecha->format('d/m');
 
-                $ventasDia = Venta::where('empresa_id', $empresaId)
-                    ->where('estado', '!=', 'anulada')
+                $queryDia = VentaNetaQuery::validas($empresaId)
                     ->whereDate('fecha_emision', $fechaStr);
-
-                $sumaUsd = round((float) $ventasDia->sum('total_usd'), 2);
-                $sumaBs = round((float) $ventasDia->sum('total_bs'), 2);
-                $cantDia = $ventasDia->count();
+                $metricasDia = VentaNetaQuery::calcularTotales($queryDia);
 
                 $graficoLabels[] = $etiqueta;
-                $graficoDataUsd[] = $sumaUsd;
-                $graficoDataBs[] = $sumaBs;
-                $graficoDataCant[] = $cantDia;
+                $graficoDataUsd[] = $metricasDia['total_neto_usd'];
+                $graficoDataBs[] = $metricasDia['total_neto_bs'];
+                $graficoDataCant[] = $metricasDia['conteo_ventas'];
             }
 
             $datos['grafico_ventas'] = [
@@ -143,9 +140,8 @@ class PanelPrincipalClass
             ];
 
             // Transacciones Recientes (últimas 6)
-            $transacciones = Venta::with(['cliente', 'usuario', 'pagos.metodoPago'])
-                ->where('empresa_id', $empresaId)
-                ->where('estado', '!=', 'anulada')
+            $transacciones = VentaNetaQuery::conVentaNeta(VentaNetaQuery::validas($empresaId))
+                ->with(['cliente', 'usuario', 'pagos.metodoPago'])
                 ->latest('id')
                 ->take(6)
                 ->get();
@@ -165,6 +161,7 @@ class PanelPrincipalClass
                     'metodos' => $metodosNombres ?: 'Efectivo',
                     'total_usd' => (float) $v->total_usd,
                     'total_bs' => (float) $v->total_bs,
+                    'venta_neta_usd' => (float) ($v->venta_neta_usd ?? $v->total_usd),
                     'fecha_hora' => $v->created_at ? $v->created_at->format('d/m/Y h:i A') : Carbon::parse($v->fecha_emision)->format('d/m/Y'),
                     'estado' => $v->estado,
                 ];
@@ -229,7 +226,7 @@ class PanelPrincipalClass
         // 4. Métricas de Créditos: Cuentas por Cobrar (CXC)
         if ($permisos['cxc_ver']) {
             $cxcQuery = CuentaPorCobrar::where('empresa_id', $empresaId)
-                ->where('estado', 'pendiente');
+                ->whereIn('estado', ['pendiente', 'parcial']);
 
             $datos['kpis']['cxc_pendiente_usd'] = round((float) (clone $cxcQuery)->sum('saldo_pendiente_usd'), 2);
             $datos['kpis']['cxc_pendiente_bs'] = round((float) (clone $cxcQuery)->sum('saldo_pendiente_bs'), 2);
@@ -239,7 +236,7 @@ class PanelPrincipalClass
         // 5. Métricas de Finanzas: Cuentas por Pagar (CXP)
         if ($permisos['cxp_ver']) {
             $cxpQuery = CuentaPorPagar::where('empresa_id', $empresaId)
-                ->where('estado', 'pendiente');
+                ->whereIn('estado', ['pendiente', 'parcial']);
 
             $datos['kpis']['cxp_pendiente_usd'] = round((float) (clone $cxpQuery)->sum('saldo_pendiente_usd'), 2);
             $datos['kpis']['cxp_pendiente_bs'] = round((float) (clone $cxpQuery)->sum('saldo_pendiente_bs'), 2);
@@ -270,14 +267,15 @@ class PanelPrincipalClass
             }
 
             if ($turnoActivo) {
-                $ventasTurno = Venta::where('caja_turno_id', $turnoActivo->id)
-                    ->where('estado', '!=', 'anulada')
-                    ->get();
+                $totalesTurno = VentaNetaQuery::calcularTotales($empresaId, null, null, null, (int) $turnoActivo->id);
+                $ventasTotalUsd = $totalesTurno['neto_usd'];
+                $ventasTotalBs = $totalesTurno['neto_bs'];
 
-                $ventasTotalUsd = round((float) $ventasTurno->sum('total_usd'), 2);
-                $ventasTotalBs = round((float) $ventasTurno->sum('total_bs'), 2);
+                $ventasTurnoIds = VentaNetaQuery::validas($empresaId)
+                    ->where('caja_turno_id', $turnoActivo->id)
+                    ->pluck('id');
 
-                $pagosTurno = VentaPago::whereIn('venta_id', $ventasTurno->pluck('id'))
+                $pagosTurno = VentaPago::whereIn('venta_id', $ventasTurnoIds)
                     ->with('metodoPago')
                     ->get();
 
@@ -285,8 +283,7 @@ class PanelPrincipalClass
                 $pagosDigitalesUsd = 0;
 
                 foreach ($pagosTurno as $pago) {
-                    $nombreMetodo = strtolower($pago->metodoPago?->nombre ?? '');
-                    if (str_contains($nombreMetodo, 'efectivo') || str_contains($nombreMetodo, 'cash')) {
+                    if ($pago->metodoPago?->es_efectivo) {
                         $pagosEfectivoUsd += (float) $pago->monto_usd;
                     } else {
                         $pagosDigitalesUsd += (float) $pago->monto_usd;
@@ -295,7 +292,8 @@ class PanelPrincipalClass
 
                 $montoAperturaUsd = (float) $turnoActivo->monto_apertura_usd;
                 $montoAperturaBs = (float) $turnoActivo->monto_apertura_bs;
-                $totalEnCajaUsd = round($montoAperturaUsd + $pagosEfectivoUsd, 2);
+                $reporteTurno = (new CajaClass)->calcularReporteTurno((int) $turnoActivo->id, $empresaId);
+                $totalEnCajaUsd = round((float) ($reporteTurno['efectivo_esperado_usd'] ?? ($montoAperturaUsd + $pagosEfectivoUsd)), 2);
 
                 $datos['caja_estado'] = [
                     'tiene_turno_abierto' => true,
