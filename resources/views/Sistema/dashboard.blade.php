@@ -70,9 +70,11 @@
                             </a>
                         @endif
 
-                        <a href="{{ route('consultor_precios') }}" class="btn btn-outline-light rounded-pill px-3 py-2 fw-semibold">
-                            <i class="fas fa-barcode me-1.5"></i> Precios
-                        </a>
+                        @can('consultor.ver')
+                            <a href="{{ route('consultor_precios') }}" class="btn btn-outline-light rounded-pill px-3 py-2 fw-semibold">
+                                <i class="fas fa-barcode me-1.5"></i> Precios
+                            </a>
+                        @endcan
 
                         <button id="btnRefrescarDashboard" class="btn btn-outline-light rounded-pill px-3 py-2 fw-semibold" type="button" title="Actualizar métricas">
                             <i class="fas fa-arrows-rotate" id="iconoRefrescar"></i>
@@ -320,9 +322,11 @@
                         <a href="{{ route('pos') }}" class="btn btn-primary rounded-pill px-4 py-2.5 fw-bold shadow-xs">
                             <i class="fas fa-cash-register me-1.5"></i> Abrir Terminal POS
                         </a>
-                        <a href="{{ route('consultor_precios') }}" class="btn btn-outline-secondary rounded-pill px-3 py-2.5 fw-semibold">
-                            <i class="fas fa-barcode me-1.5"></i> Consultar Precios
-                        </a>
+                        @can('consultor.ver')
+                            <a href="{{ route('consultor_precios') }}" class="btn btn-outline-secondary rounded-pill px-3 py-2.5 fw-semibold">
+                                <i class="fas fa-barcode me-1.5"></i> Consultar Precios
+                            </a>
+                        @endcan
                     </div>
                 </div>
             </div>

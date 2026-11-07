@@ -25,12 +25,14 @@
                         </li>
                     @endcan
 
-                    <li class="sidebar-item @if (request()->routeIs('consultor_precios*')) selected @endif">
-                        <a class="sidebar-link" href="{{ route('consultor_precios') }}" aria-expanded="false">
-                            <i class="fas fa-barcode"></i>
-                            <span class="hide-menu">Consultor de Precios</span>
-                        </a>
-                    </li>
+                    @can('consultor.ver')
+                        <li class="sidebar-item @if (request()->routeIs('consultor_precios*')) selected @endif">
+                            <a class="sidebar-link" href="{{ route('consultor_precios') }}" aria-expanded="false">
+                                <i class="fas fa-barcode"></i>
+                                <span class="hide-menu">Consultor de Precios</span>
+                            </a>
+                        </li>
+                    @endcan
 
                     @can('ventas.ver')
                         <li class="sidebar-item @if (request()->routeIs('factura*')) selected @endif">

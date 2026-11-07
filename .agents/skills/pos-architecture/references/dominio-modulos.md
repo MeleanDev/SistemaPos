@@ -8,12 +8,12 @@
 ## 2. Mapa de entidades
 ```
 EMPRESAS (raíz multi-tenant)
- ├─ USUARIOS & ROLES (Spatie + empresa_user)
+ ├─ USUARIOS & ROLES (Spatie + empresa_user: SuperAdmin, Admin, Operador, Vendedor)
  ├─ ALMACENES (bodega, depósito, piso de venta)
  ├─ CATEGORIAS ─ PRODUCTOS & SERVICIOS ─ PRODUCTO_PROVEEDORES ─ PROVEEDORES
  │     ├─ PRODUCTO_CODIGOS_BARRA (N por producto)
  │     ├─ PRODUCTO_STOCK_ALMACENES (stock por almacén)
- │     └─ Fiscal: IVA (16%/8%/0%) + IGTF (3% en divisas)
+ │     └─ Fiscal: IVA (16%/8%/0%) (IGTF inerte / en desarrollo)
  ├─ RECEPCIONES/COMPRAS → entrada a stock + Kardex
  ├─ TRASLADOS → doble asiento Kardex
  ├─ POS/FACTURAS → descuenta stock + Kardex (+ comisión de vendedor)
@@ -25,19 +25,25 @@ EMPRESAS (raíz multi-tenant)
 
 ## 3. Contratos por módulo
 1. **Empresas:** entidad maestra; todo se acota por `empresa_id`.
-2. **Productos & Servicios:** `tipo` = `producto` (con stock) o `servicio` (sin stock/almacén, precio bidireccional USD↔Bs). Unidades: `unidad, kilo, gramo, litro, bulto, caja, paquete, metro`. Fiscal: `aplica_iva`+`iva_porcentaje`, `aplica_igtf`+`igtf_porcentaje` (3% por defecto). Precios: costo, detal, mayorista.
+2. **Productos & Servicios:** `tipo` = `producto` (con stock) o `servicio` (sin stock/almacén, precio bidireccional USD↔Bs). Unidades: `unidad, kilo, gramo, litro, bulto, caja, paquete, metro`. Fiscal: `aplica_iva`+`iva_porcentaje`. Precios: costo, detal, mayorista. (IGTF no implementado por ahora, campos inertes).
 3. **Recepción de mercancía:** wizard de 2 fases (cabecera fiscal/proveedor/condición; renglones, costos, márgenes, resumen). Bimonetaria con tasa BCV congelada. Recuerda `ultimo_margen_detal/mayorista`, vincula `producto_proveedores`, imprime `/recepciones/{id}/imprimir` y asienta Kardex `entrada_recepcion`.
 4. **Motos/vehículos:** por lote con seriales únicos (N.I.V./V.I.N. 17 caracteres, chasis, motor, certificado de origen, placa) y atributos (marca, modelo, año, color, cilindrada, ref). Estados: `disponible`, `reservada`, `vendida`, `en_mantenimiento`.
 5. **Traslados:** movimiento atómico entre almacenes con doble asiento Kardex (`Salida por Traslado` / `Entrada por Traslado`).
-6. **POS y facturación:** búsqueda por cualquier código de barras o serial; descuenta del almacén de la caja (piso de venta); cálculo en vivo de subtotal, IVA, IGTF y total; pagos mixtos multimoneda; ventas en espera; ticket 80mm; Kardex `Salida por Venta`.
-7. **Anulaciones/devoluciones:** reponen stock/serial al almacén de origen con `Entrada por Anulación`.
-8. **Ajustes de inventario:** diferencias de conteo registradas como `Ajuste de Inventario` (mermas/sobrantes).
+6. **POS y facturación:** búsqueda por cualquier código de barras o serial; descuenta del almacén de la caja (piso de venta); cálculo en vivo de subtotal, IVA y total (sin IGTF); pagos mixtos multimoneda; preventas en espera; ticket 80mm; Kardex `Salida por Venta`.
+7. **Anulación de factura (`POST /facturas/{id}/anular`):** con `permission:ventas.anular`; inmutable; repone stock/seriales con `Entrada por Anulación` en Kardex; anula créditos CXC; anula comisión del vendedor (0); registra egreso en el turno de caja actual por devolución de dinero si hubo pago; motivo obligatorio y auditoría (`anulada_por_id`, `anulada_at`, `motivo_anulacion`); sello "ANULADA" en ticket e impresión.
+8. **Devoluciones de productos (`POST /pos/devolucion/procesar`):** parcial o total con reposición de inventario; reembolso neto proporcional (descontando descuento previo e IVA); exige turno abierto y registra egreso con método (`tipo_reembolso`); recalcula comisión del vendedor según venta neta remanente.
+9. **Ajustes de inventario:** diferencias de conteo registradas como `Ajuste de Inventario` (mermas/sobrantes).
 
-## 4. Cajas, turnos y vendedores
-- **Vendedores:** catálogo propio por `empresa_id` (`tipo_documento`, `documento`, `nombre`, `telefono`, `correo`, `comision_porcentaje`), vínculo opcional a `users.id`. La comisión se **congela** al emitir la factura (`ventas.comision_porcentaje`, `comision_monto_usd`, `comision_monto_bs`).
+## 4. Cajas, turnos, vendedores y roles
+- **Roles reales del sistema:**
+  - `SuperAdmin`: raíz global; único con bypass por rol. Gestiona empresas y métodos de pago globales.
+  - `Admin`: gestiona sus empresas asignadas (usuarios, catálogos, cajas, vendedores, reportes). Puede facturar eligiendo cualquier caja abierta.
+  - `Operador`: rol base con permisos asignados por usuario (ej. Cajero: `pos.acceso, ventas.crear, cajas.ver, cajas.movimientos, cajas.arqueo, cxc.ver, cxc.abonar`). Cierre Z a ciegas de su propio turno.
+  - `Vendedor`: rol asignable desde la UI para asesores comerciales; solo preventa (`pos.acceso, pos.preventa, reportes.vendedores, consultor.ver`). No cobra, no factura, no anula; solo ve y elimina sus propias preventas.
+- **Vendedores y Comisiones:** catálogo por `empresa_id` (`tipo_documento`, `documento`, `nombre`, `telefono`, `correo`, `comision_porcentaje`), vínculo opcional a `users.id` con unicidad `(empresa_id, user_id)`. La comisión se **congela** al facturar sobre el subtotal neto sin IVA. Liquidación de comisiones con `permission:vendedores.liquidar` y egreso opcional en caja.
 - **Exclusividad de turnos:** un cajero solo puede tener 1 turno abierto por empresa; una caja física solo 1 turno abierto.
-- **Corte X** (`/cajas/turnos/{id}/reporte-x` · `imprimir-x`): auditoría en vivo sin cerrar. **Cierre Z** (`/cajas/turnos/{id}/cerrar` · `imprimir-z`): conteo físico (`monto_cierre_usd/bs`), diferencia (Exacto/Sobrante/Faltante), ticket con firmas. Ambos térmicos 80mm.
-- **POS:** exige turno desde la barra superior, dispara Corte X/Cierre Z y atribuye vendedor en el cajón de cobro.
+- **Corte X** (`/cajas/turnos/{id}/reporte-x` · `imprimir-x`): auditoría en vivo sin cerrar. **Cierre Z** (`/cajas/turnos/{id}/cerrar` · `imprimir-z`): conteo físico (`monto_cierre_usd/bs`), diferencia (Exacto/Sobrante/Faltante), ticket con firmas. Cajero a ciegas; Admin/SuperAdmin ven esperado.
+- **POS:** exige turno abierto, dispara Corte X/Cierre Z y atribuye vendedor en el cajón de cobro.
 
 ## 5. Borradores de recepciones (productos y motos)
 1. Autoguardado local con debounce de 500ms en `localStorage` (`draft_recepcion_producto` / `draft_recepcion_moto`).

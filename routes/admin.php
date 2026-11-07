@@ -37,7 +37,7 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/cambiar-empresa', [UsuarioController::class, 'cambiarEmpresa'])->name('cambiar_empresa');
 
-    Route::controller(ConsultorPrecioController::class)->group(function () {
+    Route::middleware('permission:consultor.ver')->controller(ConsultorPrecioController::class)->group(function () {
         Route::get('/consultor-precios', 'index')->name('consultor_precios');
         Route::get('/consultor-precios/datos', 'datos');
         Route::get('/consultor-precios/buscar', 'buscar');

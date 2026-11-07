@@ -117,6 +117,9 @@ class RolesYPermisosSeeder extends Seeder
             'cxp.ver',
             'cxp.abonar',
 
+            // Consultor de Precios
+            'consultor.ver',
+
             // Reportes, Auditoría y Configuración
             'configuracion.ver',
             'configuracion.editar',
@@ -160,6 +163,7 @@ class RolesYPermisosSeeder extends Seeder
             'pos.acceso',
             'pos.preventa',
             'reportes.vendedores',
+            'consultor.ver',
         ];
         $vendedorRole->syncPermissions($vendedorPermissions);
     }

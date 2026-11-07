@@ -6,10 +6,13 @@ use App\Models\EmpresaMoneda;
 use App\Models\Producto;
 use App\Models\ProductoCodigoBarra;
 use App\Models\User;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
     Role::firstOrCreate(['name' => 'SuperAdmin', 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => 'Operador', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'consultor.ver', 'guard_name' => 'web']);
 });
 
 test('puede acceder a la vista del consultor de precios y cargar datos iniciales', function () {
@@ -141,4 +144,96 @@ test('puede buscar producto por sku y obtener precio con iva en usd y bs', funct
 
     $responseEmpty->assertStatus(200);
     expect($responseEmpty->json('data'))->toHaveCount(1);
+});
+
+test('usuario sin permiso consultor.ver recibe 403 en todas las rutas del consultor', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-31000003-1',
+        'nombre' => 'Empresa Sin Permiso Consultor',
+        'razon_social' => 'Empresa Sin Permiso C.A.',
+        'direccion' => 'Av Principal',
+        'estado' => true,
+    ]);
+
+    $userSinPermiso = User::factory()->create(['estado' => true]);
+    $userSinPermiso->syncRoles('Operador');
+    $userSinPermiso->empresas()->attach($empresa->id, ['es_predeterminada' => true, 'estado' => true]);
+
+    $this->actingAs($userSinPermiso)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->get(route('consultor_precios'))
+        ->assertForbidden();
+
+    $this->actingAs($userSinPermiso)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/consultor-precios/datos')
+        ->assertForbidden();
+
+    $this->actingAs($userSinPermiso)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/consultor-precios/buscar?termino=')
+        ->assertForbidden();
+});
+
+test('consultor de precios oculta costos de compra a usuarios que consultan', function () {
+    $empresa = Empresa::create([
+        'rif' => 'J-31000004-1',
+        'nombre' => 'Empresa Ocultar Costos',
+        'razon_social' => 'Empresa Ocultar Costos C.A.',
+        'direccion' => 'Av Principal',
+        'estado' => true,
+    ]);
+
+    EmpresaMoneda::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'USD',
+        'nombre' => 'Dólares',
+        'simbolo' => '$',
+        'tasa_cambio' => 50.0000,
+        'es_principal' => true,
+        'estado' => true,
+    ]);
+
+    $categoria = Categoria::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'CAT-COSTOS',
+        'nombre' => 'Categoría Costos',
+        'estado' => true,
+    ]);
+
+    $producto = Producto::create([
+        'empresa_id' => $empresa->id,
+        'categoria_id' => $categoria->id,
+        'codigo_interno' => 'PROD-COSTO-01',
+        'nombre' => 'Producto con Costo Secreto',
+        'unidad_medida' => 'UND',
+        'precio_costo_usd' => 25.50,
+        'precio_costo_bs' => 1275.00,
+        'precio_detal_usd' => 50.00,
+        'aplica_iva' => true,
+        'iva_porcentaje' => 16.00,
+        'aplica_igtf' => false,
+        'estado' => true,
+    ]);
+
+    $userConsultor = User::factory()->create(['estado' => true]);
+    $userConsultor->syncRoles('Operador');
+    $userConsultor->givePermissionTo('consultor.ver');
+    $userConsultor->empresas()->attach($empresa->id, ['es_predeterminada' => true, 'estado' => true]);
+
+    $response = $this->actingAs($userConsultor)
+        ->withSession(['empresa_activa_id' => $empresa->id])
+        ->getJson('/consultor-precios/buscar?termino=PROD-COSTO-01');
+
+    $response->assertOk()
+        ->assertJson([
+            'success' => true,
+        ]);
+
+    $item = $response->json('data.0');
+    expect($item)->not()->toBeNull()
+        ->and($item)->not()->toHaveKey('precio_costo_usd')
+        ->and($item)->not()->toHaveKey('precio_costo_bs')
+        ->and($item)->not()->toHaveKey('costo')
+        ->and($item['precio_usd_con_iva'])->toEqual(58.0);
 });

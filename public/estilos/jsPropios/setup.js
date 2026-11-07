@@ -1,15 +1,6 @@
-/**
- * Asistente de Configuración Inicial (Setup Wizard)
- * Sistema POS Multisede — UI/UX Executive
- */
-
 let pasoActual = 1;
 
-/**
- * Alterna la selección visual de la tarjeta de método de pago
- * @param {HTMLElement} element 
- */
-window.toggleMetodoCard = function (element) {
+const toggleMetodoCard = function (element) {
     const card = $(element);
     const checkbox = card.find(".check-metodo");
     const isChecked = checkbox.prop("checked");
@@ -23,13 +14,8 @@ window.toggleMetodoCard = function (element) {
     }
 };
 
-/**
- * Navega entre los pasos del asistente validando la información requerida
- * @param {number} nuevoPaso 
- */
-window.irAlPaso = function (nuevoPaso) {
+const irAlPaso = function (nuevoPaso) {
     if (nuevoPaso > pasoActual) {
-        // Validar paso 1 antes de avanzar
         if (pasoActual === 1) {
             const nombre = $("#empresa_nombre").val().trim();
             const razonSocial = $("#empresa_razon_social").val().trim();
@@ -61,7 +47,6 @@ window.irAlPaso = function (nuevoPaso) {
             }
         }
 
-        // Validar paso 2 antes de avanzar
         if (pasoActual === 2) {
             const cedulaNum = $("#admin_cedula_numero").val().trim();
             const email = $("#admin_email").val().trim();
@@ -109,19 +94,15 @@ window.irAlPaso = function (nuevoPaso) {
         }
     }
 
-    // Cambiar panel visible
     $(".step-panel").removeClass("active");
     $(`#contenidoPaso${nuevoPaso}`).addClass("active");
 
-    // Actualizar encabezado e indicador numérico
     $("#pasoActualTexto").text(nuevoPaso);
     pasoActual = nuevoPaso;
 
-    // Actualizar barra de progreso conectora
     const progressPercent = nuevoPaso === 1 ? 0 : (nuevoPaso === 2 ? 50 : 100);
     $("#stepperProgressBar").css("width", `${progressPercent}%`);
 
-    // Actualizar nodos del stepper
     for (let i = 1; i <= 3; i++) {
         const indicador = $(`#indicadorPaso${i}`);
         const circulo = $(`#circuloPaso${i}`);
@@ -141,7 +122,7 @@ window.irAlPaso = function (nuevoPaso) {
     window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
-function mostrarAlertaPaso(mensaje) {
+const mostrarAlertaPaso = function (mensaje) {
     if (window.notificacion) {
         window.notificacion.fire({
             icon: "warning",
@@ -161,10 +142,9 @@ function mostrarAlertaPaso(mensaje) {
     } else {
         alert(mensaje);
     }
-}
+};
 
 $(document).ready(function () {
-    // 1. Preview de Logo en tiempo real
     $("#empresa_logo").on("change", function (e) {
         const file = e.target.files[0];
         if (file) {
@@ -186,11 +166,9 @@ $(document).ready(function () {
         }
     });
 
-    // 2. Envío AJAX del formulario
     $("#formularioSetup").on("submit", function (e) {
         e.preventDefault();
 
-        // Validar que al menos un método de pago esté activo
         const metodosSeleccionados = $("input[name='metodos_pago[]']:checked").length;
         if (metodosSeleccionados === 0) {
             mostrarAlertaPaso("Debes seleccionar al menos un método de pago inicial.");
@@ -203,17 +181,17 @@ $(document).ready(function () {
 
         const formData = new FormData(this);
 
-        $.ajax({
+        peticionAjax({
             url: "/configuracion-inicial",
-            type: "POST",
+            method: "POST",
             data: formData,
             processData: false,
             contentType: false,
             headers: {
                 "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
             },
-            dataType: "json",
-            success: function (response) {
+        })
+            .done(function (response) {
                 if (response.success) {
                     Swal.fire({
                         icon: "success",
@@ -230,7 +208,6 @@ $(document).ready(function () {
                         window.location.href = response.redirect || "/panel-principal";
                     });
                 } else {
-                    btn.prop("disabled", false).html(textoOriginal);
                     Swal.fire({
                         icon: "error",
                         title: "Error en la Configuración",
@@ -242,10 +219,8 @@ $(document).ready(function () {
                         },
                     });
                 }
-            },
-            error: function (xhr) {
-                btn.prop("disabled", false).html(textoOriginal);
-
+            })
+            .fail(function (xhr) {
                 if (typeof window.mostrarErroresValidacion === "function") {
                     window.mostrarErroresValidacion(xhr, "Verifica los datos");
                 } else if (xhr.responseJSON && xhr.responseJSON.errors) {
@@ -272,7 +247,9 @@ $(document).ready(function () {
                         },
                     });
                 }
-            },
-        });
+            })
+            .always(function () {
+                btn.prop("disabled", false).html(textoOriginal);
+            });
     });
 });

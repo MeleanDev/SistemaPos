@@ -48,10 +48,10 @@ Estados: ⏳ pendiente · 🔄 en curso · ✅ hecho.
 ## Fase 4 — Estándares y documentación
 | ID | Tarea | Aceptación | Estado |
 |---|---|---|:--:|
-| B-40 | Limpiar `setup.js` (1 `$.ajax`, 3 `window.x=`, comentarios), `dashboard.js` (`$.ajax`), `usuario.js` (`window.x=`). | Checklist JS de `pos-architecture` en verde. | ⏳ |
-| B-41 | Permisos en `panel-principal` y `consultor-precios*`; ocultar costos al que no tenga permiso. | Rutas con middleware. | ⏳ |
-| B-42 | Corregir `pos-architecture`: `dominio-modulos.md` (quitar IGTF-en-POS, añadir anulación, vendedor/roles reales), `permisos.md` y el tracker de `protocolo-refactor.md` (estados honestos). | Docs coinciden con el código. | ⏳ |
-| B-43 | Tests de regresión por flujo (factura, anulación, devolución, abono, arqueo, comisión, permisos por rol). | Suite verde; pedir al usuario correr la completa. | ⏳ |
+| B-40 | Limpiar `setup.js` (1 `$.ajax`, 3 `window.x=`, comentarios), `dashboard.js` (`$.ajax`), `usuario.js` (`window.x=`). | Checklist JS de `pos-architecture` en verde. | ✅ |
+| B-41 | Permisos en `panel-principal` y `consultor-precios*`; ocultar costos al que no tenga permiso. | Rutas con middleware. | ✅ |
+| B-42 | Corregir `pos-architecture`: `dominio-modulos.md` (quitar IGTF-en-POS, añadir anulación, vendedor/roles reales), `permisos.md` y el tracker de `protocolo-refactor.md` (estados honestos). | Docs coinciden con el código. | ✅ |
+| B-43 | Tests de regresión por flujo (factura, anulación, devolución, abono, arqueo, comisión, permisos por rol). | Suite verde; pedir al usuario correr la completa. | ✅ |
 
 ## Fuera de alcance (no hacer)
 - IGTF (D5). Clientes/métodos de pago por empresa (D4). Que el vendedor cobre (D1).

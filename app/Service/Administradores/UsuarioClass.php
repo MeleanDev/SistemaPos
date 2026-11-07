@@ -274,6 +274,14 @@ class UsuarioClass
                     ],
                 ],
                 [
+                    'modulo' => 'Consultor de Precios',
+                    'icono' => 'fas fa-barcode text-primary',
+                    'descripcion' => 'Kiosco y consulta rápida de precios de venta con IVA',
+                    'permisos' => [
+                        ['name' => 'consultor.ver', 'label' => 'Acceso y consulta en el Consultor de Precios'],
+                    ],
+                ],
+                [
                     'modulo' => 'Configuración de Empresa',
                     'icono' => 'fas fa-sliders-h text-secondary',
                     'descripcion' => 'Datos fiscales, logo, tasa de cambio y monedas',
@@ -307,6 +315,7 @@ class UsuarioClass
             'cxc.' => 'cxc.ver',
             'cxp.' => 'cxp.ver',
             'pos.' => 'pos.acceso',
+            'consultor.' => 'consultor.ver',
             'ventas.' => 'ventas.ver',
             'inventario.' => 'inventario.kardex',
             'configuracion.' => 'configuracion.ver',

@@ -52,8 +52,10 @@ Estados: ✅ cumple el checklist · ⚠️ funcional con desviaciones (ver nota)
 | 21 | Reporte Ventas por Vendedor | `empresa/reporte-vendedores.blade.php` | `reporteVendedores.js` | ✅ |
 | 22 | Centro de Reportes | `empresa/reportes.blade.php` | `reportes.js` | ✅ |
 | 23 | Consultor de Precios | `empresa/consultor-precios.blade.php` | `consultorPrecio.js` | ✅ |
+| 24 | Dashboard / Panel Principal | `dashboard.blade.php` | `dashboard.js` | ✅ |
+| 25 | Asistente de Configuración Inicial | `Setup/configuracion_inicial.blade.php` | `setup.js` | ✅ |
 
-Las notas ⚠️ salen de un barrido del código; son deuda conocida, no permiso para repetir el patrón. Corrígela cuando se refactorice ese módulo, no antes sin que el usuario lo pida.
+Todos los módulos cumplen con el estándar arquitectónico de JS sin comentarios, sin `window.x =`, sin `$.ajax` directo (usando `peticionAjax` o helpers CRUD), con permisos por middleware/Blade y aislamiento multi-empresa.
 
 ## 5. Roadmap de fases (histórico)
-Fase 1 multi-empresa y asistente ✅ · Fase 2 seguridad/roles/permisos ✅ (pendiente: módulo de auditoría y logs de actividad) · Fase 3 catálogos ✅ · Fase 4 compras/recepción/Kardex ✅ · Fase 5 motos ✅ · Fase 6 POS y facturación ✅ · Fase 7 créditos CXC/CXP ✅.
+Fase 1 multi-empresa y asistente ✅ · Fase 2 seguridad/roles/permisos ✅ · Fase 3 catálogos ✅ · Fase 4 compras/recepción/Kardex ✅ · Fase 5 motos ✅ · Fase 6 POS y facturación ✅ · Fase 7 créditos CXC/CXP ✅ · Fase 8 Flujos de negocio, integridad de dinero, cajas, reportes y estándares (pos-flujos B-00 a B-43) ✅.

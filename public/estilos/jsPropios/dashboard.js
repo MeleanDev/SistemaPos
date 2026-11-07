@@ -295,11 +295,11 @@ $(document).ready(function () {
         $btn.prop('disabled', true);
         $icono.addClass('fa-spin');
 
-        $.ajax({
+        peticionAjax({
             url: '/panel-principal/datos',
-            type: 'GET',
-            dataType: 'json',
-            success: function (res) {
+            method: 'GET'
+        })
+            .done(function (res) {
                 if (res && res.success && res.data) {
                     actualizarVistaDashboard(res.data);
                     if (window.notificacion) {
@@ -309,20 +309,19 @@ $(document).ready(function () {
                         });
                     }
                 }
-            },
-            error: function () {
+            })
+            .fail(function () {
                 if (window.notificacion) {
                     window.notificacion.fire({
                         icon: 'error',
                         title: 'No se pudieron actualizar los datos del dashboard'
                     });
                 }
-            },
-            complete: function () {
+            })
+            .always(function () {
                 $btn.prop('disabled', false);
                 $icono.removeClass('fa-spin');
-            }
-        });
+            });
     };
 
     $('#btnRefrescarDashboard').on('click', function (e) {
