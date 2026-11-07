@@ -386,6 +386,7 @@ class ReporteClass
         $soloBajoStock = ! empty($filtros['bajo_stock']);
 
         $query = ProductoStockAlmacen::with(['producto.categoria', 'almacen'])
+            ->where('cantidad_actual', '>', 0)
             ->whereHas('producto', function (Builder $q) use ($empresaId, $categoriaId) {
                 $q->where('empresa_id', $empresaId)->where('estado', true);
                 if ($categoriaId) {

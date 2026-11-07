@@ -245,6 +245,13 @@ test('reporte de inventario y valorizacion calcula correctamente las cantidades 
         'estado' => true,
     ]);
 
+    $almacenVacio = Almacen::create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'ALM-VACIO',
+        'nombre' => 'Almacén Secundario',
+        'estado' => true,
+    ]);
+
     $categoria = Categoria::create([
         'empresa_id' => $empresa->id,
         'codigo' => 'CAT-TEST',
@@ -272,6 +279,13 @@ test('reporte de inventario y valorizacion calcula correctamente las cantidades 
         'ubicacion_pasillo' => 'Pasillo 1',
     ]);
 
+    ProductoStockAlmacen::create([
+        'producto_id' => $producto->id,
+        'almacen_id' => $almacenVacio->id,
+        'cantidad_actual' => 0,
+        'cantidad_reservada' => 0,
+    ]);
+
     $user = User::factory()->create(['name' => 'V-99000004']);
     $user->assignRole('SuperAdmin');
     $user->empresas()->attach($empresa->id);
@@ -281,11 +295,14 @@ test('reporte de inventario y valorizacion calcula correctamente las cantidades 
         ->getJson('/reportes/inventario');
 
     $response->assertOk()
+        ->assertJsonCount(1, 'data.inventario')
         ->assertJsonPath('data.kpis.total_items', 1)
         ->assertJsonPath('data.kpis.total_unidades', 5)
+        ->assertJsonPath('data.kpis.conteo_bajo_stock', 0)
         ->assertJsonPath('data.kpis.valor_costo_usd', 1000)
         ->assertJsonPath('data.kpis.valor_venta_usd', 1250)
         ->assertJsonPath('data.kpis.margen_proyectado_usd', 250)
+        ->assertJsonPath('data.inventario.0.almacen', 'Piso de Venta')
         ->assertJsonPath('data.inventario.0.stock_actual', 5)
         ->assertJsonPath('data.inventario.0.costo_subtotal_usd', 1000)
         ->assertJsonPath('data.inventario.0.venta_subtotal_usd', 1250)
