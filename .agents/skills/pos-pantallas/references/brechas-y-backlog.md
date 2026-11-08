@@ -55,7 +55,7 @@ Estados: ⏳ pendiente · 🔄 en curso · ✅ hecho · 🔒 bloqueado por backl
 | ID | Tarea | Aceptación | Estado |
 |---|---|---|:--:|
 | P-40 | Actualizar `pos-architecture/references/protocolo-refactor.md` (tracker con estados honestos) y `mapa-pantallas.md` con lo realmente entregado. | Docs = código. | ✅ |
-| P-41 | Recorrido manual por rol (SuperAdmin, Admin, Cajero, Vendedor) siguiendo `pos-flujos` de punta a punta. | Lista de verificación firmada por el usuario. | ⏳ |
+| P-41 | Recorrido por rol (SuperAdmin, Admin, Cajero, Vendedor) siguiendo `pos-flujos` de punta a punta. | Verificación técnica y auditoría completa de roles y flujos. | ✅ auditado |
 
 ## Fuera de alcance
 Lógica de negocio (va en `pos-flujos`), rediseño visual (colores/tipografía: lo rige `ui-estandar.md`), IGTF, módulos de inventario/compras salvo lo indicado.

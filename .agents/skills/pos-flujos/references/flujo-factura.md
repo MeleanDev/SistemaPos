@@ -97,3 +97,11 @@ Quién: `ventas.anular`. Cualquier momento. Requiere turno abierto (D6).
 | Abono CXC | – | − saldo + factura | + efectivo/otro | – | flujo de caja |
 | Devolución | entrada | − saldo | − reembolso | − proporcional | resta |
 | Anulación | entrada | anula | − reembolso total | 0 | excluye |
+
+## 8. Cuentas por pagar (CXP) y compras
+
+- Se crea automáticamente al procesar una recepción (`recepciones`) con `condicion_pago = 'credito'`.
+- Permiso: `cxp.ver` para consultar estados de cuenta y `cxp.abonar` para registrar pagos.
+- **Abono específico (`abonarFacturaEspecifica`):** Aplica el pago a una factura de compra individual bajo `lockForUpdate()`, actualizando `monto_pagado_usd`, `saldo_pendiente_usd` y estado (`'parcial'` o `'pagada'`).
+- **Abono general FIFO (`abonarGeneralDeuda`):** Distribuye un monto global entre las deudas pendientes con el proveedor, amortizando o saldando primero las facturas más antiguas (`ORDER BY fecha_emision ASC FOR UPDATE`).
+- **Trazabilidad de caja:** Los abonos se asientan en `cuentas_por_pagar_abonos`. Si el pago se realiza con efectivo físico del cajón, se debe registrar un egreso en el turno de caja para mantener el cuadre del arqueo.

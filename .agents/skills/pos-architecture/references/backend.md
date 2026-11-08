@@ -57,8 +57,11 @@ public function guardar(array $datos, int $empresaId): Modelo
 }
 ```
 
-## 4. Multi-empresa (regla de oro)
-Toda entidad transaccional o de catálogo lleva `empresa_id`, y **toda** consulta, regla de validación y reactivación se limita a `$this->obtenerEmpresaId()`. Una consulta sin `where('empresa_id', …)` sobre una tabla tenant es un bug de seguridad.
+## 4. Multi-empresa y Concurrencia Transaccional (reglas de oro)
+1. **Multi-empresa:** Toda entidad transaccional o de catálogo lleva `empresa_id`, y **toda** consulta, regla de validación y reactivación se limita a `$this->obtenerEmpresaId()`. Una consulta sin `where('empresa_id', …)` sobre una tabla tenant es un fallo crítico de seguridad.
+2. **Prohibición de Fallbacks Silenciosos:** Prohibido el uso de fallbacks tipo `?? 1` en `empresa_id`, `user_id` o `almacen_id`. Si falta el contexto autenticado o el parámetro, se debe arrojar una excepción explícita (`Exception` o `AuthorizationException`).
+3. **Atomicidad y Bloqueo Pesimista:** Toda operación que altere inventario, dinero, cajas o documentos fiscales debe envolverse en `DB::transaction()` con `lockForUpdate()` sobre los modelos involucrados (`ProductoStockAlmacen`, `Moto`, `ProductoSerial`, `Venta`, `CuentaPorCobrar`, `CuentaPorPagar`).
+4. **Secuencias y Correlativos Consecutivos:** Usar siempre `Secuencia::siguiente($empresaId, $tipo)` para generar números de factura (`venta`), números de control fiscal (`numero_control`), devoluciones (`devolucion`) o liquidaciones (`liquidacion_comision`). Jamás consultar `MAX(id)` ni generar correlativos sin cerrojo transaccional.
 
 ## 5. Rutas y permisos
 - En `routes/admin.php`, **cada ruta** lleva `->middleware('permission:{modulo}.{accion}')` individual (ver `permisos.md`).

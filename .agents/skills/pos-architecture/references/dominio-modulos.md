@@ -12,27 +12,32 @@ EMPRESAS (raíz multi-tenant)
  ├─ ALMACENES (bodega, depósito, piso de venta)
  ├─ CATEGORIAS ─ PRODUCTOS & SERVICIOS ─ PRODUCTO_PROVEEDORES ─ PROVEEDORES
  │     ├─ PRODUCTO_CODIGOS_BARRA (N por producto)
- │     ├─ PRODUCTO_STOCK_ALMACENES (stock por almacén)
+ │     ├─ PRODUCTO_STOCK_ALMACENES (stock físico por almacén con lockForUpdate)
+ │     ├─ PRODUCTO_SERIALES (seriales individuales con estado: disponible, vendido)
  │     └─ Fiscal: IVA (16%/8%/0%) (IGTF inerte / en desarrollo)
- ├─ RECEPCIONES/COMPRAS → entrada a stock + Kardex
- ├─ TRASLADOS → doble asiento Kardex
- ├─ POS/FACTURAS → descuenta stock + Kardex (+ comisión de vendedor)
- ├─ KARDEX (libro mayor inmutable)
- ├─ CAJAS & TURNOS (apertura, arqueo, corte X, cierre Z)
- ├─ METODOS DE PAGO · CLIENTES (globales) · VENDEDORES
- └─ CREDITOS (CXC clientes, CXP proveedores)
+ ├─ RECEPCIONES/COMPRAS → entrada a stock + Kardex + CXP (si es crédito)
+ ├─ TRASLADOS → doble asiento Kardex (traslado_salida / traslado_entrada)
+ ├─ AJUSTES → ajuste_positivo / ajuste_negativo
+ ├─ POS/FACTURAS → descuenta stock + Kardex (+ comisión vendedor) + CXC (si es crédito)
+ ├─ SECUENCIAS (tabla atómica con lockForUpdate para venta, control, devolución y liquidación)
+ ├─ KARDEX (libro mayor inmutable de movimientos valorados)
+ ├─ CAJAS & TURNOS (apertura, arqueo, corte X, cierre Z a ciegas, caja_movimientos)
+ ├─ METODOS DE PAGO · CLIENTES (globales) · VENDEDORES (catálogo tenant)
+ └─ CREDITOS (CXC clientes con abonos en turno; CXP proveedores con abono FIFO)
 ```
 
 ## 3. Contratos por módulo
 1. **Empresas:** entidad maestra; todo se acota por `empresa_id`.
 2. **Productos & Servicios:** `tipo` = `producto` (con stock) o `servicio` (sin stock/almacén, precio bidireccional USD↔Bs). Unidades: `unidad, kilo, gramo, litro, bulto, caja, paquete, metro`. Fiscal: `aplica_iva`+`iva_porcentaje`. Precios: costo, detal, mayorista. (IGTF no implementado por ahora, campos inertes).
-3. **Recepción de mercancía:** wizard de 2 fases (cabecera fiscal/proveedor/condición; renglones, costos, márgenes, resumen). Bimonetaria con tasa BCV congelada. Recuerda `ultimo_margen_detal/mayorista`, vincula `producto_proveedores`, imprime `/recepciones/{id}/imprimir` y asienta Kardex `entrada_recepcion`.
+3. **Recepción de mercancía:** wizard de 2 fases (cabecera fiscal/proveedor/condición; renglones, costos, márgenes, resumen). Bimonetaria con tasa congelada. Recuerda `ultimo_margen_detal/mayorista`, vincula `producto_proveedores`, imprime `/recepciones/{id}/imprimir` y asienta Kardex `entrada_recepcion`. Si es a crédito, crea registro en `cuentas_por_pagar`.
 4. **Motos/vehículos:** por lote con seriales únicos (N.I.V./V.I.N. 17 caracteres, chasis, motor, certificado de origen, placa) y atributos (marca, modelo, año, color, cilindrada, ref). Estados: `disponible`, `reservada`, `vendida`, `en_mantenimiento`.
-5. **Traslados:** movimiento atómico entre almacenes con doble asiento Kardex (`Salida por Traslado` / `Entrada por Traslado`).
-6. **POS y facturación:** búsqueda por cualquier código de barras o serial; descuenta del almacén de la caja (piso de venta); cálculo en vivo de subtotal, IVA y total (sin IGTF); pagos mixtos multimoneda; preventas en espera; ticket 80mm; Kardex `Salida por Venta`.
-7. **Anulación de factura (`POST /facturas/{id}/anular`):** con `permission:ventas.anular`; inmutable; repone stock/seriales con `Entrada por Anulación` en Kardex; anula créditos CXC; anula comisión del vendedor (0); registra egreso en el turno de caja actual por devolución de dinero si hubo pago; motivo obligatorio y auditoría (`anulada_por_id`, `anulada_at`, `motivo_anulacion`); sello "ANULADA" en ticket e impresión.
-8. **Devoluciones de productos (`POST /pos/devolucion/procesar`):** parcial o total con reposición de inventario; reembolso neto proporcional (descontando descuento previo e IVA); exige turno abierto y registra egreso con método (`tipo_reembolso`); recalcula comisión del vendedor según venta neta remanente.
-9. **Ajustes de inventario:** diferencias de conteo registradas como `Ajuste de Inventario` (mermas/sobrantes).
+5. **Traslados:** movimiento atómico entre almacenes con doble asiento Kardex (`traslado_salida` en origen y `traslado_entrada` en destino), actualizando la ubicación física de seriales y productos con `lockForUpdate`.
+6. **POS y facturación:** búsqueda por cualquier código de barras o serial; descuenta del almacén de despacho; cálculo en vivo de subtotal, IVA y total; pagos mixtos multimoneda; preventas en espera (`ventas_en_espera`); ticket 80mm; Kardex `salida_venta`. Correlativos atómicos con `Secuencia::siguiente` (`VEN-XXXXX` y número de control `00-XXXXXXXX`) bajo cerrojo pesimista e índices únicos en base de datos. Vueltos en efectivo se registran automáticamente como `egreso` en `caja_movimientos`.
+7. **Anulación de factura (`POST /facturas/{id}/anular`):** con `permission:ventas.anular`; inmutable; repone stock/seriales con `anulacion_venta` en Kardex; anula créditos CXC; anula comisión del vendedor (`comision_monto_usd = 0`, `comision_estado = 'sin_comision'`); registra egreso en el turno de caja abierto actual por devolución del dinero efectivamente cobrado (menos devoluciones previas); motivo obligatorio ($\ge 5$ caracteres) y auditoría completa (`anulada_por_id`, `anulada_at`, `motivo_anulacion`); sello "ANULADA" en ticket e impresión.
+8. **Devoluciones de productos (`POST /facturas/{id}/devolver`):** parcial o total con reposición de inventario; reembolso neto proporcional (descontando descuento previo e IVA proporcional al renglón); exige turno abierto y registra egreso con método (`tipo_reembolso`); si la factura tiene CXC con saldo pendiente, primero amortiza el saldo y solo el remanente genera salida de dinero; recalcula comisión del vendedor según venta neta remanente.
+9. **Ajustes de inventario:** diferencias de conteo registradas como `MovimientoInventario` con código `AJU-XXXXX` y asientos `ajuste_positivo` o `ajuste_negativo`.
+10. **Cuentas por Pagar (CXP):** registro automático desde recepciones a crédito. Soporta abonos a factura individual (`abonarFacturaEspecifica`) y abonos generales por proveedor mediante algoritmo **FIFO** (`abonarGeneralDeuda`, liquidando facturas desde la más antigua con `lockForUpdate`).
+11. **Cuentas por Cobrar (CXC):** registro automático desde ventas con saldo pendiente. Exige turno de caja abierto para percibir abonos (`cuentas_por_cobrar_abonos`), actualizando concurrentemente el saldo de la cuenta y de la factura ligada, e integrándose al arqueo del turno.
 
 ## 4. Cajas, turnos, vendedores y roles
 - **Roles reales del sistema:**
