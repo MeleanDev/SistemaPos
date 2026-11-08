@@ -145,6 +145,7 @@
         </button>
         <div class="d-flex flex-wrap gap-2">
             @can('ventas.anular')
+                <x-button variant="warning" id="btnDevolverModalDetalle" class="d-none" icon="fas fa-undo" text="Devolver Factura" />
                 <x-button variant="danger" id="btnAnularModalDetalle" class="d-none" icon="fas fa-ban" text="Anular Factura" />
             @endcan
             <x-button variant="warning" id="btnImprimirGarantiaModalDetalle" icon="fas fa-shield-alt" text="Hoja de Garantía" />
@@ -153,6 +154,90 @@
         </div>
     </x-slot:footer>
 </x-modal>
+
+@can('ventas.anular')
+    <x-modal
+        id="modalDevolverFactura"
+        title="Devolución de Factura & Reintegro de Inventario"
+        subtitle="Selecciona las cantidades a devolver por renglón para reintegrar stock"
+        icon="fas fa-undo text-warning fs-5"
+        size="modal-xl"
+        headerColor="bg-dark text-white"
+        formId="formDevolverFactura"
+        submitText="Procesar Devolución"
+        submitIcon="fas fa-undo"
+    >
+        <form id="formDevolverFactura">
+            @csrf
+            <input type="hidden" id="devolver_factura_id" name="venta_id">
+
+            <div class="card border rounded-4 p-3 bg-white shadow-xs mb-3 font-monospace">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <span class="text-secondary small fw-semibold d-block">Comprobante de Venta:</span>
+                        <strong class="text-dark fs-6" id="devolver_factura_codigo">#--</strong>
+                        <small class="text-muted d-block" id="devolver_factura_cliente">Cliente: --</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1 font-monospace fw-bold" onclick="marcarTodoDevolver()">
+                            <i class="fas fa-check-double me-1"></i> Devolver Todo
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2.5 py-1 font-monospace" onclick="desmarcarTodoDevolver()">
+                            <i class="fas fa-times me-1"></i> Limpiar
+                        </button>
+                        <div class="text-end ms-2">
+                            <span class="badge bg-success rounded-pill px-3 py-1 font-monospace fw-bold fs-6" id="devolver_factura_total">$ 0.00</span>
+                            <small class="text-muted d-block" id="devolver_factura_fecha">Fecha: --</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="contenedorTurnoDevolverFactura" class="mb-3 d-none">
+                <label for="devolver_caja_turno_id" class="form-label small fw-bold text-dark mb-1">
+                    Turno de Caja Operativo <span class="text-danger">*</span>
+                </label>
+                <select name="caja_turno_id" id="devolver_caja_turno_id" class="form-select rounded-3 shadow-none border">
+                    <option value="">Seleccione el turno de caja abierto...</option>
+                </select>
+            </div>
+
+            <div class="card border rounded-4 bg-white shadow-xs overflow-hidden mb-3">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="bg-primary bg-opacity-10 text-primary font-monospace small">
+                            <tr>
+                                <th>Producto / Renglón</th>
+                                <th class="text-center" style="width: 120px;">Cant. Facturada</th>
+                                <th class="text-end" style="width: 120px;">Precio Unit.</th>
+                                <th class="text-center" style="width: 140px;">Cant. a Devolver</th>
+                                <th class="text-end" style="width: 130px;">Subtotal Dev.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contenedorFilasDevolverFactura">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="mb-2">
+                <label for="devolver_motivo" class="form-label small fw-bold text-dark mb-1">
+                    Motivo de la Devolución <span class="text-danger">*</span>
+                </label>
+                <input
+                    type="text"
+                    class="form-control rounded-3 shadow-none border"
+                    name="motivo"
+                    id="devolver_motivo"
+                    required
+                    maxlength="255"
+                    value="Devolución de cliente"
+                    placeholder="Indique el motivo de la devolución..."
+                >
+            </div>
+        </form>
+    </x-modal>
+@endcan
 
 @can('ventas.anular')
     <x-modal
@@ -213,6 +298,8 @@
         const urlFacturasLista = "{{ url('/facturas/lista') }}";
         const urlFacturasKpis = "{{ url('/facturas/kpis') }}";
         const urlFacturasDetalle = "{{ url('/facturas') }}";
+        const urlFacturasBase = "{{ url('/facturas') }}";
+        const urlCajasBase = "{{ url('/cajas') }}";
         const urlPosImprimirTicket = "{{ url('/pos/imprimir-ticket') }}";
         const urlPosImprimirCarta = "{{ url('/pos/imprimir-carta') }}";
         const urlPosImprimirGarantia = "{{ url('/pos/garantia') }}";

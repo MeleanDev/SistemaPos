@@ -147,6 +147,83 @@ $(document).ready(function () {
             }
         });
     });
+
+    $("#formDevolverFactura").on("submit", function (e) {
+        e.preventDefault();
+        const id = $("#devolver_factura_id").val();
+        if (!id) {
+            return;
+        }
+
+        const motivo = $("#devolver_motivo").val().trim();
+        if (!motivo) {
+            if (window.notificacion) {
+                window.notificacion.fire({ icon: "warning", title: "Motivo requerido", text: "Por favor ingresa el motivo de la devolución." });
+            }
+            return;
+        }
+
+        const items = [];
+        $(".input-cant-devolver-row").each(function () {
+            const cant = parseFloat($(this).val()) || 0;
+            const detId = parseInt($(this).data("id"), 10) || 0;
+            if (cant > 0 && detId > 0) {
+                items.push({
+                    venta_detalle_id: detId,
+                    cantidad: cant
+                });
+            }
+        });
+
+        if (items.length === 0) {
+            if (window.notificacion) {
+                window.notificacion.fire({ icon: "warning", title: "Sin cantidades", text: "Debes ingresar al menos una cantidad mayor a 0 para devolver." });
+            }
+            return;
+        }
+
+        const turnoId = $("#devolver_caja_turno_id").val() || null;
+        const payload = {
+            venta_id: parseInt(id, 10),
+            motivo: motivo,
+            tipo_reembolso: "sin_reembolso",
+            items: items
+        };
+        if (turnoId) {
+            payload.caja_turno_id = parseInt(turnoId, 10);
+        }
+
+        const $btn = $("#modalDevolverFacturaBtnGuardar");
+        $btn.prop("disabled", true);
+
+        peticionAjax({
+            url: `${urlFacturasDetalle}/${id}/devolver`,
+            method: "POST",
+            data: payload
+        }).then(function (res) {
+            $btn.prop("disabled", false);
+            if (res && res.success) {
+                const modalEl = document.getElementById("modalDevolverFactura");
+                if (modalEl) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                }
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: "success",
+                        title: "Devolución Procesada",
+                        text: res.message
+                    });
+                }
+                recargarTablaFacturas();
+            }
+        }).catch(function (xhr) {
+            $btn.prop("disabled", false);
+            const msg = xhr.responseJSON?.message || "Error al procesar la devolución.";
+            if (window.notificacion) {
+                window.notificacion.fire({ icon: "error", title: "Error", text: msg });
+            }
+        });
+    });
 });
 
 const inicializarTablaFacturas = function () {
@@ -309,10 +386,13 @@ const inicializarTablaFacturas = function () {
                 orderable: false,
                 searchable: false,
                 render: function (data, type, row) {
-                    const mostrarAnular = typeof puedeAnularFactura !== "undefined"
+                    const puedeAccionar = typeof puedeAnularFactura !== "undefined"
                         && puedeAnularFactura
                         && (row.estado === "completada" || row.estado === "devuelta_parcial");
-                    const btnAnularHtml = mostrarAnular
+                    const btnDevolverHtml = puedeAccionar
+                        ? `<button type="button" class="btn btn-outline-warning btn-sm rounded-pill px-2.5 py-1 shadow-xs" onclick="abrirModalDevolverFactura(${data})" title="Devolver Ítems"><i class="fas fa-undo"></i></button>`
+                        : "";
+                    const btnAnularHtml = puedeAccionar
                         ? `<button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2.5 py-1 shadow-xs" onclick="abrirModalAnularFactura(${data}, '${row.codigo}', ${parseFloat(row.total_usd || 0)})" title="Anular Factura"><i class="fas fa-ban"></i></button>`
                         : "";
                     return `
@@ -326,6 +406,7 @@ const inicializarTablaFacturas = function () {
                             <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-2.5 py-1 shadow-xs" onclick="imprimirTicketFactura(${data})" title="Ticket Térmico (Tiquera)">
                                 <i class="fas fa-receipt"></i>
                             </button>
+                            ${btnDevolverHtml}
                             ${btnAnularHtml}
                         </div>
                     `;
@@ -396,8 +477,19 @@ const verDetalleFactura = async function (id) {
             $("#btnImprimirCartaModalDetalle").attr("onclick", `imprimirCartaFactura(${v.id})`);
             $("#btnReimprimirModalDetalle").attr("onclick", `imprimirTicketFactura(${v.id})`);
             $("#btnImprimirGarantiaModalDetalle").attr("onclick", `imprimirGarantiaFactura(${v.id})`);
+
+            if ($("#btnDevolverModalDetalle").length) {
+                if (typeof puedeAnularFactura !== "undefined" && puedeAnularFactura && (v.estado === "completada" || v.estado === "devuelta_parcial")) {
+                    $("#btnDevolverModalDetalle")
+                        .removeClass("d-none")
+                        .attr("onclick", `abrirModalDevolverFactura(${v.id})`);
+                } else {
+                    $("#btnDevolverModalDetalle").addClass("d-none").removeAttr("onclick");
+                }
+            }
+
             if ($("#btnAnularModalDetalle").length) {
-                if (v.estado === "completada" || v.estado === "devuelta_parcial") {
+                if (typeof puedeAnularFactura !== "undefined" && puedeAnularFactura && (v.estado === "completada" || v.estado === "devuelta_parcial")) {
                     $("#btnAnularModalDetalle")
                         .removeClass("d-none")
                         .attr("onclick", `abrirModalAnularFactura(${v.id}, '${v.codigo}', ${parseFloat(v.total_usd || 0)})`);
@@ -410,6 +502,22 @@ const verDetalleFactura = async function (id) {
             const cliCedula = v.cliente ? v.cliente.cedula : "V-00000000";
             const cliTelefono = v.cliente ? (v.cliente.telefono || "Sin teléfono") : "Sin teléfono";
             const cliDireccion = v.cliente ? (v.cliente.direccion || "Sin dirección registrada") : "Sin dirección";
+
+            const selloAnuladaHtml = v.estado === "anulada" ? `
+                <div class="alert bg-danger-subtle border border-danger-subtle text-danger rounded-4 py-2.5 px-3 font-monospace small mb-3 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-ban fs-5"></i>
+                        <div>
+                            <strong>FACTURA ANULADA</strong>
+                            <div class="small">Motivo: ${v.anulacion_motivo || 'Anulación de comprobante'}</div>
+                        </div>
+                    </div>
+                    <div class="text-end small">
+                        <span>Por: <strong>${v.anulada_por ? (v.anulada_por.name || v.anulada_por.nombre || 'Usuario') : 'Sistema'}</strong></span>
+                        <div class="text-muted">${formatearFechaLegal(v.anulada_en || v.updated_at)}</div>
+                    </div>
+                </div>
+            ` : "";
 
             let renglonesHtml = "";
             if (Array.isArray(v.detalles)) {
@@ -461,33 +569,142 @@ const verDetalleFactura = async function (id) {
                     `;
                 });
             } else {
-                pagosHtml = `<div class="p-3 border rounded-3 bg-white text-muted font-monospace small text-center shadow-xs">Facturado 100% a Crédito (Sin abono inicial en caja).</div>`;
+                pagosHtml = `<div class="p-3 border rounded-3 bg-white text-muted font-monospace small text-center shadow-xs">Facturado 100% a Crédito (Sin cobro en caja).</div>`;
+            }
+
+            let devolucionesHtml = "";
+            if (Array.isArray(v.devoluciones) && v.devoluciones.length > 0) {
+                let devFilas = "";
+                v.devoluciones.forEach(dev => {
+                    let itemsStr = "";
+                    if (Array.isArray(dev.detalles)) {
+                        itemsStr = dev.detalles.map(dd => `${dd.nombre_item || (dd.producto ? dd.producto.nombre : 'Ítem')} (x${parseFloat(dd.cantidad)})`).join(", ");
+                    }
+                    devFilas += `
+                        <tr>
+                            <td><span class="badge rounded-pill bg-warning-subtle text-warning-emphasis fw-bold">${dev.codigo}</span></td>
+                            <td>${formatearFechaLegal(dev.fecha_devolucion || dev.created_at)}</td>
+                            <td><span class="text-truncate d-inline-block" style="max-width: 250px;" title="${itemsStr}">${itemsStr || 'Ítems devueltos'}</span></td>
+                            <td class="text-end fw-bold text-danger">$ ${parseFloat(dev.total_usd || 0).toFixed(2)}</td>
+                            <td>${dev.motivo || 'Devolución de cliente'}</td>
+                        </tr>
+                    `;
+                });
+                devolucionesHtml = `
+                    <div class="table-responsive bg-white rounded-3 border">
+                        <table class="table table-sm table-hover align-middle mb-0 font-monospace small">
+                            <thead class="bg-warning bg-opacity-10 text-dark">
+                                <tr>
+                                    <th>Comprobante Dev.</th>
+                                    <th>Fecha</th>
+                                    <th>Ítems Devueltos</th>
+                                    <th class="text-end">Monto Reintegrado</th>
+                                    <th>Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>${devFilas}</tbody>
+                        </table>
+                    </div>
+                `;
+            } else if (v.estado === "anulada") {
+                devolucionesHtml = `<div class="p-3 border rounded-3 bg-white text-muted font-monospace small text-center shadow-xs">Factura anulada en su totalidad con reintegro de stock y reversión contable.</div>`;
+            } else {
+                devolucionesHtml = `<div class="p-3 border rounded-3 bg-white text-muted font-monospace small text-center shadow-xs">No se registran devoluciones ni anulaciones para este comprobante.</div>`;
             }
 
             let cxcHtml = "";
             if (v.cuenta_por_cobrar) {
                 const cxc = v.cuenta_por_cobrar;
+                let filasAbonos = "";
+                if (Array.isArray(cxc.abonos) && cxc.abonos.length > 0) {
+                    cxc.abonos.forEach(ab => {
+                        filasAbonos += `
+                            <tr>
+                                <td>${formatearFechaLegal(ab.fecha_abono || ab.created_at)}</td>
+                                <td><span class="badge rounded-pill bg-primary-subtle text-primary">${ab.metodo_pago ? ab.metodo_pago.nombre : 'Abono'}</span></td>
+                                <td>${ab.referencia || '--'}</td>
+                                <td class="text-end fw-bold text-success">$ ${parseFloat(ab.monto_usd || 0).toFixed(2)}</td>
+                                <td class="text-end fw-semibold text-secondary">Bs. ${parseFloat(ab.monto_bs || 0).toFixed(2)}</td>
+                                <td class="text-center">
+                                    <a href="/cxc/abonos/${ab.id}/ticket" target="_blank" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-0.5" title="Ticket de Abono"><i class="fas fa-print"></i></a>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    filasAbonos = `<tr><td colspan="6" class="text-center text-muted py-2">Sin abonos registrados aún en esta cuenta.</td></tr>`;
+                }
+
                 cxcHtml = `
                     <div class="card border rounded-4 p-3 bg-warning-subtle text-warning-emphasis shadow-xs mb-3 font-monospace">
                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom border-warning pb-2 mb-2">
                             <div>
-                                <h6 class="fw-bold mb-0"><i class="fas fa-hand-holding-usd me-1"></i> Cuenta por Cobrar Registrada</h6>
+                                <h6 class="fw-bold mb-0"><i class="fas fa-hand-holding-usd me-1"></i> Crédito Registrado (CXC #${cxc.numero_factura || cxc.id})</h6>
                                 <small>Vencimiento: ${formatearFechaLegal(cxc.fecha_vencimiento)}</small>
                             </div>
                             <div class="text-end">
-                                <span class="badge bg-warning text-dark rounded-pill px-3 py-1 fw-bold fs-6">Saldo: $ ${parseFloat(cxc.saldo_pendiente_usd).toFixed(2)}</span>
+                                <span class="badge bg-warning text-dark rounded-pill px-3 py-1 fw-bold fs-6">Saldo Deudor: $ ${parseFloat(cxc.saldo_pendiente_usd).toFixed(2)}</span>
                             </div>
                         </div>
-                        <div class="small">
-                            <span>Monto Total: <strong>$ ${parseFloat(cxc.monto_total_usd).toFixed(2)}</strong></span> • 
+                        <div class="small mb-2">
+                            <span>Total Crédito: <strong>$ ${parseFloat(cxc.monto_total_usd).toFixed(2)}</strong></span> • 
                             <span>Total Abonado: <strong>$ ${parseFloat(cxc.monto_pagado_usd).toFixed(2)}</strong></span> • 
-                            <span>Estado CXC: <strong>${cxc.estado}</strong></span>
+                            <span>Estado: <strong>${cxc.estado}</strong></span>
+                        </div>
+                        <div class="table-responsive bg-white rounded-3 border">
+                            <table class="table table-sm table-hover align-middle mb-0 font-monospace small">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Método</th>
+                                        <th>Referencia</th>
+                                        <th class="text-end">Monto USD</th>
+                                        <th class="text-end">Monto Bs</th>
+                                        <th class="text-center">Ticket</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${filasAbonos}</tbody>
+                            </table>
                         </div>
                     </div>
                 `;
+            } else {
+                cxcHtml = `<div class="p-3 border rounded-3 bg-white text-muted font-monospace small text-center shadow-xs">Venta pagada de contado. No generó cuenta por cobrar.</div>`;
+            }
+
+            let comisionHtml = "";
+            if (v.vendedor || parseFloat(v.comision_monto_usd || 0) > 0) {
+                comisionHtml = `
+                    <div class="card border rounded-4 p-3 bg-white shadow-xs font-monospace small">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                            <span class="text-secondary fw-semibold">Asesor / Vendedor:</span>
+                            <strong class="text-dark"><i class="fas fa-user-tie text-primary me-1"></i>${v.vendedor ? v.vendedor.nombre : 'Vendedor'}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Porcentaje Comisión:</span>
+                            <strong class="text-dark">${parseFloat(v.comision_porcentaje || 0).toFixed(2)}%</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Base Imponible:</span>
+                            <strong class="text-dark">$ ${parseFloat(v.subtotal_neto_usd || 0).toFixed(2)}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                            <span class="fw-bold text-dark">Comisión Ganada:</span>
+                            <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1 fw-bold fs-6">$ ${parseFloat(v.comision_monto_usd || 0).toFixed(2)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mt-1">
+                            <span class="text-muted">Estado Liquidación:</span>
+                            <span class="badge rounded-pill ${v.comision_estado === 'liquidada' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning-emphasis'}">${v.comision_estado || 'pendiente'}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                comisionHtml = `<div class="p-3 border rounded-3 bg-white text-muted font-monospace small text-center shadow-xs">Venta directa sin comisión asignada a vendedores.</div>`;
             }
 
             $("#contenidoDetalleFactura").html(`
+                ${selloAnuladaHtml}
+
                 <div class="card border rounded-4 p-3 bg-white shadow-xs mb-3">
                     <div class="row g-3">
                         <div class="col-md-6 border-end">
@@ -519,7 +736,7 @@ const verDetalleFactura = async function (id) {
                                 </div>
                                 <div class="d-flex justify-content-between mb-1.5">
                                     <span class="text-secondary fw-medium">Asesor / Vendedor:</span>
-                                    <span class="d-inline-flex align-items-center gap-1.5 font-monospace fw-semibold text-dark"><i class="fas fa-user-tie text-primary"></i> ${v.vendedor ? v.vendedor.nombre : 'Sin asignar'}${v.vendedor && parseFloat(v.comision_monto_usd || 0) > 0 ? ` <span class="badge bg-success-subtle text-success ms-1">+$${parseFloat(v.comision_monto_usd).toFixed(2)}</span>` : ''}</span>
+                                    <span class="d-inline-flex align-items-center gap-1.5 font-monospace fw-semibold text-dark"><i class="fas fa-user-tie text-primary"></i> ${v.vendedor ? v.vendedor.nombre : 'Sin asignar'}</span>
                                 </div>
                                 <div class="d-flex justify-content-between">
                                     <span class="text-secondary fw-medium">Operador de Caja:</span>
@@ -552,71 +769,98 @@ const verDetalleFactura = async function (id) {
                     </div>
                 </div>
 
-                ${cxcHtml}
+                <ul class="nav nav-pills nav-fill bg-white p-1 rounded-pill border shadow-xs mb-3 gap-2" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active rounded-pill fw-bold font-monospace small py-1.5" data-bs-toggle="pill" data-bs-target="#tab-detalle-items" type="button" role="tab">
+                            <i class="fas fa-boxes-stacked me-1 text-primary"></i> Renglones (${v.detalles?.length || 0})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-pill fw-bold font-monospace small py-1.5" data-bs-toggle="pill" data-bs-target="#tab-detalle-pagos" type="button" role="tab">
+                            <i class="fas fa-wallet me-1 text-success"></i> Pagos (${v.pagos?.length || 0})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-pill fw-bold font-monospace small py-1.5" data-bs-toggle="pill" data-bs-target="#tab-detalle-devoluciones" type="button" role="tab">
+                            <i class="fas fa-undo me-1 text-warning"></i> Devoluciones (${v.devoluciones?.length || 0})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-pill fw-bold font-monospace small py-1.5" data-bs-toggle="pill" data-bs-target="#tab-detalle-cxc" type="button" role="tab">
+                            <i class="fas fa-hand-holding-usd me-1 text-danger"></i> Cuenta por Cobrar
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-pill fw-bold font-monospace small py-1.5" data-bs-toggle="pill" data-bs-target="#tab-detalle-comision" type="button" role="tab">
+                            <i class="fas fa-user-tie me-1 text-info"></i> Comisión
+                        </button>
+                    </li>
+                </ul>
 
-                <div class="card border rounded-4 bg-white shadow-xs overflow-hidden mb-3">
-                    <div class="p-2.5 bg-white border-bottom">
-                        <strong class="text-dark small"><i class="fas fa-boxes-stacked text-primary me-1"></i> Productos & Servicios Facturados</strong>
+                <div class="tab-content mb-3">
+                    <div class="tab-pane fade show active" id="tab-detalle-items" role="tabpanel">
+                        <div class="card border rounded-4 bg-white shadow-xs overflow-hidden">
+                            <div class="table-responsive" style="max-height: 240px; overflow-y: auto;">
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                    <thead class="bg-primary bg-opacity-10 text-primary font-monospace small">
+                                        <tr>
+                                            <th class="text-center" style="width: 40px;">#</th>
+                                            <th>Descripción</th>
+                                            <th class="text-center" style="width: 90px;">Cantidad</th>
+                                            <th class="text-end" style="width: 110px;">Precio Unit.</th>
+                                            <th class="text-center" style="width: 90px;">IVA</th>
+                                            <th class="text-end" style="width: 120px;">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${renglonesHtml}</tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                    <div class="table-responsive" style="max-height: 240px; overflow-y: auto;">
-                        <table class="table table-sm table-hover align-middle mb-0">
-                            <thead class="bg-primary bg-opacity-10 text-primary font-monospace small">
-                                <tr>
-                                    <th class="text-center" style="width: 40px;">#</th>
-                                    <th>Descripción</th>
-                                    <th class="text-center" style="width: 90px;">Cantidad</th>
-                                    <th class="text-end" style="width: 110px;">Precio Unit.</th>
-                                    <th class="text-center" style="width: 90px;">IVA</th>
-                                    <th class="text-end" style="width: 120px;">Subtotal</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${renglonesHtml}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
 
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <div class="card border rounded-4 p-3 bg-white shadow-xs h-100">
-                            <h6 class="fw-bold text-dark mb-2.5"><i class="fas fa-wallet text-primary me-1"></i> Formas de Cobro Aplicadas</h6>
+                    <div class="tab-pane fade" id="tab-detalle-pagos" role="tabpanel">
+                        <div class="card border rounded-4 p-3 bg-white shadow-xs">
+                            <h6 class="fw-bold text-dark mb-2.5 font-monospace"><i class="fas fa-wallet text-success me-1"></i> Formas de Cobro Registradas</h6>
                             ${pagosHtml}
                         </div>
                     </div>
 
-                    <div class="col-md-6">
-                        <div class="card border rounded-4 p-3 bg-white shadow-xs font-monospace">
-                            <div class="d-flex justify-content-between mb-1.5">
+                    <div class="tab-pane fade" id="tab-detalle-devoluciones" role="tabpanel">
+                        ${devolucionesHtml}
+                    </div>
+
+                    <div class="tab-pane fade" id="tab-detalle-cxc" role="tabpanel">
+                        ${cxcHtml}
+                    </div>
+
+                    <div class="tab-pane fade" id="tab-detalle-comision" role="tabpanel">
+                        ${comisionHtml}
+                    </div>
+                </div>
+
+                <div class="card border rounded-4 p-3 bg-white shadow-xs font-monospace">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-6 border-end">
+                            <div class="d-flex justify-content-between mb-1">
                                 <span class="text-secondary fw-semibold">Sub-Total Neto:</span>
                                 <strong class="text-dark">$ ${parseFloat(v.subtotal_neto_usd).toFixed(2)}</strong>
                             </div>
-                            <div class="d-flex justify-content-between mb-1.5">
+                            <div class="d-flex justify-content-between mb-1">
                                 <span class="text-secondary fw-semibold">Total IVA:</span>
                                 <strong class="text-dark">$ ${parseFloat(v.iva_monto_usd).toFixed(2)}</strong>
                             </div>
-                            <hr class="my-2">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="fw-bold text-dark fs-6">TOTAL FACTURA:</span>
-                                <div class="text-end">
-                                    <h3 class="fw-bold text-success mb-0 font-monospace">$ ${parseFloat(v.total_usd).toFixed(2)}</h3>
-                                    <span class="badge rounded-pill bg-success-subtle text-success font-monospace px-2.5 py-1 fw-bold mt-1">Bs. ${parseFloat(v.total_bs).toFixed(2)}</span>
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-between mt-2 pt-2 border-top small">
+                            <div class="d-flex justify-content-between">
                                 <span class="text-secondary fw-semibold">Monto Pagado:</span>
                                 <strong class="text-success">$ ${parseFloat(v.monto_pagado_usd).toFixed(2)}</strong>
                             </div>
-                            ${parseFloat(v.vuelto_usd) > 0 ? `
-                                <div class="d-flex justify-content-between small text-info fw-semibold">
-                                    <span>Vuelto / Cambio:</span>
-                                    <strong>$ ${parseFloat(v.vuelto_usd).toFixed(2)}</strong>
-                                </div>
-                            ` : ''}
+                        </div>
+                        <div class="col-md-6 text-end ps-md-4">
+                            <span class="fw-bold text-dark fs-6 d-block mb-1">TOTAL FACTURA</span>
+                            <h3 class="fw-bold text-success mb-0 font-monospace">$ ${parseFloat(v.total_usd).toFixed(2)}</h3>
+                            <span class="badge rounded-pill bg-success-subtle text-success font-monospace px-2.5 py-1 fw-bold mt-1">Bs. ${parseFloat(v.total_bs).toFixed(2)}</span>
                             ${parseFloat(v.saldo_pendiente_usd) > 0 ? `
-                                <div class="d-flex justify-content-between small text-danger fw-bold">
-                                    <span>Saldo Pendiente (CXC):</span>
-                                    <strong>$ ${parseFloat(v.saldo_pendiente_usd).toFixed(2)}</strong>
+                                <div class="small text-danger fw-bold mt-1">
+                                    <span>Saldo Pendiente (CXC): $ ${parseFloat(v.saldo_pendiente_usd).toFixed(2)}</span>
                                 </div>
                             ` : ''}
                         </div>
@@ -704,4 +948,131 @@ const abrirModalAnularFactura = function (id, codigo, totalUsd) {
     if (modalEl) {
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
+};
+
+let facturaDevolverActual = null;
+
+const configurarSelectorTurnoDevolver = function () {
+    const $contenedor = $("#contenedorTurnoDevolverFactura");
+    const $select = $("#devolver_caja_turno_id");
+    $select.empty();
+
+    if (turnoPropioFacturaId) {
+        $select.append(`<option value="${turnoPropioFacturaId}" selected>Turno propio #${turnoPropioFacturaId}</option>`);
+        $select.prop("required", false);
+        $contenedor.addClass("d-none");
+        return;
+    }
+
+    if (turnosAbiertosFacturas.length === 1) {
+        const unico = turnosAbiertosFacturas[0];
+        $select.append(`<option value="${unico.id}" selected>${unico.caja_nombre} - ${unico.cajero_nombre}</option>`);
+        $select.prop("required", false);
+        $contenedor.addClass("d-none");
+        return;
+    }
+
+    if (turnosAbiertosFacturas.length > 1) {
+        $select.append('<option value="">Seleccione el turno de caja abierto...</option>');
+        turnosAbiertosFacturas.forEach(function (t) {
+            $select.append(`<option value="${t.id}">${t.caja_nombre} (${t.cajero_nombre})</option>`);
+        });
+        $select.val(String(turnosAbiertosFacturas[0].id));
+        $select.prop("required", true);
+        $contenedor.removeClass("d-none");
+        return;
+    }
+
+    $select.append('<option value="">Sin turnos abiertos</option>');
+    $select.prop("required", false);
+    $contenedor.addClass("d-none");
+};
+
+const abrirModalDevolverFactura = async function (id) {
+    const modalDetalleEl = document.getElementById("modalDetalleFactura");
+    if (modalDetalleEl) {
+        const instDetalle = bootstrap.Modal.getInstance(modalDetalleEl);
+        if (instDetalle) {
+            instDetalle.hide();
+        }
+    }
+
+    try {
+        const res = await peticionAjax({
+            url: `${urlFacturasDetalle}/${id}/devolucion-datos`,
+            method: "GET"
+        });
+
+        if (res && res.success && res.data) {
+            const v = res.data;
+            facturaDevolverActual = v;
+            $("#devolver_factura_id").val(v.id);
+            $("#devolver_factura_codigo").text(`#${v.codigo}`);
+            $("#devolver_factura_cliente").text(`Cliente: ${v.cliente_nombre} (${v.cliente_cedula})`);
+            $("#devolver_factura_total").text(`$ ${parseFloat(v.total_usd).toFixed(2)}`);
+            $("#devolver_factura_fecha").text(`Fecha: ${formatearFechaLegal(v.fecha_emision)}`);
+            $("#devolver_motivo").val("Devolución de cliente");
+            configurarSelectorTurnoDevolver();
+
+            const $tbody = $("#contenedorFilasDevolverFactura");
+            $tbody.empty();
+
+            (v.detalles || []).forEach(function (det) {
+                const precio = parseFloat(det.precio_unitario_usd || 0).toFixed(2);
+                const subtotal = (det.cantidad_disponible * parseFloat(det.precio_unitario_usd || 0)).toFixed(2);
+                const devPrevInfo = det.cantidad_devuelta > 0 ? `<small class="text-danger d-block font-monospace">(-${det.cantidad_devuelta} devueltos)</small>` : "";
+
+                $tbody.append(`
+                    <tr>
+                        <td>
+                            <strong class="text-dark font-monospace d-block">${det.nombre}</strong>
+                            <small class="text-secondary font-monospace">${det.tipo_item}</small>
+                        </td>
+                        <td class="text-center font-monospace">
+                            ${det.cantidad_facturada}
+                            ${devPrevInfo}
+                        </td>
+                        <td class="text-end font-monospace text-dark">$ ${precio}</td>
+                        <td class="text-center font-monospace">
+                            <input type="number" step="any" min="0" max="${det.cantidad_disponible}" class="form-control form-control-sm text-center font-monospace fw-bold input-cant-devolver-row" data-id="${det.id}" data-precio="${det.precio_unitario_usd}" value="${det.cantidad_disponible}" oninput="calcularTotalRenglonDevolver(this)">
+                        </td>
+                        <td class="text-end font-monospace fw-bold text-danger subtotal-dev-row">$ ${subtotal}</td>
+                    </tr>
+                `);
+            });
+
+            const modalEl = document.getElementById("modalDevolverFactura");
+            if (modalEl) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        }
+    } catch (err) {
+        const msg = err.responseJSON?.message || "No se pudieron obtener los datos para la devolución.";
+        if (window.notificacion) {
+            window.notificacion.fire({ icon: "error", title: "Error", text: msg });
+        }
+    }
+};
+
+const marcarTodoDevolver = function () {
+    $(".input-cant-devolver-row").each(function () {
+        const max = parseFloat($(this).attr("max")) || 0;
+        $(this).val(max);
+        calcularTotalRenglonDevolver(this);
+    });
+};
+
+const desmarcarTodoDevolver = function () {
+    $(".input-cant-devolver-row").each(function () {
+        $(this).val(0);
+        calcularTotalRenglonDevolver(this);
+    });
+};
+
+const calcularTotalRenglonDevolver = function (input) {
+    const $input = $(input);
+    const cant = parseFloat($input.val()) || 0;
+    const precio = parseFloat($input.data("precio")) || 0;
+    const subtotal = Math.round((cant * precio + Number.EPSILON) * 100) / 100;
+    $input.closest("tr").find(".subtotal-dev-row").text(`$ ${subtotal.toFixed(2)}`);
 };

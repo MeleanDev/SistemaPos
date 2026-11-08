@@ -600,7 +600,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body px-4 pb-4 pt-2">
-                        <ul class="nav nav-pills nav-justified bg-light p-1 rounded-pill mb-4" role="tablist">
+                        <ul class="nav nav-pills nav-justified bg-white border p-1 rounded-pill mb-4" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active rounded-pill py-2 fw-medium" data-bs-toggle="tab"
                                     data-bs-target="#perfilDatos" type="button" role="tab">
@@ -622,15 +622,15 @@
                                     <div class="row g-3">
                                         <div class="col-md-6">
                                             <label for="perfil_name" class="form-label small fw-bold text-uppercase text-muted ms-2">Usuario</label>
-                                            <input type="text" class="form-control form-control-lg bg-light border-0 rounded-pill px-4 fs-6" id="perfil_name" name="name" value="{{ Auth::check() ? Auth::user()->name : '' }}" required>
+                                            <input type="text" class="form-control form-control-lg bg-white border rounded-pill px-4 fs-6" id="perfil_name" name="name" value="{{ Auth::check() ? Auth::user()->name : '' }}" required>
                                         </div>
                                         <div class="col-md-6">
                                             <label for="perfil_email" class="form-label small fw-bold text-uppercase text-muted ms-2">Correo Electrónico</label>
-                                            <input type="email" class="form-control form-control-lg bg-light border-0 rounded-pill px-4 fs-6" id="perfil_email" name="email" value="{{ Auth::check() ? Auth::user()->email : '' }}" required>
+                                            <input type="email" class="form-control form-control-lg bg-white border rounded-pill px-4 fs-6" id="perfil_email" name="email" value="{{ Auth::check() ? Auth::user()->email : '' }}" required>
                                         </div>
                                     </div>
                                     <div class="text-end mt-4">
-                                        <button type="button" class="btn btn-light rounded-pill px-4 me-2" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="button" class="btn btn-outline-secondary rounded-pill px-4 me-2" data-bs-dismiss="modal">Cancelar</button>
                                         <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">
                                             <i class="fas fa-save me-1"></i> Guardar Cambios
                                         </button>
@@ -644,19 +644,19 @@
                                     <div class="d-flex flex-column gap-3">
                                         <div>
                                             <label for="current_password" class="form-label small fw-bold text-uppercase text-muted ms-2">Contraseña Actual</label>
-                                            <input type="password" class="form-control form-control-lg bg-light border-0 rounded-pill px-4 fs-6" id="current_password" name="current_password" required>
+                                            <input type="password" class="form-control form-control-lg bg-white border rounded-pill px-4 fs-6" id="current_password" name="current_password" required>
                                         </div>
                                         <div>
                                             <label for="password" class="form-label small fw-bold text-uppercase text-muted ms-2">Nueva Contraseña</label>
-                                            <input type="password" class="form-control form-control-lg bg-light border-0 rounded-pill px-4 fs-6" id="password" name="password" required>
+                                            <input type="password" class="form-control form-control-lg bg-white border rounded-pill px-4 fs-6" id="password" name="password" required>
                                         </div>
                                         <div>
                                             <label for="password_confirmation" class="form-label small fw-bold text-uppercase text-muted ms-2">Confirmar Nueva Contraseña</label>
-                                            <input type="password" class="form-control form-control-lg bg-light border-0 rounded-pill px-4 fs-6" id="password_confirmation" name="password_confirmation" required>
+                                            <input type="password" class="form-control form-control-lg bg-white border rounded-pill px-4 fs-6" id="password_confirmation" name="password_confirmation" required>
                                         </div>
                                     </div>
                                     <div class="text-end mt-4">
-                                        <button type="button" class="btn btn-light rounded-pill px-4 me-2" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="button" class="btn btn-outline-secondary rounded-pill px-4 me-2" data-bs-dismiss="modal">Cancelar</button>
                                         <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">
                                             <i class="fas fa-key me-1"></i> Actualizar Contraseña
                                         </button>

@@ -2999,7 +2999,7 @@ test('B-09 y B-10 devolucion proporcional con descuento e IVA y anulacion de fac
     // Además, la comisión del vendedor se recalcula sobre el subtotal neto sin IVA restante ($155.17 / 2 = $77.585 * 10% = $7.76).
     $respDev = $this->actingAs($admin)
         ->withSession(['empresa_activa_id' => $empresa->id])
-        ->postJson('/pos/devolucion/procesar', [
+        ->postJson("/facturas/{$venta->id}/devolver", [
             'venta_id' => $venta->id,
             'caja_turno_id' => $turno->id,
             'motivo' => 'Devolución parcial de 1 unidad',

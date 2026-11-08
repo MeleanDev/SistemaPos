@@ -591,17 +591,15 @@
             <i class="fas fa-pause text-info me-1"></i> <span class="d-none d-xxl-inline">En Espera</span> <span class="kbd-tag ms-1">F6</span>
         </button>
 
-        <button type="button" class="btn btn-sm rounded-pill kiosk-btn-action font-monospace" onclick="abrirModalDevolucion()" title="Devolución de Factura (F7)">
-            <i class="fas fa-undo text-danger me-1"></i> <span class="d-none d-xxl-inline">Devolución</span> <span class="kbd-tag ms-1">F7</span>
-        </button>
-
         <button type="button" class="btn btn-sm rounded-pill kiosk-btn-action font-monospace" onclick="verCorteXPos()" title="Reporte Corte X de Caja">
             <i class="fas fa-file-invoice-dollar text-warning me-1"></i> <span class="d-none d-xxl-inline">Corte X</span>
         </button>
 
-        <button type="button" class="btn btn-sm rounded-pill kiosk-btn-action font-monospace" onclick="abrirModalCierrePos()" title="Cerrar Turno de Caja (Z)">
-            <i class="fas fa-lock text-danger me-1"></i> <span class="d-none d-xxl-inline">Cierre Z</span>
-        </button>
+        @can('cajas.ver')
+            <a href="{{ route('caja') }}" class="btn btn-sm rounded-pill kiosk-btn-action font-monospace text-decoration-none" title="Ir a Cajas y Turnos">
+                <i class="fas fa-cash-register text-info me-1"></i> <span class="d-none d-xxl-inline">Cajas</span>
+            </a>
+        @endcan
 
         <button type="button" class="btn btn-sm rounded-pill kiosk-btn-action font-monospace" onclick="abrirModalReimprimir()" title="Reimprimir Comprobante (F8)">
             <i class="fas fa-print text-primary me-1"></i> <span class="d-none d-xxl-inline">Reimprimir</span> <span class="kbd-tag ms-1">F8</span>
@@ -963,40 +961,23 @@
                 <span class="badge bg-secondary font-monospace" style="font-size: 0.65rem;">F6</span>
             </button>
 
-            <button type="button" class="pos-offcanvas-action-btn" onclick="bootstrap.Offcanvas.getInstance('#posOffcanvasMenu')?.hide(); abrirModalDevolucion();">
-                <i class="fas fa-undo text-danger fs-5"></i>
-                <div class="flex-grow-1">
-                    <span class="d-block lh-1 text-white">Devolución de Factura</span>
-                    <small class="text-white-50 font-monospace" style="font-size: 0.68rem;">Reintegro de productos a stock</small>
-                </div>
-                <span class="badge bg-secondary font-monospace" style="font-size: 0.65rem;">F7</span>
-            </button>
-
-            @can('cajas.movimientos')
-                <button type="button" class="pos-offcanvas-action-btn" onclick="bootstrap.Offcanvas.getInstance('#posOffcanvasMenu')?.hide(); abrirModalMovimientoPos();">
-                    <i class="fas fa-exchange-alt text-info fs-5"></i>
-                    <div class="flex-grow-1">
-                        <span class="d-block lh-1 text-white">Movimiento de Caja</span>
-                        <small class="text-white-50 font-monospace" style="font-size: 0.68rem;">Entrada o retiro de efectivo</small>
-                    </div>
-                </button>
-            @endcan
-
             <button type="button" class="pos-offcanvas-action-btn" onclick="bootstrap.Offcanvas.getInstance('#posOffcanvasMenu')?.hide(); verCorteXPos();">
                 <i class="fas fa-file-invoice-dollar text-warning fs-5"></i>
                 <div class="flex-grow-1">
                     <span class="d-block lh-1 text-white">Reporte Corte X</span>
-                    <small class="text-white-50 font-monospace" style="font-size: 0.68rem;">Arqueo parcial de turno</small>
+                    <small class="text-white-50 font-monospace" style="font-size: 0.68rem;">Arqueo parcial de lectura del turno</small>
                 </div>
             </button>
 
-            <button type="button" class="pos-offcanvas-action-btn" onclick="bootstrap.Offcanvas.getInstance('#posOffcanvasMenu')?.hide(); abrirModalCierrePos();">
-                <i class="fas fa-lock text-danger fs-5"></i>
-                <div class="flex-grow-1">
-                    <span class="d-block lh-1 text-white">Cierre Z de Turno</span>
-                    <small class="text-white-50 font-monospace" style="font-size: 0.68rem;">Cerrar y cuadrar caja</small>
-                </div>
-            </button>
+            @can('cajas.ver')
+                <a href="{{ route('caja') }}" class="pos-offcanvas-action-btn text-decoration-none">
+                    <i class="fas fa-cash-register text-info fs-5"></i>
+                    <div class="flex-grow-1">
+                        <span class="d-block lh-1 text-white">Cajas y Turnos</span>
+                        <small class="text-white-50 font-monospace" style="font-size: 0.68rem;">Aperturas, movimientos y cierre Z</small>
+                    </div>
+                </a>
+            @endcan
 
             <button type="button" class="pos-offcanvas-action-btn" onclick="bootstrap.Offcanvas.getInstance('#posOffcanvasMenu')?.hide(); abrirModalReimprimir();">
                 <i class="fas fa-print text-primary fs-5"></i>
@@ -1036,7 +1017,6 @@
         <span><strong class="text-white">[F3]</strong> Precios</span>
         <span><strong class="text-white">[F4]</strong> Cobrar</span>
         <span><strong class="text-white">[F6]</strong> En Espera</span>
-        <span><strong class="text-white">[F7]</strong> Devolución</span>
         <span><strong class="text-white">[F8]</strong> Reimprimir</span>
         <span><strong class="text-white">[F9]</strong> Editar Renglón</span>
         <span><strong class="text-white">[F10]</strong> Cancelar</span>
@@ -1299,97 +1279,6 @@
                 </button>
             </div>
 
-        </div>
-    </div>
-</div>
-
-<!-- MODAL DE DEVOLUCIÓN DE VENTA -->
-<div class="modal fade" id="modalDevolucion" tabindex="-1" aria-labelledby="modalDevolucionLabel" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <div class="modal-header modal-pos-header py-3 px-4">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="modal-header-icon-wrap" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff;">
-                        <i class="fas fa-undo" style="font-size: 1.1rem; color: #ffffff;"></i>
-                    </div>
-                    <div>
-                        <h5 class="modal-title fw-bold mb-0 text-white" id="modalDevolucionLabel">Devolución de Factura & Reintegro de Inventario</h5>
-                        <small class="text-white-50">Busca la factura emitida para revertir los productos al stock</small>
-                    </div>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-
-            <div class="modal-body p-4 bg-white">
-                <div class="row g-2 mb-3">
-                    <div class="col-12 col-md-9">
-                        <div class="input-group input-group-lg">
-                            <span class="input-group-text bg-white"><i class="fas fa-receipt text-primary"></i></span>
-                            <input type="text" id="devInputBusquedaFactura" class="form-control form-control-executive font-monospace" placeholder="Ingresa el código de comprobante (Ej: VEN-00001)...">
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-3">
-                        <button type="button" class="btn btn-primary btn-lg rounded-pill w-100 fw-bold shadow-xs" onclick="buscarFacturaParaDevolucion()">
-                            <i class="fas fa-search me-1"></i> Buscar Factura
-                        </button>
-                    </div>
-                </div>
-
-                <div id="contenedorDetallesFacturaDevolucion" style="display: none;">
-                    <div class="card border rounded-4 p-3 mb-3 bg-white shadow-xs">
-                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom pb-2 mb-2">
-                            <div>
-                                <h6 class="fw-bold text-dark mb-0" id="devFacturaCodigo">VEN-00001</h6>
-                                <span class="text-muted small" id="devFacturaCliente">Cliente: --</span>
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1 font-monospace fw-bold" onclick="marcarTodoDevolucion()">
-                                    <i class="fas fa-check-double me-1"></i> Devolver Todo
-                                </button>
-                                <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2.5 py-1 font-monospace" onclick="desmarcarTodoDevolucion()">
-                                    <i class="fas fa-times me-1"></i> Limpiar
-                                </button>
-                                <div class="text-end ms-2">
-                                    <span class="badge bg-success rounded-pill px-3 py-1 font-monospace fw-bold" id="devFacturaTotal">$ 0.00</span>
-                                    <small class="text-muted d-block" id="devFacturaFecha">Fecha: --</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover align-middle mb-0">
-                                <thead class="bg-white border-bottom font-monospace small">
-                                    <tr>
-                                        <th>Producto</th>
-                                        <th class="text-center">Cant. Facturada</th>
-                                        <th class="text-end">Precio Unit.</th>
-                                        <th class="text-center" style="width: 140px;">Cant. a Devolver</th>
-                                        <th class="text-end" style="width: 120px;">Subtotal Dev.</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="contenedorFilasItemsDevolucion">
-                                    <!-- Cargados dinámicamente -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="card border rounded-4 p-3 bg-white shadow-xs">
-                        <label class="form-label-executive mb-1"><i class="fas fa-comment text-secondary me-1"></i> Motivo de la Devolución <span class="text-danger">*</span></label>
-                        <input type="text" id="devInputMotivo" class="form-control form-control-executive" placeholder="Ej. Devolución de cliente en mostrador..." value="Devolución de cliente en mostrador">
-                    </div>
-                </div>
-
-            </div>
-
-            <div class="modal-footer bg-white border-top py-3 px-4 d-flex justify-content-between">
-                <button type="button" class="btn btn-pos-cancel" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-1"></i> Cancelar
-                </button>
-                <button type="button" class="btn btn-warning rounded-pill px-5 py-2 fw-bold shadow-sm" id="btnConfirmarDevolucion" style="display: none;" onclick="ejecutarDevolucion()">
-                    <i class="fas fa-undo me-1"></i> Procesar Devolución & Reintegrar Stock
-                </button>
-            </div>
         </div>
     </div>
 </div>
@@ -2030,135 +1919,6 @@
     </div>
 </div>
 
-<!-- Modal Cierre Z en POS (Arqueo) -->
-<div class="modal fade" id="modalCierreZPos" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <div class="modal-header modal-pos-header px-4 py-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="modal-header-icon-wrap" style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); color: #ffffff;">
-                        <i class="fas fa-lock" style="font-size: 1.1rem; color: #ffffff;"></i>
-                    </div>
-                    <div>
-                        <h5 class="modal-title fw-bold text-white mb-0">Cierre Z & Arqueo de Turno</h5>
-                        <small class="text-white-50" style="font-size: 0.75rem;">Finaliza la jornada y registra el arqueo físico en caja</small>
-                    </div>
-                </div>
-                <button type="button" class="btn-close btn-close-white opacity-75" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="formCierreZPos">
-                <div class="modal-body p-4 bg-white">
-                    <div id="posContenedorAvisoCierreCiego" class="alert bg-warning-subtle border border-warning-subtle text-warning-emphasis rounded-4 py-2.5 px-3 small mb-3" style="display: none;">
-                        <i class="fas fa-eye-slash me-1"></i> <strong>Cierre a ciegas:</strong> Ingresa el efectivo físico contado en gaveta para cada moneda. La diferencia se mostrará al confirmar el cierre.
-                    </div>
-
-                    <div class="card bg-white border rounded-4 shadow-xs p-3 mb-3" id="posContenedorResumenCierreZ">
-                        <div class="row g-2 text-center">
-                            <div class="col-6 col-md-2">
-                                <span class="text-muted small d-block">Fondo Apertura</span>
-                                <h6 class="fw-bold mb-0" id="posCierreResumenApertura">$0.00</h6>
-                            </div>
-                            <div class="col-6 col-md-2">
-                                <span class="text-muted small d-block">Ventas Totales</span>
-                                <h6 class="fw-bold text-success mb-0" id="posCierreResumenVentas">$0.00</h6>
-                            </div>
-                            <div class="col-6 col-md-2">
-                                <span class="text-muted small d-block">Ingresos Caja</span>
-                                <h6 class="fw-bold text-success mb-0" id="posCierreResumenIngresosUsd">+$0.00</h6>
-                                <small class="text-muted font-monospace" style="font-size: 0.7rem;" id="posCierreResumenIngresosBs">+Bs. 0.00</small>
-                            </div>
-                            <div class="col-6 col-md-2">
-                                <span class="text-muted small d-block">Retiros / Egresos</span>
-                                <h6 class="fw-bold text-danger mb-0" id="posCierreResumenEgresosUsd">-$0.00</h6>
-                                <small class="text-muted font-monospace" style="font-size: 0.7rem;" id="posCierreResumenEgresosBs">-Bs. 0.00</small>
-                            </div>
-                            <div class="col-6 col-md-2" id="posColResumenEsperadoUsd">
-                                <span class="text-muted small d-block">Esperado USD</span>
-                                <h6 class="fw-bold text-primary mb-0" id="posCierreResumenEsperadoUsd">$0.00</h6>
-                            </div>
-                            <div class="col-6 col-md-2" id="posColResumenEsperadoBs">
-                                <span class="text-muted small d-block">Esperado Bs.</span>
-                                <h6 class="fw-bold text-primary mb-0" id="posCierreResumenEsperadoBs">Bs. 0.00</h6>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label-executive mb-1">
-                                <i class="fas fa-dollar-sign text-success me-1"></i> Conteo Físico en USD ($) <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0 rounded-start-3 font-monospace">$</span>
-                                <input type="number" step="0.01" min="0" name="monto_cierre_usd" id="posCierreMontoUsd" class="form-control form-control-executive font-monospace fw-bold fs-5" value="0.00" required>
-                            </div>
-                            <div id="posCierreAlertaUsd" class="small mt-1 fw-semibold text-muted font-monospace">Diferencia: $0.00</div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label-executive mb-1">
-                                <i class="fas fa-coins text-warning me-1"></i> Conteo Físico en Bs. (Bs.) <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0 rounded-start-3 font-monospace">Bs.</span>
-                                <input type="number" step="0.01" min="0" name="monto_cierre_bs" id="posCierreMontoBs" class="form-control form-control-executive font-monospace fw-bold fs-5" value="0.00" required>
-                            </div>
-                            <div id="posCierreAlertaBs" class="small mt-1 fw-semibold text-muted font-monospace">Diferencia: Bs. 0.00</div>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label-executive mb-1">
-                                <i class="fas fa-comment text-muted me-1"></i> Observaciones de Cierre / Arqueo
-                            </label>
-                            <textarea name="observaciones" id="posCierreObservaciones" class="form-control form-control-executive" rows="2" placeholder="Ej. Cuadre verificado..." maxlength="500"></textarea>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer bg-white border-top py-3 px-4 d-flex justify-content-between">
-                    <button type="button" class="btn btn-pos-cancel" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i> Cancelar
-                    </button>
-                    <button type="submit" id="btnConfirmarCierrePos" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm font-monospace">
-                        <i class="fas fa-lock me-1"></i> Confirmar y Cerrar Turno
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Movimiento de Caja en POS (Ingreso / Retiro) -->
-<x-modal id="modalMovimientoCajaPos" title="Movimiento de Caja (Entrada / Salida)" subtitle="Registra un retiro o ingreso de efectivo menor en el turno actual"
-    icon="fas fa-exchange-alt text-warning fs-5" size="modal-lg" headerColor="bg-dark text-white" formId="formMovimientoCajaPos"
-    submitText="Registrar Movimiento">
-
-    <form id="formMovimientoCajaPos">
-        @csrf
-        <input type="hidden" id="posMovimientoTurnoId" name="caja_turno_id">
-
-        <div class="row g-3">
-            <div class="col-12">
-                <div class="alert bg-primary-subtle border border-primary-subtle text-primary rounded-4 py-2.5 px-3 small mb-0 d-flex flex-wrap align-items-center justify-content-between gap-2">
-                    <span><i class="fas fa-info-circle me-1"></i> El monto registrado ajustará automáticamente el efectivo esperado en el arqueo y cierre Z.</span>
-                    <span class="badge bg-white text-primary border border-primary-subtle rounded-pill px-2.5 py-1 fw-bold" id="posMovimientoEtiquetaTurno">Turno Activo</span>
-                </div>
-            </div>
-
-            <x-select name="tipo" id="posMovimientoTipo" label="Tipo de Movimiento" icon="fas fa-arrows-alt-v" required col="col-md-6">
-                <option value="egreso">Salida / Retiro de Efectivo (-)</option>
-                <option value="ingreso">Entrada / Ingreso de Efectivo (+)</option>
-            </x-select>
-
-            <x-input name="comprobante_referencia" id="posMovimientoReferencia" label="Nro. Vale / Recibo / Referencia" icon="fas fa-hashtag" placeholder="Ej. VALE-001" maxlength="100" col="col-md-6" optionalText="Opcional" />
-
-            <x-input name="monto_usd" id="posMovimientoMontoUsd" type="number" step="0.01" min="0" label="Efectivo en USD ($)" icon="fas fa-dollar-sign" addonText="$" required col="col-md-6" value="0.00" />
-
-            <x-input name="monto_bs" id="posMovimientoMontoBs" type="number" step="0.01" min="0" label="Efectivo en Bolívares (Bs.)" icon="fas fa-coins" addonText="Bs." required col="col-md-6" value="0.00" />
-
-            <x-input name="concepto" id="posMovimientoConcepto" label="Concepto o Motivo del Movimiento" icon="fas fa-tag" placeholder="Ej. Retiro de $10 para compra de bolsas / gasto menor..." required maxlength="255" col="col-12" />
-
-            <x-input name="observaciones" id="posMovimientoObservaciones" label="Observaciones Adicionales" icon="fas fa-comment" placeholder="Detalle opcional..." maxlength="500" col="col-12" optionalText="Opcional" />
-        </div>
-    </form>
-</x-modal>
 @endsection
 
 @section('scripts')
@@ -2172,8 +1932,6 @@
     const urlPosEnEsperaLista = "{{ url('/pos/en-espera/lista') }}";
     const urlPosEnEsperaRecuperar = "{{ url('/pos/en-espera') }}";
     const urlPosEnEsperaEliminar = "{{ url('/pos/en-espera') }}";
-    const urlPosDevolucionBuscar = "{{ url('/pos/devolucion/buscar') }}";
-    const urlPosDevolucionProcesar = "{{ url('/pos/devolucion/procesar') }}";
     const urlPosImprimir = "{{ url('/pos/imprimir') }}";
     const urlPosImprimirCarta = "{{ url('/pos/imprimir-carta') }}";
     const urlPosImprimirTicket = "{{ url('/pos/imprimir-ticket') }}";
@@ -2182,7 +1940,6 @@
     const urlCajasDisponibles = "{{ url('/cajas/disponibles') }}";
     const urlCajasAperturar = "{{ url('/cajas/turnos/aperturar') }}";
     const urlCajasTurnoActivo = "{{ url('/cajas/turno-activo') }}";
-    const urlCajasMovimientos = "{{ url('/cajas/movimientos') }}";
 </script>
 <script src="{{ asset('estilos/jsPropios/pos.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/pos.js')) ?: time() }}"></script>
 @endsection

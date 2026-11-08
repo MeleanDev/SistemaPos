@@ -58,4 +58,4 @@ Estados: ✅ cumple el checklist · ⚠️ funcional con desviaciones (ver nota)
 Todos los módulos cumplen con el estándar arquitectónico de JS sin comentarios, sin `window.x =`, sin `$.ajax` directo (usando `peticionAjax` o helpers CRUD), con permisos por middleware/Blade y aislamiento multi-empresa.
 
 ## 5. Roadmap de fases (histórico)
-Fase 1 multi-empresa y asistente ✅ · Fase 2 seguridad/roles/permisos ✅ · Fase 3 catálogos ✅ · Fase 4 compras/recepción/Kardex ✅ · Fase 5 motos ✅ · Fase 6 POS y facturación ✅ · Fase 7 créditos CXC/CXP ✅ · Fase 8 Flujos de negocio, integridad de dinero, cajas, reportes y estándares (pos-flujos B-00 a B-43) ✅.
+Fase 1 multi-empresa y asistente ✅ · Fase 2 seguridad/roles/permisos ✅ · Fase 3 catálogos ✅ · Fase 4 compras/recepción/Kardex ✅ · Fase 5 motos ✅ · Fase 6 POS y facturación ✅ · Fase 7 créditos CXC/CXP ✅ · Fase 8 Flujos de negocio, integridad de dinero, cajas, reportes y estándares (pos-flujos B-00 a B-43) ✅ · Fase 9 Unificación de pantallas, eliminación de duplicados en POS, navegación sidebar y liquidación de comisiones (pos-pantallas P-01 a P-41) ✅.

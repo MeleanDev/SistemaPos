@@ -248,9 +248,11 @@ const renderizarClientesEnTabla = function () {
                         <button type="button" class="btn btn-outline-info btn-sm rounded-circle shadow-sm" onclick="abrirDetalleCliente(${c.cliente_id});" title="Ver estado de cuenta y facturas" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-success btn-sm rounded-circle shadow-sm" onclick="abrirModalAbonoGeneral(${c.cliente_id});" title="Abono Rápido FIFO" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
-                            <i class="fas fa-coins"></i>
-                        </button>
+                        ${(typeof puedeAbonar !== "undefined" && puedeAbonar) ? `
+                            <button type="button" class="btn btn-outline-success btn-sm rounded-circle shadow-sm" onclick="abrirModalAbonoGeneral(${c.cliente_id});" title="Abono Rápido FIFO" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-coins"></i>
+                            </button>
+                        ` : ""}
                     </div>
                 </td>
             </tr>
@@ -373,9 +375,11 @@ const renderizarFacturasPendientesModal = function (facturas) {
                 </td>
                 <td class="text-center pe-4">
                     <div class="d-flex justify-content-center gap-1">
-                        <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-bold" onclick="abrirModalAbonoFactura(${f.id}, '${f.numero_factura}', ${f.saldo_pendiente_usd}, ${f.saldo_pendiente_bs});">
-                            <i class="fas fa-hand-holding-usd me-1"></i>Abonar
-                        </button>
+                        ${(typeof puedeAbonar !== "undefined" && puedeAbonar) ? `
+                            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-bold" onclick="abrirModalAbonoFactura(${f.id}, '${f.numero_factura}', ${f.saldo_pendiente_usd}, ${f.saldo_pendiente_bs});">
+                                <i class="fas fa-hand-holding-usd me-1"></i>Abonar
+                            </button>
+                        ` : ""}
                         ${f.abonos_count > 0 ? `
                             <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle shadow-sm" onclick="abrirHistorialAbonosFactura('${abonosJson}', '${f.numero_factura}');" title="Ver historial de abonos" style="width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
                                 <i class="fas fa-history"></i>

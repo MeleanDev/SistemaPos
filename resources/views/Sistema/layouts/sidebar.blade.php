@@ -11,10 +11,10 @@
                     </a>
                 </li>
 
-                <!-- VENTAS Y CAJA -->
-                @if (auth()->user()?->hasRole('SuperAdmin') || auth()->user()?->canAny(['pos.acceso', 'ventas.ver', 'cajas.ver', 'vendedores.ver']))
+                <!-- OPERACIÓN -->
+                @if (auth()->user()?->canAny(['pos.acceso', 'consultor.ver']))
                     <li class="list-divider"></li>
-                    <li class="nav-small-cap"><span class="hide-menu">Ventas & Facturación</span></li>
+                    <li class="nav-small-cap"><span class="hide-menu">Operación</span></li>
 
                     @can('pos.acceso')
                         <li class="sidebar-item @if (request()->routeIs('pos*')) selected @endif">
@@ -33,12 +33,18 @@
                             </a>
                         </li>
                     @endcan
+                @endif
+
+                <!-- VENTAS Y CAJA -->
+                @if (auth()->user()?->canAny(['ventas.ver', 'cajas.ver', 'cxc.ver']))
+                    <li class="list-divider"></li>
+                    <li class="nav-small-cap"><span class="hide-menu">Ventas y Caja</span></li>
 
                     @can('ventas.ver')
                         <li class="sidebar-item @if (request()->routeIs('factura*')) selected @endif">
                             <a class="sidebar-link" href="{{ route('factura') }}" aria-expanded="false">
-                                <i class="fas fa-history"></i>
-                                <span class="hide-menu">Historial Facturas</span>
+                                <i class="fas fa-file-invoice-dollar"></i>
+                                <span class="hide-menu">Facturas</span>
                             </a>
                         </li>
                     @endcan
@@ -52,32 +58,6 @@
                         </li>
                     @endcan
 
-                    @if (Auth::user()?->empresaActiva()?->maneja_vendedores ?? false)
-                        @can('vendedores.ver')
-                            <li class="sidebar-item @if (request()->routeIs('vendedor*')) selected @endif">
-                                <a class="sidebar-link" href="{{ route('vendedor') }}" aria-expanded="false">
-                                    <i class="fas fa-user-tie"></i>
-                                    <span class="hide-menu">Vendedores</span>
-                                </a>
-                            </li>
-                        @endcan
-                    @endif
-
-                    @hasrole('SuperAdmin')
-                        <li class="sidebar-item @if (request()->routeIs('metodo_pago*')) selected @endif">
-                            <a class="sidebar-link" href="{{ route('metodo_pago') }}" aria-expanded="false">
-                                <i class="fas fa-credit-card"></i>
-                                <span class="hide-menu">Métodos de Pago</span>
-                            </a>
-                        </li>
-                    @endhasrole
-                @endif
-
-                <!-- CRÉDITOS Y FINANZAS -->
-                @if (auth()->user()?->canAny(['cxc.ver', 'cxp.ver']))
-                    <li class="list-divider"></li>
-                    <li class="nav-small-cap"><span class="hide-menu">Créditos & Finanzas</span></li>
-
                     @can('cxc.ver')
                         <li class="sidebar-item @if (request()->routeIs('cxc*')) selected @endif">
                             <a class="sidebar-link" href="{{ route('cxc') }}" aria-expanded="false">
@@ -86,21 +66,33 @@
                             </a>
                         </li>
                     @endcan
-
-                    @can('cxp.ver')
-                        <li class="sidebar-item @if (request()->routeIs('cxp*')) selected @endif">
-                            <a class="sidebar-link" href="{{ route('cxp') }}" aria-expanded="false">
-                                <i class="fas fa-file-invoice-dollar"></i>
-                                <span class="hide-menu">Cuentas por Pagar (CXP)</span>
-                            </a>
-                        </li>
-                    @endcan
                 @endif
 
-                <!-- COMPRAS Y RECEPCIÓN -->
-                @if (auth()->user()?->canAny(['compras.recepcion', 'motos.recepcion', 'proveedores.ver']))
+                <!-- EQUIPO DE VENTAS -->
+                @if (((bool) (Auth::user()?->empresaActiva()?->maneja_vendedores ?? false)) && auth()->user()?->can('vendedores.ver'))
                     <li class="list-divider"></li>
-                    <li class="nav-small-cap"><span class="hide-menu">Compras & Recepción</span></li>
+                    <li class="nav-small-cap"><span class="hide-menu">Equipo de Ventas</span></li>
+
+                    <li class="sidebar-item @if (request()->routeIs('vendedor*')) selected @endif">
+                        <a class="sidebar-link" href="{{ route('vendedor') }}" aria-expanded="false">
+                            <i class="fas fa-user-tie"></i>
+                            <span class="hide-menu">Vendedores y Comisiones</span>
+                        </a>
+                    </li>
+                @endif
+
+                <!-- COMPRAS -->
+                @php
+                    $manejaMotos = (bool) (Auth::user()?->empresaActiva()?->maneja_motos ?? false);
+                    $puedeVerCompras = auth()->user()?->canAny([
+                        'compras.recepcion',
+                        'proveedores.ver',
+                        'cxp.ver'
+                    ]) || ($manejaMotos && auth()->user()?->can('motos.recepcion'));
+                @endphp
+                @if ($puedeVerCompras)
+                    <li class="list-divider"></li>
+                    <li class="nav-small-cap"><span class="hide-menu">Compras</span></li>
 
                     @can('compras.recepcion')
                         <li class="sidebar-item @if (request()->routeIs('recepcion.*') || request()->routeIs('recepcion')) selected @endif">
@@ -111,7 +103,7 @@
                         </li>
                     @endcan
 
-                    @if (Auth::user()?->empresaActiva()?->maneja_motos ?? true)
+                    @if ($manejaMotos)
                         @can('motos.recepcion')
                             <li class="sidebar-item @if (request()->routeIs('recepcion_moto*')) selected @endif">
                                 <a class="sidebar-link" href="{{ route('recepcion_moto') }}" aria-expanded="false">
@@ -130,17 +122,35 @@
                             </a>
                         </li>
                     @endcan
+
+                    @can('cxp.ver')
+                        <li class="sidebar-item @if (request()->routeIs('cxp*')) selected @endif">
+                            <a class="sidebar-link" href="{{ route('cxp') }}" aria-expanded="false">
+                                <i class="fas fa-file-invoice"></i>
+                                <span class="hide-menu">Cuentas por Pagar (CXP)</span>
+                            </a>
+                        </li>
+                    @endcan
                 @endif
 
                 <!-- INVENTARIO Y CATÁLOGO -->
-                @if (auth()->user()?->canAny(['categoria.ver', 'categorias.ver', 'productos.ver', 'motos.ver', 'servicios.ver', 'almacenes.ver', 'inventario.kardex']))
+                @php
+                    $puedeVerInventario = auth()->user()?->canAny([
+                        'categorias.ver',
+                        'productos.ver',
+                        'servicios.ver',
+                        'almacenes.ver',
+                        'inventario.kardex'
+                    ]) || ($manejaMotos && auth()->user()?->can('motos.ver'));
+                @endphp
+                @if ($puedeVerInventario)
                     <li class="list-divider"></li>
-                    <li class="nav-small-cap"><span class="hide-menu">Inventario & Catálogo</span></li>
+                    <li class="nav-small-cap"><span class="hide-menu">Inventario y Catálogo</span></li>
 
                     <li class="sidebar-item @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*') || request()->routeIs('kardex*')) selected @endif">
                         <a class="sidebar-link has-arrow @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*') || request()->routeIs('kardex*')) active @endif" href="javascript:void(0)" aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*') || request()->routeIs('kardex*')) true @else false @endif">
                             <i class="fas fa-boxes-stacked"></i>
-                            <span class="hide-menu">Inventario & Catálogo</span>
+                            <span class="hide-menu">Inventario y Catálogo</span>
                         </a>
                         <ul aria-expanded="@if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*') || request()->routeIs('kardex*')) true @else false @endif" class="collapse first-level base-level-line @if (request()->routeIs('categoria*') || request()->routeIs('producto*') || request()->routeIs('servicio*') || request()->routeIs('almacen*') || request()->routeIs('moto*') || request()->routeIs('kardex*')) in @endif">
                             @can('categorias.ver')
@@ -161,7 +171,7 @@
                                 </li>
                             @endcan
 
-                            @if (Auth::user()?->empresaActiva()?->maneja_motos ?? true)
+                            @if ($manejaMotos)
                                 @can('motos.ver')
                                     <li class="sidebar-item @if (request()->routeIs('moto*')) active @endif">
                                         <a href="{{ route('moto') }}" class="sidebar-link @if (request()->routeIs('moto*')) active @endif">
@@ -215,10 +225,20 @@
                     </li>
                 @endcan
 
-                <!-- REPORTES -->
-                @if (auth()->user()?->canAny(['reportes.ver', 'reportes.financieros', 'reportes.inventario', 'reportes.vendedores', 'cajas.arqueo', 'ventas.anular']))
+                <!-- INFORMES -->
+                @php
+                    $manejaVendedores = (bool) (Auth::user()?->empresaActiva()?->maneja_vendedores ?? false);
+                    $puedeVerInformes = auth()->user()?->canAny([
+                        'reportes.ver',
+                        'reportes.financieros',
+                        'reportes.inventario',
+                        'cajas.arqueo',
+                        'ventas.anular'
+                    ]) || ($manejaVendedores && auth()->user()?->can('reportes.vendedores'));
+                @endphp
+                @if ($puedeVerInformes)
                     <li class="list-divider"></li>
-                    <li class="nav-small-cap"><span class="hide-menu">Informes & Auditoría</span></li>
+                    <li class="nav-small-cap"><span class="hide-menu">Informes</span></li>
 
                     @if (auth()->user()?->canAny(['reportes.ver', 'reportes.financieros', 'reportes.inventario', 'cajas.arqueo', 'ventas.anular']))
                         <li class="sidebar-item @if (request()->routeIs('reportes') && !request()->routeIs('reportes.vendedores*')) selected @endif">
@@ -229,7 +249,7 @@
                         </li>
                     @endif
 
-                    @if (Auth::user()?->empresaActiva()?->maneja_vendedores ?? false)
+                    @if ($manejaVendedores)
                         @can('reportes.vendedores')
                             <li class="sidebar-item @if (request()->routeIs('reportes.vendedores*')) selected @endif">
                                 <a class="sidebar-link" href="{{ route('reportes.vendedores') }}" aria-expanded="false">
@@ -241,16 +261,23 @@
                     @endif
                 @endif
 
-                <!-- ADMINISTRACIÓN Y CONFIGURACIÓN -->
+                <!-- SISTEMA -->
                 @if (auth()->user()?->hasRole('SuperAdmin') || auth()->user()?->canAny(['usuarios.ver', 'configuracion.ver']))
                     <li class="list-divider"></li>
-                    <li class="nav-small-cap"><span class="hide-menu">Sistema & Accesos</span></li>
+                    <li class="nav-small-cap"><span class="hide-menu">Sistema</span></li>
 
                     @hasrole('SuperAdmin')
                         <li class="sidebar-item @if (request()->routeIs('empresa*')) selected @endif">
                             <a class="sidebar-link" href="{{ route('empresa') }}" aria-expanded="false">
                                 <i class="fas fa-building"></i>
                                 <span class="hide-menu">Empresas / Sedes</span>
+                            </a>
+                        </li>
+
+                        <li class="sidebar-item @if (request()->routeIs('metodo_pago*')) selected @endif">
+                            <a class="sidebar-link" href="{{ route('metodo_pago') }}" aria-expanded="false">
+                                <i class="fas fa-credit-card"></i>
+                                <span class="hide-menu">Métodos de Pago</span>
                             </a>
                         </li>
                     @endhasrole

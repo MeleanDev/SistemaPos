@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Pos\ClienteRapidoRequest;
 use App\Http\Requests\Pos\GuardarEnEsperaRequest;
 use App\Http\Requests\Pos\GuardarVentaRequest;
-use App\Http\Requests\Pos\ProcesarDevolucionRequest;
 use App\Service\Empresa\DocumentoImpresionClass;
 use App\Service\Ventas\VentaClass;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -182,47 +181,6 @@ class PosController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
-            ], 422);
-        }
-    }
-
-    public function buscarFacturaDevolucion(Request $request): JsonResponse
-    {
-        $busqueda = (string) $request->input('busqueda', '');
-
-        try {
-            $venta = $this->ventaService->buscarFacturaDevolucion($busqueda, $this->obtenerEmpresaId());
-
-            return response()->json([
-                'success' => true,
-                'data' => $venta,
-            ]);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 422);
-        }
-    }
-
-    public function procesarDevolucion(ProcesarDevolucionRequest $request): JsonResponse
-    {
-        try {
-            $devolucion = $this->ventaService->procesarDevolucion(
-                $request->validated(),
-                $this->obtenerEmpresaId(),
-                (int) Auth::id()
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => "Devolución #{$devolucion->codigo} procesada y stock reintegrado.",
-                'data' => $devolucion,
-            ]);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al procesar devolución: '.$e->getMessage(),
             ], 422);
         }
     }

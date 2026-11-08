@@ -560,7 +560,7 @@ test('pos procesa devolucion de factura y revierte el stock en kardex', function
 
     $resDev = $this->actingAs($user)
         ->withSession(['empresa_activa_id' => $empresa->id])
-        ->postJson('/pos/devolucion/procesar', $payloadDevolucion);
+        ->postJson("/facturas/{$venta->id}/devolver", $payloadDevolucion);
 
     $resDev->assertOk()
         ->assertJsonPath('success', true);
@@ -733,7 +733,7 @@ test('pos procesa venta de moto con seriales cambiando estado a vendida y permit
 
     $resDev = $this->actingAs($user)
         ->withSession(['empresa_activa_id' => $empresa->id])
-        ->postJson('/pos/devolucion/procesar', $payloadDev);
+        ->postJson("/facturas/{$venta->id}/devolver", $payloadDev);
 
     $resDev->assertOk()->assertJsonPath('success', true);
 

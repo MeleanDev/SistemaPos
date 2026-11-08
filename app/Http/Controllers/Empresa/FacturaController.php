@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Empresa;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pos\AnularFacturaRequest;
+use App\Http\Requests\Pos\ProcesarDevolucionRequest;
 use App\Models\CajaTurno;
 use App\Models\Venta;
 use App\Queries\VentaNetaQuery;
@@ -239,6 +240,124 @@ class FacturaController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al anular la factura: '.$e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function devolucionDatos(int $id): JsonResponse
+    {
+        try {
+            $empresaId = $this->obtenerEmpresaId();
+            $venta = Venta::with([
+                'cliente:id,nombre,apellido,cedula',
+                'detalles.producto:id,nombre,codigo_barra',
+                'detalles.moto:id,marca,modelo,placa',
+                'detalles.servicio:id,nombre',
+                'devoluciones.detalles',
+            ])
+                ->where('empresa_id', $empresaId)
+                ->findOrFail($id);
+
+            if (! in_array($venta->estado, ['completada', 'devuelta_parcial'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Esta factura se encuentra en estado "'.$venta->estado.'" y no permite devoluciones adicionales.',
+                ], 422);
+            }
+
+            $detallesConDev = $venta->detalles->map(function ($det) use ($venta) {
+                $cantDevueltaPrevia = 0;
+                foreach ($venta->devoluciones as $dev) {
+                    foreach ($dev->detalles as $dd) {
+                        if ($dd->venta_detalle_id === $det->id) {
+                            $cantDevueltaPrevia += (float) ($dd->cantidad ?? 0);
+                        }
+                    }
+                }
+
+                $cantDisponible = max(0, (float) $det->cantidad - $cantDevueltaPrevia);
+                $nombre = $det->nombre_item;
+                if (! $nombre && $det->producto) {
+                    $nombre = $det->producto->nombre;
+                }
+                if (! $nombre && $det->moto) {
+                    $placa = $det->moto->placa ? '['.$det->moto->placa.']' : '';
+                    $nombre = trim($det->moto->marca.' '.$det->moto->modelo.' '.$placa);
+                }
+                if (! $nombre && $det->servicio) {
+                    $nombre = $det->servicio->nombre;
+                }
+                if (! $nombre) {
+                    $nombre = 'Ítem';
+                }
+
+                return [
+                    'id' => $det->id,
+                    'nombre' => $nombre,
+                    'tipo_item' => $det->tipo_item,
+                    'cantidad_facturada' => (float) $det->cantidad,
+                    'cantidad_devuelta' => $cantDevueltaPrevia,
+                    'cantidad_disponible' => $cantDisponible,
+                    'precio_unitario_usd' => (float) $det->precio_unitario_usd,
+                    'subtotal_usd' => (float) $det->subtotal_usd,
+                ];
+            })->filter(fn ($d) => $d['cantidad_disponible'] > 0)->values();
+
+            if ($detallesConDev->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Todos los ítems de esta factura ya han sido devueltos.',
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $venta->id,
+                    'codigo' => $venta->codigo,
+                    'numero_control' => $venta->numero_control,
+                    'fecha_emision' => $venta->fecha_emision,
+                    'total_usd' => (float) $venta->total_usd,
+                    'total_bs' => (float) $venta->total_bs,
+                    'cliente_nombre' => $venta->cliente ? trim($venta->cliente->nombre.' '.($venta->cliente->apellido ?? '')) : 'Consumidor Final',
+                    'cliente_cedula' => $venta->cliente?->cedula ?? 'V-00000000',
+                    'detalles' => $detallesConDev,
+                ],
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos de devolución: '.$e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function devolver(ProcesarDevolucionRequest $request, int $id): JsonResponse
+    {
+        try {
+            $data = $request->validated();
+            $data['venta_id'] = $id;
+
+            $devolucion = $this->ventaService->procesarDevolucion(
+                $data,
+                $this->obtenerEmpresaId(),
+                (int) Auth::id()
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => "Devolución #{$devolucion->codigo} procesada y stock reintegrado.",
+                'data' => $devolucion,
+            ]);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 403);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar devolución: '.$e->getMessage(),
             ], 422);
         }
     }

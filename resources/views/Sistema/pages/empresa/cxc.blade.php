@@ -153,9 +153,11 @@
                         <a href="javascript:void(0)" class="btn btn-outline-success btn-sm rounded-pill px-3 shadow-none fw-semibold text-white border-success" id="btn_whatsapp_cliente" target="_blank">
                             <i class="fab fa-whatsapp me-1"></i> Notificar Cobro
                         </a>
-                        <button type="button" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm fw-bold" id="btn_abono_general_cliente">
-                            <i class="fas fa-coins me-1"></i> Abono Rápido (FIFO)
-                        </button>
+                        @can('cxc.abonar')
+                            <button type="button" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm fw-bold" id="btn_abono_general_cliente">
+                                <i class="fas fa-coins me-1"></i> Abono Rápido (FIFO)
+                            </button>
+                        @endcan
                         <button type="button" class="btn-close btn-close-white shadow-none ms-2" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                     </div>
                 </div>
@@ -259,6 +261,7 @@
     </div>
 
     <!-- MODAL 2: ABONAR A FACTURA ESPECÍFICA -->
+    @can('cxc.abonar')
     <x-modal
         id="modalAbonarFactura"
         title="Abonar a Factura Específica"
@@ -342,8 +345,10 @@
             </div>
         </form>
     </x-modal>
+    @endcan
 
     <!-- MODAL 3: ABONO GENERAL A LA DEUDA (ALGORITMO FIFO) -->
+    @can('cxc.abonar')
     <x-modal
         id="modalAbonoGeneral"
         title="Abono General a la Deuda (Cascada FIFO)"
@@ -456,6 +461,7 @@
             </div>
         </form>
     </x-modal>
+    @endcan
 
     <!-- MODAL 4: HISTORIAL DE ABONOS DE FACTURA -->
     <div class="modal fade" id="modalHistorialAbonos" tabindex="-1" aria-hidden="true">
@@ -493,5 +499,8 @@
 
 @section('scripts')
     @include('Sistema.components.datatable')
+    <script>
+        const puedeAbonar = @json(auth()->user()?->can('cxc.abonar') || auth()->user()?->hasAnyRole(['SuperAdmin', 'Admin']));
+    </script>
     <script src="{{ asset('estilos/jsPropios/cxc.js') }}?v={{ @filemtime(public_path('estilos/jsPropios/cxc.js')) ?: time() }}"></script>
 @endsection

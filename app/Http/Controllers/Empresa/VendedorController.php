@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Vendedor\ActualizarRequest;
 use App\Http\Requests\Vendedor\CrearRequest;
 use App\Http\Requests\Vendedor\LiquidarComisionRequest;
+use App\Models\CajaTurno;
 use App\Models\Empresa;
+use App\Models\MetodoPago;
 use App\Service\Empresa\VendedorClass;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,10 +40,20 @@ class VendedorController extends Controller
     {
         $empresaId = $this->verificarModuloVendedoresHabilitado();
         $usuarios = $this->vendedorClass->usuariosDisponibles($empresaId);
+        $vendedores = $this->vendedorClass->activos($empresaId);
+        $metodosPago = MetodoPago::where('estado', true)->orderBy('nombre')->get(['id', 'nombre', 'es_efectivo']);
+        $turnosAbiertos = CajaTurno::with('caja:id,nombre')
+            ->where('empresa_id', $empresaId)
+            ->where('estado', 'abierto')
+            ->orderBy('id', 'desc')
+            ->get(['id', 'caja_id', 'user_id', 'fecha_apertura', 'hora_apertura']);
 
         return response()->json([
             'success' => true,
             'usuarios' => $usuarios,
+            'vendedores' => $vendedores,
+            'metodos_pago' => $metodosPago,
+            'turnos_abiertos' => $turnosAbiertos,
         ]);
     }
 

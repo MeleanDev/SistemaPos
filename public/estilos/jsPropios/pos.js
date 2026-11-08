@@ -2369,186 +2369,6 @@ const descartarCuentaEspera = async function (id) {
     }
 };
 
-let facturaDevolucionActual = null;
-
-const abrirModalDevolucion = function () {
-    $("#devInputBusquedaFactura").val("");
-    $("#contenedorDetallesFacturaDevolucion").hide();
-    $("#btnConfirmarDevolucion").hide();
-    facturaDevolucionActual = null;
-    bootstrap.Modal.getOrCreateInstance(document.getElementById("modalDevolucion")).show();
-    setTimeout(() => {
-        $("#devInputBusquedaFactura").focus();
-    }, 300);
-};
-
-const buscarFacturaParaDevolucion = async function () {
-    const busqueda = $("#devInputBusquedaFactura").val().trim();
-    if (!busqueda) {
-        if (window.notificacion) {
-            window.notificacion.fire({ icon: "warning", title: "Ingresa un código", text: "Por favor escribe el número o código de comprobante (Ej. VEN-00001)." });
-        }
-        return;
-    }
-
-    try {
-        const res = await peticionAjax({
-            url: urlPosDevolucionBuscar,
-            method: "GET",
-            data: { busqueda: busqueda },
-        });
-
-        if (res.success && res.data) {
-            facturaDevolucionActual = res.data;
-            $("#devFacturaCodigo").text(`Factura #${res.data.codigo}`);
-            $("#devFacturaCliente").text(`Cliente: ${res.data.cliente ? res.data.cliente.nombre + ' ' + (res.data.cliente.apellido || '') : 'Consumidor Final'}`);
-            $("#devFacturaTotal").text(`Total: $ ${parseFloat(res.data.total_usd).toFixed(2)}`);
-            $("#devFacturaFecha").text(`Fecha: ${res.data.fecha_emision} ${res.data.hora_emision}`);
-
-            const $tbody = $("#contenedorFilasItemsDevolucion");
-            $tbody.empty();
-
-            if (Array.isArray(res.data.detalles)) {
-                res.data.detalles.forEach((det) => {
-                    const prodNombre = det.nombre_item || (det.producto ? det.producto.nombre : (det.moto ? (det.moto.marca + ' ' + det.moto.modelo + (det.moto.placa ? ' [Placa: ' + det.moto.placa + ']' : '')) : (det.servicio ? det.servicio.nombre : "Artículo")));
-                    const precioUnit = parseFloat(det.precio_unitario_usd).toFixed(2);
-
-                    let cantDevueltaPrevia = 0;
-                    if (Array.isArray(res.data.devoluciones)) {
-                        res.data.devoluciones.forEach((dev) => {
-                            if (Array.isArray(dev.detalles)) {
-                                dev.detalles.forEach((dd) => {
-                                    if (dd.venta_detalle_id === det.id) {
-                                        cantDevueltaPrevia += parseFloat(dd.cantidad || 0);
-                                    }
-                                });
-                            }
-                        });
-                    }
-
-                    const cantDisponible = Math.max(0, parseFloat(det.cantidad) - cantDevueltaPrevia);
-
-                    const filaHtml = `
-                        <tr>
-                            <td>
-                                <strong class="text-dark font-monospace">${prodNombre}</strong>
-                                <small class="text-muted d-block">${det.tipo_item}</small>
-                            </td>
-                            <td class="text-center font-monospace">${parseFloat(det.cantidad)} ${cantDevueltaPrevia > 0 ? `<small class="text-danger">(-${cantDevueltaPrevia} dev)</small>` : ''}</td>
-                            <td class="text-end font-monospace">$ ${precioUnit}</td>
-                            <td class="text-center font-monospace">
-                                <input type="number" step="any" min="0" max="${cantDisponible}" class="form-control form-control-sm text-center font-monospace fw-bold input-cant-dev" data-id="${det.id}" data-precio="${det.precio_unitario_usd}" value="${cantDisponible}" oninput="calcularTotalRenglonDevolucion(this)">
-                            </td>
-                            <td class="text-end font-monospace fw-bold text-danger subtotal-dev-row">$ ${(cantDisponible * parseFloat(det.precio_unitario_usd)).toFixed(2)}</td>
-                        </tr>
-                    `;
-                    $tbody.append(filaHtml);
-                });
-            }
-
-            if (!$("#devInputMotivo").val()) {
-                $("#devInputMotivo").val("Devolución de cliente en mostrador");
-            }
-
-            $("#contenedorDetallesFacturaDevolucion").slideDown(150);
-            $("#btnConfirmarDevolucion").show();
-        }
-    } catch (xhr) {
-        const msg = xhr.responseJSON?.message || "No se encontró la factura.";
-        if (window.notificacion) window.notificacion.fire({ icon: "error", title: "Búsqueda Fallida", text: msg });
-    }
-};
-
-const marcarTodoDevolucion = function () {
-    $(".input-cant-dev").each(function () {
-        const max = parseFloat($(this).attr("max")) || 0;
-        $(this).val(max);
-        calcularTotalRenglonDevolucion(this);
-    });
-};
-
-const desmarcarTodoDevolucion = function () {
-    $(".input-cant-dev").each(function () {
-        $(this).val(0);
-        calcularTotalRenglonDevolucion(this);
-    });
-};
-
-const calcularTotalRenglonDevolucion = function (input) {
-    const $input = $(input);
-    const cant = parseFloat($input.val()) || 0;
-    const precio = parseFloat($input.data("precio")) || 0;
-    const subtotal = roundDecimals(cant * precio, 2);
-    $input.closest("tr").find(".subtotal-dev-row").text(`$ ${subtotal.toFixed(2)}`);
-};
-
-const ejecutarDevolucion = async function () {
-    if (!facturaDevolucionActual) return;
-
-    const motivo = $("#devInputMotivo").val().trim();
-    if (!motivo) {
-        if (window.notificacion) {
-            window.notificacion.fire({ icon: "warning", title: "Motivo requerido", text: "Por favor ingresa el motivo de la devolución." });
-        }
-        $("#devInputMotivo").focus();
-        return;
-    }
-
-    const items = [];
-    $(".input-cant-dev").each(function () {
-        const cant = parseFloat($(this).val()) || 0;
-        const detId = parseInt($(this).data("id")) || 0;
-        if (cant > 0 && detId > 0) {
-            items.push({
-                venta_detalle_id: detId,
-                cantidad: cant,
-            });
-        }
-    });
-
-    if (items.length === 0) {
-        if (window.notificacion) {
-            window.notificacion.fire({ icon: "warning", title: "Sin cantidades", text: "Debes ingresar al menos una cantidad mayor a 0 para devolver." });
-        }
-        return;
-    }
-
-    const payload = {
-        venta_id: facturaDevolucionActual.id,
-        motivo: motivo,
-        tipo_reembolso: "sin_reembolso",
-        items: items,
-    };
-
-    try {
-        const res = await peticionAjax({
-            url: urlPosDevolucionProcesar,
-            method: "POST",
-            data: payload,
-        });
-
-        if (res.success) {
-            const modalEl = document.getElementById("modalDevolucion");
-            if (modalEl) {
-                const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
-                if (modalInst) modalInst.hide();
-            }
-
-            cargarDatosInicialesPos();
-            if (window.Swal) {
-                Swal.fire({
-                    icon: "success",
-                    title: "Devolución Procesada",
-                    text: res.message,
-                });
-            }
-        }
-    } catch (xhr) {
-        const msg = xhr.responseJSON?.message || "Error al procesar la devolución.";
-        if (window.notificacion) window.notificacion.fire({ icon: "error", title: "Error", text: msg });
-    }
-};
-
 const abrirModalConsultaProducto = function () {
     $("#inputConsultaProdFiltro").val("");
     filtrarConsultaProductos();
@@ -2877,7 +2697,7 @@ const configurarAtajosTecladoPos = function () {
     window.addEventListener("keydown", function (e) {
         const key = e.key;
 
-        const teclasInterceptar = ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "Escape", "Esc"];
+        const teclasInterceptar = ["F1", "F2", "F3", "F4", "F5", "F6", "F8", "F9", "F10", "F11", "F12", "Escape", "Esc"];
 
         if (teclasInterceptar.includes(key)) {
             if (key !== "F5" && key !== "F12") {
@@ -2889,14 +2709,13 @@ const configurarAtajosTecladoPos = function () {
 
         const modalInicioClienteAbierto = $("#modalInicioVentaCliente").hasClass("show");
         const modalCobroAbierto = $("#modalCobroVenta").hasClass("show");
-        const modalDevolucionAbierto = $("#modalDevolucion").hasClass("show");
         const modalEsperaAbierto = $("#modalCuentasEspera").hasClass("show");
         const modalConsultaAbierto = $("#modalConsultaProducto").hasClass("show");
         const modalReimprimirAbierto = $("#modalReimprimirTicket").hasClass("show");
         const modalClienteAbierto = $("#modalRapidoClientePos").hasClass("show");
         const modalDetalleAbierto = $("#modalDetalleVentaProducto").hasClass("show");
 
-        const hayModalAbierto = modalInicioClienteAbierto || modalCobroAbierto || modalDevolucionAbierto || modalEsperaAbierto || modalConsultaAbierto || modalReimprimirAbierto || modalClienteAbierto || modalDetalleAbierto || $(".modal.show").length > 0;
+        const hayModalAbierto = modalInicioClienteAbierto || modalCobroAbierto || modalEsperaAbierto || modalConsultaAbierto || modalReimprimirAbierto || modalClienteAbierto || modalDetalleAbierto || $(".modal.show").length > 0;
 
         switch (key) {
             case "F1":
@@ -2923,10 +2742,6 @@ const configurarAtajosTecladoPos = function () {
 
             case "F6":
                 abrirModalCuentasEspera();
-                break;
-
-            case "F7":
-                abrirModalDevolucion();
                 break;
 
             case "F8":
@@ -2975,10 +2790,6 @@ const roundDecimals = function (num, decimals = 2) {
     const factor = Math.pow(10, decimals);
     return Math.round((Number(num) + Number.EPSILON) * factor) / factor;
 };
-
-let posEsperadoCierreUsd = 0;
-let posEsperadoCierreBs = 0;
-let posCierreCiegoActual = false;
 
 const renderizarCajaNavbar = function () {
     const $container = $("#posContainerCajaNavbar");
@@ -3054,24 +2865,13 @@ const renderizarCajaNavbar = function () {
                     ${opcionesDropdown}
                     <li><hr class="dropdown-divider border-secondary opacity-25"></li>
                     <li>
-                        <a class="dropdown-item text-info" href="#" onclick="abrirModalMovimientoPos(); return false;">
-                            <i class="fas fa-exchange-alt me-2"></i> Registrar Entrada / Salida
-                        </a>
-                    </li>
-                    <li>
                         <a class="dropdown-item text-warning" href="#" onclick="verCorteXPos(); return false;">
                             <i class="fas fa-file-invoice-dollar me-2"></i> Ver Corte X en Vivo
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item text-danger" href="#" onclick="abrirModalCierrePos(); return false;">
-                            <i class="fas fa-lock me-2"></i> Cerrar Turno (Z)
-                        </a>
-                    </li>
-                    <li><hr class="dropdown-divider border-secondary opacity-25"></li>
-                    <li>
-                        <a class="dropdown-item text-success" href="#" onclick="abrirModalAperturaPos(); return false;">
-                            <i class="fas fa-plus-circle me-2"></i> Aperturar otra caja
+                        <a class="dropdown-item text-info" href="${urlCajasBase}">
+                            <i class="fas fa-cash-register me-2"></i> Ir a Cajas y Turnos
                         </a>
                     </li>
                 </ul>
@@ -3508,219 +3308,6 @@ const verCorteXPos = async function () {
         $("#posContenidoCorteX").html('<div class="alert alert-danger">Error al consultar datos del turno.</div>');
     }
 };
-
-const resetearFormularioMovimientoPos = function () {
-    const $form = $("#formMovimientoCajaPos");
-    if ($form.length) {
-        $form[0].reset();
-        $form.find(".is-invalid").removeClass("is-invalid");
-        $form.find(".invalid-feedback").remove();
-    }
-    $("#posMovimientoTipo").val("egreso");
-    $("#posMovimientoMontoUsd").val("0.00");
-    $("#posMovimientoMontoBs").val("0.00");
-};
-
-const abrirModalMovimientoPos = function () {
-    if (!posCatalogos.turno_activo) {
-        if (window.notificacion) {
-            window.notificacion.fire({ icon: "warning", title: "Sin Turno Activo", text: "No tienes ninguna sesión de caja abierta actualmente." });
-        }
-        abrirModalAperturaPos();
-        return;
-    }
-
-    resetearFormularioMovimientoPos();
-    const turno = posCatalogos.turno_activo;
-    const cajaNom = turno.caja && turno.caja.nombre ? turno.caja.nombre : "Caja";
-    $("#posMovimientoTurnoId").val(turno.id);
-    $("#posMovimientoEtiquetaTurno").text(`${cajaNom} · Turno #${String(turno.id).padStart(5, "0")}`);
-
-    const modalEl = document.getElementById("modalMovimientoCajaPos");
-    if (modalEl) {
-        const modalInst = bootstrap.Modal.getOrCreateInstance(modalEl);
-        modalInst.show();
-    }
-};
-
-$("#formMovimientoCajaPos").on("submit", function (e) {
-    e.preventDefault();
-    if (!posCatalogos.turno_activo) return;
-
-    enviarFormulario({
-        form: this,
-        url: typeof urlCajasMovimientos !== "undefined" ? urlCajasMovimientos : `${urlCajasBase}/movimientos`,
-        isEditar: false,
-        modalSelector: "#modalMovimientoCajaPos",
-        btnSubmit: "#modalMovimientoCajaPosBtnGuardar",
-        textoGuardarOriginal: "Registrar Movimiento",
-    });
-});
-
-const abrirModalCierrePos = async function () {
-    if (!posCatalogos.turno_activo) {
-        if (window.notificacion) {
-            window.notificacion.fire({ icon: "warning", title: "Sin Turno Activo", text: "No tienes ninguna sesión de caja abierta actualmente." });
-        }
-        abrirModalAperturaPos();
-        return;
-    }
-
-    const turnoId = posCatalogos.turno_activo.id;
-
-    try {
-        const res = await peticionAjax({
-            url: `${urlCajasBase}/turnos/${turnoId}/reporte-x`,
-            method: "GET",
-        });
-        const rep = res && res.data ? res.data : null;
-        if (!rep) return;
-
-        posCierreCiegoActual = Boolean(rep.cierre_ciego) || rep.efectivo_esperado_usd === undefined || rep.efectivo_esperado_usd === null;
-
-        $("#posCierreResumenApertura").text(`$${parseFloat(rep.monto_apertura_usd).toFixed(2)}`);
-        $("#posCierreResumenVentas").text(`$${parseFloat(rep.total_ventas_usd).toFixed(2)}`);
-        $("#posCierreResumenIngresosUsd").text(`+$${parseFloat(rep.total_ingresos_caja_usd || 0).toFixed(2)}`);
-        $("#posCierreResumenIngresosBs").text(`+Bs. ${parseFloat(rep.total_ingresos_caja_bs || 0).toFixed(2)}`);
-        $("#posCierreResumenEgresosUsd").text(`-$${parseFloat(rep.total_egresos_caja_usd || 0).toFixed(2)}`);
-        $("#posCierreResumenEgresosBs").text(`-Bs. ${parseFloat(rep.total_egresos_caja_bs || 0).toFixed(2)}`);
-        $("#posCierreObservaciones").val("");
-
-        if (posCierreCiegoActual) {
-            posEsperadoCierreUsd = 0;
-            posEsperadoCierreBs = 0;
-            $("#posContenedorAvisoCierreCiego").show();
-            $("#posContenedorResumenCierreZ").hide();
-            $("#posColResumenEsperadoUsd").hide();
-            $("#posColResumenEsperadoBs").hide();
-            $("#posCierreMontoUsd").val("0.00");
-            $("#posCierreMontoBs").val("0.00");
-            $("#posCierreAlertaUsd").html('<span class="text-muted"><i class="fas fa-eye-slash me-1"></i>Cierre a ciegas: se calculará al confirmar</span>');
-            $("#posCierreAlertaBs").html('<span class="text-muted"><i class="fas fa-eye-slash me-1"></i>Cierre a ciegas: se calculará al confirmar</span>');
-        } else {
-            posEsperadoCierreUsd = parseFloat(rep.efectivo_esperado_usd || 0);
-            posEsperadoCierreBs = parseFloat(rep.efectivo_esperado_bs || 0);
-            $("#posContenedorAvisoCierreCiego").hide();
-            $("#posContenedorResumenCierreZ").show();
-            $("#posColResumenEsperadoUsd").show();
-            $("#posColResumenEsperadoBs").show();
-            $("#posCierreResumenEsperadoUsd").text(`$${posEsperadoCierreUsd.toFixed(2)}`);
-            $("#posCierreResumenEsperadoBs").text(`Bs. ${posEsperadoCierreBs.toFixed(2)}`);
-            $("#posCierreMontoUsd").val(posEsperadoCierreUsd.toFixed(2));
-            $("#posCierreMontoBs").val(posEsperadoCierreBs.toFixed(2));
-            calcularDiferenciasCierrePos();
-        }
-
-        const modalEl = document.getElementById("modalCierreZPos");
-        const modalInst = bootstrap.Modal.getOrCreateInstance(modalEl);
-        modalInst.show();
-    } catch (e) {
-        if (window.notificacion) {
-            window.notificacion.fire({ icon: "error", title: "Error", text: "No se pudieron calcular los totales para el cierre." });
-        }
-    }
-};
-
-const calcularDiferenciasCierrePos = function () {
-    if (posCierreCiegoActual) {
-        return;
-    }
-
-    const contadoUsd = parseFloat($("#posCierreMontoUsd").val() || 0);
-    const contadoBs = parseFloat($("#posCierreMontoBs").val() || 0);
-
-    const difUsd = contadoUsd - posEsperadoCierreUsd;
-    const difBs = contadoBs - posEsperadoCierreBs;
-
-    const $alertaUsd = $("#posCierreAlertaUsd");
-    const $alertaBs = $("#posCierreAlertaBs");
-
-    if (Math.abs(difUsd) < 0.001) {
-        $alertaUsd.html('<span class="text-success"><i class="fas fa-check-circle me-1"></i>Cuadre Exacto en USD ($0.00)</span>');
-    } else if (difUsd > 0) {
-        $alertaUsd.html(`<span class="text-success fw-bold"><i class="fas fa-plus-circle me-1"></i>Sobrante: +$${difUsd.toFixed(2)}</span>`);
-    } else {
-        $alertaUsd.html(`<span class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>Faltante: -$${Math.abs(difUsd).toFixed(2)}</span>`);
-    }
-
-    if (Math.abs(difBs) < 0.001) {
-        $alertaBs.html('<span class="text-success"><i class="fas fa-check-circle me-1"></i>Cuadre Exacto en Bs. (Bs. 0.00)</span>');
-    } else if (difBs > 0) {
-        $alertaBs.html(`<span class="text-success fw-bold"><i class="fas fa-plus-circle me-1"></i>Sobrante: +Bs. ${difBs.toFixed(2)}</span>`);
-    } else {
-        $alertaBs.html(`<span class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>Faltante: -Bs. ${Math.abs(difBs).toFixed(2)}</span>`);
-    }
-};
-
-$("#posCierreMontoUsd, #posCierreMontoBs").on("input", function () {
-    calcularDiferenciasCierrePos();
-});
-
-$("#formCierreZPos").on("submit", async function (e) {
-    e.preventDefault();
-    if (!posCatalogos.turno_activo) return;
-
-    const turnoId = posCatalogos.turno_activo.id;
-    const payload = {
-        monto_cierre_usd: parseFloat($("#posCierreMontoUsd").val()) || 0,
-        monto_cierre_bs: parseFloat($("#posCierreMontoBs").val()) || 0,
-        observaciones: $("#posCierreObservaciones").val() || null,
-    };
-
-    const $btn = $("#btnConfirmarCierrePos");
-    $btn.prop("disabled", true).html('<i class="fas fa-spinner fa-spin me-1"></i> Cerrando Turno...');
-
-    try {
-        const res = await peticionAjax({
-            url: `${urlCajasBase}/turnos/${turnoId}/cerrar`,
-            method: "POST",
-            data: payload,
-        });
-
-        if (res.success) {
-            const modalEl = document.getElementById("modalCierreZPos");
-            if (modalEl) {
-                const modalInst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
-                if (modalInst) modalInst.hide();
-            }
-
-            posCatalogos.turno_activo = null;
-            renderizarCajaNavbar();
-
-            if (window.Swal) {
-                const turnoCerrado = res && res.data ? res.data : {};
-                const difUsd = parseFloat(turnoCerrado.diferencia_usd || 0);
-                const difBs = parseFloat(turnoCerrado.diferencia_bs || 0);
-                const estadoUsd = Math.abs(difUsd) < 0.001 ? 'Exacto ($0.00)' : (difUsd > 0 ? `Sobrante (+$${difUsd.toFixed(2)})` : `Faltante (-$${Math.abs(difUsd).toFixed(2)})`);
-                const estadoBs = Math.abs(difBs) < 0.001 ? 'Exacto (Bs. 0.00)' : (difBs > 0 ? `Sobrante (+Bs. ${difBs.toFixed(2)})` : `Faltante (-Bs. ${Math.abs(difBs).toFixed(2)})`);
-
-                Swal.fire({
-                    icon: 'success',
-                    title: '¡Cierre Z Completado!',
-                    html: `El arqueo físico y cierre de turno se registraron exitosamente.<br><br><strong>Resultado USD:</strong> ${estadoUsd}<br><strong>Resultado Bs.:</strong> ${estadoBs}`,
-                    showCancelButton: true,
-                    confirmButtonText: '🖨️ Imprimir Ticket Z',
-                    cancelButtonText: 'Finalizar',
-                    confirmButtonColor: '#0f172a',
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        window.open(`${urlCajasBase}/turnos/${turnoId}/imprimir-z`, '_blank');
-                    }
-                    window.location.reload();
-                });
-            } else {
-                window.location.reload();
-            }
-        }
-    } catch (err) {
-        const msg = err.responseJSON && err.responseJSON.message ? err.responseJSON.message : "No se pudo cerrar el turno.";
-        if (window.notificacion) {
-            window.notificacion.fire({ icon: "error", title: "Error", text: msg });
-        }
-    } finally {
-        $btn.prop("disabled", false).html('<i class="fas fa-lock me-1"></i> Confirmar y Cerrar Turno');
-    }
-});
 
 const resetearFormularioPos = function () {
     posCarrito = [];

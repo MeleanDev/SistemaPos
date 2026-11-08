@@ -53,8 +53,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/pos/en-espera/lista', 'listarEnEspera');
         Route::get('/pos/en-espera/{id}/recuperar', 'recuperarEnEspera');
         Route::delete('/pos/en-espera/{id}', 'eliminarEnEspera');
-        Route::get('/pos/devolucion/buscar', 'buscarFacturaDevolucion')->middleware('permission:ventas.anular');
-        Route::post('/pos/devolucion/procesar', 'procesarDevolucion')->middleware('permission:ventas.anular');
         Route::get('/pos/imprimir/{id}', 'imprimir')->name('pos.imprimir');
         Route::get('/pos/imprimir-carta/{id}', 'imprimirCarta')->name('pos.imprimir_carta');
         Route::get('/pos/imprimir-ticket/{id}', 'imprimirTicket')->name('pos.imprimir_ticket');
@@ -68,6 +66,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/facturas/kpis', 'kpis')->middleware('permission:ventas.ver');
         Route::get('/facturas/lista', 'lista')->middleware('permission:ventas.ver');
         Route::get('/facturas/{id}', 'detalle')->middleware('permission:ventas.ver');
+        Route::get('/facturas/{id}/devolucion-datos', 'devolucionDatos')->middleware('permission:ventas.anular');
+        Route::post('/facturas/{id}/devolver', 'devolver')->middleware('permission:ventas.anular');
         Route::post('/facturas/{id}/anular', 'anular')->middleware('permission:ventas.anular');
     });
 

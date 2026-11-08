@@ -103,7 +103,7 @@
         </div>
 
         <!-- DETALLES DE LA OPERACIÓN -->
-        <div class="card border rounded-3 p-3 bg-light mb-3">
+        <div class="card border rounded-3 p-3 bg-white mb-3">
             <div class="row g-2">
                 @if($movimiento->tipo === 'traslado')
                     <div class="col-6">
@@ -147,7 +147,7 @@
 
         <!-- TABLA DE ARTÍCULOS -->
         <table class="table table-bordered table-sm align-middle mb-4">
-            <thead class="table-light font-mono" style="font-size: 0.75rem;">
+            <thead class="bg-white border-bottom font-mono" style="font-size: 0.75rem;">
                 <tr>
                     <th class="text-center" style="width: 35px;">#</th>
                     <th>Producto / Código</th>
@@ -172,7 +172,7 @@
                     </tr>
                 @endforeach
             </tbody>
-            <tfoot class="table-light font-mono">
+            <tfoot class="bg-white border-top font-mono">
                 <tr>
                     <td colspan="3" class="text-end fw-bold">Total Unidades:</td>
                     <td class="text-center fw-bold">{{ number_format($totalUnids, 2, ',', '.') }}</td>
