@@ -37,14 +37,14 @@ class FacturaController extends Controller
             $ventas = Venta::where('empresa_id', $empresaId)->get();
             $ventasHoy = $ventas->where('fecha_emision', $hoy);
 
-            $totalesHistoricos = VentaNetaQuery::calcularTotales($empresaId);
-            $totalesHoy = VentaNetaQuery::calcularTotales($empresaId, $hoy, $hoy);
+            $totalesHistoricos = VentaNetaQuery::calcularTotales(VentaNetaQuery::validas($empresaId));
+            $totalesHoy = VentaNetaQuery::calcularTotales(VentaNetaQuery::validas($empresaId)->whereDate('fecha_emision', $hoy));
 
-            $totalUsd = $totalesHistoricos['neto_usd'];
-            $totalBs = $totalesHistoricos['neto_bs'];
+            $totalUsd = $totalesHistoricos['total_neto_usd'];
+            $totalBs = $totalesHistoricos['total_neto_bs'];
 
-            $totalHoyUsd = $totalesHoy['neto_usd'];
-            $totalHoyBs = $totalesHoy['neto_bs'];
+            $totalHoyUsd = $totalesHoy['total_neto_usd'];
+            $totalHoyBs = $totalesHoy['total_neto_bs'];
 
             $ventasValidas = $ventas->where('estado', '!=', 'anulada');
             $totalCreditoUsd = (float) $ventasValidas->where('condicion_pago', 'credito')->sum('saldo_pendiente_usd');

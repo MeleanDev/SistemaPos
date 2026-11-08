@@ -54,9 +54,33 @@ class VentaNetaQuery
 
     /**
      * Calcula los totales agregados de ventas válidas, devoluciones y ventas netas.
+     * Soporta recibir una instancia de Builder o los parámetros tradicionales (empresaId, fechaInicio, fechaFin, etc.)
      */
-    public static function calcularTotales(Builder $query): array
-    {
+    public static function calcularTotales(
+        Builder|int $query,
+        ?string $fechaInicio = null,
+        ?string $fechaFin = null,
+        ?int $vendedorId = null,
+        ?int $cajaTurnoId = null
+    ): array {
+        if (is_int($query)) {
+            $empresaId = $query;
+            $builder = self::validas($empresaId);
+            if ($fechaInicio) {
+                $builder->whereDate('ventas.fecha_emision', '>=', $fechaInicio);
+            }
+            if ($fechaFin) {
+                $builder->whereDate('ventas.fecha_emision', '<=', $fechaFin);
+            }
+            if ($vendedorId) {
+                $builder->where('ventas.vendedor_id', $vendedorId);
+            }
+            if ($cajaTurnoId) {
+                $builder->where('ventas.caja_turno_id', $cajaTurnoId);
+            }
+            $query = $builder;
+        }
+
         $clonQuery = clone $query;
 
         $totales = $clonQuery->selectRaw('
@@ -90,10 +114,16 @@ class VentaNetaQuery
         return [
             'total_bruto_usd' => $brutoUsd,
             'total_bruto_bs' => $brutoBs,
+            'bruto_usd' => $brutoUsd,
+            'bruto_bs' => $brutoBs,
             'total_devuelto_usd' => round($totalDevueltoUsd, 2),
             'total_devuelto_bs' => round($totalDevueltoBs, 2),
+            'devuelto_usd' => round($totalDevueltoUsd, 2),
+            'devuelto_bs' => round($totalDevueltoBs, 2),
             'total_neto_usd' => $netoUsd,
             'total_neto_bs' => $netoBs,
+            'neto_usd' => $netoUsd,
+            'neto_bs' => $netoBs,
             'subtotal_bruto_usd' => round((float) ($totales->subtotal_bruto_usd ?? 0), 2),
             'subtotal_bruto_bs' => round((float) ($totales->subtotal_bruto_bs ?? 0), 2),
             'total_comisiones_usd' => round((float) ($totales->total_comisiones_usd ?? 0), 2),

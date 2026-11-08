@@ -267,13 +267,13 @@ class PanelPrincipalClass
             }
 
             if ($turnoActivo) {
-                $totalesTurno = VentaNetaQuery::calcularTotales($empresaId, null, null, null, (int) $turnoActivo->id);
-                $ventasTotalUsd = $totalesTurno['neto_usd'];
-                $ventasTotalBs = $totalesTurno['neto_bs'];
+                $queryTurno = VentaNetaQuery::validas($empresaId)
+                    ->where('caja_turno_id', $turnoActivo->id);
+                $totalesTurno = VentaNetaQuery::calcularTotales($queryTurno);
+                $ventasTotalUsd = $totalesTurno['total_neto_usd'];
+                $ventasTotalBs = $totalesTurno['total_neto_bs'];
 
-                $ventasTurnoIds = VentaNetaQuery::validas($empresaId)
-                    ->where('caja_turno_id', $turnoActivo->id)
-                    ->pluck('id');
+                $ventasTurnoIds = (clone $queryTurno)->pluck('id');
 
                 $pagosTurno = VentaPago::whereIn('venta_id', $ventasTurnoIds)
                     ->with('metodoPago')
