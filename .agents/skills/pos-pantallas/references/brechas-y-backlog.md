@@ -30,7 +30,7 @@ Estados: ⏳ pendiente · 🔄 en curso · ✅ hecho · 🔒 bloqueado por backl
 ### Fase P2 — Acciones sobre la factura (🔒 depende de B-09 y B-10)
 | ID | Tarea | Aceptación | Estado |
 |---|---|---|:--:|
-| P-10 | Facturas: acciones de fila y detalle: Reimprimir, **Anular** (modal con motivo), **Devolver** (modal de renglones), condicionadas por estado y `ventas.anular`. | Botones visibles según estado/permiso; anulada muestra sello y motivo. | ✅ |
+| P-10 | Facturas: acciones de fila y detalle: Reimprimir, **Anular** (modal con motivo), **Devolver** (modal de renglones), condicionadas por estado y `ventas.anular`. | Botones visibles según estado/permiso; anulada muestra sello y motivo; modal de devolución operativo. | ✅ |
 | P-11 | Mover buscador/flujo de devolución del POS a Facturas y eliminar rutas/JS del POS. | POS sin devolución; ruta antigua eliminada tras migrar. | ✅ |
 | P-12 | Detalle de factura: pestañas Pagos, Devoluciones/Anulación, CXC y abonos, Comisión. | Un solo lugar para ver el historial completo de la factura. | ✅ |
 

@@ -250,7 +250,7 @@ class FacturaController extends Controller
             $empresaId = $this->obtenerEmpresaId();
             $venta = Venta::with([
                 'cliente:id,nombre,apellido,cedula',
-                'detalles.producto:id,nombre,codigo_barra',
+                'detalles.producto:id,nombre,codigo_interno',
                 'detalles.moto:id,marca,modelo,placa',
                 'detalles.servicio:id,nombre',
                 'devoluciones.detalles',

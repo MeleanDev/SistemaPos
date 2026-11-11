@@ -28,7 +28,7 @@ EMPRESAS (raíz multi-tenant)
 
 ## 3. Contratos por módulo
 1. **Empresas:** entidad maestra; todo se acota por `empresa_id`.
-2. **Productos & Servicios:** `tipo` = `producto` (con stock) o `servicio` (sin stock/almacén, precio bidireccional USD↔Bs). Unidades: `unidad, kilo, gramo, litro, bulto, caja, paquete, metro`. Fiscal: `aplica_iva`+`iva_porcentaje`. Precios: costo, detal, mayorista. (IGTF no implementado por ahora, campos inertes).
+2. **Productos & Servicios:** `tipo` = `producto` (con stock) o `servicio` (sin stock/almacén, precio bidireccional USD↔Bs). La tabla `productos` identifica el ítem con `codigo_interno` (SKU); los códigos de barra residen en la relación `codigosBarra` (`producto_codigos_barra.codigo_barra`), **no** existe columna `codigo_barra` en `productos`. Unidades: `unidad, kilo, gramo, litro, bulto, caja, paquete, metro`. Fiscal: `aplica_iva`+`iva_porcentaje`. Precios: costo, detal, mayorista. (IGTF no implementado por ahora, campos inertes).
 3. **Recepción de mercancía:** wizard de 2 fases (cabecera fiscal/proveedor/condición; renglones, costos, márgenes, resumen). Bimonetaria con tasa congelada. Recuerda `ultimo_margen_detal/mayorista`, vincula `producto_proveedores`, imprime `/recepciones/{id}/imprimir` y asienta Kardex `entrada_recepcion`. Si es a crédito, crea registro en `cuentas_por_pagar`.
 4. **Motos/vehículos:** por lote con seriales únicos (N.I.V./V.I.N. 17 caracteres, chasis, motor, certificado de origen, placa) y atributos (marca, modelo, año, color, cilindrada, ref). Estados: `disponible`, `reservada`, `vendida`, `en_mantenimiento`.
 5. **Traslados:** movimiento atómico entre almacenes con doble asiento Kardex (`traslado_salida` en origen y `traslado_entrada` en destino), actualizando la ubicación física de seriales y productos con `lockForUpdate`.
@@ -48,7 +48,7 @@ EMPRESAS (raíz multi-tenant)
 - **Vendedores y Comisiones:** catálogo por `empresa_id` (`tipo_documento`, `documento`, `nombre`, `telefono`, `correo`, `comision_porcentaje`), vínculo opcional a `users.id` con unicidad `(empresa_id, user_id)`. La comisión se **congela** al facturar sobre el subtotal neto sin IVA. Liquidación de comisiones con `permission:vendedores.liquidar` y egreso opcional en caja.
 - **Exclusividad de turnos:** un cajero solo puede tener 1 turno abierto por empresa; una caja física solo 1 turno abierto.
 - **Corte X** (`/cajas/turnos/{id}/reporte-x` · `imprimir-x`): auditoría en vivo sin cerrar. **Cierre Z** (`/cajas/turnos/{id}/cerrar` · `imprimir-z`): conteo físico (`monto_cierre_usd/bs`), diferencia (Exacto/Sobrante/Faltante), ticket con firmas. Cajero a ciegas; Admin/SuperAdmin ven esperado.
-- **POS:** exige turno abierto, dispara Corte X/Cierre Z y atribuye vendedor en el cajón de cobro.
+- **POS:** exige turno abierto, incluye atajo de auditoría Corte X (el Cierre Z vive exclusivamente en Cajas y Turnos) y atribuye vendedor en el cajón de cobro.
 
 ## 5. Borradores de recepciones (productos y motos)
 1. Autoguardado local con debounce de 500ms en `localStorage` (`draft_recepcion_producto` / `draft_recepcion_moto`).

@@ -25,6 +25,7 @@ Estados: ⏳ pendiente · 🔄 en curso · ✅ hecho.
 | B-11 | **Abono CXC** actualiza `ventas.monto_pagado/saldo_pendiente`, exige turno abierto, rechaza sobrepago. | Test: factura refleja el abono; sin turno → error. | ✅ |
 | B-12 | Lock (`lockForUpdate`) en motos/seriales/ventas durante facturar, anular y devolver. | Segundo intento sobre la misma moto falla. | ✅ |
 | B-13 | FK `caja_turnos.user_id` sin `cascade` (pasar a `restrict`); evitar borrar usuarios con turnos. | Borrar usuario con turnos → error controlado. | ✅ |
+| B-14 | Corregir endpoint `devolucionDatos` en `FacturaController`: eliminar proyección de columna inexistente `codigo_barra` en relación `detalles.producto` (la tabla `productos` usa `codigo_interno` y relación `codigosBarra`). | Modal de devolución abre y lista ítems sin error 500 / 1054 Unknown column. | ✅ |
 
 ## Fase 2 — Roles y vendedores (ref: `vendedores-comisiones.md`, `roles-acciones.md`)
 | ID | Tarea | Aceptación | Estado |
